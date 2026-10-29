@@ -3,7 +3,7 @@ import { Lightbulb, ArrowUpRight } from "lucide-react";
 
 export const HomeFooter: React.FC = () => {
   return (
-    <footer className="pt-1 flex items-center justify-between text-[11px] text-[#6B7483] select-none flex-wrap gap-2">
+    <footer className="shrink-0 pt-1 flex items-center justify-between text-[11px] text-[#6B7483] select-none flex-wrap gap-2">
       {/* Helpful tip (Figma Node #3:1368) */}
       <div className="flex items-center gap-1.5">
         <Lightbulb className="w-[13px] h-[13px] text-[#6B7483] shrink-0" />

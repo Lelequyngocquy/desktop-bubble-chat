@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Home,
   Unplug,
@@ -9,60 +9,65 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { useAppStore } from "../../stores/appStore";
+import { NavTab, NavigationItemConfig } from "../../types";
+import { MOCK_NAVIGATION_ITEMS } from "../../mocks";
 import { AvatarCircle } from "../common";
 
-type NavTab = "home" | "connections" | "chat-heads" | "notifications";
-
 export const Sidebar: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<NavTab>("home");
-  const { conversations } = useAppStore();
+  const {
+    activeTab,
+    setActiveTab,
+    conversations,
+    isMessengerConnected,
+    systemUser,
+    systemUserInitials,
+  } = useAppStore();
 
-  const primaryNavItems: {
-    id: NavTab;
-    label: string;
-    icon: React.ReactNode;
-    badge?: number | string;
-  }[] = [
-    {
-      id: "home",
-      label: "Home",
-      icon: <Home className="w-[18px] h-[18px]" />,
-    },
-    {
-      id: "connections",
-      label: "Kết nối",
-      icon: <Unplug className="w-[18px] h-[18px]" />,
-      badge: 1,
-    },
-    {
-      id: "chat-heads",
-      label: "Chat heads",
-      icon: <MessageSquare className="w-[18px] h-[18px]" />,
-      badge: conversations.length,
-    },
-    {
-      id: "notifications",
-      label: "Thông báo",
-      icon: <Bell className="w-[18px] h-[18px]" />,
-    },
-  ];
+  const navIconMap: Record<NavigationItemConfig["iconName"], React.ReactNode> = {
+    Home: <Home className="w-[18px] h-[18px]" />,
+    Unplug: <Unplug className="w-[18px] h-[18px]" />,
+    MessageSquare: <MessageSquare className="w-[18px] h-[18px]" />,
+    Bell: <Bell className="w-[18px] h-[18px]" />,
+    Settings2: <Settings2 className="w-[18px] h-[18px]" />,
+  };
+
+  const getBadgeForTab = (id: NavTab): number | string | undefined => {
+    switch (id) {
+      case "connections":
+        return isMessengerConnected ? 1 : 0;
+      case "chat-heads":
+        return conversations.length;
+      default:
+        return undefined;
+    }
+  };
+
+  const primaryNavItems = MOCK_NAVIGATION_ITEMS.map((item) => ({
+    id: item.id,
+    label: item.label,
+    icon: navIconMap[item.iconName],
+    badge: getBadgeForTab(item.id),
+  }));
 
   return (
     <aside className="w-[232px] shrink-0 bg-[#EEF2F9] border-r border-[#E2E7EF] flex flex-col justify-between p-[14px_12px_16px] select-none h-full overflow-hidden">
       {/* Top section: Profile & Primary Nav */}
       <div className="flex flex-col gap-6">
-        {/* Profile (Figma Node #3:1160) */}
-        <div className="flex items-center gap-[11px] px-[10px] pb-2 cursor-pointer hover:opacity-90 transition-opacity">
+        {/* Profile (Figma Node #3:1160 & #20:1070) - Windows User Profile */}
+        <div
+          onClick={() => setActiveTab("home")}
+          className="flex items-center gap-[11px] px-[10px] pb-2 cursor-pointer hover:opacity-90 transition-opacity"
+        >
           <AvatarCircle
             size={42}
-            text="MA"
+            text={systemUserInitials}
             bg="#EAF2FF"
             textColor="#0759DB"
             className="shadow-xs"
           />
           <div className="flex flex-col gap-[2px] overflow-hidden">
             <span className="text-[14px] font-semibold text-[#202733] truncate leading-tight">
-              Minh Anh
+              {systemUser}
             </span>
             <span className="text-[11px] text-[#6B7483] truncate leading-tight">
               Không gian cá nhân
@@ -70,7 +75,7 @@ export const Sidebar: React.FC = () => {
           </div>
         </div>
 
-        {/* Primary Navigation (Figma Node #3:1166) */}
+        {/* Primary Navigation (Figma Node #3:1166 & #20:1076) */}
         <nav className="flex flex-col gap-[5px]">
           {primaryNavItems.map((item) => {
             const isActive = activeTab === item.id;
@@ -84,7 +89,7 @@ export const Sidebar: React.FC = () => {
                     : "hover:bg-white/40 active:bg-white/60"
                 }`}
               >
-                {/* Active selection indicator (Figma Node #3:1168) */}
+                {/* Active selection indicator (Figma Node #3:1168 & #20:1082) */}
                 {isActive && (
                   <div className="absolute left-0 top-[13px] w-[3px] h-[16px] bg-[#0866FF] rounded-[2px]" />
                 )}
@@ -100,22 +105,23 @@ export const Sidebar: React.FC = () => {
                     {item.icon}
                   </span>
                   <span
-                    className={`text-[14px] transition-colors ${
+                    className={`text-[14px] leading-tight transition-colors ${
                       isActive
                         ? "font-semibold text-[#0759DB]"
-                        : "font-normal text-[#202733]"
+                        : "font-normal text-[#202733] group-hover:text-[#202733]"
                     }`}
                   >
                     {item.label}
                   </span>
                 </div>
 
+                {/* Badge if present (Figma Node #3:1175 & #20:1086) */}
                 {item.badge !== undefined && (
                   <span
-                    className={`text-[12px] px-1.5 py-0.5 rounded-full ${
+                    className={`text-[12px] font-normal px-1.5 py-0.5 rounded-full ${
                       isActive
-                        ? "text-[#0759DB] font-medium"
-                        : "text-[#6B7483] font-normal"
+                        ? "text-[#0759DB]"
+                        : "text-[#6B7483] group-hover:text-[#202733]"
                     }`}
                   >
                     {item.badge}
@@ -127,39 +133,42 @@ export const Sidebar: React.FC = () => {
         </nav>
       </div>
 
-      {/* Bottom section: Background service info & Secondary Nav */}
+      {/* Bottom section: Background service, Secondary Nav & Version */}
       <div className="flex flex-col gap-4">
-        {/* Background Service Status Card (Figma Node #3:1183) */}
-        <div className="p-[14px] bg-white/50 border border-white/75 rounded-[8px] flex flex-col gap-2 shadow-sm backdrop-blur-xs">
+        {/* Background Service Card (Figma Node #3:1181 & #20:1097) */}
+        <div className="bg-white/50 border border-white/75 rounded-[8px] p-[14px] flex flex-col gap-2">
           <div className="flex items-center gap-2 text-[#202733]">
-            <CheckCircle2 className="w-4 h-4 text-[#25805C] shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-[#25805C]" />
             <span className="text-[12px] font-medium leading-none">
               Đang chạy nền
             </span>
           </div>
-          <p className="text-[11px] text-[#6B7483] leading-[1.45em] m-0">
+          <p className="text-[11px] text-[#6B7483] leading-snug m-0">
             Đóng cửa sổ vẫn giữ chat heads hoạt động.
           </p>
         </div>
 
-        {/* Secondary Navigation (Figma Node #3:1188) */}
+        {/* Secondary Navigation (Figma Node #3:1188 & #20:1103) */}
         <div className="flex flex-col gap-1">
-          <button className="flex items-center gap-3 h-[38px] px-3 rounded-[6px] text-[#202733] hover:bg-white/40 active:bg-white/60 transition-colors text-left">
+          <button
+            onClick={() => setActiveTab("settings")}
+            className="flex items-center gap-3 h-[38px] px-3 rounded-[6px] hover:bg-white/40 active:bg-white/60 transition-colors text-left text-[#202733]"
+          >
             <Settings2 className="w-[18px] h-[18px] text-[#6B7483]" />
             <span className="text-[13px] font-normal">Cài đặt</span>
           </button>
-
-          <button className="flex items-center gap-3 h-[38px] px-3 rounded-[6px] text-[#202733] hover:bg-white/40 active:bg-white/60 transition-colors text-left">
+          <button
+            onClick={() => {}}
+            className="flex items-center gap-3 h-[38px] px-3 rounded-[6px] hover:bg-white/40 active:bg-white/60 transition-colors text-left text-[#202733]"
+          >
             <HelpCircle className="w-[18px] h-[18px] text-[#6B7483]" />
             <span className="text-[13px] font-normal">Trợ giúp & phản hồi</span>
           </button>
+        </div>
 
-          {/* App Version Info (Figma Node #3:1195) */}
-          <div className="pt-2 pl-[42px]">
-            <span className="text-[11px] text-[#929AA7] tracking-tight">
-              Phiên bản 1.0.0 · Windows 11
-            </span>
-          </div>
+        {/* App Version (Figma Node #3:1195 & #20:1112) */}
+        <div className="pt-2 pl-[42px] text-[11px] text-[#929AA7]">
+          Phiên bản 1.0.0 · Windows 11
         </div>
       </div>
     </aside>

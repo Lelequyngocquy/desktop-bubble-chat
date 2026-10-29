@@ -1,7 +1,10 @@
 import React from "react";
-import { ArrowUpRight, Activity, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, Activity, ShieldCheck, LogIn } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../../stores/appStore";
+import { PlatformId } from "../../types";
+import { MOCK_PLATFORMS } from "../../mocks";
+import { PlatformIcon } from "../icons";
 import {
   AvatarCircle,
   AvatarSquareRounded,
@@ -9,39 +12,52 @@ import {
 } from "../common";
 
 export const MessengerConnectionCard: React.FC = () => {
-  const { unreadCount, conversations, setIsChatOpen } = useAppStore();
+  const {
+    unreadCount,
+    conversations,
+    setIsChatOpen,
+    isMessengerConnected,
+    connectedAccount,
+    setActiveTab,
+  } = useAppStore();
+
+  const messengerConfig = MOCK_PLATFORMS[PlatformId.MESSENGER];
 
   const handleOpenMessenger = async () => {
+    if (!isMessengerConnected) {
+      // Chuyển sang tab Kết nối để xác thực
+      setActiveTab("connections");
+      return;
+    }
     try {
-      const isOpen = await invoke<boolean>("toggle_chat");
-      setIsChatOpen(isOpen);
+      await invoke("open_chat");
+      setIsChatOpen(true);
     } catch {
-      // In standard browser dev preview
+      // Browser preview fallback
       setIsChatOpen(true);
     }
   };
 
   return (
-    <div className="bg-white border border-[#E2E7EF] rounded-[12px] shadow-card overflow-hidden flex flex-col select-none">
+    <div className="shrink-0 bg-white border border-[#E2E7EF] rounded-[12px] shadow-card overflow-hidden flex flex-col select-none">
       {/* Top Connection Details Area (Figma Node #3:1208) */}
       <div className="p-6 flex items-center justify-between gap-6 flex-wrap lg:flex-nowrap">
         {/* Left: Platform Identity & Account Actions */}
-        <div className="flex flex-col gap-5 flex-1 min-w-[320px]">
+        <div className="flex flex-col gap-5 flex-1 min-w-0 sm:min-w-[320px]">
           {/* Platform Identity (Figma Node #3:1210) */}
           <div className="flex items-center gap-[14px]">
             {/* Messenger Logo */}
             <AvatarSquareRounded
               size={52}
               radius={14.5}
-              bg="#0866FF"
+              bg={messengerConfig.brandColor}
               shadow
               icon={
-                <svg
-                  viewBox="0 0 36 36"
-                  className="w-[34px] h-[34px] fill-white"
-                >
-                  <path d="M18 1C8.61 1 1 8.16 1 17c0 5.04 2.5 9.54 6.43 12.45V35l5.29-2.91c1.68.47 3.46.72 5.28.72 9.39 0 17-7.16 17-16S27.39 1 18 1zm1.75 21.62l-4.34-4.63-8.48 4.63 9.33-9.91 4.45 4.63 8.37-4.63-9.33 9.91z" />
-                </svg>
+                <PlatformIcon
+                  platformId={PlatformId.MESSENGER}
+                  size={34}
+                  className="fill-white"
+                />
               }
             />
 
@@ -49,17 +65,26 @@ export const MessengerConnectionCard: React.FC = () => {
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-3">
                 <span className="text-[22px] font-semibold text-[#202733] leading-none">
-                  Messenger
+                  {messengerConfig.name}
                 </span>
-                <div className="flex items-center gap-1.5 px-[10px] py-1 bg-[#EAF6EF] rounded-full">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#25805C]" />
-                  <span className="text-[12px] font-medium text-[#25805C] leading-none">
-                    Đã kết nối
-                  </span>
-                </div>
+                {isMessengerConnected ? (
+                  <div className="flex items-center gap-1.5 px-[10px] py-1 bg-[#EAF6EF] rounded-full">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#25805C]" />
+                    <span className="text-[12px] font-medium text-[#25805C] leading-none">
+                      Đã kết nối
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 px-[10px] py-1 bg-[#FFF3E8] rounded-full">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#D97706]" />
+                    <span className="text-[12px] font-medium text-[#D97706] leading-none">
+                      Chưa kết nối
+                    </span>
+                  </div>
+                )}
               </div>
               <span className="text-[13px] text-[#6B7483]">
-                Kết nối trực tiếp qua Smart WebView Wrapper
+                {messengerConfig.tagline}
               </span>
             </div>
           </div>
@@ -70,63 +95,71 @@ export const MessengerConnectionCard: React.FC = () => {
             <div className="flex items-center gap-2.5">
               <AvatarCircle
                 size={32}
-                text="MA"
-                bg="#EAF2FF"
-                textColor="#0759DB"
+                text={connectedAccount ? connectedAccount.avatarText : "—"}
+                bg={isMessengerConnected ? "#EAF2FF" : "#EEF2F9"}
+                textColor={isMessengerConnected ? "#0759DB" : "#6B7483"}
               />
               <div className="flex flex-col">
                 <span className="text-[13px] font-medium text-[#202733] leading-tight">
-                  Minh Anh
+                  {connectedAccount ? connectedAccount.name : "Chưa liên kết tài khoản"}
                 </span>
                 <span className="text-[11px] text-[#6B7483] leading-tight">
-                  Đồng bộ vừa xong
+                  {isMessengerConnected
+                    ? "Đồng bộ vừa xong"
+                    : "Đăng nhập tại tab Kết nối"}
                 </span>
               </div>
             </div>
 
             {/* Action buttons */}
             <div className="flex items-center gap-2">
-              <CommonButton variant="outline">
+              <CommonButton
+                variant="outline"
+                onClick={() => setActiveTab("connections")}
+              >
                 Quản lý
               </CommonButton>
               <CommonButton
                 variant="primary"
                 onClick={handleOpenMessenger}
-                iconTrailing={<ArrowUpRight className="w-4 h-4" />}
+                iconTrailing={
+                  isMessengerConnected ? (
+                    <ArrowUpRight className="w-4 h-4" />
+                  ) : (
+                    <LogIn className="w-4 h-4" />
+                  )
+                }
               >
-                Mở Messenger
+                {isMessengerConnected ? `Mở ${messengerConfig.name}` : "Kết nối ngay"}
               </CommonButton>
             </div>
           </div>
         </div>
 
-        {/* Section Divider (Figma Node #3:1233) */}
-        <div className="hidden lg:block w-[1px] h-[112px] bg-[#E2E7EF] shrink-0" />
-
-        {/* Right Overview Metrics Box (Figma Node #3:1234) */}
-        <div className="w-full lg:w-[276px] bg-[#F8FAFD] border border-[#E2E7EF]/60 rounded-[8px] p-[18px] flex flex-col gap-[14px] shrink-0">
-          <div className="flex items-center gap-[7px] text-[#6B7483]">
-            <Activity className="w-[15px] h-[15px]" />
-            <span className="text-[12px] font-medium text-[#6B7483]">
+        {/* Right: Metrics Column (Figma Node #3:1232) */}
+        <div className="w-full lg:w-[250px] shrink-0 border-t lg:border-t-0 lg:border-l border-[#E2E7EF] pt-4 lg:pt-0 lg:pl-6 flex flex-col justify-center gap-3">
+          <div className="flex items-center gap-1.5 text-[#6B7483]">
+            <Activity className="w-[14px] h-[14px]" />
+            <span className="text-[11px] font-medium tracking-wider uppercase">
               Trạng thái hiện tại
             </span>
           </div>
 
-          <div className="flex items-center justify-between gap-6">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[28px] font-semibold text-[#202733] leading-none">
-                {conversations.length}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col">
+              <span className="text-[26px] font-bold text-[#202733] leading-none">
+                {isMessengerConnected ? conversations.length : 0}
               </span>
-              <span className="text-[11px] text-[#6B7483] whitespace-nowrap">
+              <span className="text-[12px] text-[#6B7483] mt-1">
                 Chat heads đang bật
               </span>
             </div>
 
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[28px] font-semibold text-[#202733] leading-none">
-                {unreadCount}
+            <div className="flex flex-col">
+              <span className="text-[26px] font-bold text-[#202733] leading-none">
+                {isMessengerConnected ? unreadCount : 0}
               </span>
-              <span className="text-[11px] text-[#6B7483] whitespace-nowrap">
+              <span className="text-[12px] text-[#6B7483] mt-1">
                 Tin chưa đọc
               </span>
             </div>
@@ -134,11 +167,12 @@ export const MessengerConnectionCard: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Reassurance Banner (Figma Node #3:1245) */}
-      <div className="h-10 px-6 bg-[#EAF2FF] border-t border-[#0866FF]/10 flex items-center gap-2">
-        <ShieldCheck className="w-[15px] h-[15px] text-[#0759DB] shrink-0" />
-        <span className="text-[12px] text-[#0759DB] truncate">
-          Phiên đăng nhập được lưu trên thiết bị. Bạn có thể ngắt kết nối bất cứ lúc nào trong Quản lý.
+      {/* Bottom Reassurance Banner (Figma Node #3:1243) */}
+      <div className="bg-[#EAF2FF] px-6 py-2.5 flex items-center gap-2 text-[#0759DB] border-t border-[#E2E7EF]/50">
+        <ShieldCheck className="w-4 h-4 shrink-0" />
+        <span className="text-[11px] font-normal leading-tight">
+          Phiên đăng nhập được lưu trên thiết bị này. Không gửi dữ liệu tài khoản
+          ra ngoài.
         </span>
       </div>
     </div>

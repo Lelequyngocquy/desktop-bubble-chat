@@ -3,16 +3,22 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TitleBar } from "./components/layout/TitleBar";
 import { Sidebar } from "./components/layout/Sidebar";
 import { HomeWorkspace } from "./components/home/HomeWorkspace";
+import { ConnectionsWorkspace } from "./components/connections/ConnectionsWorkspace";
 import { BubbleWindow } from "./components/bubble/BubbleWindow";
 import { useUnreadListener } from "./hooks/useUnreadListener";
+import { useAppStore } from "./stores/appStore";
 
 export const App: React.FC = () => {
   const [windowLabel, setWindowLabel] = useState<string>("main");
+  const { activeTab, fetchSystemUser } = useAppStore();
 
   // Lắng nghe sự kiện đồng bộ badge trên tất cả các cửa sổ
   useUnreadListener();
 
   useEffect(() => {
+    // Lấy thông tin tài khoản Windows khi khởi chạy
+    fetchSystemUser();
+
     try {
       const win = getCurrentWindow();
       if (win && win.label) {
@@ -21,7 +27,7 @@ export const App: React.FC = () => {
     } catch {
       // In standard browser Vite preview mode, default to 'main'
     }
-  }, []);
+  }, [fetchSystemUser]);
 
   // Check if this window is the floating bubble
   const isBubbleWindow =
@@ -31,25 +37,29 @@ export const App: React.FC = () => {
 
   if (isBubbleWindow) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-transparent overflow-hidden select-none">
+      <div className="w-16 h-16 flex items-center justify-center bg-transparent overflow-hidden select-none">
         <BubbleWindow />
       </div>
     );
   }
 
-  // Default: Desktop Main App (Home Page from Figma Node #3:1145)
+  // Default: Desktop Main App (Home Page / Connections / etc.)
   return (
     <div className="flex flex-col h-screen w-screen bg-[#EEF2F9] overflow-hidden text-[#202733] select-none font-sans border border-[#E2E7EF] shadow-window">
-      {/* 1. Custom Title Bar (Figma Node #3:1146) */}
+      {/* 1. Custom Title Bar (Figma Node #3:1146 & #20:1052) */}
       <TitleBar />
 
-      {/* 2. Main Workspace (Sidebar + Home Page Content) */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar Navigation (Figma Node #3:1159) */}
+      {/* 2. Main Workspace (Sidebar + Dynamic Workspace Content) */}
+      <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
+        {/* Sidebar Navigation (Figma Node #3:1159 & #20:1069) */}
         <Sidebar />
 
-        {/* Home Workspace (Figma Node #3:1197) */}
-        <HomeWorkspace />
+        {/* Dynamic Workspace */}
+        {activeTab === "connections" ? (
+          <ConnectionsWorkspace />
+        ) : (
+          <HomeWorkspace />
+        )}
       </div>
     </div>
   );
