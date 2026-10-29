@@ -24,5 +24,11 @@ dist-ssr
 *.sw?
 
 #plan
-# build_md 
+build_md/
 
+# Markdown files (ignore all except README.md)
+*.md
+!README.md
+!**/README.md
+!readme.md
+!**/readme.md
