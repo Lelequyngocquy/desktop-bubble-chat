@@ -25,7 +25,7 @@ dist-ssr
 
 #plan
 build_md/
-
+graphify-out/
 # Markdown files (ignore all except README.md)
 *.md
 !README.md

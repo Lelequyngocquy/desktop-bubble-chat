@@ -4,7 +4,6 @@ pub mod bubble;
 pub mod chat;
 pub mod system;
 
-pub use auth::*;
 pub use badge::*;
 pub use bubble::*;
 pub use chat::*;

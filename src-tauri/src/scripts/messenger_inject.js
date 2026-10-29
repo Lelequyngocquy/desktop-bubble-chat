@@ -1,20 +1,94 @@
 // Preload script inject vào Messenger Web (420x620)
 (function () {
-  // 1. Giữ mọi chuyển hướng (popup, OAuth, Captcha, "Continue as...") bên trong cùng cửa sổ
+  const TARGET_MESSENGER_URL = "https://www.messenger.com/";
+
+  // 1. BẢO VỆ ĐIỀU HƯỚNG: Luôn giữ trong messenger.com, tự động chuyển về Messenger khi gặp URL lạ hoặc Facebook
+  function enforceMessengerUrl() {
+    try {
+      const hostname = window.location.hostname || "";
+      const pathname = window.location.pathname || "";
+      const url = window.location.href || "";
+
+      if (!hostname || url === "about:blank") return false;
+
+      // Cho phép các trang checkpoint / 2FA hợp lệ nếu đang đăng nhập
+      const is2FA = hostname.includes("facebook.com") && (
+        pathname.includes("/checkpoint") ||
+        url.includes("checkpoint") ||
+        pathname.includes("/two_step_verification")
+      );
+
+      // Nếu không phải domain messenger.com và không phải trang 2FA -> Chuyển hướng ngay về Messenger
+      if (!hostname.includes("messenger.com") && !is2FA) {
+        window.location.replace(TARGET_MESSENGER_URL);
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  // Thực thi kiểm tra ngay khi script nạp vào trang
+  if (enforceMessengerUrl()) {
+    return;
+  }
+
+  // 2. Chặn window.open và popup ngoài: Chỉ mở nội bộ nếu là messenger.com / 2FA
   try {
     window.open = function (url) {
-      if (url && typeof url === "string") {
-        window.location.href = url;
+      if (!url) return null;
+      const urlStr = String(url);
+      try {
+        const parsed = new URL(urlStr, window.location.origin);
+        if (parsed.hostname.includes("messenger.com") || parsed.pathname.includes("/checkpoint")) {
+          window.location.href = urlStr;
+          return window;
+        }
+      } catch (e) {}
+
+      // Mở link ngoài / bài viết Facebook bằng trình duyệt mặc định của hệ thống
+      if (window.__TAURI__ && window.__TAURI__.core) {
+        window.__TAURI__.core.invoke("open_external_url", { url: urlStr }).catch(() => {});
       }
-      return window;
+      return null;
     };
   } catch (e) {}
 
-  // 2. Tự động kiểm tra trạng thái xác thực và gắn thẻ vào document.title
+  // 3. Chặn click thẻ <a> chuyển hướng ra ngoài messenger.com
+  document.addEventListener(
+    "click",
+    function (e) {
+      const anchor = e.target && e.target.closest ? e.target.closest("a") : null;
+      if (!anchor || !anchor.href) return;
+
+      const href = anchor.href;
+      if (href.startsWith("javascript:") || href.startsWith("#")) return;
+
+      try {
+        const parsed = new URL(href, window.location.origin);
+        if (parsed.hostname.includes("messenger.com") || parsed.pathname.includes("/checkpoint")) {
+          return;
+        }
+
+        // Chặn không cho webview chuyển trang tới URL lạ hoặc Facebook
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Mở ra trình duyệt ngoài
+        if (window.__TAURI__ && window.__TAURI__.core) {
+          window.__TAURI__.core.invoke("open_external_url", { url: href }).catch(() => {});
+        }
+      } catch (err) {}
+    },
+    true
+  );
+
+  // 4. Tự động kiểm tra trạng thái xác thực và gắn thẻ vào document.title
   const AUTH_TAG = " [AUTH_OK]";
 
   function checkAndTagAuthStatus() {
     try {
+      enforceMessengerUrl();
+
       const url = window.location.href || "";
       const pathname = window.location.pathname || "";
       const hostname = window.location.hostname || "";
@@ -66,7 +140,7 @@
     }
   }
 
-  // 3. Tự động trích xuất số tin nhắn chưa đọc từ document.title
+  // 5. Tự động trích xuất số tin nhắn chưa đọc từ document.title
   let lastBadgeCount = -1;
 
   function reportBadge() {
@@ -110,10 +184,11 @@
     initObserver();
   }
 
-  // Kiểm tra định kỳ mỗi 1.2 giây
-  setInterval(reportBadge, 1200);
+  // Kiểm tra định kỳ mỗi 800ms
+  setInterval(reportBadge, 800);
+  setInterval(enforceMessengerUrl, 500);
 
-  // 4. Inject CSS thu gọn Messenger vừa vặn khung popup 420x620
+  // 6. Inject CSS thu gọn Messenger vừa vặn khung popup 420x620
   const styleId = "desktop-bubble-chat-style";
   if (!document.getElementById(styleId)) {
     const style = document.createElement("style");

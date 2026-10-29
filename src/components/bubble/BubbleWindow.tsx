@@ -1,5 +1,5 @@
 import React from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { messengerService } from "../../services/messenger";
 import { useAppStore } from "../../stores/appStore";
 import { useBubbleDrag } from "../../hooks/useBubbleDrag";
 import { MessengerIcon } from "../icons";
@@ -9,7 +9,7 @@ export const BubbleWindow: React.FC = () => {
 
   const handleBubbleClick = async () => {
     try {
-      const isOpen = await invoke<boolean>("toggle_chat");
+      const isOpen = await messengerService.toggleChat();
       setIsChatOpen(isOpen);
     } catch {
       // In standard browser dev preview

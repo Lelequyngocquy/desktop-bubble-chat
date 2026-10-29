@@ -2,7 +2,7 @@ import React from "react";
 import { MonitorCheck } from "lucide-react";
 import { useAppStore } from "../../stores/appStore";
 import { TabHeader } from "../common/TabHeader";
-import { MessengerConnectionCard } from "./MessengerConnectionCard";
+import { MessengerConnectionCard } from "./messenger";
 import { ActiveChatHeads } from "./ActiveChatHeads";
 import { QuickSettings } from "./QuickSettings";
 import { PlatformRoadmap } from "./PlatformRoadmap";

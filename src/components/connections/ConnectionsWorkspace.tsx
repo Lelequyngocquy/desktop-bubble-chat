@@ -2,11 +2,13 @@ import React from "react";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 import { useAppStore } from "../../stores/appStore";
 import { TabHeader } from "../common/TabHeader";
-import { MessengerManagerCard } from "./MessengerManagerCard";
-import { ConnectionExplainerCard } from "./ConnectionExplainerCard";
+import {
+  MessengerManagerCard,
+  MessengerExplainerCard,
+  MessengerTroubleshoot,
+} from "./messenger";
 import { PlatformRoadmap } from "../home/PlatformRoadmap";
 import { ConnectionsFooter } from "./ConnectionsFooter";
-import { ConnectionTroubleshoot } from "./ConnectionTroubleshoot";
 
 export const ConnectionsWorkspace: React.FC = () => {
   const { isMessengerConnected } = useAppStore();
@@ -70,14 +72,14 @@ export const ConnectionsWorkspace: React.FC = () => {
         {/* Khối quản lý 2 cột */}
         <div className="shrink-0 flex flex-col xl:flex-row items-stretch gap-6">
           <MessengerManagerCard />
-          <ConnectionExplainerCard />
+          <MessengerExplainerCard />
         </div>
 
         {/* Lộ trình nền tảng sắp tới */}
         <PlatformRoadmap />
 
         {/* Khối khắc phục sự cố */}
-        <ConnectionTroubleshoot />
+        <MessengerTroubleshoot />
 
         {/* Footer */}
         <ConnectionsFooter />

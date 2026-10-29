@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod platforms;
 pub mod state;
 pub mod tray;
 pub mod utils;
@@ -34,6 +35,7 @@ pub fn run() {
             commands::toggle_autostart,
             commands::is_autostart_enabled,
             commands::get_system_username,
+            commands::open_external_url,
             commands::exit_app
         ])
         .setup(move |app| {
@@ -48,10 +50,10 @@ pub fn run() {
             windows::bubble::setup_bubble_window(&app.handle());
 
             // 3. Quản lý sự kiện trên cửa sổ chat Messenger (Auto-hide on blur vs Auth Mode)
-            windows::chat::setup_chat_window(&app.handle(), Arc::clone(&chat_state_clone));
+            platforms::messenger::window::setup_chat_window(&app.handle(), Arc::clone(&chat_state_clone));
 
             // 4. Luồng giám sát trạng thái đăng nhập và URL của Messenger theo thời gian thực
-            watcher::start_auth_watcher(app.handle().clone(), Arc::clone(&chat_state_clone));
+            platforms::messenger::watcher::start_auth_watcher(app.handle().clone(), Arc::clone(&chat_state_clone));
 
             Ok(())
         })

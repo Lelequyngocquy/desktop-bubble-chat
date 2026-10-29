@@ -162,3 +162,49 @@ pub fn is_autostart_enabled() -> bool {
 pub fn exit_app(app: AppHandle) {
     app.exit(0);
 }
+
+// Command mở liên kết ngoài an toàn bằng trình duyệt mặc định của hệ điều hành
+#[tauri::command]
+pub fn open_external_url(url: String) -> Result<(), String> {
+    if url.starts_with("http://") || url.starts_with("https://") {
+        #[cfg(target_os = "windows")]
+        {
+            use std::ffi::OsStr;
+            use std::os::windows::ffi::OsStrExt;
+
+            let wide: Vec<u16> = OsStr::new(&url)
+                .encode_wide()
+                .chain(std::iter::once(0))
+                .collect();
+
+            #[link(name = "shell32")]
+            unsafe extern "system" {
+                fn ShellExecuteW(
+                    hwnd: *mut std::ffi::c_void,
+                    lpOperation: *const u16,
+                    lpFile: *const u16,
+                    lpParameters: *const u16,
+                    lpDirectory: *const u16,
+                    nShowCmd: i32,
+                ) -> isize;
+            }
+
+            unsafe {
+                ShellExecuteW(
+                    std::ptr::null_mut(),
+                    std::ptr::null(),
+                    wide.as_ptr(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    1, // SW_SHOWNORMAL
+                );
+            }
+            return Ok(());
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            return Ok(());
+        }
+    }
+    Err("Invalid URL scheme".into())
+}
