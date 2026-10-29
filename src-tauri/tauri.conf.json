@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tauri-app",
+  "productName": "DesktopBubbleChat",
   "version": "0.1.0",
   "identifier": "com.desktopbubblechat.app",
   "build": {
@@ -12,9 +12,46 @@
   "app": {
     "windows": [
       {
-        "title": "tauri-app",
-        "width": 800,
-        "height": 600
+        "label": "main",
+        "title": "DesktopBubbleChat",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 980,
+        "minHeight": 640,
+        "resizable": true,
+        "decorations": false,
+        "transparent": false,
+        "center": true
+      },
+      {
+        "label": "bubble",
+        "title": "DesktopBubbleChat - Bubble",
+        "url": "index.html?window=bubble",
+        "width": 64,
+        "height": 64,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
+        "visible": true
+      },
+      {
+        "label": "chat-messenger",
+        "title": "Messenger",
+        "url": "https://www.messenger.com/",
+        "width": 420,
+        "height": 620,
+        "minWidth": 380,
+        "minHeight": 500,
+        "resizable": true,
+        "decorations": false,
+        "transparent": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": true,
+        "visible": false
       }
     ],
     "security": {

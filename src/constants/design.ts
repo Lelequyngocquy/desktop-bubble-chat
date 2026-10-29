@@ -1,14 +1,6 @@
 /**
- * DesktopBubbleChat — Common UI constants
- *
- * Color      → Màu theo vai trò sử dụng.
- * Dimen      → Khoảng cách, padding, bo góc, kích thước.
- * Typography → Font, cỡ chữ, độ đậm.
+ * DesktopBubbleChat — Common UI constants (Figma Node 3:1145)
  */
-
-// ─────────────────────────────────────────
-// 1. COLOR
-// ─────────────────────────────────────────
 
 export const Color = {
   background: {
@@ -46,7 +38,6 @@ export const Color = {
     groupBackground: "#F2EEFF",
   },
 
-  // Bề mặt trắng có độ trong suốt trong thiết kế hiện tại
   overlay: {
     navigationSelected: "rgba(255, 255, 255, 0.69)",
     backgroundService: "rgba(255, 255, 255, 0.50)",
@@ -54,24 +45,18 @@ export const Color = {
   },
 } as const;
 
-// ─────────────────────────────────────────
-// 2. DIMENSION
-// ─────────────────────────────────────────
-
 export const Dimen = {
-  // Khoảng cách giữa các phần tử
   spacing: {
     none: 0,
-    xxs: 2,  // Giữa các dòng thông tin ngắn
-    xs: 4,   // Giữa tên và mô tả
-    sm: 8,   // Giữa icon và nhãn, giữa các nút
-    md: 12,  // Giữa avatar và nội dung
+    xxs: 2,
+    xs: 4,
+    sm: 8,
+    md: 12,
     lg: 16,
-    xl: 24,  // Giữa các khối nội dung chính
+    xl: 24,
     xxl: 32,
   },
 
-  // Khoảng cách bên trong thành phần
   padding: {
     toggle: 4,
     navigationX: 12,
@@ -88,10 +73,10 @@ export const Dimen = {
 
   borderRadius: {
     indicator: 2,
-    control: 6,  // Nút, mục điều hướng, badge nhỏ
-    panel: 8,    // Khối phụ, thẻ nền tảng
-    card: 12,    // Card chính
-    pill: 999,   // Badge, toggle; avatar cần chiều rộng = chiều cao
+    control: 6,
+    panel: 8,
+    card: 12,
+    pill: 999,
   },
 
   layout: {
@@ -99,10 +84,6 @@ export const Dimen = {
     titleBarHeight: 48,
   },
 } as const;
-
-// ─────────────────────────────────────────
-// 3. TYPOGRAPHY
-// ─────────────────────────────────────────
 
 export const Typography = {
   fontFamily: "Inter",
@@ -126,7 +107,6 @@ export const Typography = {
     bold: 700,
   },
 
-  // Tỷ lệ so với cỡ chữ, không phải px
   lineHeight: {
     default: 1.45,
     description: 1.4,

@@ -1,0 +1,7 @@
+/* Tinh chỉnh CSS cho Messenger Web trong khung popup 420x620 */
+@media (max-width: 500px) {
+  /* Ẩn panel thông tin bên phải */
+  div[role="complementary"] {
+    display: none !important;
+  }
+}

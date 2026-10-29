@@ -1,51 +1,58 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import React, { useState, useEffect } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { TitleBar } from "./components/layout/TitleBar";
+import { Sidebar } from "./components/layout/Sidebar";
+import { HomeWorkspace } from "./components/home/HomeWorkspace";
+import { BubbleWindow } from "./components/bubble/BubbleWindow";
+import { useUnreadListener } from "./hooks/useUnreadListener";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+export const App: React.FC = () => {
+  const [windowLabel, setWindowLabel] = useState<string>("main");
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+  // Lắng nghe sự kiện đồng bộ badge trên tất cả các cửa sổ
+  useUnreadListener();
+
+  useEffect(() => {
+    try {
+      const win = getCurrentWindow();
+      if (win && win.label) {
+        setWindowLabel(win.label);
+      }
+    } catch {
+      // In standard browser Vite preview mode, default to 'main'
+    }
+  }, []);
+
+  // Check if this window is the floating bubble
+  const isBubbleWindow =
+    windowLabel === "bubble" ||
+    window.location.search.includes("window=bubble") ||
+    window.location.hash === "#bubble";
+
+  if (isBubbleWindow) {
+    return (
+      <div className="w-screen h-screen flex items-center justify-center bg-transparent overflow-hidden select-none">
+        <BubbleWindow />
+      </div>
+    );
   }
 
+  // Default: Desktop Main App (Home Page from Figma Node #3:1145)
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+    <div className="flex flex-col h-screen w-screen bg-[#EEF2F9] overflow-hidden text-[#202733] select-none font-sans border border-[#E2E7EF] shadow-window">
+      {/* 1. Custom Title Bar (Figma Node #3:1146) */}
+      <TitleBar />
 
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+      {/* 2. Main Workspace (Sidebar + Home Page Content) */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar Navigation (Figma Node #3:1159) */}
+        <Sidebar />
+
+        {/* Home Workspace (Figma Node #3:1197) */}
+        <HomeWorkspace />
       </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+    </div>
   );
-}
+};
 
 export default App;
