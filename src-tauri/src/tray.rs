@@ -34,7 +34,7 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
                             let _ = bubble_win.hide();
                             let _ = app_handle.emit("bubble-visibility-changed", false);
                         } else {
-                            let _ = ensure_bubble_positioned_and_visible(&app_handle);
+                            let _ = ensure_bubble_positioned_and_visible(&app_handle, 1);
                         }
                     }
                 }

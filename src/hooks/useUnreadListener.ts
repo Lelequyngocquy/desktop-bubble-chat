@@ -1,73 +1,109 @@
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
-import { useAppStore } from "../stores/appStore";
-import { MOCK_DEFAULT_CONNECTED_ACCOUNT } from "../mocks";
+import { useMessengerStore } from "../stores/messengerStore";
+import { useSettingsStore } from "../stores/settingsStore";
+import { useWindowStore } from "../stores/windowStore";
+import { messengerService } from "../services/messenger";
+import { systemService } from "../services/systemService";
+import {
+  IPC_EVENTS,
+  MessengerAuthStatusPayload,
+  MessengerAuthClosedPayload,
+} from "../types/ipc";
 
-interface AuthPayload {
-  connected: boolean;
-  name?: string | null;
-}
-
+/**
+ * Global background listener synchronizing Tauri desktop IPC events with Domain Stores.
+ */
 export const useUnreadListener = () => {
-  const {
-    setUnreadCount,
-    setIsMessengerConnected,
-    setConnectedAccount,
-    setBubbleEnabled,
-    setIsChatOpen,
-  } = useAppStore();
+  const { updateAccount, setAccountUnreadCount } = useMessengerStore();
+  const { setBubbleEnabled } = useSettingsStore();
+  const { setIsChatOpen } = useWindowStore();
 
   useEffect(() => {
     let unlistenBadge: (() => void) | undefined;
     let unlistenAuth: (() => void) | undefined;
+    let unlistenAuthClosed: (() => void) | undefined;
     let unlistenBubble: (() => void) | undefined;
     let unlistenChat: (() => void) | undefined;
 
     const setupListeners = async () => {
       try {
-        // 1. Lắng nghe cập nhật huy hiệu tin chưa đọc
-        unlistenBadge = await listen<number>("badge-updated", (event) => {
-          setUnreadCount(event.payload);
+        // 1. Initial health-check: Verify and restore real authentication status for all accounts on boot
+        const currentAccounts = useMessengerStore.getState().accounts;
+        currentAccounts.forEach((acc) => {
+          messengerService
+            .checkAuth(acc.index)
+            .then((res) => {
+              if (res && res.connected) {
+                updateAccount(acc.id, {
+                  isConnected: true,
+                  isAuthenticating: false,
+                  lastSynced: "Đồng bộ vừa xong",
+                });
+                setBubbleEnabled(true);
+                messengerService.toggleBubble(true, acc.index).catch(() => {});
+              }
+            })
+            .catch(() => {});
         });
 
-        // 2. Lắng nghe trạng thái đăng nhập/xác thực Messenger theo thời gian thực
-        unlistenAuth = await listen<AuthPayload>("messenger-auth-status", (event) => {
-          const isConnected = event.payload.connected;
-          setIsMessengerConnected(isConnected);
-          if (isConnected) {
-            const name = event.payload.name || MOCK_DEFAULT_CONNECTED_ACCOUNT.name;
-            const initials = name
-              .split(" ")
-              .filter(Boolean)
-              .map((n) => n[0])
-              .join("")
-              .slice(0, 2)
-              .toUpperCase() || MOCK_DEFAULT_CONNECTED_ACCOUNT.avatarText;
+        // 2. Unread Badge Count event
+        unlistenBadge = await listen<number>(IPC_EVENTS.BADGE_UPDATED, (event) => {
+          const activeIndex = useMessengerStore.getState().activeAccountIndex;
+          setAccountUnreadCount(activeIndex, event.payload);
+        });
 
-            setConnectedAccount({
-              name,
-              avatarText: initials,
-              lastSynced: "Đồng bộ vừa xong",
-            });
-            setBubbleEnabled(true);
-          } else {
-            setConnectedAccount(null);
-            setBubbleEnabled(false);
+        // 3. Messenger real-time authentication status change
+        unlistenAuth = await listen<MessengerAuthStatusPayload>(
+          IPC_EVENTS.MESSENGER_AUTH_STATUS,
+          (event) => {
+            const isConnected = event.payload.connected;
+            const accountIdx = event.payload.accountIndex || 1;
+            const accountId = `messenger-${accountIdx.toString().padStart(2, "0")}`;
+            const store = useMessengerStore.getState();
+
+            const existingAccount = store.accounts.find((a) => a.id === accountId);
+            if (existingAccount) {
+              store.updateAccount(accountId, {
+                isConnected,
+                isAuthenticating: false,
+                lastSynced: isConnected ? "Đồng bộ vừa xong" : "Chưa kết nối",
+              });
+            }
+
+            if (isConnected) {
+              setBubbleEnabled(true);
+              messengerService.toggleBubble(true, accountIdx).catch(() => {});
+            }
           }
-        });
+        );
 
-        // 3. Lắng nghe thay đổi trạng thái hiển thị của bong bóng nổi (Snap dismiss đáy hoặc tray)
-        unlistenBubble = await listen<boolean>("bubble-visibility-changed", (event) => {
+        // 4. Messenger Auth window closed by user
+        unlistenAuthClosed = await listen<MessengerAuthClosedPayload>(
+          IPC_EVENTS.MESSENGER_AUTH_CLOSED,
+          (event) => {
+            const label = event.payload.label || "";
+            let idx = 1;
+            const match = label.match(/chat-messenger-(\d+)/);
+            if (match) {
+              idx = parseInt(match[1], 10);
+            }
+            const accountId = `messenger-${idx.toString().padStart(2, "0")}`;
+            useMessengerStore.getState().updateAccount(accountId, { isAuthenticating: false });
+          }
+        );
+
+        // 5. Floating bubble visibility change (e.g. dismissed to tray)
+        unlistenBubble = await listen<boolean>(IPC_EVENTS.BUBBLE_VISIBILITY_CHANGED, (event) => {
           setBubbleEnabled(event.payload);
         });
 
-        // 4. Lắng nghe thay đổi trạng thái đóng/mở của khung chat Messenger
-        unlistenChat = await listen<boolean>("chat-visibility-changed", (event) => {
+        // 6. Messenger Chat popup visibility change
+        unlistenChat = await listen<boolean>(IPC_EVENTS.CHAT_VISIBILITY_CHANGED, (event) => {
           setIsChatOpen(event.payload);
         });
       } catch (err) {
-        console.log("Event listeners not available in browser mode:", err);
+        console.warn("[useUnreadListener] Desktop IPC event listeners not available in preview:", err);
       }
     };
 
@@ -76,19 +112,17 @@ export const useUnreadListener = () => {
     return () => {
       if (unlistenBadge) unlistenBadge();
       if (unlistenAuth) unlistenAuth();
+      if (unlistenAuthClosed) unlistenAuthClosed();
       if (unlistenBubble) unlistenBubble();
       if (unlistenChat) unlistenChat();
     };
-  }, [setUnreadCount, setIsMessengerConnected, setConnectedAccount, setBubbleEnabled, setIsChatOpen]);
+  }, [updateAccount, setAccountUnreadCount, setBubbleEnabled, setIsChatOpen]);
 
-  // Helper cho phép giả lập/test số unread
+  // Helper for testing unread count
   const simulateUnread = async (count: number) => {
-    setUnreadCount(count);
-    try {
-      await invoke("set_badge_count", { count });
-    } catch {
-      // Browser preview fallback
-    }
+    const activeIndex = useMessengerStore.getState().activeAccountIndex;
+    setAccountUnreadCount(activeIndex, count);
+    await systemService.setBadgeCount(count);
   };
 
   return { simulateUnread };

@@ -1,140 +1,175 @@
-import { create } from "zustand";
-import { invoke } from "@tauri-apps/api/core";
-import { Conversation, ConnectedAccount, NavTab } from "../types";
-import { MOCK_FALLBACK_USER } from "../mocks";
+import { useNavigationStore } from "./navigationStore";
+import {
+  useMessengerStore,
+  selectIsMessengerConnected,
+  selectConnectedAccountSummary,
+  selectTotalUnreadCount,
+} from "./messengerStore";
+import { useSettingsStore } from "./settingsStore";
+import { useWindowStore } from "./windowStore";
+import { useConversationStore } from "./conversationStore";
+import { useSystemUserStore } from "./systemUserStore";
+import { systemService } from "../services/systemService";
+import { messengerService } from "../services/messenger";
+import { NavTab } from "../types/navigation";
+import { ConnectedAccount } from "../types/account";
 
 export type { NavTab };
 
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return MOCK_FALLBACK_USER.avatarText;
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  const first = parts[0][0];
-  const last = parts[parts.length - 1][0];
-  return (first + last).toUpperCase();
-}
+/**
+ * Composite Facade Hook bridging dedicated domain stores.
+ * Guarantees Single Source of Truth (SSOT) and clean separation while preserving
+ * seamless backwards compatibility across the application.
+ */
+export function useAppStore() {
+  const nav = useNavigationStore();
+  const messenger = useMessengerStore();
+  const settings = useSettingsStore();
+  const win = useWindowStore();
+  const conv = useConversationStore();
+  const sys = useSystemUserStore();
 
-interface AppState {
-  // Windows System User Identity (loaded dynamically from OS)
-  systemUser: string;
-  systemUserInitials: string;
-  fetchSystemUser: () => Promise<void>;
+  const isConnected = selectIsMessengerConnected(messenger);
+  const connectedAccount = selectConnectedAccountSummary(messenger);
+  const totalUnread = selectTotalUnreadCount(messenger);
 
-  // Navigation active tab
-  activeTab: NavTab;
-  setActiveTab: (tab: NavTab) => void;
+  return {
+    // System User
+    systemUser: sys.systemUser,
+    systemUserInitials: sys.systemUserInitials,
+    fetchSystemUser: async () => {
+      const username = await systemService.getSystemUsername();
+      sys.setSystemUser(username);
+    },
 
-  // Messenger connection state
-  isMessengerConnected: boolean;
-  setIsMessengerConnected: (connected: boolean) => void;
-  connectedAccount: ConnectedAccount | null;
-  setConnectedAccount: (account: ConnectedAccount | null) => void;
+    // Navigation
+    activeTab: nav.activeTab,
+    setActiveTab: nav.setActiveTab,
 
-  // Unread badge count from Messenger
-  unreadCount: number;
-  setUnreadCount: (count: number) => void;
-
-  // Window states
-  isChatOpen: boolean;
-  setIsChatOpen: (isOpen: boolean) => void;
-
-  // Quick settings
-  isBubbleEnabled: boolean;
-  setBubbleEnabled: (enabled: boolean) => void;
-  toggleBubble: () => boolean; // returns true if toggled, false if blocked
-
-  isAlwaysOnTop: boolean;
-  toggleAlwaysOnTop: () => void;
-
-  isNotificationsEnabled: boolean;
-  toggleNotifications: () => void;
-
-  isAutoStart: boolean;
-  setAutoStart: (enabled: boolean) => void;
-  toggleAutoStart: () => void;
-
-  // Pinned chat heads list (Home workspace)
-  conversations: Conversation[];
-  setConversations: (conversations: Conversation[]) => void;
-  removeConversation: (id: string) => void;
-}
-
-export const useAppStore = create<AppState>((set, get) => ({
-  // Windows System User Identity
-  systemUser: MOCK_FALLBACK_USER.name,
-  systemUserInitials: MOCK_FALLBACK_USER.avatarText,
-  fetchSystemUser: async () => {
-    try {
-      const name = await invoke<string>("get_system_username");
-      if (name && name.trim()) {
-        const cleanName = name.trim();
-        set({
-          systemUser: cleanName,
-          systemUserInitials: getInitials(cleanName),
-        });
-      } else {
-        set({
-          systemUser: MOCK_FALLBACK_USER.name,
-          systemUserInitials: MOCK_FALLBACK_USER.avatarText,
-        });
+    // Messenger Accounts (SSOT)
+    messengerAccounts: messenger.accounts,
+    activeAccountIndex: messenger.activeAccountIndex,
+    setActiveAccountIndex: messenger.setActiveAccountIndex,
+    addMessengerAccount: messenger.addAccount,
+    removeMessengerAccount: async (id: string) => {
+      const target = messenger.accounts.find((a) => a.id === id);
+      messenger.removeAccount(id);
+      if (target) {
+        try {
+          await messengerService.toggleBubble(false, target.index);
+        } catch {}
       }
-    } catch {
-      set({
-        systemUser: MOCK_FALLBACK_USER.name,
-        systemUserInitials: MOCK_FALLBACK_USER.avatarText,
-      });
-    }
-  },
+    },
+    updateMessengerAccount: messenger.updateAccount,
+    setMessengerAccounts: messenger.setAccounts,
 
-  activeTab: "home",
-  setActiveTab: (tab) => set({ activeTab: tab }),
+    // Derived Platform State (Pure Computed - No State Duplication)
+    isMessengerConnected: isConnected,
+    setIsMessengerConnected: (connected: boolean) => {
+      if (!connected) {
+        messenger.disconnectAllAccounts();
+        settings.setBubbleEnabled(false);
+      }
+    },
+    connectedAccount,
+    setConnectedAccount: (_account: ConnectedAccount | null) => {
+      // Maintained via accounts SSOT
+    },
+    unreadCount: totalUnread,
+    setUnreadCount: messenger.setTotalUnreadCount,
 
-  // Fresh install / Zero-data default
-  isMessengerConnected: false,
-  setIsMessengerConnected: (connected) =>
-    set((state) => ({
-      isMessengerConnected: connected,
-      // If disconnected, automatically disable bubble
-      isBubbleEnabled: connected ? state.isBubbleEnabled : false,
-      unreadCount: connected ? state.unreadCount : 0,
-      connectedAccount: connected ? state.connectedAccount : null,
-    })),
-  connectedAccount: null,
-  setConnectedAccount: (account) => set({ connectedAccount: account }),
+    // Window State
+    isChatOpen: win.isChatOpen,
+    setIsChatOpen: win.setIsChatOpen,
 
-  unreadCount: 0,
-  setUnreadCount: (count) => set({ unreadCount: count }),
+    // Settings
+    isBubbleEnabled: settings.isBubbleEnabled,
+    setBubbleEnabled: settings.setBubbleEnabled,
+    toggleBubble: () => {
+      if (!isConnected && !settings.isBubbleEnabled) {
+        return false;
+      }
+      settings.toggleBubble();
+      return true;
+    },
+    isAlwaysOnTop: settings.isAlwaysOnTop,
+    toggleAlwaysOnTop: settings.toggleAlwaysOnTop,
+    isNotificationsEnabled: settings.isNotificationsEnabled,
+    toggleNotifications: settings.toggleNotifications,
+    isAutoStart: settings.isAutoStart,
+    setAutoStart: settings.setAutoStart,
+    toggleAutoStart: settings.toggleAutoStart,
 
-  isChatOpen: false,
-  setIsChatOpen: (isOpen) => set({ isChatOpen: isOpen }),
+    // Conversations
+    conversations: conv.conversations,
+    setConversations: conv.setConversations,
+    removeConversation: conv.removeConversation,
+  };
+}
 
-  isBubbleEnabled: false,
-  setBubbleEnabled: (enabled) => set({ isBubbleEnabled: enabled }),
-  toggleBubble: () => {
-    const { isMessengerConnected, isBubbleEnabled } = get();
-    // Cannot enable bubble if Messenger is not connected
-    if (!isMessengerConnected && !isBubbleEnabled) {
-      return false;
-    }
-    set({ isBubbleEnabled: !isBubbleEnabled });
-    return true;
-  },
+// Static getter for non-react contexts (e.g. event listeners / background tasks)
+useAppStore.getState = () => {
+  const nav = useNavigationStore.getState();
+  const messenger = useMessengerStore.getState();
+  const settings = useSettingsStore.getState();
+  const win = useWindowStore.getState();
+  const conv = useConversationStore.getState();
+  const sys = useSystemUserStore.getState();
 
-  isAlwaysOnTop: true,
-  toggleAlwaysOnTop: () => set((state) => ({ isAlwaysOnTop: !state.isAlwaysOnTop })),
+  const isConnected = selectIsMessengerConnected(messenger);
+  const connectedAccount = selectConnectedAccountSummary(messenger);
+  const totalUnread = selectTotalUnreadCount(messenger);
 
-  isNotificationsEnabled: true,
-  toggleNotifications: () => set((state) => ({ isNotificationsEnabled: !state.isNotificationsEnabled })),
-
-  isAutoStart: false,
-  setAutoStart: (enabled) => set({ isAutoStart: enabled }),
-  toggleAutoStart: () => set((state) => ({ isAutoStart: !state.isAutoStart })),
-
-  // Fresh install: No mock conversations by default
-  conversations: [],
-  setConversations: (conversations) => set({ conversations }),
-  removeConversation: (id) =>
-    set((state) => ({
-      conversations: state.conversations.filter((c) => c.id !== id),
-    })),
-}));
+  return {
+    systemUser: sys.systemUser,
+    systemUserInitials: sys.systemUserInitials,
+    activeTab: nav.activeTab,
+    setActiveTab: nav.setActiveTab,
+    messengerAccounts: messenger.accounts,
+    activeAccountIndex: messenger.activeAccountIndex,
+    setActiveAccountIndex: messenger.setActiveAccountIndex,
+    addMessengerAccount: messenger.addAccount,
+    removeMessengerAccount: async (id: string) => {
+      const target = messenger.accounts.find((a) => a.id === id);
+      messenger.removeAccount(id);
+      if (target) {
+        try {
+          await messengerService.toggleBubble(false, target.index);
+        } catch {}
+      }
+    },
+    updateMessengerAccount: messenger.updateAccount,
+    setMessengerAccounts: messenger.setAccounts,
+    isMessengerConnected: isConnected,
+    setIsMessengerConnected: (connected: boolean) => {
+      if (!connected) {
+        messenger.disconnectAllAccounts();
+        settings.setBubbleEnabled(false);
+      }
+    },
+    connectedAccount,
+    unreadCount: totalUnread,
+    setUnreadCount: messenger.setTotalUnreadCount,
+    isChatOpen: win.isChatOpen,
+    setIsChatOpen: win.setIsChatOpen,
+    isBubbleEnabled: settings.isBubbleEnabled,
+    setBubbleEnabled: settings.setBubbleEnabled,
+    toggleBubble: () => {
+      if (!isConnected && !settings.isBubbleEnabled) {
+        return false;
+      }
+      settings.toggleBubble();
+      return true;
+    },
+    isAlwaysOnTop: settings.isAlwaysOnTop,
+    toggleAlwaysOnTop: settings.toggleAlwaysOnTop,
+    isNotificationsEnabled: settings.isNotificationsEnabled,
+    toggleNotifications: settings.toggleNotifications,
+    isAutoStart: settings.isAutoStart,
+    setAutoStart: settings.setAutoStart,
+    toggleAutoStart: settings.toggleAutoStart,
+    conversations: conv.conversations,
+    setConversations: conv.setConversations,
+    removeConversation: conv.removeConversation,
+  };
+};

@@ -208,3 +208,14 @@ pub fn open_external_url(url: String) -> Result<(), String> {
     }
     Err("Invalid URL scheme".into())
 }
+
+/// Command cầu nối chuyển log từ Frontend React thẳng vào Terminal Backend
+#[tauri::command]
+pub fn log_frontend(level: String, message: String) {
+    let tag = match level.to_lowercase().as_str() {
+        "error" => "\x1b[31m[FE - ERROR]\x1b[0m",
+        "warn" => "\x1b[33m[FE - WARN]\x1b[0m",
+        _ => "\x1b[36m[FE - INFO]\x1b[0m",
+    };
+    println!("{} {}", tag, message);
+}

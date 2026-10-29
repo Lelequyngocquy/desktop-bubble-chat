@@ -23,12 +23,16 @@ pub fn run() {
             commands::get_bubble_snap_coords,
             commands::get_bubble_default_coords,
             commands::get_bubble_hover_coords,
+            commands::get_bubble_position,
+            commands::get_all_bubble_positions,
             commands::toggle_chat,
             commands::open_chat,
             commands::open_messenger_auth,
             commands::check_messenger_auth,
             commands::disconnect_messenger,
             commands::refresh_messenger,
+            commands::close_messenger_window,
+            commands::clear_account_storage,
             commands::report_auth_status,
             commands::update_unread_badge,
             commands::set_badge_count,
@@ -36,7 +40,8 @@ pub fn run() {
             commands::is_autostart_enabled,
             commands::get_system_username,
             commands::open_external_url,
-            commands::exit_app
+            commands::exit_app,
+            commands::log_frontend
         ])
         .setup(move |app| {
             // 1. Cấu hình System Tray Menu & Icon

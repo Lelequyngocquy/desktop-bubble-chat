@@ -1,8 +1,16 @@
 import React from "react";
 import { ArrowUpRight, Activity, ShieldCheck, LogIn } from "lucide-react";
 import { messengerService } from "../../../services/messenger";
-import { useAppStore } from "../../../stores/appStore";
-import { PlatformId } from "../../../types";
+import {
+  useMessengerStore,
+  selectIsMessengerConnected,
+  selectConnectedAccountSummary,
+  selectTotalUnreadCount,
+} from "../../../stores/messengerStore";
+import { useWindowStore } from "../../../stores/windowStore";
+import { useConversationStore } from "../../../stores/conversationStore";
+import { useNavigationStore } from "../../../stores/navigationStore";
+import { PlatformId } from "../../../types/platform";
 import { MOCK_PLATFORMS } from "../../../mocks";
 import { PlatformIcon } from "../../icons";
 import {
@@ -12,25 +20,24 @@ import {
 } from "../../common";
 
 export const MessengerConnectionCard: React.FC = () => {
-  const {
-    unreadCount,
-    conversations,
-    setIsChatOpen,
-    isMessengerConnected,
-    connectedAccount,
-    setActiveTab,
-  } = useAppStore();
+  const isMessengerConnected = useMessengerStore(selectIsMessengerConnected);
+  const connectedAccount = useMessengerStore(selectConnectedAccountSummary);
+  const unreadCount = useMessengerStore(selectTotalUnreadCount);
+  const activeAccountIndex = useMessengerStore((s) => s.activeAccountIndex);
+
+  const setIsChatOpen = useWindowStore((s) => s.setIsChatOpen);
+  const conversations = useConversationStore((s) => s.conversations);
+  const setActiveTab = useNavigationStore((s) => s.setActiveTab);
 
   const messengerConfig = MOCK_PLATFORMS[PlatformId.MESSENGER];
 
   const handleOpenMessenger = async () => {
     if (!isMessengerConnected) {
-      // Chuyển sang tab Kết nối để xác thực
       setActiveTab("connections");
       return;
     }
     try {
-      await messengerService.openChat();
+      await messengerService.openChat(activeAccountIndex || 1);
       setIsChatOpen(true);
     } catch {
       // Browser preview fallback
@@ -40,11 +47,11 @@ export const MessengerConnectionCard: React.FC = () => {
 
   return (
     <div className="shrink-0 bg-white border border-[#E2E7EF] rounded-[12px] shadow-card overflow-hidden flex flex-col select-none">
-      {/* Top Connection Details Area (Figma Node #3:1208) */}
+      {/* Top Connection Details Area */}
       <div className="p-6 flex items-center justify-between gap-6 flex-wrap lg:flex-nowrap">
         {/* Left: Platform Identity & Account Actions */}
         <div className="flex flex-col gap-5 flex-1 min-w-0 sm:min-w-[320px]">
-          {/* Platform Identity (Figma Node #3:1210) */}
+          {/* Platform Identity */}
           <div className="flex items-center gap-[14px]">
             {/* Messenger Logo */}
             <AvatarSquareRounded
@@ -89,15 +96,22 @@ export const MessengerConnectionCard: React.FC = () => {
             </div>
           </div>
 
-          {/* Connected Account & Action buttons (Figma Node #3:1220) */}
+          {/* Connected Account & Action buttons */}
           <div className="flex items-center justify-between gap-4 pt-1 flex-wrap sm:flex-nowrap">
             {/* Account Info */}
             <div className="flex items-center gap-2.5">
               <AvatarCircle
                 size={32}
                 text={connectedAccount ? connectedAccount.avatarText : "—"}
-                bg={isMessengerConnected ? "#EAF2FF" : "#EEF2F9"}
-                textColor={isMessengerConnected ? "#0759DB" : "#6B7483"}
+                bg={
+                  isMessengerConnected && connectedAccount?.color
+                    ? connectedAccount.color
+                    : isMessengerConnected
+                      ? "#0866FF"
+                      : "#EEF2F9"
+                }
+                textColor={isMessengerConnected ? "#FFFFFF" : "#6B7483"}
+                className={isMessengerConnected ? "font-bold text-[11px] shadow-xs" : ""}
               />
               <div className="flex flex-col">
                 <span className="text-[13px] font-medium text-[#202733] leading-tight">
@@ -136,7 +150,7 @@ export const MessengerConnectionCard: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: Metrics Column (Figma Node #3:1232) */}
+        {/* Right: Metrics Column */}
         <div className="w-full lg:w-[250px] shrink-0 border-t lg:border-t-0 lg:border-l border-[#E2E7EF] pt-4 lg:pt-0 lg:pl-6 flex flex-col justify-center gap-3">
           <div className="flex items-center gap-1.5 text-[#6B7483]">
             <Activity className="w-[14px] h-[14px]" />
@@ -167,7 +181,7 @@ export const MessengerConnectionCard: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Reassurance Banner (Figma Node #3:1243) */}
+      {/* Bottom Reassurance Banner */}
       <div className="bg-[#EAF2FF] px-6 py-2.5 flex items-center gap-2 text-[#0759DB] border-t border-[#E2E7EF]/50">
         <ShieldCheck className="w-4 h-4 shrink-0" />
         <span className="text-[11px] font-normal leading-tight">

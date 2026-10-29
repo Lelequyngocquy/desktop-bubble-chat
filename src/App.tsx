@@ -6,19 +6,18 @@ import { HomeWorkspace } from "./components/home/HomeWorkspace";
 import { ConnectionsWorkspace } from "./components/connections/ConnectionsWorkspace";
 import { BubbleWindow } from "./components/bubble/BubbleWindow";
 import { useUnreadListener } from "./hooks/useUnreadListener";
-import { useAppStore } from "./stores/appStore";
+import { useSystemUser } from "./hooks/useSystemUser";
+import { useNavigationStore } from "./stores/navigationStore";
 
 export const App: React.FC = () => {
   const [windowLabel, setWindowLabel] = useState<string>("main");
-  const { activeTab, fetchSystemUser } = useAppStore();
+  const activeTab = useNavigationStore((s) => s.activeTab);
 
-  // Lắng nghe sự kiện đồng bộ badge trên tất cả các cửa sổ
+  // Initialize background system listeners
   useUnreadListener();
+  useSystemUser();
 
   useEffect(() => {
-    // Lấy thông tin tài khoản Windows khi khởi chạy
-    fetchSystemUser();
-
     try {
       const win = getCurrentWindow();
       if (win && win.label) {
@@ -27,9 +26,9 @@ export const App: React.FC = () => {
     } catch {
       // In standard browser Vite preview mode, default to 'main'
     }
-  }, [fetchSystemUser]);
+  }, []);
 
-  // Check if this window is the floating bubble
+  // Check if this window instance is the floating bubble
   const isBubbleWindow =
     windowLabel === "bubble" ||
     window.location.search.includes("window=bubble") ||
@@ -46,12 +45,12 @@ export const App: React.FC = () => {
   // Default: Desktop Main App (Home Page / Connections / etc.)
   return (
     <div className="flex flex-col h-screen w-screen bg-[#EEF2F9] overflow-hidden text-[#202733] select-none font-sans border border-[#E2E7EF] shadow-window">
-      {/* 1. Custom Title Bar (Figma Node #3:1146 & #20:1052) */}
+      {/* 1. Custom Title Bar */}
       <TitleBar />
 
       {/* 2. Main Workspace (Sidebar + Dynamic Workspace Content) */}
       <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
-        {/* Sidebar Navigation (Figma Node #3:1159 & #20:1069) */}
+        {/* Sidebar Navigation */}
         <Sidebar />
 
         {/* Dynamic Workspace */}

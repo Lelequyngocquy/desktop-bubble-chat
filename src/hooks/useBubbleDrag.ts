@@ -6,14 +6,21 @@ import { ScreenService } from "../services";
 interface UseBubbleDragOptions {
   onBubbleClick?: () => void;
   isChatOpen?: boolean;
+  accountIndex?: number;
 }
 
-export const useBubbleDrag = ({ onBubbleClick, isChatOpen = false }: UseBubbleDragOptions = {}) => {
+export const useBubbleDrag = ({
+  onBubbleClick,
+  isChatOpen = false,
+  accountIndex = 1,
+}: UseBubbleDragOptions = {}) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOpacity, setDragOpacity] = useState(1);
   const [isNearDismiss, setIsNearDismiss] = useState(false);
 
   const hoverAnimRef = useRef<number | null>(null);
+  const moveAnimRef = useRef<number | null>(null);
+  const pendingPosRef = useRef<{ x: number; y: number } | null>(null);
   const isHoveredRef = useRef<boolean>(false);
 
   const dragRef = useRef<{
@@ -40,6 +47,26 @@ export const useBubbleDrag = ({ onBubbleClick, isChatOpen = false }: UseBubbleDr
     lastNearDismiss: false,
   });
 
+  // Tải trước số liệu màn hình và vị trí ban đầu của cửa sổ khi mount
+  useEffect(() => {
+    const updateInitialMetrics = async () => {
+      try {
+        const appWin = getCurrentWindow();
+        const [pos, monitor] = await Promise.all([
+          appWin.outerPosition(),
+          currentMonitor(),
+        ]);
+        dragRef.current.initialWindowX = pos.x;
+        dragRef.current.initialWindowY = pos.y;
+        if (monitor) {
+          dragRef.current.scale = monitor.scaleFactor;
+          dragRef.current.bottomEdge = monitor.position.y + monitor.size.height;
+        }
+      } catch {}
+    };
+    updateInitialMetrics();
+  }, []);
+
   // Điều khiển hoạt ảnh trượt ra (appear_ratio 0.0) / trượt vào (tuck_ratio)
   const setHoverState = useCallback(
     async (hovered: boolean) => {
@@ -55,7 +82,7 @@ export const useBubbleDrag = ({ onBubbleClick, isChatOpen = false }: UseBubbleDr
       try {
         const appWin = getCurrentWindow();
         const currentPos = await appWin.outerPosition();
-        const { targetX, targetY } = await ScreenService.getHoverCoords(targetHovered);
+        const { targetX, targetY } = await ScreenService.getHoverCoords(targetHovered, accountIndex);
 
         if (hoverAnimRef.current) {
           cancelAnimationFrame(hoverAnimRef.current);
@@ -125,65 +152,64 @@ export const useBubbleDrag = ({ onBubbleClick, isChatOpen = false }: UseBubbleDr
       // Chỉ nhận chuột trái
       if (e.button !== 0) return;
 
-      // Hủy hoạt ảnh hover nếu bắt đầu kéo
+      // Hủy hoạt ảnh hover và drag trước đó nếu có
       if (hoverAnimRef.current) {
         cancelAnimationFrame(hoverAnimRef.current);
         hoverAnimRef.current = null;
       }
+      if (moveAnimRef.current) {
+        cancelAnimationFrame(moveAnimRef.current);
+        moveAnimRef.current = null;
+      }
 
       const target = e.currentTarget;
-      target.setPointerCapture(e.pointerId);
+      try {
+        target.setPointerCapture(e.pointerId);
+      } catch {}
 
-      let winX = 0;
-      let winY = 0;
-      let bottomEdge = (window.screen.height || 1080) * (window.devicePixelRatio || 1);
-      let scale = window.devicePixelRatio || 1;
+      // Kích hoạt trạng thái kéo NGAY LẬP TỨC (đồng bộ, 0 latency)
+      dragRef.current.isDown = true;
+      dragRef.current.hasMoved = false;
+      dragRef.current.startScreenX = e.screenX;
+      dragRef.current.startScreenY = e.screenY;
+      dragRef.current.lastOpacity = 1;
+      dragRef.current.lastNearDismiss = false;
 
+      setIsDragging(true);
+      setDragOpacity(1);
+      setIsNearDismiss(false);
+
+      // Cập nhật vị trí cửa sổ thực tế chuẩn xác ngay trước khi kéo
       try {
         const appWin = getCurrentWindow();
         const [pos, monitor] = await Promise.all([
           appWin.outerPosition(),
           currentMonitor(),
         ]);
-        winX = pos.x;
-        winY = pos.y;
-        if (monitor) {
-          scale = monitor.scaleFactor;
-          bottomEdge = monitor.position.y + monitor.size.height;
+        if (dragRef.current.isDown) {
+          dragRef.current.initialWindowX = pos.x;
+          dragRef.current.initialWindowY = pos.y;
+          if (monitor) {
+            dragRef.current.scale = monitor.scaleFactor;
+            dragRef.current.bottomEdge = monitor.position.y + monitor.size.height;
+          }
         }
       } catch {
         // Browser dev fallback
       }
-
-      dragRef.current = {
-        isDown: true,
-        hasMoved: false,
-        startScreenX: e.screenX,
-        startScreenY: e.screenY,
-        initialWindowX: winX,
-        initialWindowY: winY,
-        bottomEdge,
-        scale,
-        lastOpacity: 1,
-        lastNearDismiss: false,
-      };
-
-      setIsDragging(true);
-      setDragOpacity(1);
-      setIsNearDismiss(false);
     },
     []
   );
 
   const onPointerMove = useCallback(
-    async (e: React.PointerEvent<HTMLDivElement>) => {
+    (e: React.PointerEvent<HTMLDivElement>) => {
       if (!dragRef.current.isDown) return;
 
       const dpr = window.devicePixelRatio || 1;
       const deltaX = Math.round((e.screenX - dragRef.current.startScreenX) * dpr);
       const deltaY = Math.round((e.screenY - dragRef.current.startScreenY) * dpr);
 
-      if (Math.hypot(deltaX, deltaY) > 4) {
+      if (Math.hypot(deltaX, deltaY) > 3) {
         dragRef.current.hasMoved = true;
       }
 
@@ -222,11 +248,21 @@ export const useBubbleDrag = ({ onBubbleClick, isChatOpen = false }: UseBubbleDr
         setIsNearDismiss(nearDismiss);
       }
 
-      try {
-        const appWin = getCurrentWindow();
-        await appWin.setPosition(new PhysicalPosition(nextX, nextY));
-      } catch {
-        // Browser dev fallback
+      // Điều tiết vị trí cửa sổ qua requestAnimationFrame để chống nghẽn IPC Tauri khi di chuột tốc độ cao
+      pendingPosRef.current = { x: nextX, y: nextY };
+      if (!moveAnimRef.current) {
+        moveAnimRef.current = requestAnimationFrame(async () => {
+          moveAnimRef.current = null;
+          if (pendingPosRef.current && dragRef.current.isDown) {
+            const { x, y } = pendingPosRef.current;
+            try {
+              const appWin = getCurrentWindow();
+              await appWin.setPosition(new PhysicalPosition(x, y));
+            } catch {
+              // Browser dev fallback
+            }
+          }
+        });
       }
     },
     []
@@ -235,6 +271,11 @@ export const useBubbleDrag = ({ onBubbleClick, isChatOpen = false }: UseBubbleDr
   const onPointerUp = useCallback(
     async (e: React.PointerEvent<HTMLDivElement>) => {
       if (!dragRef.current.isDown) return;
+
+      if (moveAnimRef.current) {
+        cancelAnimationFrame(moveAnimRef.current);
+        moveAnimRef.current = null;
+      }
 
       const hasMoved = dragRef.current.hasMoved;
       dragRef.current.isDown = false;
@@ -262,12 +303,13 @@ export const useBubbleDrag = ({ onBubbleClick, isChatOpen = false }: UseBubbleDr
         const currentPos = await appWin.outerPosition();
         const { targetX, targetY, shouldDismiss } = await ScreenService.getSnapCoords(
           currentPos.x,
-          currentPos.y
+          currentPos.y,
+          accountIndex
         );
 
         if (shouldDismiss) {
           await appWin.hide();
-          await invoke("toggle_bubble", { visible: false });
+          await invoke("toggle_bubble", { visible: false, accountIndex });
           setDragOpacity(1);
           setIsNearDismiss(false);
           dragRef.current.lastOpacity = 1;
@@ -303,7 +345,7 @@ export const useBubbleDrag = ({ onBubbleClick, isChatOpen = false }: UseBubbleDr
             dragRef.current.lastNearDismiss = false;
             isHoveredRef.current = false;
             // Gọi lệnh Rust để bảo đảm toạ độ chuẩn tuyệt đối
-            invoke("snap_bubble").catch(() => {});
+            invoke("snap_bubble", { accountIndex }).catch(() => {});
           }
         };
 
@@ -315,10 +357,10 @@ export const useBubbleDrag = ({ onBubbleClick, isChatOpen = false }: UseBubbleDr
         dragRef.current.lastNearDismiss = false;
         isHoveredRef.current = false;
         // Gọi lệnh Rust dự phòng
-        await invoke("snap_bubble").catch(() => {});
+        await invoke("snap_bubble", { accountIndex }).catch(() => {});
       }
     },
-    [onBubbleClick]
+    [onBubbleClick, accountIndex]
   );
 
   return {

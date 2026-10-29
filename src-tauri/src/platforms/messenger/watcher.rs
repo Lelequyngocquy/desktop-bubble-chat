@@ -1,61 +1,58 @@
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::state::ChatState;
+use crate::utils::positioning::ensure_bubble_positioned_and_visible;
 use super::parser::parse_unread_from_title;
-use super::window::{is_window_logged_in, MESSENGER_INJECT_SCRIPT};
+use super::window::{get_messenger_window_label, is_window_logged_in};
 
-/// Luồng giám sát trạng thái đăng nhập và URL của Messenger theo thời gian thực
+/// Luồng giám sát trạng thái đăng nhập và số tin chưa đọc của các tài khoản Messenger theo thời gian thực
 pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
     std::thread::spawn(move || {
-        let mut was_logged_in = false;
+        let mut logged_in_map: std::collections::HashMap<u32, bool> = std::collections::HashMap::new();
+
         loop {
             std::thread::sleep(Duration::from_millis(700));
 
-            if let Some(chat_window) = app_handle.get_webview_window("chat-messenger") {
-                // 1. Kiểm tra và chặn tất cả URL không thuộc messenger.com (trừ 2FA checkpoint tạm thời)
-                if let Ok(current_url) = chat_window.url() {
-                    let url_str = current_url.to_string();
-                    let host = current_url.host_str().unwrap_or("");
+            for idx in 1..=5 {
+                let label = get_messenger_window_label(idx);
+                let win = app_handle.get_webview_window(&label)
+                    .or_else(|| if idx == 1 { app_handle.get_webview_window("chat-messenger") } else { None });
 
-                    let is_messenger = host.contains("messenger.com");
-                    let is_2fa = host.contains("facebook.com")
-                        && (url_str.contains("/checkpoint") || url_str.contains("two_step_verification"));
+                if let Some(chat_window) = win {
+                    let win_label = chat_window.label().to_string();
+                    let (is_logged_in, user_name) = is_window_logged_in(&chat_window);
 
-                    // Nếu gặp url lạ, facebook feed, facebook login -> Luôn chuyển hướng về https://www.messenger.com/
-                    if !is_messenger && !is_2fa && !url_str.is_empty() && url_str != "about:blank" {
-                        if let Ok(target_url) = tauri::Url::parse("https://www.messenger.com/") {
-                            let _ = chat_window.navigate(target_url);
+                    let was_logged = *logged_in_map.get(&idx).unwrap_or(&false);
+
+                    if is_logged_in != was_logged {
+                        logged_in_map.insert(idx, is_logged_in);
+
+                        let _ = app_handle.emit("messenger-auth-status", serde_json::json!({
+                            "accountIndex": idx,
+                            "connected": is_logged_in,
+                            "name": if is_logged_in { &user_name } else { "" }
+                        }));
+
+                        if is_logged_in {
+                            // Đã đăng nhập xong: Tắt auth mode, đóng popup đăng nhập, chuyển sang chế độ chat docked
+                            chat_state.set_window_auth_mode(&win_label, false);
+                            let _ = chat_window.hide();
+                            let _ = chat_window.set_decorations(false);
+                            let _ = chat_window.set_skip_taskbar(true);
+                            let _ = app_handle.emit("chat-visibility-changed", false);
+                            // Bật bong bóng nổi cho tài khoản này
+                            let _ = ensure_bubble_positioned_and_visible(&app_handle, idx);
                         }
                     }
-                }
 
-                // 2. Định kỳ nạp script kiểm tra DOM, chặn link ngoài và responsive CSS
-                let _ = chat_window.eval(MESSENGER_INJECT_SCRIPT);
-
-                let (is_logged_in, user_name) = is_window_logged_in(&chat_window);
-
-                if is_logged_in != was_logged_in {
-                    was_logged_in = is_logged_in;
-
-                    let _ = app_handle.emit("messenger-auth-status", serde_json::json!({
-                        "connected": is_logged_in,
-                        "name": if is_logged_in { &user_name } else { "" }
-                    }));
-
+                    // Đồng bộ badge tin chưa đọc
                     if is_logged_in {
-                        // Đã đăng nhập xong: Chuyển về chế độ chat bình thường (tắt auth mode để cho phép auto-hide on blur)
-                        chat_state.is_auth_mode.store(false, Ordering::SeqCst);
-                    }
-                }
-
-                // 3. Đồng bộ badge tin chưa đọc
-                if is_logged_in {
-                    if let Ok(title) = chat_window.title() {
-                        let count = parse_unread_from_title(&title);
-                        let _ = app_handle.emit("badge-updated", count);
+                        if let Ok(title) = chat_window.title() {
+                            let count = parse_unread_from_title(&title);
+                            let _ = app_handle.emit("badge-updated", count);
+                        }
                     }
                 }
             }

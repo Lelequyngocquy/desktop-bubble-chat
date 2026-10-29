@@ -103,33 +103,39 @@ pub fn setup_main_window(app: &AppHandle) {
 
 /// Cấu hình cửa sổ bong bóng: Cho phép kích thước nhỏ hơn SM_CXMINTRACK (136px) của Windows
 #[cfg(target_os = "windows")]
-pub fn setup_bubble_window(app: &AppHandle) {
-    if let Some(bubble) = app.get_webview_window("bubble") {
-        if let Ok(hwnd) = bubble.hwnd() {
-            let raw_hwnd = hwnd.0 as *mut std::ffi::c_void;
+pub fn setup_bubble_subclass(bubble: &tauri::WebviewWindow) {
+    if let Ok(hwnd) = bubble.hwnd() {
+        let raw_hwnd = hwnd.0 as *mut std::ffi::c_void;
+        unsafe {
+            SetWindowSubclass(
+                raw_hwnd,
+                bubble_subclass_proc,
+                101, // Subclass ID
+                0,
+            );
+        }
+        if let Ok(Some(monitor)) = bubble.current_monitor() {
+            let scale = monitor.scale_factor();
+            let size = (64.0 * scale) as i32;
             unsafe {
-                SetWindowSubclass(
+                SetWindowPos(
                     raw_hwnd,
-                    bubble_subclass_proc,
-                    101, // Subclass ID
+                    std::ptr::null_mut(),
                     0,
+                    0,
+                    size,
+                    size,
+                    SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
                 );
             }
-            if let Ok(Some(monitor)) = bubble.current_monitor() {
-                let scale = monitor.scale_factor();
-                let size = (64.0 * scale) as i32;
-                unsafe {
-                    SetWindowPos(
-                        raw_hwnd,
-                        std::ptr::null_mut(),
-                        0,
-                        0,
-                        size,
-                        size,
-                        SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
-                    );
-                }
-            }
         }
+    }
+}
+
+/// Cấu hình cửa sổ bong bóng mặc định: Cho phép kích thước nhỏ hơn SM_CXMINTRACK (136px) của Windows
+#[cfg(target_os = "windows")]
+pub fn setup_bubble_window(app: &AppHandle) {
+    if let Some(bubble) = app.get_webview_window("bubble") {
+        setup_bubble_subclass(&bubble);
     }
 }

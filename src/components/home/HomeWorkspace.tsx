@@ -1,6 +1,6 @@
 import React from "react";
 import { MonitorCheck } from "lucide-react";
-import { useAppStore } from "../../stores/appStore";
+import { useSystemUserStore } from "../../stores/systemUserStore";
 import { TabHeader } from "../common/TabHeader";
 import { MessengerConnectionCard } from "./messenger";
 import { ActiveChatHeads } from "./ActiveChatHeads";
@@ -9,7 +9,7 @@ import { PlatformRoadmap } from "./PlatformRoadmap";
 import { HomeFooter } from "./HomeFooter";
 
 export const HomeWorkspace: React.FC = () => {
-  const { systemUser } = useAppStore();
+  const systemUser = useSystemUserStore((s) => s.systemUser);
 
   return (
     <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-[#F4F7FC] overflow-hidden">

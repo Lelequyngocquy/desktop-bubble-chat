@@ -1,56 +1,85 @@
 import { invoke } from "@tauri-apps/api/core";
 import { MessengerAuthStatus } from "./types";
+import { IPC_COMMANDS } from "../../types/ipc";
 
 /**
  * Service encapsulating all Tauri IPC commands for the Messenger platform.
+ * Supports multi-account operations with isolated WebView2 sessions.
  */
 export const messengerService = {
   /**
-   * Check authentication status of the Messenger webview session.
+   * Check authentication status of a specific Messenger account session.
    */
-  async checkAuth(): Promise<MessengerAuthStatus> {
-    return await invoke<MessengerAuthStatus>("check_messenger_auth");
+  async checkAuth(accountIndex: number = 1): Promise<MessengerAuthStatus> {
+    return await invoke<MessengerAuthStatus>(IPC_COMMANDS.CHECK_MESSENGER_AUTH, {
+      accountIndex,
+    });
   },
 
   /**
-   * Open the Messenger auth window to allow user to log in.
+   * Open the Messenger auth window for a specific account.
    */
-  async openAuth(): Promise<void> {
-    await invoke("open_messenger_auth");
+  async openAuth(accountIndex: number = 1): Promise<void> {
+    await invoke(IPC_COMMANDS.OPEN_MESSENGER_AUTH, { accountIndex });
   },
 
   /**
-   * Show and focus the Messenger chat popup window.
+   * Show and focus the Messenger chat popup window for a specific account.
    */
-  async openChat(): Promise<void> {
-    await invoke("open_chat");
+  async openChat(accountIndex: number = 1): Promise<void> {
+    await invoke(IPC_COMMANDS.OPEN_CHAT, { accountIndex });
   },
 
   /**
-   * Toggle visibility of the Messenger chat popup window.
+   * Toggle visibility of the Messenger chat popup window for a specific account.
    */
-  async toggleChat(): Promise<boolean> {
-    return await invoke<boolean>("toggle_chat");
+  async toggleChat(accountIndex: number = 1): Promise<boolean> {
+    return await invoke<boolean>(IPC_COMMANDS.TOGGLE_CHAT, { accountIndex });
   },
 
   /**
-   * Refresh/reload the Messenger webview and check status.
+   * Refresh/reload the Messenger webview session.
    */
-  async refresh(): Promise<void> {
-    await invoke("refresh_messenger");
+  async refresh(accountIndex: number = 1): Promise<void> {
+    await invoke(IPC_COMMANDS.REFRESH_MESSENGER, { accountIndex });
   },
 
   /**
-   * Disconnect Messenger (clear session cookies/cache and hide window).
+   * Disconnect Messenger account (clear session / navigate to login and hide window).
    */
-  async disconnect(): Promise<void> {
-    await invoke("disconnect_messenger");
+  async disconnect(accountIndex: number = 1): Promise<void> {
+    await invoke(IPC_COMMANDS.DISCONNECT_MESSENGER, { accountIndex });
+  },
+
+  /**
+   * Close and destroy the webview window for a specific account.
+   */
+  async closeWindow(accountIndex: number = 1): Promise<void> {
+    await invoke(IPC_COMMANDS.CLOSE_MESSENGER_WINDOW, { accountIndex });
+  },
+
+  /**
+   * Completely clear cache, cookies, and storage directory for a specific account.
+   */
+  async clearStorage(accountIndex: number = 1): Promise<void> {
+    await invoke(IPC_COMMANDS.CLEAR_ACCOUNT_STORAGE, { accountIndex });
   },
 
   /**
    * Explicitly report authentication status from the webview injection script.
    */
-  async reportAuthStatus(connected: boolean, name?: string): Promise<void> {
-    await invoke("report_auth_status", { connected, name });
+  async reportAuthStatus(
+    connected: boolean,
+    name?: string,
+    accountIndex: number = 1
+  ): Promise<void> {
+    await invoke(IPC_COMMANDS.REPORT_AUTH_STATUS, { connected, name, accountIndex });
+  },
+
+  /**
+   * Toggle or show/hide the bubble window for a specific account.
+   */
+  async toggleBubble(visible: boolean, accountIndex: number = 1): Promise<void> {
+    await invoke(IPC_COMMANDS.TOGGLE_BUBBLE, { visible, accountIndex });
   },
 };

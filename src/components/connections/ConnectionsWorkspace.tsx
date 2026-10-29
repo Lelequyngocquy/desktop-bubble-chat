@@ -1,6 +1,6 @@
 import React from "react";
 import { CheckCircle2, AlertCircle } from "lucide-react";
-import { useAppStore } from "../../stores/appStore";
+import { useMessengerStore, selectIsMessengerConnected } from "../../stores/messengerStore";
 import { TabHeader } from "../common/TabHeader";
 import {
   MessengerManagerCard,
@@ -11,7 +11,9 @@ import { PlatformRoadmap } from "../home/PlatformRoadmap";
 import { ConnectionsFooter } from "./ConnectionsFooter";
 
 export const ConnectionsWorkspace: React.FC = () => {
-  const { isMessengerConnected } = useAppStore();
+  const isMessengerConnected = useMessengerStore(selectIsMessengerConnected);
+  const accounts = useMessengerStore((s) => s.accounts);
+  const connectedCount = accounts.filter((a) => a.isConnected).length;
 
   return (
     <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-[#F4F7FC] overflow-hidden select-none">
@@ -26,7 +28,7 @@ export const ConnectionsWorkspace: React.FC = () => {
               <>
                 <CheckCircle2 className="w-3.5 h-3.5 text-[#25805C]" />
                 <span className="text-[#202733] font-medium">
-                  1 nền tảng kết nối
+                  {connectedCount > 1 ? `${connectedCount} tài khoản kết nối` : "Đã kết nối"}
                 </span>
               </>
             ) : (
@@ -50,7 +52,7 @@ export const ConnectionsWorkspace: React.FC = () => {
               Nền tảng đã kết nối
             </h2>
             <span className="px-2 py-0.5 bg-[#EAF2FF] text-[#0759DB] text-[11px] font-semibold rounded-[6px]">
-              {isMessengerConnected ? 1 : 0}
+              {connectedCount > 0 ? connectedCount : 0}
             </span>
           </div>
 

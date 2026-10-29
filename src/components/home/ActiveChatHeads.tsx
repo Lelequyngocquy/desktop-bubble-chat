@@ -1,19 +1,19 @@
 import React from "react";
 import { Users, MoreHorizontal, X, Plus } from "lucide-react";
-import { useAppStore } from "../../stores/appStore";
+import { useConversationStore } from "../../stores/conversationStore";
+import { useMessengerStore, selectIsMessengerConnected } from "../../stores/messengerStore";
+import { useNavigationStore } from "../../stores/navigationStore";
 import { AvatarCircle } from "../common";
 
 export const ActiveChatHeads: React.FC = () => {
-  const {
-    conversations,
-    removeConversation,
-    isMessengerConnected,
-    setActiveTab,
-  } = useAppStore();
+  const conversations = useConversationStore((s) => s.conversations);
+  const removeConversation = useConversationStore((s) => s.removeConversation);
+  const isMessengerConnected = useMessengerStore(selectIsMessengerConnected);
+  const setActiveTab = useNavigationStore((s) => s.setActiveTab);
 
   return (
     <div className="bg-white border border-[#E2E7EF] rounded-[12px] shadow-card flex flex-col justify-between flex-1 min-h-[352px] min-w-0 select-none">
-      {/* Top Heading (Figma Node #3:1250) */}
+      {/* Top Heading */}
       <div className="p-[20px_22px_12px] flex flex-col gap-1.5 border-b border-[#E2E7EF]/50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -37,7 +37,7 @@ export const ActiveChatHeads: React.FC = () => {
         </p>
       </div>
 
-      {/* Pinned Conversation List (Figma Node #3:1258) */}
+      {/* Pinned Conversation List */}
       <div className="px-[22px] flex flex-col flex-1 divide-y divide-[#E2E7EF]">
         {conversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-[#6B7483] gap-2.5 my-auto">
@@ -108,7 +108,7 @@ export const ActiveChatHeads: React.FC = () => {
         )}
       </div>
 
-      {/* Footer Add shortcut (Figma Node #3:1290) */}
+      {/* Footer Add shortcut */}
       <div className="h-12 px-[22px] border-t border-[#E2E7EF]/50 flex items-center justify-between">
         <span className="text-[11px] text-[#6B7483]">
           {isMessengerConnected ? "Tối đa 6 bong bóng ghim" : "Cần kết nối Messenger"}

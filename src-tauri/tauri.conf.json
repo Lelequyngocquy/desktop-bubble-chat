@@ -36,22 +36,6 @@
         "skipTaskbar": true,
         "shadow": false,
         "visible": false
-      },
-      {
-        "label": "chat-messenger",
-        "title": "Messenger",
-        "url": "https://www.messenger.com/",
-        "width": 420,
-        "height": 620,
-        "minWidth": 380,
-        "minHeight": 500,
-        "resizable": true,
-        "decorations": false,
-        "transparent": false,
-        "alwaysOnTop": true,
-        "skipTaskbar": true,
-        "shadow": true,
-        "visible": false
       }
     ],
     "security": {

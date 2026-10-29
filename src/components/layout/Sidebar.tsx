@@ -8,20 +8,21 @@ import {
   Settings2,
   HelpCircle,
 } from "lucide-react";
-import { useAppStore } from "../../stores/appStore";
+import { useNavigationStore } from "../../stores/navigationStore";
+import { useMessengerStore, selectIsMessengerConnected } from "../../stores/messengerStore";
+import { useConversationStore } from "../../stores/conversationStore";
+import { useSystemUserStore } from "../../stores/systemUserStore";
 import { NavTab, NavigationItemConfig } from "../../types";
 import { MOCK_NAVIGATION_ITEMS } from "../../mocks";
 import { AvatarCircle } from "../common";
 
 export const Sidebar: React.FC = () => {
-  const {
-    activeTab,
-    setActiveTab,
-    conversations,
-    isMessengerConnected,
-    systemUser,
-    systemUserInitials,
-  } = useAppStore();
+  const activeTab = useNavigationStore((s) => s.activeTab);
+  const setActiveTab = useNavigationStore((s) => s.setActiveTab);
+  const conversations = useConversationStore((s) => s.conversations);
+  const isMessengerConnected = useMessengerStore(selectIsMessengerConnected);
+  const systemUser = useSystemUserStore((s) => s.systemUser);
+  const systemUserInitials = useSystemUserStore((s) => s.systemUserInitials);
 
   const navIconMap: Record<NavigationItemConfig["iconName"], React.ReactNode> = {
     Home: <Home className="w-[18px] h-[18px]" />,
@@ -53,7 +54,7 @@ export const Sidebar: React.FC = () => {
     <aside className="w-[232px] shrink-0 bg-[#EEF2F9] border-r border-[#E2E7EF] flex flex-col justify-between p-[14px_12px_16px] select-none h-full overflow-hidden">
       {/* Top section: Profile & Primary Nav */}
       <div className="flex flex-col gap-6">
-        {/* Profile (Figma Node #3:1160 & #20:1070) - Windows User Profile */}
+        {/* Profile - Windows User Profile */}
         <div
           onClick={() => setActiveTab("home")}
           className="flex items-center gap-[11px] px-[10px] pb-2 cursor-pointer hover:opacity-90 transition-opacity"
@@ -75,7 +76,7 @@ export const Sidebar: React.FC = () => {
           </div>
         </div>
 
-        {/* Primary Navigation (Figma Node #3:1166 & #20:1076) */}
+        {/* Primary Navigation */}
         <nav className="flex flex-col gap-[5px]">
           {primaryNavItems.map((item) => {
             const isActive = activeTab === item.id;
@@ -89,7 +90,7 @@ export const Sidebar: React.FC = () => {
                     : "hover:bg-white/40 active:bg-white/60"
                 }`}
               >
-                {/* Active selection indicator (Figma Node #3:1168 & #20:1082) */}
+                {/* Active selection indicator */}
                 {isActive && (
                   <div className="absolute left-0 top-[13px] w-[3px] h-[16px] bg-[#0866FF] rounded-[2px]" />
                 )}
@@ -115,7 +116,7 @@ export const Sidebar: React.FC = () => {
                   </span>
                 </div>
 
-                {/* Badge if present (Figma Node #3:1175 & #20:1086) */}
+                {/* Badge if present */}
                 {item.badge !== undefined && (
                   <span
                     className={`text-[12px] font-normal px-1.5 py-0.5 rounded-full ${
@@ -135,7 +136,7 @@ export const Sidebar: React.FC = () => {
 
       {/* Bottom section: Background service, Secondary Nav & Version */}
       <div className="flex flex-col gap-4">
-        {/* Background Service Card (Figma Node #3:1181 & #20:1097) */}
+        {/* Background Service Card */}
         <div className="bg-white/50 border border-white/75 rounded-[8px] p-[14px] flex flex-col gap-2">
           <div className="flex items-center gap-2 text-[#202733]">
             <CheckCircle2 className="w-4 h-4 text-[#25805C]" />
@@ -148,7 +149,7 @@ export const Sidebar: React.FC = () => {
           </p>
         </div>
 
-        {/* Secondary Navigation (Figma Node #3:1188 & #20:1103) */}
+        {/* Secondary Navigation */}
         <div className="flex flex-col gap-1">
           <button
             onClick={() => setActiveTab("settings")}
@@ -166,7 +167,7 @@ export const Sidebar: React.FC = () => {
           </button>
         </div>
 
-        {/* App Version (Figma Node #3:1195 & #20:1112) */}
+        {/* App Version */}
         <div className="pt-2 pl-[42px] text-[11px] text-[#929AA7]">
           Phiên bản 1.0.0 · Windows 11
         </div>
