@@ -1,0 +1,134 @@
+/**
+ * DesktopBubbleChat — Common UI constants
+ *
+ * Color      → Màu theo vai trò sử dụng.
+ * Dimen      → Khoảng cách, padding, bo góc, kích thước.
+ * Typography → Font, cỡ chữ, độ đậm.
+ */
+
+// ─────────────────────────────────────────
+// 1. COLOR
+// ─────────────────────────────────────────
+
+export const Color = {
+  background: {
+    app: "#EEF2F9",       // Nền cửa sổ, sidebar
+    workspace: "#F4F7FC", // Nền nội dung chính
+    surface: "#FFFFFF",   // Card, nút phụ
+    subtle: "#F8FAFD",    // Khu vực phụ bên trong card
+  },
+
+  text: {
+    primary: "#202733",   // Tiêu đề, nội dung chính
+    secondary: "#6B7483", // Mô tả, nhãn phụ
+    muted: "#929AA7",     // Thời gian, thông tin ít nổi bật
+    inverse: "#FFFFFF",   // Chữ trên nền màu đậm
+  },
+
+  primary: {
+    main: "#0866FF",      // Nút chính, toggle bật, badge chưa đọc
+    foreground: "#0759DB",// Liên kết, chữ trên nền xanh nhạt
+    subtle: "#EAF2FF",    // Nền thông tin, avatar mặc định
+  },
+
+  border: {
+    default: "#E2E7EF",   // Viền card, nút phụ, đường phân cách
+    strong: "#929AA7",    // Viền toggle tắt
+  },
+
+  status: {
+    success: "#25805C",
+    successBackground: "#EAF6EF",
+  },
+
+  avatar: {
+    groupForeground: "#7762AC",
+    groupBackground: "#F2EEFF",
+  },
+
+  // Bề mặt trắng có độ trong suốt trong thiết kế hiện tại
+  overlay: {
+    navigationSelected: "rgba(255, 255, 255, 0.69)",
+    backgroundService: "rgba(255, 255, 255, 0.50)",
+    upcomingPlatform: "rgba(255, 255, 255, 0.65)",
+  },
+} as const;
+
+// ─────────────────────────────────────────
+// 2. DIMENSION
+// ─────────────────────────────────────────
+
+export const Dimen = {
+  // Khoảng cách giữa các phần tử
+  spacing: {
+    none: 0,
+    xxs: 2,  // Giữa các dòng thông tin ngắn
+    xs: 4,   // Giữa tên và mô tả
+    sm: 8,   // Giữa icon và nhãn, giữa các nút
+    md: 12,  // Giữa avatar và nội dung
+    lg: 16,
+    xl: 24,  // Giữa các khối nội dung chính
+    xxl: 32,
+  },
+
+  // Khoảng cách bên trong thành phần
+  padding: {
+    toggle: 4,
+    navigationX: 12,
+    buttonX: 14,
+    platformCard: 16,
+    summaryCard: 18,
+    sectionTop: 20,
+    sectionX: 22,
+    connectionCard: 24,
+    workspaceX: 32,
+    workspaceTop: 28,
+    workspaceBottom: 20,
+  },
+
+  borderRadius: {
+    indicator: 2,
+    control: 6,  // Nút, mục điều hướng, badge nhỏ
+    panel: 8,    // Khối phụ, thẻ nền tảng
+    card: 12,    // Card chính
+    pill: 999,   // Badge, toggle; avatar cần chiều rộng = chiều cao
+  },
+
+  layout: {
+    sidebarWidth: 232,
+    titleBarHeight: 48,
+  },
+} as const;
+
+// ─────────────────────────────────────────
+// 3. TYPOGRAPHY
+// ─────────────────────────────────────────
+
+export const Typography = {
+  fontFamily: "Inter",
+
+  fontSize: {
+    badge: 10,
+    caption: 11,
+    small: 12,
+    body: 13,
+    navigation: 14,
+    sectionTitle: 17,
+    platformTitle: 22,
+    metric: 28,
+    pageTitle: 30,
+  },
+
+  fontWeight: {
+    regular: 400,
+    medium: 500,
+    semibold: 600,
+    bold: 700,
+  },
+
+  // Tỷ lệ so với cỡ chữ, không phải px
+  lineHeight: {
+    default: 1.45,
+    description: 1.4,
+  },
+} as const;
