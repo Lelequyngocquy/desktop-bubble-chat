@@ -1,8 +1,8 @@
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, Position};
 
-use crate::movement::{BubbleMovementEngine, BubblePhysicsConfig, BubbleRect};
-use crate::utils::positioning::{
-    ensure_bubble_positioned_and_visible, get_bubble_window_label, ScreenMetrics,
+use crate::movement::{BubbleMovementEngine, BubblePhysicsConfig, ScreenMetrics};
+use crate::windows::bubble::{
+    ensure_bubble_positioned_and_visible, get_active_bubble_rects, get_bubble_window_label,
 };
 
 #[derive(serde::Serialize)]
@@ -22,28 +22,6 @@ pub struct BubblePositionDto {
     pub width: u32,
     pub height: u32,
     pub is_visible: bool,
-}
-
-/// Helper lấy danh sách tọa độ bounding box của tất cả các Bubble đang hiển thị
-fn get_active_bubble_rects(app: &AppHandle) -> Vec<BubbleRect> {
-    let mut rects = Vec::new();
-    for idx in 1..=5 {
-        let label = get_bubble_window_label(idx);
-        if let Some(w) = app.get_webview_window(&label) {
-            if w.is_visible().unwrap_or(false) {
-                if let (Ok(pos), Ok(size)) = (w.outer_position(), w.outer_size()) {
-                    rects.push(BubbleRect {
-                        account_index: idx,
-                        x: pos.x,
-                        y: pos.y,
-                        width: size.width as i32,
-                        height: size.height as i32,
-                    });
-                }
-            }
-        }
-    }
-    rects
 }
 
 /// Command lấy vị trí hiện tại của một Bubble chỉ định
@@ -117,7 +95,7 @@ pub fn snap_bubble(app: AppHandle, account_index: Option<u32>) -> Result<(), Str
             let win_pos = window.outer_position().map_err(|e| e.to_string())?;
             let screen = ScreenMetrics::from_monitor(&monitor);
             let config = BubblePhysicsConfig::default();
-            let all_bubbles = get_active_bubble_rects(&app);
+            let all_bubbles = get_active_bubble_rects(&app, None);
 
             let snap = BubbleMovementEngine::calculate_snap(
                 &screen,
@@ -166,7 +144,7 @@ pub fn get_bubble_snap_coords(
                 y: current_y,
             };
             let config = BubblePhysicsConfig::default();
-            let all_bubbles = get_active_bubble_rects(&app);
+            let all_bubbles = get_active_bubble_rects(&app, None);
 
             let snap = BubbleMovementEngine::calculate_snap(
                 &screen,
@@ -211,7 +189,7 @@ pub fn get_bubble_default_coords(
     if let Some(monitor) = monitor {
         let screen = ScreenMetrics::from_monitor(&monitor);
         let config = BubblePhysicsConfig::default();
-        let all_bubbles = get_active_bubble_rects(&app);
+        let all_bubbles = get_active_bubble_rects(&app, None);
 
         let pos = BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &all_bubbles);
         return Ok(SnapCoordsDto {

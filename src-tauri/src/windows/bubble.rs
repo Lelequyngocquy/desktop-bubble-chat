@@ -1,4 +1,6 @@
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
+
+use crate::movement::{BubbleMovementEngine, BubblePhysicsConfig, BubbleRect, ScreenMetrics};
 
 #[cfg(target_os = "windows")]
 #[link(name = "comctl32")]
@@ -88,19 +90,6 @@ unsafe extern "system" fn bubble_subclass_proc(
     unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
 }
 
-/// Cấu hình sự kiện cho cửa sổ chính (Home Page): Chặn thoát app khi ấn nút X, ẩn về tray
-pub fn setup_main_window(app: &AppHandle) {
-    if let Some(main_window) = app.get_webview_window("main") {
-        let main_clone = main_window.clone();
-        main_window.on_window_event(move |event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = main_clone.hide();
-            }
-        });
-    }
-}
-
 /// Cấu hình cửa sổ bong bóng: Cho phép kích thước nhỏ hơn SM_CXMINTRACK (136px) của Windows
 #[cfg(target_os = "windows")]
 pub fn setup_bubble_subclass(bubble: &tauri::WebviewWindow) {
@@ -132,13 +121,161 @@ pub fn setup_bubble_subclass(bubble: &tauri::WebviewWindow) {
     }
 }
 
-/// Cấu hình cửa sổ bong bóng: Cho phép kích thước nhỏ hơn SM_CXMINTRACK (136px) của Windows
+/// Cấu hình tất cả các cửa sổ bong bóng (bubble-01 -> bubble-05)
 #[cfg(target_os = "windows")]
 pub fn setup_bubble_window(app: &AppHandle) {
     for idx in 1..=5 {
         let label = format!("bubble-{:02}", idx);
         if let Some(bubble) = app.get_webview_window(&label) {
             setup_bubble_subclass(&bubble);
+        }
+    }
+}
+
+/// Trả về label định danh cửa sổ Bubble theo số thứ tự tài khoản
+pub fn get_bubble_window_label(account_index: u32) -> String {
+    format!("bubble-{:02}", account_index)
+}
+
+/// Tìm hoặc khởi tạo WebviewWindow nổi độc lập cho Bubble của tài khoản chỉ định
+pub fn get_or_create_bubble_window(
+    app: &AppHandle,
+    account_index: u32,
+) -> Result<tauri::WebviewWindow, String> {
+    let label = get_bubble_window_label(account_index);
+
+    // 1. Kiểm tra cửa sổ đã tồn tại
+    if let Some(win) = app.get_webview_window(&label) {
+        return Ok(win);
+    }
+
+    // 2. Khởi tạo WebviewWindow Bubble dự phòng nếu chưa có
+    let url_str = format!("index.html?window=bubble&account={}", account_index);
+    let window = tauri::WebviewWindowBuilder::new(
+        app,
+        &label,
+        tauri::WebviewUrl::App(url_str.into()),
+    )
+    .title(format!("DesktopBubbleChat - Bubble {:02}", account_index))
+    .inner_size(64.0, 64.0)
+    .resizable(false)
+    .decorations(false)
+    .transparent(true)
+    .always_on_top(true)
+    .skip_taskbar(true)
+    .shadow(false)
+    .visible(false)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "windows")]
+    setup_bubble_subclass(&window);
+
+    Ok(window)
+}
+
+/// Lấy danh sách tọa độ của tất cả Bubble đang hiển thị dưới dạng BubbleRect
+pub fn get_active_bubble_rects(
+    app: &AppHandle,
+    exclude_label: Option<&str>,
+) -> Vec<BubbleRect> {
+    let mut rects = Vec::new();
+
+    for idx in 1..=5 {
+        let label = get_bubble_window_label(idx);
+        if let Some(exclude) = exclude_label {
+            if label == exclude {
+                continue;
+            }
+        }
+        let win = app.get_webview_window(&label);
+
+        if let Some(w) = win {
+            if w.is_visible().unwrap_or(false) {
+                if let (Ok(pos), Ok(size)) = (w.outer_position(), w.outer_size()) {
+                    rects.push(BubbleRect {
+                        account_index: idx,
+                        x: pos.x,
+                        y: pos.y,
+                        width: size.width as i32,
+                        height: size.height as i32,
+                    });
+                }
+            }
+        }
+    }
+
+    rects
+}
+
+/// Hiển thị và định vị Bubble cho tài khoản chỉ định với cơ chế xếp chống va chạm
+pub fn ensure_bubble_positioned_and_visible(app: &AppHandle, account_index: u32) -> Result<(), String> {
+    let bubble_window = get_or_create_bubble_window(app, account_index)?;
+    let win_label = bubble_window.label().to_string();
+
+    let monitor = app
+        .get_webview_window("main")
+        .and_then(|m| {
+            if m.is_visible().unwrap_or(false) {
+                m.current_monitor().ok().flatten()
+            } else {
+                None
+            }
+        })
+        .or_else(|| bubble_window.current_monitor().ok().flatten())
+        .or_else(|| app.primary_monitor().ok().flatten());
+
+    if let Some(monitor) = monitor {
+        let win_pos = bubble_window.outer_position().unwrap_or_default();
+        let screen = ScreenMetrics::from_monitor(&monitor);
+        let config = BubblePhysicsConfig::default();
+        let bubble_w = (config.size * screen.scale_factor) as i32;
+
+        let is_visible = bubble_window.is_visible().unwrap_or(false);
+        let is_out_of_bounds = win_pos.x < screen.x - bubble_w
+            || win_pos.x > screen.x + screen.width
+            || (win_pos.x == 0 && win_pos.y == 0);
+
+        if !is_visible || is_out_of_bounds {
+            let other_bubbles = get_active_bubble_rects(app, Some(&win_label));
+            let target_pos = BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &other_bubbles);
+            let _ = bubble_window.set_position(tauri::Position::Physical(target_pos));
+        }
+    }
+    let _ = bubble_window.show();
+    let _ = app.emit("bubble-visibility-changed", serde_json::json!({
+        "accountIndex": account_index,
+        "visible": true
+    }));
+    Ok(())
+}
+
+/// Tự động thụt các bong bóng nổi vào mép màn hình (tuck_ratio)
+pub fn tuck_bubble(app: &AppHandle, account_index: Option<u32>) {
+    let indices: Vec<u32> = match account_index {
+        Some(idx) => vec![idx],
+        None => (1..=5).collect(),
+    };
+
+    let config = BubblePhysicsConfig::default();
+
+    for idx in indices {
+        let label = get_bubble_window_label(idx);
+        let win = app.get_webview_window(&label);
+
+        if let Some(bubble_window) = win {
+            if let Ok(Some(monitor)) = bubble_window.current_monitor() {
+                let screen = ScreenMetrics::from_monitor(&monitor);
+                let win_pos = bubble_window.outer_position().unwrap_or_default();
+                let tucked_pos = BubbleMovementEngine::calculate_hover_pos(
+                    &screen,
+                    &config,
+                    win_pos.x,
+                    win_pos.y,
+                    false,
+                );
+                let _ = bubble_window.set_position(tauri::Position::Physical(tucked_pos));
+            }
         }
     }
 }

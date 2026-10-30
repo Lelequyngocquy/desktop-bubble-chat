@@ -1,8 +1,7 @@
 use tauri::PhysicalPosition;
 
 use super::collision::{BubbleRect, CollisionResolver};
-use super::config::BubblePhysicsConfig;
-use crate::utils::positioning::{ScreenMetrics, SnapResult};
+use super::config::{BubblePhysicsConfig, ScreenMetrics, SnapResult};
 
 pub struct BubbleMovementEngine;
 

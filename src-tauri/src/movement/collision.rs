@@ -1,5 +1,4 @@
-use super::config::BubblePhysicsConfig;
-use crate::utils::positioning::ScreenMetrics;
+use super::config::{BubblePhysicsConfig, ScreenMetrics};
 
 /// Mô tả vùng hình chữ nhật (AABB) của một bong bóng trên màn hình
 #[derive(Debug, Clone, Copy)]

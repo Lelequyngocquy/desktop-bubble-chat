@@ -4,7 +4,6 @@ pub mod platforms;
 pub mod state;
 pub mod tray;
 pub mod utils;
-pub mod watcher;
 pub mod windows;
 
 use std::sync::Arc;
@@ -51,15 +50,18 @@ pub fn run() {
             }
 
             // 2. Chặn việc đóng cửa sổ chính (Home Page) -> Ẩn về khay hệ thống, giữ chat heads chạy ngầm
-            windows::bubble::setup_main_window(&app.handle());
+            windows::main_window::setup_main_window(&app.handle());
             #[cfg(target_os = "windows")]
             windows::bubble::setup_bubble_window(&app.handle());
 
             // 3. Quản lý sự kiện trên cửa sổ chat Messenger (Auto-hide on blur vs Auth Mode)
-            platforms::messenger::window::setup_chat_window(&app.handle(), Arc::clone(&chat_state_clone));
+            platforms::messenger::windows::setup_chat_window(&app.handle(), Arc::clone(&chat_state_clone));
 
             // 4. Luồng giám sát trạng thái đăng nhập và URL của Messenger theo thời gian thực
-            platforms::messenger::watcher::start_auth_watcher(app.handle().clone(), Arc::clone(&chat_state_clone));
+            platforms::messenger::daemons::start_auth_watcher(app.handle().clone(), Arc::clone(&chat_state_clone));
+
+            // 5. Luồng giám sát toàn cục: Hover 0.1s trên Bubble để mở Chat, rời khỏi thì tự động đóng
+            platforms::messenger::daemons::start_hover_and_autoclose_monitor(app.handle().clone(), Arc::clone(&chat_state_clone));
 
             Ok(())
         })

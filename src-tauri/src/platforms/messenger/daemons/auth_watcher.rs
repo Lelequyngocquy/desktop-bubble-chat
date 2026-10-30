@@ -2,10 +2,11 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
+use crate::platforms::messenger::parser::parse_unread_from_title;
+use crate::platforms::messenger::verifier::is_window_logged_in;
+use crate::platforms::messenger::windows::get_messenger_window_label;
 use crate::state::ChatState;
-use crate::utils::positioning::ensure_bubble_positioned_and_visible;
-use super::parser::parse_unread_from_title;
-use super::window::{get_messenger_window_label, is_window_logged_in};
+use crate::windows::bubble::ensure_bubble_positioned_and_visible;
 
 /// Luồng giám sát trạng thái đăng nhập và số tin chưa đọc của các tài khoản Messenger theo thời gian thực
 pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
@@ -17,7 +18,8 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
 
             for idx in 1..=5 {
                 let label = get_messenger_window_label(idx);
-                let win = app_handle.get_webview_window(&label)
+                let win = app_handle
+                    .get_webview_window(&label)
                     .or_else(|| if idx == 1 { app_handle.get_webview_window("chat-messenger") } else { None });
 
                 if let Some(chat_window) = win {

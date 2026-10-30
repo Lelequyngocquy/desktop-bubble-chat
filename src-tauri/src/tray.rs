@@ -2,7 +2,7 @@ use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager};
 
-use crate::utils::positioning::ensure_bubble_positioned_and_visible;
+use crate::windows::bubble::ensure_bubble_positioned_and_visible;
 
 /// Khởi tạo System Tray Icon & Menu điều khiển
 pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {

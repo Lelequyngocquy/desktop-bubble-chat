@@ -1,3 +1,36 @@
+use tauri::Monitor;
+
+#[derive(Debug, Clone, Copy)]
+pub struct ScreenMetrics {
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+    pub scale_factor: f64,
+}
+
+impl ScreenMetrics {
+    pub fn from_monitor(monitor: &Monitor) -> Self {
+        let pos = monitor.position();
+        let size = monitor.size();
+        let scale = monitor.scale_factor();
+        Self {
+            x: pos.x,
+            y: pos.y,
+            width: size.width as i32,
+            height: size.height as i32,
+            scale_factor: scale,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SnapResult {
+    pub target_x: i32,
+    pub target_y: i32,
+    pub should_dismiss: bool,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct BubblePhysicsConfig {
     pub size: f64,

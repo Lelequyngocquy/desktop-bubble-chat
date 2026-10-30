@@ -2,103 +2,12 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
+use super::theme::{apply_window_theme_color, get_account_theme};
+use crate::platforms::messenger::constants::{MESSENGER_INJECT_SCRIPT, MESSENGER_LOGIN_URL};
+use crate::platforms::messenger::services::ChatService;
 use crate::state::ChatState;
-use crate::utils::positioning::{is_cursor_over_any_bubble, tuck_bubble};
 use crate::utils::time::now_millis;
-
-pub const MESSENGER_INJECT_SCRIPT: &str = include_str!("scripts/messenger_inject.js");
-
-#[derive(Clone, Copy, Debug)]
-pub struct AccountTheme {
-    pub hex: &'static str,
-    pub border_hex: &'static str,
-}
-
-pub fn get_account_theme(idx: u32) -> AccountTheme {
-    match idx {
-        1 => AccountTheme {
-            hex: "#06B6D4",
-            border_hex: "#0891B2",
-        },
-        2 => AccountTheme {
-            hex: "#EC4899",
-            border_hex: "#DB2777",
-        },
-        3 => AccountTheme {
-            hex: "#F97316",
-            border_hex: "#EA580C",
-        },
-        4 => AccountTheme {
-            hex: "#8B5CF6",
-            border_hex: "#7C3AED",
-        },
-        5 => AccountTheme {
-            hex: "#10B981",
-            border_hex: "#059669",
-        },
-        _ => AccountTheme {
-            hex: "#06B6D4",
-            border_hex: "#0891B2",
-        },
-    }
-}
-
-pub fn hex_to_colorref(hex: &str) -> u32 {
-    let clean = hex.trim_start_matches('#');
-    if clean.len() == 6 {
-        let r = u32::from_str_radix(&clean[0..2], 16).unwrap_or(0);
-        let g = u32::from_str_radix(&clean[2..4], 16).unwrap_or(0);
-        let b = u32::from_str_radix(&clean[4..6], 16).unwrap_or(0);
-        r | (g << 8) | (b << 16)
-    } else {
-        0
-    }
-}
-
-#[cfg(target_os = "windows")]
-pub fn apply_window_theme_color(window: &tauri::WebviewWindow, hex: &str, border_hex: &str) {
-    #[link(name = "dwmapi")]
-    unsafe extern "system" {
-        fn DwmSetWindowAttribute(
-            hwnd: *mut std::ffi::c_void,
-            dwAttribute: u32,
-            pvAttribute: *const std::ffi::c_void,
-            cbAttribute: u32,
-        ) -> i32;
-    }
-
-    if let Ok(hwnd) = window.hwnd() {
-        let raw_hwnd = hwnd.0 as *mut std::ffi::c_void;
-        let caption_color = hex_to_colorref(hex);
-        let border_color = hex_to_colorref(border_hex);
-        let text_color: u32 = 0x00FFFFFF; // Màu chữ trắng
-
-        const DWMWA_BORDER_COLOR: u32 = 34;
-        const DWMWA_CAPTION_COLOR: u32 = 35;
-        const DWMWA_TEXT_COLOR: u32 = 36;
-
-        unsafe {
-            let _ = DwmSetWindowAttribute(
-                raw_hwnd,
-                DWMWA_CAPTION_COLOR,
-                &caption_color as *const _ as *const std::ffi::c_void,
-                std::mem::size_of::<u32>() as u32,
-            );
-            let _ = DwmSetWindowAttribute(
-                raw_hwnd,
-                DWMWA_TEXT_COLOR,
-                &text_color as *const _ as *const std::ffi::c_void,
-                std::mem::size_of::<u32>() as u32,
-            );
-            let _ = DwmSetWindowAttribute(
-                raw_hwnd,
-                DWMWA_BORDER_COLOR,
-                &border_color as *const _ as *const std::ffi::c_void,
-                std::mem::size_of::<u32>() as u32,
-            );
-        }
-    }
-}
+use crate::windows::bubble::tuck_bubble;
 
 /// Trả về label định danh cửa sổ chat Messenger theo số thứ tự tài khoản (ví dụ: chat-messenger-01)
 pub fn get_messenger_window_label(account_index: u32) -> String {
@@ -123,40 +32,17 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                 // Chỉ tự động ẩn khi KHÔNG ở chế độ đăng nhập (Auth Mode) của đúng cửa sổ này (SSOT)
                 if !state_clone.is_window_in_auth_mode(&win_label) {
                     state_clone.last_blur_time.store(now_millis(), Ordering::SeqCst);
-                    let _ = chat_clone.hide();
-                    let _ = app_handle.emit("chat-visibility-changed", serde_json::json!({
-                        "accountIndex": idx,
-                        "visible": false,
-                        "windowLabel": &win_label
-                    }));
-
-                    // Khi click ra ngoài cả popup lẫn bubble -> thụt tất cả bubble vào mép
-                    if !is_cursor_over_any_bubble(&app_handle) {
-                        tuck_bubble(&app_handle, None);
-                    } else {
-                        tuck_bubble(&app_handle, Some(idx));
-                    }
+                    let _ = ChatService::hide_chat(&app_handle, idx);
                 }
             }
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 // Chặn đóng tiến trình, ẩn cửa sổ và reset chế độ Auth cho riêng cửa sổ này
                 api.prevent_close();
                 state_clone.set_window_auth_mode(&win_label, false);
-                let _ = chat_clone.hide();
                 let _ = chat_clone.set_decorations(false);
                 let _ = chat_clone.set_skip_taskbar(true);
-                let _ = app_handle.emit("chat-visibility-changed", serde_json::json!({
-                    "accountIndex": idx,
-                    "visible": false,
-                    "windowLabel": &win_label
-                }));
                 let _ = app_handle.emit("messenger-auth-closed", serde_json::json!({ "label": &win_label }));
-
-                if !is_cursor_over_any_bubble(&app_handle) {
-                    tuck_bubble(&app_handle, None);
-                } else {
-                    tuck_bubble(&app_handle, Some(idx));
-                }
+                let _ = ChatService::hide_chat(&app_handle, idx);
             }
             _ => {}
         }
@@ -197,7 +83,7 @@ pub fn get_or_create_messenger_window(
     let _ = std::fs::create_dir_all(&profile_dir);
     println!("[BE - Window] Thư mục profile: {:?}", profile_dir);
 
-    let parsed_url = tauri::Url::parse("https://www.messenger.com/login/").map_err(|e| e.to_string())?;
+    let parsed_url = tauri::Url::parse(MESSENGER_LOGIN_URL).map_err(|e| e.to_string())?;
 
     let theme = get_account_theme(account_index);
     let init_script = format!(
@@ -277,41 +163,4 @@ pub fn setup_chat_window(app: &AppHandle, chat_state: Arc<ChatState>) {
         setup_window_events(app, &chat_window, chat_state);
         let _ = chat_window.eval(MESSENGER_INJECT_SCRIPT);
     }
-}
-
-/// Kiểm tra trạng thái đăng nhập chuẩn theo đặc tả c_user và Routing Invariants (standard_mess_login.md)
-/// Hàm thuần túy truy vấn (Read-Only), tuyệt đối không gây side-effect điều hướng webview trong quá trình polling.
-pub fn is_window_logged_in(chat_window: &tauri::WebviewWindow) -> (bool, String) {
-    let title = chat_window.title().unwrap_or_default();
-    let url_str = chat_window.url().map(|u| u.to_string()).unwrap_or_default();
-
-    // 1. Nếu đang ở domain facebook.com hoặc meta.com:
-    // Đang trong luồng xác thực / đăng nhập / 2FA / checkpoint của Meta -> Chưa hoàn tất đăng nhập Messenger
-    if url_str.contains("facebook.com") || url_str.contains("meta.com") {
-        return (false, String::new());
-    }
-
-    // 2. Kênh tốc độ cao: Đọc UID trực tiếp từ hash URL do injected script đóng dấu (#auth_uid=...)
-    if let Some(pos) = url_str.find("#auth_uid=") {
-        let uid_part = &url_str[pos + 10..];
-        let clean_uid = uid_part.split(['&', '#', '/']).next().unwrap_or("").trim().to_string();
-        if !clean_uid.is_empty() {
-            return (true, clean_uid);
-        }
-    }
-
-    // 3. Thẻ xác thực chuẩn [AUTH_OK] được injected script đóng dấu khi tìm thấy cookie c_user trên messenger.com
-    if title.contains("[AUTH_OK]") {
-        return (true, String::new());
-    }
-
-    // 4. Bất biến Routing: Trên domain messenger.com, CHỈ KHI vào hẳn thread chat (/t/ hoặc /e2ee/)
-    // mới coi là đã đăng nhập thành công.
-    // LƯU Ý QUAN TRỌNG: Tuyệt đối KHÔNG coi https://www.messenger.com/ (không có /login) là logged in,
-    // vì Meta thường xuyên render form đăng nhập trực tiếp trên root path "/"!
-    if url_str.contains("messenger.com") && (url_str.contains("/t/") || url_str.contains("/e2ee/")) {
-        return (true, String::new());
-    }
-
-    (false, String::new())
 }
