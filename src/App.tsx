@@ -8,6 +8,8 @@ import { ChatHeadsWorkspace } from "./components/chatheads/ChatHeadsWorkspace";
 import { NotificationsWorkspace } from "./components/notifications/NotificationsWorkspace";
 import { SettingsWorkspace } from "./components/settings/SettingsWorkspace";
 import { BubbleWindow } from "./components/bubble/BubbleWindow";
+import { BubbleSpawnIndicator } from "./components/common/BubbleSpawnIndicator";
+import { useBubbleAutoRestore } from "./hooks/bubble";
 import { useUnreadListener } from "./hooks/useUnreadListener";
 import { useSystemUser } from "./hooks/useSystemUser";
 import { useNavigationStore } from "./stores/navigationStore";
@@ -16,9 +18,10 @@ export const App: React.FC = () => {
   const [windowLabel, setWindowLabel] = useState<string>("main");
   const activeTab = useNavigationStore((s) => s.activeTab);
 
-  // Initialize background system listeners
+  // Initialize background system listeners & delayed bubble auto-restore
   useUnreadListener();
   useSystemUser();
+  useBubbleAutoRestore();
 
   useEffect(() => {
     try {
@@ -69,6 +72,9 @@ export const App: React.FC = () => {
           <HomeWorkspace />
         )}
       </div>
+
+      {/* 3. Dynamic Bubble Spawn Directional Arrow Indicator */}
+      <BubbleSpawnIndicator />
     </div>
   );
 };

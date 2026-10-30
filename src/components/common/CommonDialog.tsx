@@ -120,7 +120,7 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
         onClose();
       }
     },
-    [closeOnBackdropClick, onClose]
+    [closeOnBackdropClick, onClose],
   );
 
   // Không hiển thị gì nếu dialog đang đóng
@@ -131,7 +131,7 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
     action: boolean | DialogActionProps | React.ReactNode | undefined,
     defaultLabel: string,
     defaultVariant: CommonButtonProps["variant"],
-    fallbackOnClick?: () => void
+    fallbackOnClick?: () => void,
   ): React.ReactNode => {
     if (!action) return null;
 
@@ -141,7 +141,8 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
     }
 
     // Trường hợp truyền boolean true -> dùng cấu hình mặc định
-    const config: DialogActionProps = typeof action === "object" ? (action as DialogActionProps) : {};
+    const config: DialogActionProps =
+      typeof action === "object" ? (action as DialogActionProps) : {};
 
     const isSpinning = Boolean(config.loading);
     const leadingIcon = isSpinning ? (
@@ -220,11 +221,17 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
         >
           {content && (
             <div className="text-[13px] text-[#6B7483] leading-relaxed">
-              {typeof content === "string" ? <p className="m-0">{content}</p> : content}
+              {typeof content === "string" ? (
+                <p className="m-0">{content}</p>
+              ) : (
+                content
+              )}
             </div>
           )}
 
-          {widget && <div className="w-full mt-3 shrink-0 flex flex-col">{widget}</div>}
+          {widget && (
+            <div className="w-full mt-3 shrink-0 flex flex-col">{widget}</div>
+          )}
         </div>
 
         {/* 3. Footer (BackButton & RightButton) */}

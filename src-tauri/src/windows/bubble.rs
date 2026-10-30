@@ -288,7 +288,9 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
     let _ = bubble_window.show();
     let _ = app.emit("bubble-visibility-changed", serde_json::json!({
         "accountIndex": account_index,
-        "visible": true
+        "visible": true,
+        "x": committed_pos.x,
+        "y": committed_pos.y
     }));
 
     Ok(BubbleRect {
@@ -301,9 +303,8 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
 }
 
 /// Hiển thị và định vị Bubble cho tài khoản chỉ định với cơ chế xếp chống va chạm
-pub fn ensure_bubble_positioned_and_visible(app: &AppHandle, account_index: u32) -> Result<(), String> {
-    let _ = ensure_bubble_positioned_and_visible_with_extra(app, account_index, &[])?;
-    Ok(())
+pub fn ensure_bubble_positioned_and_visible(app: &AppHandle, account_index: u32) -> Result<BubbleRect, String> {
+    ensure_bubble_positioned_and_visible_with_extra(app, account_index, &[])
 }
 
 /// Tự động thụt các bong bóng nổi vào mép màn hình (tuck_ratio)

@@ -77,7 +77,13 @@ pub fn toggle_bubble(
     let label = get_bubble_window_label(idx);
 
     if visible {
-        let _ = ensure_bubble_positioned_and_visible(&app, idx);
+        if let Ok(rect) = ensure_bubble_positioned_and_visible(&app, idx) {
+            let _ = app.emit("bubble-spawned", serde_json::json!({
+                "accountIndex": idx,
+                "x": rect.x,
+                "y": rect.y
+            }));
+        }
     } else if let Some(bubble_window) = app.get_webview_window(&label) {
         let _ = bubble_window.hide();
         let _ = app.emit("bubble-visibility-changed", serde_json::json!({
@@ -324,6 +330,11 @@ pub async fn toggle_all_bubbles_impl(
         for (i, idx) in targets.iter().enumerate() {
             if let Ok(rect) = ensure_bubble_positioned_and_visible_with_extra(app, *idx, &committed_rects) {
                 committed_rects.push(rect);
+                let _ = app.emit("bubble-spawned", serde_json::json!({
+                    "accountIndex": *idx,
+                    "x": rect.x,
+                    "y": rect.y
+                }));
             }
             // Giãn cách 70ms giữa các bubble để Windows DWM vẽ và tạo hiệu ứng thác nước mượt mà
             if i + 1 < targets.len() {
