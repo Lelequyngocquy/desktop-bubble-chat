@@ -1,8 +1,11 @@
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, Position};
 
-use crate::movement::{BubbleMovementEngine, BubblePhysicsConfig, ScreenMetrics};
+use crate::movement::{
+    get_bubble_physics_config, BubbleConfigState, BubbleMovementEngine, ScreenMetrics,
+};
 use crate::windows::bubble::{
     ensure_bubble_positioned_and_visible, get_active_bubble_rects, get_bubble_window_label,
+    resize_bubble_window,
 };
 
 #[derive(serde::Serialize)]
@@ -94,7 +97,7 @@ pub fn snap_bubble(app: AppHandle, account_index: Option<u32>) -> Result<(), Str
         if let Ok(Some(monitor)) = window.current_monitor() {
             let win_pos = window.outer_position().map_err(|e| e.to_string())?;
             let screen = ScreenMetrics::from_monitor(&monitor);
-            let config = BubblePhysicsConfig::default();
+            let config = get_bubble_physics_config(&app);
             let all_bubbles = get_active_bubble_rects(&app, None);
 
             let snap = BubbleMovementEngine::calculate_snap(
@@ -143,7 +146,7 @@ pub fn get_bubble_snap_coords(
                 x: current_x,
                 y: current_y,
             };
-            let config = BubblePhysicsConfig::default();
+            let config = get_bubble_physics_config(&app);
             let all_bubbles = get_active_bubble_rects(&app, None);
 
             let snap = BubbleMovementEngine::calculate_snap(
@@ -188,7 +191,7 @@ pub fn get_bubble_default_coords(
 
     if let Some(monitor) = monitor {
         let screen = ScreenMetrics::from_monitor(&monitor);
-        let config = BubblePhysicsConfig::default();
+        let config = get_bubble_physics_config(&app);
         let all_bubbles = get_active_bubble_rects(&app, None);
 
         let pos = BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &all_bubbles);
@@ -215,7 +218,7 @@ pub fn get_bubble_hover_coords(
         if let Ok(Some(monitor)) = window.current_monitor() {
             let win_pos = window.outer_position().unwrap_or_default();
             let screen = ScreenMetrics::from_monitor(&monitor);
-            let config = BubblePhysicsConfig::default();
+            let config = get_bubble_physics_config(&app);
 
             let target_pos = BubbleMovementEngine::calculate_hover_pos(
                 &screen,
@@ -232,4 +235,93 @@ pub fn get_bubble_hover_coords(
         }
     }
     Err("Monitor not available".into())
+}
+
+/// Command cập nhật cấu hình vật lý của Bong bóng (kích thước, tỉ lệ lấn mép)
+#[tauri::command]
+pub fn set_bubble_config(
+    app: AppHandle,
+    size: Option<f64>,
+    tuck_ratio: Option<f64>,
+) -> Result<(), String> {
+    if let Some(state) = app.try_state::<BubbleConfigState>() {
+        if let Ok(mut guard) = state.0.write() {
+            if let Some(s) = size {
+                guard.size = s;
+            }
+            if let Some(r) = tuck_ratio {
+                guard.tuck_ratio = r;
+            }
+        }
+    }
+
+    let config = get_bubble_physics_config(&app);
+    for idx in 1..=5 {
+        let label = get_bubble_window_label(idx);
+        if let Some(window) = app.get_webview_window(&label) {
+            resize_bubble_window(&window, config.size);
+            if window.is_visible().unwrap_or(false) {
+                let _ = snap_bubble(app.clone(), Some(idx));
+            }
+        }
+    }
+
+    let size_str = if config.size <= 50.0 {
+        "sm"
+    } else if config.size <= 60.0 {
+        "md"
+    } else {
+        "lg"
+    };
+
+    let _ = app.emit(
+        "bubble-config-changed",
+        serde_json::json!({
+            "size": config.size,
+            "bubbleSize": size_str,
+            "tuckRatio": config.tuck_ratio,
+        }),
+    );
+    Ok(())
+}
+
+/// Helper & command bật/tắt toàn bộ bong bóng nổi (dùng chung cho Tray, Shortcut và IPC)
+pub fn toggle_all_bubbles_impl(app: &AppHandle, force_visible: Option<bool>) -> bool {
+    let mut any_visible = false;
+    for idx in 1..=5 {
+        let label = get_bubble_window_label(idx);
+        if let Some(bw) = app.get_webview_window(&label) {
+            if bw.is_visible().unwrap_or(false) {
+                any_visible = true;
+                break;
+            }
+        }
+    }
+
+    let next_visible = match force_visible {
+        Some(v) => v,
+        None => !any_visible,
+    };
+
+    if next_visible {
+        let _ = ensure_bubble_positioned_and_visible(app, 1);
+    } else {
+        for idx in 1..=5 {
+            let label = get_bubble_window_label(idx);
+            if let Some(bw) = app.get_webview_window(&label) {
+                let _ = bw.hide();
+                let _ = app.emit("bubble-visibility-changed", serde_json::json!({
+                    "accountIndex": idx,
+                    "visible": false
+                }));
+            }
+        }
+    }
+
+    next_visible
+}
+
+#[tauri::command]
+pub fn toggle_all_bubbles(app: AppHandle, visible: Option<bool>) -> Result<bool, String> {
+    Ok(toggle_all_bubbles_impl(&app, visible))
 }

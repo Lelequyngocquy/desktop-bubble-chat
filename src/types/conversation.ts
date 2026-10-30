@@ -7,4 +7,7 @@ export interface Conversation {
   lastMessage: string;
   timestamp: string;
   unreadCount: number;
+  accountIndex?: number;
+  threadId?: string;
+  isPinned?: boolean;
 }

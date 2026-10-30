@@ -27,6 +27,11 @@ interface MessengerState {
   setAccountBubbleVisibility: (accountIndex: number, visible: boolean) => void;
   toggleAccountBubbleVisibility: (accountIndex: number) => void;
   setAllBubblesVisibility: (visible: boolean) => void;
+
+  // --- Visual Pulse & Sender Avatar Actions (Giai đoạn 3) ---
+  triggerAccountPulse: (accountIndex: number) => void;
+  clearAccountPulse: (accountIndex: number) => void;
+  setAccountLatestAvatar: (accountIndex: number, avatarUrl?: string) => void;
 }
 
 const initialAccounts = accountStorageService.load();
@@ -153,14 +158,54 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
     accountStorageService.save(updated);
     set({ accounts: updated });
   },
+
+  triggerAccountPulse: (accountIndex) => {
+    const current = get().accounts;
+    const updated = current.map((a) =>
+      a.index === accountIndex ? { ...a, hasNewMessagePulse: true } : a
+    );
+    set({ accounts: updated });
+
+    // Auto-clear pulse after 4s
+    setTimeout(() => {
+      get().clearAccountPulse(accountIndex);
+    }, 4000);
+  },
+
+  clearAccountPulse: (accountIndex) => {
+    const current = get().accounts;
+    const updated = current.map((a) =>
+      a.index === accountIndex ? { ...a, hasNewMessagePulse: false } : a
+    );
+    set({ accounts: updated });
+  },
+
+  setAccountLatestAvatar: (accountIndex, avatarUrl) => {
+    const current = get().accounts;
+    const updated = current.map((a) =>
+      a.index === accountIndex ? { ...a, latestSenderAvatar: avatarUrl } : a
+    );
+    set({ accounts: updated });
+  },
 }));
 
 // --- Pure Selectors (Computed from SSOT, guaranteed consistency) ---
 export const selectIsMessengerConnected = (state: MessengerState): boolean =>
   state.accounts.some((a) => a.isConnected);
 
-export const selectConnectedAccounts = (state: MessengerState): MessengerAccount[] =>
-  state.accounts.filter((a) => a.isConnected);
+// Memoized selector: Trả về cùng instance mảng nếu state.accounts không thay đổi,
+// bảo đảm an toàn tuyệt đối cho useSyncExternalStore trong React 18/19 (chống infinite re-render loop)
+let lastAccountsRef: MessengerAccount[] | null = null;
+let cachedConnectedAccounts: MessengerAccount[] = [];
+
+export const selectConnectedAccounts = (state: MessengerState): MessengerAccount[] => {
+  if (state.accounts === lastAccountsRef) {
+    return cachedConnectedAccounts;
+  }
+  lastAccountsRef = state.accounts;
+  cachedConnectedAccounts = state.accounts.filter((a) => a.isConnected);
+  return cachedConnectedAccounts;
+};
 
 export const selectPrimaryAccount = (state: MessengerState): MessengerAccount | null =>
   state.accounts.find((a) => a.isConnected) || null;

@@ -1,8 +1,65 @@
 use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::platforms::messenger::services::{ChatService, StorageService};
 use crate::state::ChatState;
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct IncomingMessageDto {
+    pub account_index: u32,
+    pub sender_name: String,
+    pub body: Option<String>,
+    pub avatar_url: Option<String>,
+    pub thread_id: Option<String>,
+    pub timestamp: u64,
+}
+
+/// Command nhận báo cáo tin nhắn mới từ webview inject script và phát event cho Frontend SSOT
+#[tauri::command]
+pub fn report_new_message(
+    app: AppHandle,
+    sender_name: String,
+    body: Option<String>,
+    avatar_url: Option<String>,
+    thread_id: Option<String>,
+    account_index: Option<u32>,
+) -> Result<(), String> {
+    let idx = account_index.unwrap_or(1);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+
+    let payload = IncomingMessageDto {
+        account_index: idx,
+        sender_name,
+        body,
+        avatar_url,
+        thread_id,
+        timestamp: now,
+    };
+
+    app.emit("new-message-received", &payload).map_err(|e| e.to_string())
+}
+
+/// Command nhận danh sách hội thoại gần nhất trích xuất an toàn từ webview
+#[tauri::command]
+pub fn sync_recent_conversations(
+    app: AppHandle,
+    conversations: Vec<IncomingMessageDto>,
+    account_index: Option<u32>,
+) -> Result<(), String> {
+    let idx = account_index.unwrap_or(1);
+    app.emit(
+        "recent-conversations-synced",
+        serde_json::json!({
+            "accountIndex": idx,
+            "conversations": conversations,
+        }),
+    )
+    .map_err(|e| e.to_string())
+}
 
 /// Command mở trực tiếp khung chat cạnh bong bóng nổi cho tài khoản chỉ định
 #[tauri::command]
@@ -13,6 +70,29 @@ pub async fn open_chat(
 ) -> Result<(), String> {
     let idx = account_index.unwrap_or(1);
     ChatService::open_chat(&app, &state, idx)
+}
+
+/// Command mở trực tiếp một thread hội thoại cụ thể và dock khung chat cạnh Bubble
+#[tauri::command]
+pub async fn open_thread(
+    app: AppHandle,
+    state: State<'_, Arc<ChatState>>,
+    thread_id: String,
+    account_index: Option<u32>,
+) -> Result<(), String> {
+    let idx = account_index.unwrap_or(1);
+    ChatService::open_chat(&app, &state, idx)?;
+
+    let chat_label = format!("chat-{:02}", idx);
+    if let Some(chat_window) = app.get_webview_window(&chat_label) {
+        let clean_id = thread_id.trim();
+        if !clean_id.is_empty() && !clean_id.starts_with("sender-") {
+            let url = format!("https://www.messenger.com/t/{}", clean_id);
+            let script = format!("window.location.href = '{}';", url);
+            let _ = chat_window.eval(&script);
+        }
+    }
+    Ok(())
 }
 
 /// Command bật/tắt khung chat Messenger khi người dùng click vào bong bóng nổi

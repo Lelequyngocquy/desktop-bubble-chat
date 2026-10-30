@@ -3,8 +3,9 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import { useMessengerStore, selectAccountByIndex } from "../../stores/messengerStore";
 import { useWindowStore, selectIsAccountChatOpen } from "../../stores/windowStore";
+import { useSettingsStore, BubbleSize } from "../../stores/settingsStore";
 import { getAccountThemeColor } from "../../constants/accountColors";
-import { IPC_EVENTS, ChatVisibilityPayload } from "../../types/ipc";
+import { IPC_EVENTS, ChatVisibilityPayload, BubbleConfigChangedPayload } from "../../types/ipc";
 
 /**
  * Custom hook dedicated to the floating Bubble window lifecycle and interactions.
@@ -43,6 +44,49 @@ export function useBubbleWindow() {
     } catch {}
 
     setAccountIndex(resolvedIndex);
+  }, []);
+
+  // Đồng bộ kích thước Bong bóng thời gian thực với WebviewWindow và IPC Backend
+  useEffect(() => {
+    let unlistenResize: (() => void) | undefined;
+    let unlistenConfig: (() => void) | undefined;
+
+    const syncSizeFromWidth = (width: number) => {
+      let resolved: BubbleSize = "md";
+      if (width <= 50) resolved = "sm";
+      else if (width <= 60) resolved = "md";
+      else resolved = "lg";
+
+      if (useSettingsStore.getState().bubbleSize !== resolved) {
+        useSettingsStore.getState().setBubbleSize(resolved);
+      }
+    };
+
+    try {
+      const win = getCurrentWindow();
+      win.innerSize().then((size) => {
+        if (size?.width) syncSizeFromWidth(size.width);
+      });
+
+      win.onResized(({ payload: size }) => {
+        if (size?.width) syncSizeFromWidth(size.width);
+      }).then((un) => {
+        unlistenResize = un;
+      });
+    } catch {}
+
+    listen<BubbleConfigChangedPayload>(IPC_EVENTS.BUBBLE_CONFIG_CHANGED, (event) => {
+      if (event.payload?.bubbleSize) {
+        useSettingsStore.getState().setBubbleSize(event.payload.bubbleSize);
+      }
+    }).then((un) => {
+      unlistenConfig = un;
+    });
+
+    return () => {
+      if (unlistenResize) unlistenResize();
+      if (unlistenConfig) unlistenConfig();
+    };
   }, []);
 
   // Lắng nghe sự kiện đóng/mở chat thời gian thực từ Rust backend cho đúng account này

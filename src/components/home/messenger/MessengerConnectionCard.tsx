@@ -1,9 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { ShieldCheck, LogIn } from "lucide-react";
 import { messengerService } from "../../../services/messenger";
 import {
   useMessengerStore,
-  selectConnectedAccounts,
   selectTotalUnreadCount,
   selectVisibleBubbleCount,
   selectAreAnyBubblesVisible,
@@ -18,20 +17,25 @@ import { ConnectionMetricsColumn } from "./ConnectionMetricsColumn";
 
 export const MessengerConnectionCard: React.FC = () => {
   const accounts = useMessengerStore((s) => s.accounts);
-  const connectedAccounts = useMessengerStore(selectConnectedAccounts);
+  const connectedAccounts = useMemo(
+    () => accounts.filter((a) => a.isConnected),
+    [accounts],
+  );
   const totalUnreadCount = useMessengerStore(selectTotalUnreadCount);
   const visibleBubbleCount = useMessengerStore(selectVisibleBubbleCount);
   const areAnyBubblesVisible = useMessengerStore(selectAreAnyBubblesVisible);
 
   const toggleAccountBubbleVisibility = useMessengerStore(
-    (s) => s.toggleAccountBubbleVisibility
+    (s) => s.toggleAccountBubbleVisibility,
   );
-  const setAllBubblesVisibility = useMessengerStore(
-    (s) => s.setAllBubblesVisibility
-  );
-  const setActiveAccountIndex = useMessengerStore((s) => s.setActiveAccountIndex);
 
-  const setOpenChatAccountIndex = useWindowStore((s) => s.setOpenChatAccountIndex);
+  const setActiveAccountIndex = useMessengerStore(
+    (s) => s.setActiveAccountIndex,
+  );
+
+  const setOpenChatAccountIndex = useWindowStore(
+    (s) => s.setOpenChatAccountIndex,
+  );
   const setActiveTab = useNavigationStore((s) => s.setActiveTab);
 
   const totalConnected = connectedAccounts.length;
@@ -42,7 +46,10 @@ export const MessengerConnectionCard: React.FC = () => {
     try {
       await messengerService.openChat(account.index);
     } catch (err) {
-      console.warn("[MessengerConnectionCard] Failed to open chat window:", err);
+      console.warn(
+        "[MessengerConnectionCard] Failed to open chat window:",
+        err,
+      );
     }
   };
 
@@ -52,18 +59,10 @@ export const MessengerConnectionCard: React.FC = () => {
     try {
       await messengerService.toggleBubble(nextVal, account.index);
     } catch (err) {
-      console.warn(`[MessengerConnectionCard] Failed to toggle bubble for account ${account.index}:`, err);
-    }
-  };
-
-  const handleToggleAllBubbles = async () => {
-    const nextVal = !areAnyBubblesVisible;
-    setAllBubblesVisibility(nextVal);
-    try {
-      const indices = connectedAccounts.map((a) => a.index);
-      await messengerService.toggleAllBubbles(nextVal, indices.length > 0 ? indices : [1]);
-    } catch (err) {
-      console.warn("[MessengerConnectionCard] Failed to toggle all bubbles:", err);
+      console.warn(
+        `[MessengerConnectionCard] Failed to toggle bubble for account ${account.index}:`,
+        err,
+      );
     }
   };
 
@@ -78,7 +77,6 @@ export const MessengerConnectionCard: React.FC = () => {
             totalConnected={totalConnected}
             totalAccounts={accounts.length}
             areAnyBubblesVisible={areAnyBubblesVisible}
-            onToggleAllBubbles={handleToggleAllBubbles}
             onManage={() => setActiveTab("connections")}
           />
 
@@ -100,7 +98,8 @@ export const MessengerConnectionCard: React.FC = () => {
                     Chưa có tài khoản Messenger nào được liên kết
                   </span>
                   <span className="text-[11.5px] text-[#D97706]">
-                    Đăng nhập tài khoản của bạn để kích hoạt bong bóng chat nổi trên màn hình.
+                    Đăng nhập tài khoản của bạn để kích hoạt bong bóng chat nổi
+                    trên màn hình.
                   </span>
                 </div>
                 <CommonButton
@@ -128,7 +127,8 @@ export const MessengerConnectionCard: React.FC = () => {
       <div className="bg-[#EAF2FF] px-6 py-2.5 flex items-center gap-2 text-[#0759DB] border-t border-[#E2E7EF]/50">
         <ShieldCheck className="w-4 h-4 shrink-0" />
         <span className="text-[11px] font-normal leading-tight">
-          Phiên đăng nhập được lưu trên thiết bị này. Không gửi dữ liệu tài khoản ra ngoài.
+          Phiên đăng nhập được lưu trên thiết bị này. Không gửi dữ liệu tài
+          khoản ra ngoài.
         </span>
       </div>
     </div>

@@ -39,6 +39,17 @@ export const systemService = {
   },
 
   /**
+   * Sets always on top for application windows.
+   */
+  async setAlwaysOnTop(enabled: boolean): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.SET_ALWAYS_ON_TOP, { enabled });
+    } catch (err) {
+      console.warn("[SystemService] Failed to set always on top:", err);
+    }
+  },
+
+  /**
    * Updates or sets the application taskbar badge count.
    */
   async setBadgeCount(count: number): Promise<void> {

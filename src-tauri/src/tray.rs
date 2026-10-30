@@ -1,8 +1,6 @@
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{Emitter, Manager};
-
-use crate::windows::bubble::ensure_bubble_positioned_and_visible;
+use tauri::Manager;
 
 /// Khởi tạo System Tray Icon & Menu điều khiển
 pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
@@ -28,31 +26,7 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
                     }
                 }
                 "toggle_bubble_item" => {
-                    let mut any_visible = false;
-                    for idx in 1..=5 {
-                        let label = format!("bubble-{:02}", idx);
-                        if let Some(bw) = app_handle.get_webview_window(&label) {
-                            if bw.is_visible().unwrap_or(false) {
-                                any_visible = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if any_visible {
-                        for idx in 1..=5 {
-                            let label = format!("bubble-{:02}", idx);
-                            if let Some(bw) = app_handle.get_webview_window(&label) {
-                                let _ = bw.hide();
-                                let _ = app_handle.emit("bubble-visibility-changed", serde_json::json!({
-                                    "accountIndex": idx,
-                                    "visible": false
-                                }));
-                            }
-                        }
-                    } else {
-                        let _ = ensure_bubble_positioned_and_visible(&app_handle, 1);
-                    }
+                    crate::commands::bubble::toggle_all_bubbles_impl(&app_handle, None);
                 }
                 "quit" => {
                     app_handle.exit(0);

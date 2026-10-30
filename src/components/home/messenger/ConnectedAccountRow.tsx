@@ -1,7 +1,6 @@
 import React from "react";
-import { ArrowUpRight } from "lucide-react";
 import { MessengerAccount } from "../../../types/account";
-import { AvatarCircle, CommonButton, SwitchButton } from "../../common";
+import { AvatarCircle, SwitchButton } from "../../common";
 
 interface ConnectedAccountRowProps {
   account: MessengerAccount;
@@ -11,7 +10,6 @@ interface ConnectedAccountRowProps {
 
 export const ConnectedAccountRow: React.FC<ConnectedAccountRowProps> = ({
   account,
-  onOpenChat,
   onToggleBubble,
 }) => {
   return (
@@ -41,7 +39,10 @@ export const ConnectedAccountRow: React.FC<ConnectedAccountRowProps> = ({
             )}
           </div>
           <span className="text-[11px] text-[#6B7483] truncate leading-tight mt-0.5">
-            {account.isBubbleVisible ? "Bong bóng đang bật" : "Bong bóng đang ẩn"} • {account.lastSynced || "Đồng bộ vừa xong"}
+            {account.isBubbleVisible
+              ? "Bong bóng đang bật"
+              : "Bong bóng đang ẩn"}{" "}
+            • {account.lastSynced || "Đồng bộ vừa xong"}
           </span>
         </div>
       </div>
@@ -49,22 +50,15 @@ export const ConnectedAccountRow: React.FC<ConnectedAccountRowProps> = ({
       {/* Right: Per-Bubble Toggle & Open Chat Button */}
       <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
         <div className="flex items-center gap-1.5 pr-1 border-r border-[#E2E7EF]">
-          <span className="text-[11px] text-[#6B7483] hidden md:inline">Bong bóng</span>
+          <span className="text-[11px] text-[#6B7483] hidden md:inline">
+            Bong bóng
+          </span>
           <SwitchButton
             checked={account.isBubbleVisible}
             onChange={() => onToggleBubble(account)}
             aria-label={`Bật tắt bong bóng cho ${account.name}`}
           />
         </div>
-
-        <CommonButton
-          variant="primary"
-          size="sm"
-          onClick={() => onOpenChat(account)}
-          iconTrailing={<ArrowUpRight className="w-3.5 h-3.5" />}
-        >
-          Mở chat
-        </CommonButton>
       </div>
     </div>
   );

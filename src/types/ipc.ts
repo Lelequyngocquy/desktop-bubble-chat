@@ -11,6 +11,7 @@ export const IPC_COMMANDS = {
   IS_AUTOSTART_ENABLED: "is_autostart_enabled",
   OPEN_EXTERNAL_URL: "open_external_url",
   EXIT_APP: "exit_app",
+  SET_ALWAYS_ON_TOP: "set_always_on_top",
   LOG_FRONTEND: "log_frontend",
 
   // Badge Commands
@@ -19,23 +20,28 @@ export const IPC_COMMANDS = {
 
   // Bubble Window & Positioning Commands
   TOGGLE_BUBBLE: "toggle_bubble",
+  TOGGLE_ALL_BUBBLES: "toggle_all_bubbles",
   SNAP_BUBBLE: "snap_bubble",
   GET_BUBBLE_POSITION: "get_bubble_position",
   GET_ALL_BUBBLE_POSITIONS: "get_all_bubble_positions",
   GET_BUBBLE_SNAP_COORDS: "get_bubble_snap_coords",
   GET_BUBBLE_DEFAULT_COORDS: "get_bubble_default_coords",
   GET_BUBBLE_HOVER_COORDS: "get_bubble_hover_coords",
+  SET_BUBBLE_CONFIG: "set_bubble_config",
 
   // Messenger Platform Commands
   OPEN_MESSENGER_AUTH: "open_messenger_auth",
   CHECK_MESSENGER_AUTH: "check_messenger_auth",
   OPEN_CHAT: "open_chat",
+  OPEN_THREAD: "open_thread",
   TOGGLE_CHAT: "toggle_chat",
   REFRESH_MESSENGER: "refresh_messenger",
   DISCONNECT_MESSENGER: "disconnect_messenger",
   CLOSE_MESSENGER_WINDOW: "close_messenger_window",
   CLEAR_ACCOUNT_STORAGE: "clear_account_storage",
   REPORT_AUTH_STATUS: "report_auth_status",
+  REPORT_NEW_MESSAGE: "report_new_message",
+  SYNC_RECENT_CONVERSATIONS: "sync_recent_conversations",
 } as const;
 
 export type IpcCommand = (typeof IPC_COMMANDS)[keyof typeof IPC_COMMANDS];
@@ -47,6 +53,9 @@ export const IPC_EVENTS = {
   MESSENGER_AUTH_CLOSED: "messenger-auth-closed",
   BUBBLE_VISIBILITY_CHANGED: "bubble-visibility-changed",
   CHAT_VISIBILITY_CHANGED: "chat-visibility-changed",
+  NEW_MESSAGE_RECEIVED: "new-message-received",
+  RECENT_CONVERSATIONS_SYNCED: "recent-conversations-synced",
+  BUBBLE_CONFIG_CHANGED: "bubble-config-changed",
 } as const;
 
 export type IpcEvent = (typeof IPC_EVENTS)[keyof typeof IPC_EVENTS];
@@ -89,9 +98,34 @@ export interface BubbleVisibilityPayload {
   visible: boolean;
 }
 
+export interface BubbleConfigPayload {
+  size?: number;
+  tuckRatio?: number;
+}
+
+export interface BubbleConfigChangedPayload {
+  size: number;
+  bubbleSize: "sm" | "md" | "lg";
+  tuckRatio: number;
+}
+
+export interface IncomingMessagePayload {
+  accountIndex: number;
+  senderName: string;
+  body?: string;
+  avatarUrl?: string;
+  threadId?: string;
+  timestamp: number;
+}
+
 export interface ChatVisibilityPayload {
   accountIndex: number;
   visible: boolean;
   windowLabel?: string;
+}
+
+export interface RecentConversationsSyncedPayload {
+  accountIndex: number;
+  conversations: IncomingMessagePayload[];
 }
 

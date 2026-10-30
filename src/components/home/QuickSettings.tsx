@@ -21,9 +21,11 @@ export const QuickSettings: React.FC = () => {
     isAlwaysOnTop,
     isNotificationsEnabled,
     isAutoStart,
+    bubbleSize,
     isConnected,
     warningMessage,
     handleToggleBubble,
+    handleSetBubbleSize,
     handleToggleAlwaysOnTop,
     handleToggleNotifications,
     handleToggleAutoStart,
@@ -105,32 +107,59 @@ export const QuickSettings: React.FC = () => {
       {/* Settings List */}
       <div className="flex flex-col py-1">
         {settings.map((item) => (
-          <div
-            key={item.id}
-            className={`h-[61px] flex items-center justify-between gap-3 group ${
-              item.disabled ? "opacity-60" : ""
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 flex items-center justify-center shrink-0">
-                {item.icon}
+          <div key={item.id} className="flex flex-col">
+            <div
+              className={`h-[56px] flex items-center justify-between gap-3 group ${
+                item.disabled ? "opacity-60" : ""
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-7 h-7 flex items-center justify-center shrink-0">
+                  {item.icon}
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[13px] font-medium text-[#202733] leading-tight">
+                    {item.label}
+                  </span>
+                  <span className="text-[11px] text-[#6B7483] leading-tight">
+                    {item.description}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[13px] font-medium text-[#202733] leading-tight">
-                  {item.label}
-                </span>
-                <span className="text-[11px] text-[#6B7483] leading-tight">
-                  {item.description}
-                </span>
-              </div>
+
+              <SwitchButton
+                checked={item.value}
+                onChange={item.onChange}
+                disabled={item.disabled}
+                aria-label={item.label}
+              />
             </div>
 
-            <SwitchButton
-              checked={item.value}
-              onChange={item.onChange}
-              disabled={item.disabled}
-              aria-label={item.label}
-            />
+            {item.id === "bubble" && isConnected && (
+              <div className="ml-10 mb-2 flex items-center gap-1.5 p-1 bg-[#F1F5F9] rounded-lg w-fit text-[11px] animate-in fade-in duration-150">
+                <span className="text-[#64748B] px-1 text-[10px] font-medium">Cỡ:</span>
+                {(
+                  [
+                    { id: "sm", label: "Nhỏ (48px)" },
+                    { id: "md", label: "Vừa (56px)" },
+                    { id: "lg", label: "Lớn (64px)" },
+                  ] as const
+                ).map((size) => (
+                  <button
+                    key={size.id}
+                    type="button"
+                    onClick={() => handleSetBubbleSize(size.id)}
+                    className={`px-2 py-0.5 rounded-md font-medium transition-all cursor-pointer ${
+                      bubbleSize === size.id
+                        ? "bg-white text-[#0866FF] shadow-xs"
+                        : "text-[#64748B] hover:text-[#1E293B]"
+                    }`}
+                  >
+                    {size.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>

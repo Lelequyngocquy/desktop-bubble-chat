@@ -124,12 +124,41 @@ pub fn setup_bubble_subclass(bubble: &tauri::WebviewWindow) {
 /// Cấu hình tất cả các cửa sổ bong bóng (bubble-01 -> bubble-05)
 #[cfg(target_os = "windows")]
 pub fn setup_bubble_window(app: &AppHandle) {
+    let config = crate::movement::get_bubble_physics_config(app);
     for idx in 1..=5 {
         let label = format!("bubble-{:02}", idx);
         if let Some(bubble) = app.get_webview_window(&label) {
             setup_bubble_subclass(&bubble);
+            resize_bubble_window(&bubble, config.size);
         }
     }
+}
+
+/// Thay đổi kích thước cửa sổ Bubble trực tiếp qua Win32 SetWindowPos và Tauri set_size
+pub fn resize_bubble_window(bubble: &tauri::WebviewWindow, size_px: f64) {
+    #[cfg(target_os = "windows")]
+    if let Ok(hwnd) = bubble.hwnd() {
+        let raw_hwnd = hwnd.0 as *mut std::ffi::c_void;
+        if let Ok(Some(monitor)) = bubble.current_monitor() {
+            let scale = monitor.scale_factor();
+            let size = (size_px * scale) as i32;
+            unsafe {
+                SetWindowPos(
+                    raw_hwnd,
+                    std::ptr::null_mut(),
+                    0,
+                    0,
+                    size,
+                    size,
+                    SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+                );
+            }
+        }
+    }
+    let _ = bubble.set_size(tauri::Size::Logical(tauri::LogicalSize {
+        width: size_px,
+        height: size_px,
+    }));
 }
 
 /// Trả về label định danh cửa sổ Bubble theo số thứ tự tài khoản
@@ -213,6 +242,9 @@ pub fn ensure_bubble_positioned_and_visible(app: &AppHandle, account_index: u32)
     let bubble_window = get_or_create_bubble_window(app, account_index)?;
     let win_label = bubble_window.label().to_string();
 
+    let config = crate::movement::get_bubble_physics_config(app);
+    resize_bubble_window(&bubble_window, config.size);
+
     let monitor = app
         .get_webview_window("main")
         .and_then(|m| {
@@ -228,7 +260,6 @@ pub fn ensure_bubble_positioned_and_visible(app: &AppHandle, account_index: u32)
     if let Some(monitor) = monitor {
         let win_pos = bubble_window.outer_position().unwrap_or_default();
         let screen = ScreenMetrics::from_monitor(&monitor);
-        let config = BubblePhysicsConfig::default();
         let bubble_w = (config.size * screen.scale_factor) as i32;
 
         let is_visible = bubble_window.is_visible().unwrap_or(false);

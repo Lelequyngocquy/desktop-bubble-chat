@@ -33,6 +33,9 @@ export const HomeWorkspace: React.FC = () => {
         {/* Thẻ Hero kết nối Messenger */}
         <MessengerConnectionCard />
 
+        {/* Thẻ Hero kết nối Zalo
+        <MessengerConnectionCard /> */}
+
         {/* Khối 2 cột: Chat heads & Thiết lập nhanh */}
         <div className="shrink-0 flex flex-col lg:flex-row items-stretch gap-6">
           <ActiveChatHeads />

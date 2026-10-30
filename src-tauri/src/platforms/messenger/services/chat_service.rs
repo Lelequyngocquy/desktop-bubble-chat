@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::movement::{BubbleMovementEngine, BubblePhysicsConfig, ScreenMetrics};
+use crate::movement::{BubbleMovementEngine, ScreenMetrics};
 use crate::platforms::messenger::parser::parse_unread_from_title;
 use crate::platforms::messenger::constants::MESSENGER_INJECT_SCRIPT;
 use crate::platforms::messenger::windows::{
@@ -22,7 +22,7 @@ impl ChatService {
             if let Ok(Some(monitor)) = bubble_window.current_monitor() {
                 let screen = ScreenMetrics::from_monitor(&monitor);
                 let scale = screen.scale_factor;
-                let config = BubblePhysicsConfig::default();
+                let config = crate::movement::get_bubble_physics_config(app);
 
                 let chat_w = (config.chat_width * scale).round() as i32;
                 let chat_h = (config.chat_height * scale).round() as i32;

@@ -163,6 +163,25 @@ pub fn exit_app(app: AppHandle) {
     app.exit(0);
 }
 
+/// Command điều khiển chế độ Luôn trên cùng (Always on Top) cho cửa sổ chính và các khung chat
+#[tauri::command]
+pub fn set_always_on_top(app: AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(main_win) = app.get_webview_window("main") {
+        let _ = main_win.set_always_on_top(enabled);
+    }
+    for idx in 1..=5 {
+        let chat_label = format!("chat-messenger-{:02}", idx);
+        if let Some(w) = app.get_webview_window(&chat_label) {
+            let _ = w.set_always_on_top(enabled);
+        }
+    }
+    if let Some(w) = app.get_webview_window("chat-messenger") {
+        let _ = w.set_always_on_top(enabled);
+    }
+    Ok(())
+}
+
 // Command mở liên kết ngoài an toàn bằng trình duyệt mặc định của hệ điều hành
 #[tauri::command]
 pub fn open_external_url(url: String) -> Result<(), String> {

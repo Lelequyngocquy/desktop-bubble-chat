@@ -1,9 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useMessengerStore } from "../stores/messengerStore";
 import { useWindowStore } from "../stores/windowStore";
+import { useSettingsStore } from "../stores/settingsStore";
+import { useConversationStore } from "../stores/conversationStore";
 import { messengerService, messengerAuthManager } from "../services/messenger";
 import { systemService } from "../services/systemService";
+import { soundService } from "../services/soundService";
+import { notificationService } from "../services/notificationService";
 import {
   IPC_EVENTS,
   MessengerAuthStatusPayload,
@@ -11,6 +15,8 @@ import {
   BadgeUpdatedPayload,
   BubbleVisibilityPayload,
   ChatVisibilityPayload,
+  IncomingMessagePayload,
+  RecentConversationsSyncedPayload,
 } from "../types/ipc";
 
 /**
@@ -18,6 +24,9 @@ import {
  * Mounts once on app startup and maintains event lifecycle cleanly without re-render loops.
  */
 export const useUnreadListener = () => {
+  const prevUnreadMap = useRef<Map<number, number>>(new Map());
+  const isInitialGracePeriod = useRef<boolean>(true);
+
   useEffect(() => {
     // Chỉ kích hoạt bộ lắng nghe IPC toàn cục trên cửa sổ chính (main), tránh nhân bản listener trong các bubble window
     if (
@@ -28,11 +37,17 @@ export const useUnreadListener = () => {
       return;
     }
 
+    const graceTimer = setTimeout(() => {
+      isInitialGracePeriod.current = false;
+    }, 3500);
+
     let unlistenBadge: (() => void) | undefined;
     let unlistenAuth: (() => void) | undefined;
     let unlistenAuthClosed: (() => void) | undefined;
     let unlistenBubble: (() => void) | undefined;
     let unlistenChat: (() => void) | undefined;
+    let unlistenNewMessage: (() => void) | undefined;
+    let unlistenRecent: (() => void) | undefined;
 
     const setupListeners = async () => {
       try {
@@ -59,13 +74,35 @@ export const useUnreadListener = () => {
 
         // 2. Unread Badge Count event (Scoped theo accountIndex)
         unlistenBadge = await listen<number | BadgeUpdatedPayload>(IPC_EVENTS.BADGE_UPDATED, (event) => {
+          let idx = 1;
+          let count = 0;
           if (typeof event.payload === "object" && event.payload !== null && "count" in event.payload) {
-            const { accountIndex, count } = event.payload;
-            useMessengerStore.getState().setAccountUnreadCount(accountIndex, count);
+            idx = event.payload.accountIndex || 1;
+            count = event.payload.count;
           } else if (typeof event.payload === "number") {
-            const activeIndex = useMessengerStore.getState().activeAccountIndex;
-            useMessengerStore.getState().setAccountUnreadCount(activeIndex, event.payload);
+            idx = useMessengerStore.getState().activeAccountIndex;
+            count = event.payload;
           }
+
+          useMessengerStore.getState().setAccountUnreadCount(idx, count);
+
+          const prev = prevUnreadMap.current.get(idx) ?? 0;
+          if (!isInitialGracePeriod.current && count > prev) {
+            useMessengerStore.getState().triggerAccountPulse(idx);
+            const isNotificationsEnabled = useSettingsStore.getState().isNotificationsEnabled;
+            const openChatAccount = useWindowStore.getState().openChatAccountIndex;
+            const isChatOpenForAccount = openChatAccount === idx;
+
+            if (isNotificationsEnabled && !isChatOpenForAccount) {
+              soundService.playBubblePop();
+              const account = useMessengerStore.getState().accounts.find((a) => a.index === idx);
+              const accountName = account ? account.name : `Messenger ${idx.toString().padStart(2, "0")}`;
+              notificationService.sendNotification(`Tin nhắn mới từ ${accountName}`, {
+                body: `Bạn có ${count} tin nhắn chưa đọc`,
+              });
+            }
+          }
+          prevUnreadMap.current.set(idx, count);
         });
 
         // 3. Messenger real-time authentication status change
@@ -141,6 +178,46 @@ export const useUnreadListener = () => {
             }
           }
         });
+
+        // 6. New Message Received event (Non-DOM real-time interception)
+        unlistenNewMessage = await listen<IncomingMessagePayload>(
+          IPC_EVENTS.NEW_MESSAGE_RECEIVED,
+          (event) => {
+            const msg = event.payload;
+            if (!msg) return;
+
+            useConversationStore.getState().upsertConversationFromMessage(msg);
+            useMessengerStore.getState().triggerAccountPulse(msg.accountIndex);
+            if (msg.avatarUrl) {
+              useMessengerStore.getState().setAccountLatestAvatar(msg.accountIndex, msg.avatarUrl);
+            }
+
+            const isNotificationsEnabled = useSettingsStore.getState().isNotificationsEnabled;
+            const openChatAccount = useWindowStore.getState().openChatAccountIndex;
+            const isChatOpenForAccount = openChatAccount === msg.accountIndex;
+
+            if (isNotificationsEnabled && !isChatOpenForAccount) {
+              soundService.playBubblePop();
+              notificationService.sendNotification(msg.senderName, {
+                body: msg.body || "Đã gửi một tin nhắn",
+                icon: msg.avatarUrl,
+              });
+            }
+          }
+        );
+
+        // 7. Recent Conversations Synced event (Fallback extraction)
+        unlistenRecent = await listen<RecentConversationsSyncedPayload>(
+          IPC_EVENTS.RECENT_CONVERSATIONS_SYNCED,
+          (event) => {
+            const data = event.payload;
+            if (data && data.conversations) {
+              useConversationStore
+                .getState()
+                .syncRecentConversations(data.accountIndex || 1, data.conversations);
+            }
+          }
+        );
       } catch (err) {
         console.warn("[useUnreadListener] Desktop IPC event listeners not available in preview:", err);
       }
@@ -149,11 +226,14 @@ export const useUnreadListener = () => {
     setupListeners();
 
     return () => {
+      clearTimeout(graceTimer);
       if (unlistenBadge) unlistenBadge();
       if (unlistenAuth) unlistenAuth();
       if (unlistenAuthClosed) unlistenAuthClosed();
       if (unlistenBubble) unlistenBubble();
       if (unlistenChat) unlistenChat();
+      if (unlistenNewMessage) unlistenNewMessage();
+      if (unlistenRecent) unlistenRecent();
     };
   }, []); // Run once on app mount
 

@@ -48,9 +48,9 @@ pub struct BubblePhysicsConfig {
 impl Default for BubblePhysicsConfig {
     fn default() -> Self {
         Self {
-            size: 64.0,
+            size: 56.0,
             gap: 12.0,
-            tuck_ratio: 0.8,
+            tuck_ratio: 0.75,
             appear_ratio: 0.0,
             margin: 12.0,
             taskbar_margin: 60.0,
@@ -60,4 +60,22 @@ impl Default for BubblePhysicsConfig {
             chat_gap: 8.0,
         }
     }
+}
+
+pub struct BubbleConfigState(pub std::sync::RwLock<BubblePhysicsConfig>);
+
+impl Default for BubbleConfigState {
+    fn default() -> Self {
+        Self(std::sync::RwLock::new(BubblePhysicsConfig::default()))
+    }
+}
+
+pub fn get_bubble_physics_config(app: &tauri::AppHandle) -> BubblePhysicsConfig {
+    use tauri::Manager;
+    if let Some(state) = app.try_state::<BubbleConfigState>() {
+        if let Ok(guard) = state.0.read() {
+            return *guard;
+        }
+    }
+    BubblePhysicsConfig::default()
 }

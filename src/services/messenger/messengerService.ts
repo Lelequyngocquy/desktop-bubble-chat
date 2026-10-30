@@ -31,6 +31,13 @@ export const messengerService = {
   },
 
   /**
+   * Open a specific conversation thread and dock chat window next to Bubble.
+   */
+  async openThread(threadId: string, accountIndex: number = 1): Promise<void> {
+    await invoke(IPC_COMMANDS.OPEN_THREAD, { threadId, accountIndex });
+  },
+
+  /**
    * Toggle visibility of the Messenger chat popup window for a specific account.
    */
   async toggleChat(accountIndex: number = 1): Promise<boolean> {
@@ -86,9 +93,24 @@ export const messengerService = {
   /**
    * Toggle or show/hide all bubble windows for specified account indices (or all 1..5).
    */
-  async toggleAllBubbles(visible: boolean, accountIndices: number[] = [1, 2, 3, 4, 5]): Promise<void> {
-    await Promise.allSettled(
-      accountIndices.map((idx) => invoke(IPC_COMMANDS.TOGGLE_BUBBLE, { visible, accountIndex: idx }))
-    );
+  async toggleAllBubbles(visible?: boolean, accountIndices: number[] = [1, 2, 3, 4, 5]): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.TOGGLE_ALL_BUBBLES, { visible });
+    } catch {
+      await Promise.allSettled(
+        accountIndices.map((idx) => invoke(IPC_COMMANDS.TOGGLE_BUBBLE, { visible, accountIndex: idx }))
+      );
+    }
+  },
+
+  /**
+   * Cấu hình kích thước và tỉ lệ lấn mép của Bong bóng nổi.
+   */
+  async setBubbleConfig(size?: number, tuckRatio?: number): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.SET_BUBBLE_CONFIG, { size, tuckRatio });
+    } catch (e) {
+      console.warn("[MessengerService] Failed to set bubble config:", e);
+    }
   },
 };

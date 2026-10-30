@@ -26,6 +26,8 @@ export interface MessengerAccount {
   isBubbleVisible: boolean; // SSOT trạng thái hiển thị bong bóng nổi của riêng tài khoản này
   unreadCount: number;
   lastSynced?: string;
+  latestSenderAvatar?: string;
+  hasNewMessagePulse?: boolean;
 }
 
 export function formatMessengerName(index: number): string {
