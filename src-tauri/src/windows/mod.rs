@@ -1,2 +1,5 @@
 pub mod bubble;
-pub mod chat;
+pub mod main_window;
+
+pub use bubble::*;
+pub use main_window::*;

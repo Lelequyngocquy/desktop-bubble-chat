@@ -10,10 +10,12 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "label": "main",
         "title": "DesktopBubbleChat",
+        "url": "index.html",
         "width": 1200,
         "height": 800,
         "minWidth": 980,
@@ -24,9 +26,9 @@
         "center": true
       },
       {
-        "label": "bubble",
-        "title": "DesktopBubbleChat - Bubble",
-        "url": "index.html?window=bubble",
+        "label": "bubble-01",
+        "title": "DesktopBubbleChat - Bubble 01",
+        "url": "index.html?window=bubble&account=1",
         "width": 64,
         "height": 64,
         "resizable": false,
@@ -38,19 +40,59 @@
         "visible": false
       },
       {
-        "label": "chat-messenger",
-        "title": "Messenger",
-        "url": "https://www.messenger.com/",
-        "width": 420,
-        "height": 620,
-        "minWidth": 380,
-        "minHeight": 500,
-        "resizable": true,
+        "label": "bubble-02",
+        "title": "DesktopBubbleChat - Bubble 02",
+        "url": "index.html?window=bubble&account=2",
+        "width": 64,
+        "height": 64,
+        "resizable": false,
         "decorations": false,
-        "transparent": false,
+        "transparent": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
-        "shadow": true,
+        "shadow": false,
+        "visible": false
+      },
+      {
+        "label": "bubble-03",
+        "title": "DesktopBubbleChat - Bubble 03",
+        "url": "index.html?window=bubble&account=3",
+        "width": 64,
+        "height": 64,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
+        "visible": false
+      },
+      {
+        "label": "bubble-04",
+        "title": "DesktopBubbleChat - Bubble 04",
+        "url": "index.html?window=bubble&account=4",
+        "width": 64,
+        "height": 64,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
+        "visible": false
+      },
+      {
+        "label": "bubble-05",
+        "title": "DesktopBubbleChat - Bubble 05",
+        "url": "index.html?window=bubble&account=5",
+        "width": 64,
+        "height": 64,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
         "visible": false
       }
     ],
@@ -67,6 +109,15 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "wix": {
+        "language": "en-US"
+      },
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "currentUser"
+      }
+    }
   }
 }

@@ -49,6 +49,21 @@ foreach ($name in $TargetNames) {
     }
 }
 
+# Clean up orphaned WebView2 processes belonging to DesktopBubbleChat to release directory file locks
+try {
+    $wvProcs = Get-CimInstance Win32_Process -Filter "Name LIKE '%msedgewebview2%'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -like "*com.desktopbubblechat.app*" -or $_.CommandLine -like "*DesktopBubbleChat*" }
+    if ($wvProcs) {
+        foreach ($wv in $wvProcs) {
+            Write-Host "[INFO] Stopping orphaned WebView2 process (PID: $($wv.ProcessId))..." -ForegroundColor Yellow
+            Stop-Process -Id $wv.ProcessId -Force -ErrorAction SilentlyContinue
+            $StoppedCount++
+        }
+    }
+} catch {
+    # Ignore CIM query errors
+}
+
 # Check port 1420 (Vite Dev Server)
 try {
     $Port1420 = Get-NetTCPConnection -LocalPort 1420 -ErrorAction SilentlyContinue

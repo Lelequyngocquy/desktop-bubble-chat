@@ -26,9 +26,17 @@ dist-ssr
 #plan
 build_md/
 graphify-out/
-# Markdown files (ignore all except README.md)
+# Markdown files (ignore all except README.md and documentation specs)
 *.md
 !README.md
 !**/README.md
 !readme.md
 !**/readme.md
+!standard_mess_login.md
+!step.md
+
+logs/
+scripts/
+!scripts/start.ps1
+!scripts/check_env.ps1
+tests/

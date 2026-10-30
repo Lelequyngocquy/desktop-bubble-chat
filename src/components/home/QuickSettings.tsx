@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import {
   SlidersHorizontal,
   MessageSquare,
@@ -8,64 +8,26 @@ import {
   ArrowRight,
   AlertTriangle,
 } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
-import { useAppStore } from "../../stores/appStore";
-import { SwitchButton } from "../common";
-import { MOCK_QUICK_SETTINGS_SCHEMA, QuickSettingItem } from "../../mocks";
+import { useNavigationStore } from "../../stores/navigationStore";
+import { useQuickSettings } from "../../hooks/useQuickSettings";
+import { SwitchButton, CommonWidget } from "../common";
+import { QUICK_SETTINGS_CONFIG, QuickSettingItem } from "../../config";
 
 export const QuickSettings: React.FC = () => {
+  const setActiveTab = useNavigationStore((s) => s.setActiveTab);
   const {
     isBubbleEnabled,
-    toggleBubble,
+    bubbleDescription,
     isAlwaysOnTop,
-    toggleAlwaysOnTop,
     isNotificationsEnabled,
-    toggleNotifications,
     isAutoStart,
-    setAutoStart,
-    isMessengerConnected,
-    setActiveTab,
-  } = useAppStore();
-
-  const [warningMessage, setWarningMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Truy vấn trạng thái khởi động cùng Windows thực tế từ Registry
-    invoke<boolean>("is_autostart_enabled")
-      .then((enabled) => {
-        setAutoStart(enabled);
-      })
-      .catch(() => {
-        // Môi trường dev hoặc browser preview
-      });
-  }, [setAutoStart]);
-
-  const handleToggleBubble = async () => {
-    if (!isMessengerConnected && !isBubbleEnabled) {
-      setWarningMessage("Vui lòng kết nối Messenger trước khi bật bong bóng chat!");
-      setTimeout(() => setWarningMessage(null), 3500);
-      return;
-    }
-    const success = toggleBubble();
-    if (!success) return;
-
-    const nextVal = !isBubbleEnabled;
-    try {
-      await invoke("toggle_bubble", { visible: nextVal });
-    } catch {
-      // In standard browser preview
-    }
-  };
-
-  const handleToggleAutoStart = async () => {
-    const nextVal = !isAutoStart;
-    setAutoStart(nextVal);
-    try {
-      await invoke("toggle_autostart", { enabled: nextVal });
-    } catch {
-      // In standard browser preview
-    }
-  };
+    isConnected,
+    warningMessage,
+    handleToggleBubble,
+    handleToggleAlwaysOnTop,
+    handleToggleNotifications,
+    handleToggleAutoStart,
+  } = useQuickSettings();
 
   const iconMap: Record<QuickSettingItem["iconName"], React.ReactNode> = {
     MessageSquare: <MessageSquare className="w-[18px] h-[18px] text-[#6B7483]" />,
@@ -81,15 +43,15 @@ export const QuickSettings: React.FC = () => {
     bubble: {
       value: isBubbleEnabled,
       onChange: handleToggleBubble,
-      disabled: !isMessengerConnected,
+      disabled: !isConnected,
     },
     "always-on-top": {
       value: isAlwaysOnTop,
-      onChange: toggleAlwaysOnTop,
+      onChange: handleToggleAlwaysOnTop,
     },
     notifications: {
       value: isNotificationsEnabled,
-      onChange: toggleNotifications,
+      onChange: handleToggleNotifications,
     },
     autostart: {
       value: isAutoStart,
@@ -97,13 +59,20 @@ export const QuickSettings: React.FC = () => {
     },
   };
 
-  const settings = MOCK_QUICK_SETTINGS_SCHEMA.map((item) => {
+  const settings = QUICK_SETTINGS_CONFIG.map((item) => {
     const action = actionMap[item.id];
-    const isAvailable = !item.requiresConnection || isMessengerConnected;
+    const isAvailable = !item.requiresConnection || isConnected;
+    const description =
+      item.id === "bubble"
+        ? bubbleDescription
+        : isAvailable
+          ? item.descriptionActive
+          : item.descriptionInactive;
+
     return {
       id: item.id,
       label: item.label,
-      description: isAvailable ? item.descriptionActive : item.descriptionInactive,
+      description,
       icon: iconMap[item.iconName],
       value: action?.value ?? false,
       onChange: action?.onChange ?? (() => {}),
@@ -112,33 +81,38 @@ export const QuickSettings: React.FC = () => {
   });
 
   return (
-    <div className="w-full lg:w-[432px] bg-white border border-[#E2E7EF] rounded-[12px] shadow-card p-[20px_22px_12px] flex flex-col justify-between shrink-0 min-h-[352px] select-none">
-      {/* Heading (Figma Node #3:1300) */}
-      <div className="flex items-center justify-between pb-2 border-b border-[#E2E7EF]/50">
-        <h2 className="text-[17px] font-semibold text-[#202733] m-0">
-          Thiết lập nhanh
-        </h2>
-        <SlidersHorizontal className="w-[18px] h-[18px] text-[#6B7483]" />
-      </div>
-
-      {/* Warning message if trying to turn on bubble without Messenger */}
-      {warningMessage && (
-        <div
-          onClick={() => setActiveTab("connections")}
-          className="my-1.5 p-2 bg-[#FFF3E8] border border-[#FCD34D] rounded-[6px] flex items-center gap-2 text-[#D97706] text-[11px] cursor-pointer hover:bg-[#FEEBC8] transition-colors"
-        >
-          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-          <span className="flex-1 font-medium">{warningMessage}</span>
-          <span className="text-[10px] underline font-semibold">Kết nối ngay</span>
-        </div>
-      )}
-
-      {/* Settings List (Figma Node #3:1303) */}
-      <div className="flex flex-col py-1">
-        {settings.map((item) => (
+    <CommonWidget
+      className="w-full lg:w-[432px] shrink-0"
+      title="Thiết lập nhanh"
+      headerAction={<SlidersHorizontal className="w-[18px] h-[18px] text-[#6B7483]" />}
+      banner={
+        warningMessage ? (
           <div
-            key={item.id}
-            className={`h-[61px] flex items-center justify-between gap-3 group ${
+            onClick={() => setActiveTab("connections")}
+            className="p-2 bg-[#FFF3E8] border border-[#FCD34D] rounded-[6px] flex items-center gap-2 text-[#D97706] text-[11px] cursor-pointer hover:bg-[#FEEBC8] transition-colors"
+          >
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            <span className="flex-1 font-medium">{warningMessage}</span>
+            <span className="text-[10px] underline font-semibold">Kết nối ngay</span>
+          </div>
+        ) : undefined
+      }
+      bodyClassName="py-1"
+      footerRight={
+        <button
+          type="button"
+          onClick={() => setActiveTab("settings")}
+          className="flex items-center gap-1.5 text-[12px] font-medium text-[#0759DB] hover:text-[#0866FF] transition-colors"
+        >
+          <span>Tất cả cài đặt</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      }
+    >
+      {settings.map((item) => (
+        <div key={item.id} className="flex flex-col">
+          <div
+            className={`h-[56px] flex items-center justify-between gap-3 group ${
               item.disabled ? "opacity-60" : ""
             }`}
           >
@@ -163,20 +137,8 @@ export const QuickSettings: React.FC = () => {
               aria-label={item.label}
             />
           </div>
-        ))}
-      </div>
-
-      {/* Footer Settings link (Figma Node #3:1330) */}
-      <div className="h-12 border-t border-[#E2E7EF]/50 flex items-center justify-end">
-        <button
-          type="button"
-          onClick={() => setActiveTab("settings")}
-          className="flex items-center gap-1.5 text-[12px] font-medium text-[#0759DB] hover:text-[#0866FF] transition-colors"
-        >
-          <span>Tất cả cài đặt</span>
-          <ArrowRight className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </div>
+        </div>
+      ))}
+    </CommonWidget>
   );
 };

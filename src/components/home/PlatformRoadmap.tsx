@@ -1,6 +1,6 @@
 import React from "react";
 import { AvatarSquareRounded } from "../common";
-import { MOCK_UPCOMING_PLATFORMS } from "../../mocks";
+import { UPCOMING_PLATFORMS } from "../../config";
 import { PlatformIcon } from "../icons";
 
 export const PlatformRoadmap: React.FC = () => {
@@ -18,7 +18,7 @@ export const PlatformRoadmap: React.FC = () => {
 
       {/* Upcoming Platforms Cards (Figma Node #3:1339) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-        {MOCK_UPCOMING_PLATFORMS.map((p) => (
+        {UPCOMING_PLATFORMS.map((p) => (
           <div
             key={p.id}
             className="h-[86px] p-4 bg-white/65 hover:bg-white/80 border border-[#E2E7EF] rounded-[8px] flex items-center gap-3 transition-colors shadow-2xs backdrop-blur-xs"

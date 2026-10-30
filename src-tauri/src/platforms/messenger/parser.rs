@@ -1,6 +1,6 @@
 /// Trích xuất số unread từ tiêu đề cửa sổ Messenger (ví dụ: "(3) Messenger", "(99+) Messenger")
 pub fn parse_unread_from_title(title: &str) -> u32 {
-    let clean_title = title.replace("[AUTH_OK]", "");
+    let clean_title = title.replace("[AUTH_OK]", "").replace("[AUTH_LOGIN]", "");
     if let (Some(start), Some(end)) = (clean_title.find('('), clean_title.find(')')) {
         if start < end {
             let inner = &clean_title[start + 1..end];
