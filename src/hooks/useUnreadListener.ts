@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useMessengerStore } from "../stores/messengerStore";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useWindowStore } from "../stores/windowStore";
-import { messengerService } from "../services/messenger";
+import { messengerService, messengerAuthManager } from "../services/messenger";
 import { systemService } from "../services/systemService";
 import {
   IPC_EVENTS,
@@ -13,13 +13,19 @@ import {
 
 /**
  * Global background listener synchronizing Tauri desktop IPC events with Domain Stores.
+ * Mounts once on app startup and maintains event lifecycle cleanly without re-render loops.
  */
 export const useUnreadListener = () => {
-  const { updateAccount, setAccountUnreadCount } = useMessengerStore();
-  const { setBubbleEnabled } = useSettingsStore();
-  const { setIsChatOpen } = useWindowStore();
-
   useEffect(() => {
+    // Chỉ kích hoạt bộ lắng nghe IPC toàn cục trên cửa sổ chính (main), tránh nhân bản listener trong các bubble window
+    if (
+      typeof window !== "undefined" &&
+      (window.location.search.includes("window=bubble") ||
+        window.location.href.includes("bubble"))
+    ) {
+      return;
+    }
+
     let unlistenBadge: (() => void) | undefined;
     let unlistenAuth: (() => void) | undefined;
     let unlistenAuthClosed: (() => void) | undefined;
@@ -35,12 +41,12 @@ export const useUnreadListener = () => {
             .checkAuth(acc.index)
             .then((res) => {
               if (res && res.connected) {
-                updateAccount(acc.id, {
+                useMessengerStore.getState().updateAccount(acc.id, {
                   isConnected: true,
                   isAuthenticating: false,
                   lastSynced: "Đồng bộ vừa xong",
                 });
-                setBubbleEnabled(true);
+                useSettingsStore.getState().setBubbleEnabled(true);
                 messengerService.toggleBubble(true, acc.index).catch(() => {});
               }
             })
@@ -50,7 +56,7 @@ export const useUnreadListener = () => {
         // 2. Unread Badge Count event
         unlistenBadge = await listen<number>(IPC_EVENTS.BADGE_UPDATED, (event) => {
           const activeIndex = useMessengerStore.getState().activeAccountIndex;
-          setAccountUnreadCount(activeIndex, event.payload);
+          useMessengerStore.getState().setAccountUnreadCount(activeIndex, event.payload);
         });
 
         // 3. Messenger real-time authentication status change
@@ -72,7 +78,8 @@ export const useUnreadListener = () => {
             }
 
             if (isConnected) {
-              setBubbleEnabled(true);
+              messengerAuthManager.cancelAuth(accountId);
+              useSettingsStore.getState().setBubbleEnabled(true);
               messengerService.toggleBubble(true, accountIdx).catch(() => {});
             }
           }
@@ -89,18 +96,19 @@ export const useUnreadListener = () => {
               idx = parseInt(match[1], 10);
             }
             const accountId = `messenger-${idx.toString().padStart(2, "0")}`;
+            messengerAuthManager.cancelAuth(accountId);
             useMessengerStore.getState().updateAccount(accountId, { isAuthenticating: false });
           }
         );
 
         // 5. Floating bubble visibility change (e.g. dismissed to tray)
         unlistenBubble = await listen<boolean>(IPC_EVENTS.BUBBLE_VISIBILITY_CHANGED, (event) => {
-          setBubbleEnabled(event.payload);
+          useSettingsStore.getState().setBubbleEnabled(event.payload);
         });
 
         // 6. Messenger Chat popup visibility change
         unlistenChat = await listen<boolean>(IPC_EVENTS.CHAT_VISIBILITY_CHANGED, (event) => {
-          setIsChatOpen(event.payload);
+          useWindowStore.getState().setIsChatOpen(event.payload);
         });
       } catch (err) {
         console.warn("[useUnreadListener] Desktop IPC event listeners not available in preview:", err);
@@ -116,12 +124,12 @@ export const useUnreadListener = () => {
       if (unlistenBubble) unlistenBubble();
       if (unlistenChat) unlistenChat();
     };
-  }, [updateAccount, setAccountUnreadCount, setBubbleEnabled, setIsChatOpen]);
+  }, []); // Run once on app mount
 
   // Helper for testing unread count
   const simulateUnread = async (count: number) => {
     const activeIndex = useMessengerStore.getState().activeAccountIndex;
-    setAccountUnreadCount(activeIndex, count);
+    useMessengerStore.getState().setAccountUnreadCount(activeIndex, count);
     await systemService.setBadgeCount(count);
   };
 

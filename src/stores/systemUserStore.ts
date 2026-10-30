@@ -16,19 +16,21 @@ function calculateInitials(name: string): string {
   return (first + last).toUpperCase();
 }
 
-export const useSystemUserStore = create<SystemUserState>((set) => ({
+export const useSystemUserStore = create<SystemUserState>((set, get) => ({
   systemUser: MOCK_FALLBACK_USER.name,
   systemUserInitials: MOCK_FALLBACK_USER.avatarText,
 
   setSystemUser: (name: string) => {
     const cleanName = name.trim();
     if (!cleanName) {
+      if (get().systemUser === MOCK_FALLBACK_USER.name) return;
       set({
         systemUser: MOCK_FALLBACK_USER.name,
         systemUserInitials: MOCK_FALLBACK_USER.avatarText,
       });
       return;
     }
+    if (get().systemUser === cleanName) return;
     set({
       systemUser: cleanName,
       systemUserInitials: calculateInitials(cleanName),

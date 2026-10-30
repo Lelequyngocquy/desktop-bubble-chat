@@ -135,14 +135,7 @@ export const selectPrimaryAccount = (state: MessengerState): MessengerAccount | 
   state.accounts.find((a) => a.isConnected) || null;
 
 export const selectConnectedAccountSummary = (state: MessengerState): ConnectedAccount | null => {
-  const primary = selectPrimaryAccount(state);
-  if (!primary) return null;
-  return {
-    name: primary.name,
-    avatarText: primary.avatarText,
-    lastSynced: primary.lastSynced,
-    color: primary.color,
-  };
+  return selectPrimaryAccount(state);
 };
 
 export const selectTotalUnreadCount = (state: MessengerState): number =>

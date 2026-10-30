@@ -22,20 +22,39 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
 
                 if let Some(chat_window) = win {
                     let win_label = chat_window.label().to_string();
-                    let (is_logged_in, user_name) = is_window_logged_in(&chat_window);
+                    let auth_info = chat_state.get_account_auth(idx);
+                    let state_logged_in = auth_info.as_ref().map(|a| a.connected).unwrap_or(false);
+                    let (win_logged_in, win_user_name) = is_window_logged_in(&chat_window);
+                    let is_logged_in = state_logged_in || win_logged_in;
+
+                    let user_name = if state_logged_in {
+                        auth_info.as_ref().map(|a| a.name.clone()).unwrap_or_default()
+                    } else {
+                        win_user_name
+                    };
 
                     let was_logged = *logged_in_map.get(&idx).unwrap_or(&false);
 
                     if is_logged_in != was_logged {
                         logged_in_map.insert(idx, is_logged_in);
 
-                        let _ = app_handle.emit("messenger-auth-status", serde_json::json!({
-                            "accountIndex": idx,
-                            "connected": is_logged_in,
-                            "name": if is_logged_in { &user_name } else { "" }
-                        }));
-
                         if is_logged_in {
+                            chat_state.set_account_auth(
+                                idx,
+                                true,
+                                if user_name.is_empty() { None } else { Some(user_name.clone()) },
+                            );
+
+                            // Đảm bảo cửa sổ không bị lưu lại URL Facebook
+                            if let Ok(curr_url) = chat_window.url() {
+                                let u = curr_url.to_string();
+                                if u.contains("facebook.com") {
+                                    if let Ok(target) = tauri::Url::parse("https://www.messenger.com/") {
+                                        let _ = chat_window.navigate(target);
+                                    }
+                                }
+                            }
+
                             // Đã đăng nhập xong: Tắt auth mode, đóng popup đăng nhập, chuyển sang chế độ chat docked
                             chat_state.set_window_auth_mode(&win_label, false);
                             let _ = chat_window.hide();
@@ -44,7 +63,15 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                             let _ = app_handle.emit("chat-visibility-changed", false);
                             // Bật bong bóng nổi cho tài khoản này
                             let _ = ensure_bubble_positioned_and_visible(&app_handle, idx);
+                        } else {
+                            chat_state.clear_account_auth(idx);
                         }
+
+                        let _ = app_handle.emit("messenger-auth-status", serde_json::json!({
+                            "accountIndex": idx,
+                            "connected": is_logged_in,
+                            "name": if is_logged_in { &user_name } else { "" }
+                        }));
                     }
 
                     // Đồng bộ badge tin chưa đọc

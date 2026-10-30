@@ -8,8 +8,6 @@
 
 export interface AccountThemeColor {
   index: number;
-  name: string;
-  labelVi: string;
   hex: string;
   bgLight: string;
   borderHex: string;
@@ -18,41 +16,31 @@ export interface AccountThemeColor {
 export const ACCOUNT_THEME_COLORS: Record<number, AccountThemeColor> = {
   1: {
     index: 1,
-    name: "Electric Violet",
-    labelVi: "Tím Thạch Anh",
-    hex: "#8B5CF6", // Tím điện tử rực rỡ
-    bgLight: "#F5F3FF",
-    borderHex: "#7C3AED",
-  },
-  2: {
-    index: 2,
-    name: "Sunset Orange",
-    labelVi: "Cam Hoàng Hôn",
-    hex: "#F97316", // Cam tươi ấm áp
-    bgLight: "#FFF7ED",
-    borderHex: "#EA580C",
-  },
-  3: {
-    index: 3,
-    name: "Electric Aqua",
-    labelVi: "Xanh Ngọc Điện",
-    hex: "#06B6D4", // Xanh ngọc phát sáng
+    hex: "#06B6D4",
     bgLight: "#ECFEFF",
     borderHex: "#0891B2",
   },
-  4: {
-    index: 4,
-    name: "Hot Rose",
-    labelVi: "Hồng Sen Rực Rỡ",
-    hex: "#EC4899", // Hồng sen phong cách
+  2: {
+    index: 2,
+    hex: "#EC4899",
     bgLight: "#FDF2F8",
     borderHex: "#DB2777",
   },
+  3: {
+    index: 3,
+    hex: "#F97316",
+    bgLight: "#FFF7ED",
+    borderHex: "#EA580C",
+  },
+  4: {
+    index: 4,
+    hex: "#8B5CF6",
+    bgLight: "#F5F3FF",
+    borderHex: "#7C3AED",
+  },
   5: {
     index: 5,
-    name: "Emerald Mint",
-    labelVi: "Xanh Lục Bảo",
-    hex: "#10B981", // Xanh lục ngọc bạc hà
+    hex: "#10B981",
     bgLight: "#ECFDF5",
     borderHex: "#059669",
   },

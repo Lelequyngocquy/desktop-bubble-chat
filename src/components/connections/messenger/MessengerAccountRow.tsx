@@ -46,14 +46,6 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
               {account.name}
             </span>
 
-            {/* Tag nhận diện màu đại diện */}
-            <span
-              className="text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white shrink-0 shadow-xs"
-              style={{ backgroundColor: themeColor.hex }}
-            >
-              {themeColor.labelVi}
-            </span>
-
             {/* Trạng thái kết nối của tài khoản */}
             {account.isConnected ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#E9F5EF] text-[#25805C] text-[10.5px] font-medium rounded-full shrink-0">

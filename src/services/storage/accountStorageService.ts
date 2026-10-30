@@ -1,4 +1,5 @@
 import { MessengerAccount, createMessengerAccount } from "../../types/account";
+import { getAccountThemeColor } from "../../constants/accountColors";
 
 const STORAGE_KEY = "desktop_bubble_chat_messenger_accounts";
 
@@ -15,6 +16,7 @@ export const accountStorageService = {
         if (Array.isArray(parsed)) {
           return parsed.map((a: MessengerAccount) => ({
             ...a,
+            color: getAccountThemeColor(a.index).hex,
             isAuthenticating: false, // Invariant: Never persist in-flight authentication state
           }));
         }

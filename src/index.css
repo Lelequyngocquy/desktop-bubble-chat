@@ -11,6 +11,10 @@
   box-sizing: border-box;
 }
 
+html, body, #root {
+  background-color: transparent !important;
+}
+
 body {
   margin: 0;
   padding: 0;

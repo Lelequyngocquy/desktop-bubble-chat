@@ -10,8 +10,9 @@ use crate::utils::positioning::{
 use crate::utils::time::now_millis;
 use super::parser::parse_unread_from_title;
 use super::window::{
-    get_messenger_window_label, get_or_create_messenger_window, hide_all_other_messenger_windows,
-    is_window_logged_in, MESSENGER_INJECT_SCRIPT,
+    apply_window_theme_color, get_account_theme, get_messenger_window_label,
+    get_or_create_messenger_window, hide_all_other_messenger_windows, is_window_logged_in,
+    MESSENGER_INJECT_SCRIPT,
 };
 
 /// Command mở cửa sổ popup đăng nhập Messenger độc lập cho tài khoản chỉ định
@@ -24,6 +25,9 @@ pub async fn open_messenger_auth(
     let idx = account_index.unwrap_or(1);
     println!("\x1b[32m[BE - Auth] ========================================================\x1b[0m");
     println!("\x1b[32m[BE - Auth] >>> NHẬN LỆNH MỞ AUTH POPUP: account_index = {:?} (dùng idx: {})\x1b[0m", account_index, idx);
+
+    // 0. Xóa trạng thái auth cũ của tài khoản này để bắt đầu phiên xác thực sạch sẽ
+    state.clear_account_auth(idx);
 
     // 1. Lấy hoặc tạo cửa sổ chat Messenger tương ứng với profile riêng biệt
     let chat_window = match get_or_create_messenger_window(&app, idx, Arc::clone(&state)) {
@@ -44,6 +48,7 @@ pub async fn open_messenger_auth(
     state.set_window_auth_mode(&chat_window.label(), true);
 
     // 4. Thiết lập giao diện Popup đăng nhập độc lập rõ ràng (có tiêu đề và nút đóng X)
+    let theme = get_account_theme(idx);
     let _ = chat_window.set_title(&format!("Đăng nhập Messenger {:02}", idx));
     let _ = chat_window.set_decorations(true);
     let _ = chat_window.set_skip_taskbar(false);
@@ -55,18 +60,27 @@ pub async fn open_messenger_auth(
     let _ = chat_window.unminimize();
     let _ = chat_window.set_always_on_top(true);
 
-    // Đảm bảo URL đang ở trang đăng nhập Messenger nếu cửa sổ đang trống
+    #[cfg(target_os = "windows")]
+    apply_window_theme_color(&chat_window, theme.hex, theme.border_hex);
+
+    // Đảm bảo URL đang ở trang đăng nhập Messenger nếu cửa sổ đang trống hoặc chưa ở trang login/2FA
     if let Ok(url) = tauri::Url::parse("https://www.messenger.com/login/") {
         let current_url = chat_window.url().map(|u| u.to_string()).unwrap_or_default();
         println!("[BE - Auth] URL hiện tại của cửa sổ: '{}'", current_url);
-        if current_url.is_empty() || current_url == "about:blank" {
+        let in_2fa = current_url.contains("checkpoint") || current_url.contains("two_step_verification");
+        if current_url.is_empty() || current_url == "about:blank" || (!in_2fa && !current_url.contains("/login")) {
             println!("[BE - Auth] Điều hướng sang: https://www.messenger.com/login/");
             let _ = chat_window.navigate(url);
         }
     }
 
-    // 5. Nạp injected script
-    let _ = chat_window.eval(MESSENGER_INJECT_SCRIPT);
+    // 5. Nạp injected script với account_index
+    let init_code = format!(
+        "window.__ACCOUNT_INDEX__ = {};\n{}",
+        idx,
+        MESSENGER_INJECT_SCRIPT
+    );
+    let _ = chat_window.eval(&init_code);
 
     // 6. Hiển thị và đưa popup lên tiêu điểm phía trước người dùng
     println!("[BE - Auth] Gọi chat_window.show()...");
@@ -100,6 +114,17 @@ pub async fn open_chat(
 
     // Ẩn tất cả các cửa sổ chat của tài khoản khác
     hide_all_other_messenger_windows(&app, &chat_window.label());
+
+    // Đảm bảo URL luôn ở messenger.com, ngăn chặn tuyệt đối việc hiển thị giao diện facebook.com
+    if let Ok(curr_url) = chat_window.url() {
+        let u = curr_url.to_string();
+        if !u.contains("messenger.com") || u.contains("facebook.com") {
+            println!("[BE - Chat] Cửa sổ đang ở URL '{}', chuyển hướng bắt buộc về https://www.messenger.com/", u);
+            if let Ok(target) = tauri::Url::parse("https://www.messenger.com/") {
+                let _ = chat_window.navigate(target);
+            }
+        }
+    }
 
     state.set_window_auth_mode(&chat_window.label(), false);
     let _ = chat_window.set_decorations(false);
@@ -150,6 +175,17 @@ pub async fn toggle_chat(
         // Ẩn các cửa sổ của tài khoản khác trước khi bung mở
         hide_all_other_messenger_windows(&app, &chat_window.label());
 
+        // Đảm bảo URL luôn ở messenger.com, ngăn chặn tuyệt đối việc hiển thị giao diện facebook.com
+        if let Ok(curr_url) = chat_window.url() {
+            let u = curr_url.to_string();
+            if !u.contains("messenger.com") || u.contains("facebook.com") {
+                println!("[BE - Chat] Cửa sổ đang ở URL '{}', chuyển hướng bắt buộc về https://www.messenger.com/", u);
+                if let Ok(target) = tauri::Url::parse("https://www.messenger.com/") {
+                    let _ = chat_window.navigate(target);
+                }
+            }
+        }
+
         state.set_window_auth_mode(&chat_window.label(), false);
         let _ = chat_window.set_decorations(false);
         let _ = chat_window.set_skip_taskbar(true);
@@ -179,6 +215,7 @@ pub fn disconnect_messenger(
     let label = get_messenger_window_label(idx);
     println!("[BE - Messenger] Ngắt kết nối tài khoản Messenger {:02}", idx);
     state.set_window_auth_mode(&label, false);
+    state.clear_account_auth(idx);
     let win = app.get_webview_window(&label)
         .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
 
@@ -224,11 +261,13 @@ pub fn refresh_messenger(
 #[tauri::command]
 pub fn close_messenger_window(
     app: AppHandle,
+    state: State<'_, Arc<ChatState>>,
     account_index: Option<u32>,
 ) -> Result<(), String> {
     let idx = account_index.unwrap_or(1);
     let label = get_messenger_window_label(idx);
     println!("[BE - Storage] Đóng cửa sổ và dọn dẹp profile cho Messenger {:02}", idx);
+    state.clear_account_auth(idx);
 
     // 1. Huỷ cửa sổ chat webview
     let win = app.get_webview_window(&label)
@@ -298,30 +337,64 @@ pub fn close_messenger_window(
 #[tauri::command]
 pub fn clear_account_storage(
     app: AppHandle,
+    state: State<'_, Arc<ChatState>>,
     account_index: Option<u32>,
 ) -> Result<(), String> {
-    close_messenger_window(app, account_index)
+    close_messenger_window(app, state, account_index)
 }
 
 /// Command kiểm tra trạng thái đăng nhập thực tế của tài khoản Messenger
 #[tauri::command]
 pub fn check_messenger_auth(
     app: AppHandle,
+    state: State<'_, Arc<ChatState>>,
     account_index: Option<u32>,
 ) -> Result<serde_json::Value, String> {
     let idx = account_index.unwrap_or(1);
     let label = get_messenger_window_label(idx);
+
+    // 1. Kiểm tra trạng thái đã được xác nhận trong state SSOT
+    if let Some(auth_info) = state.get_account_auth(idx) {
+        if auth_info.connected {
+            return Ok(serde_json::json!({
+                "accountIndex": idx,
+                "connected": true,
+                "name": auth_info.name,
+                "userId": auth_info.user_id,
+            }));
+        }
+    }
+
     let win = app.get_webview_window(&label)
         .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
 
     if let Some(chat_window) = win {
-        let _ = chat_window.eval(MESSENGER_INJECT_SCRIPT);
+        // Kích hoạt re-check nhanh trong webview
+        let trigger_script = format!(
+            "window.__ACCOUNT_INDEX__ = {}; if (typeof window.checkAndReportAuth === 'function') {{ window.checkAndReportAuth(); }}",
+            idx
+        );
+        let _ = chat_window.eval(&trigger_script);
+
         let (is_logged_in, user_name) = is_window_logged_in(&chat_window);
         let url_str = chat_window.url().map(|u| u.to_string()).unwrap_or_default();
         let title = chat_window.title().unwrap_or_default();
 
         if is_logged_in {
-            println!("\x1b[32m[BE - Auth] check_messenger_auth: XÁC THỰC THÀNH CÔNG cho tài khoản {:02}! (URL: {})\x1b[0m", idx, url_str);
+            println!("\x1b[32m[BE - Auth] check_messenger_auth: XÁC THỰC THÀNH CÔNG cho tài khoản {:02}! (User: '{}', URL: {})\x1b[0m", idx, user_name, url_str);
+            state.set_account_auth(idx, true, if user_name.is_empty() { None } else { Some(user_name.clone()) });
+            state.set_window_auth_mode(&label, false);
+            let _ = chat_window.set_title("Messenger");
+            let _ = chat_window.hide();
+            let _ = chat_window.set_decorations(false);
+            let _ = chat_window.set_skip_taskbar(true);
+            let _ = ensure_bubble_positioned_and_visible(&app, idx);
+            let _ = app.emit("chat-visibility-changed", false);
+            let _ = app.emit("messenger-auth-status", serde_json::json!({
+                "accountIndex": idx,
+                "connected": true,
+                "name": &user_name
+            }));
         }
 
         return Ok(serde_json::json!({
@@ -340,11 +413,43 @@ pub fn check_messenger_auth(
 #[tauri::command]
 pub fn report_auth_status(
     app: AppHandle,
+    state: State<'_, Arc<ChatState>>,
     connected: bool,
     name: Option<String>,
     account_index: Option<u32>,
 ) -> Result<(), String> {
     let idx = account_index.unwrap_or(1);
+    let label = get_messenger_window_label(idx);
+
+    println!(
+        "\x1b[32m[BE - Auth] report_auth_status NHẬN TỪ WEBVIEW: account={:02}, connected={}, user={:?}\x1b[0m",
+        idx, connected, name
+    );
+
+    state.set_account_auth(idx, connected, name.clone());
+
+    if connected {
+        state.set_window_auth_mode(&label, false);
+        if let Some(win) = app.get_webview_window(&label) {
+            // Nếu cửa sổ đang ở domain facebook.com, lập tức chuyển hướng về messenger.com
+            if let Ok(curr_url) = win.url() {
+                let u = curr_url.to_string();
+                if u.contains("facebook.com") {
+                    println!("[BE - Auth] report_auth_status: Cửa sổ đang ở Facebook ('{}'), điều hướng về https://www.messenger.com/", u);
+                    if let Ok(target) = tauri::Url::parse("https://www.messenger.com/") {
+                        let _ = win.navigate(target);
+                    }
+                }
+            }
+            let _ = win.set_title("Messenger");
+            let _ = win.hide();
+            let _ = win.set_decorations(false);
+            let _ = win.set_skip_taskbar(true);
+        }
+        let _ = ensure_bubble_positioned_and_visible(&app, idx);
+        let _ = app.emit("chat-visibility-changed", false);
+    }
+
     let _ = app.emit("messenger-auth-status", serde_json::json!({
         "accountIndex": idx,
         "connected": connected,

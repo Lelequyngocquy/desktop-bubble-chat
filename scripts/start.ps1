@@ -142,31 +142,41 @@ if ($Mode -eq "dev") {
     Write-Host ""
     Write-Host "[INFO] Khoi chay Vite Dev Server ngam (Log FE duoc tach ra logs/frontend.log)..." -ForegroundColor Cyan
 
-    # Khoi chay Vite Dev Server duoi tien trinh ngam, tach sach toan bo log FE khoi terminal (--force de xoa cache Vite)
+    # Khoi chay Vite Dev Server duoi tien trinh ngam, tach sach toan bo log FE khoi terminal
     $ViteProcess = Start-Process -FilePath "cmd.exe" `
-        -ArgumentList "/c npm run dev -- --force --logLevel silent" `
+        -ArgumentList "/c npm run dev" `
         -WorkingDirectory $ProjectRoot `
         -RedirectStandardOutput $FeLogFile `
         -RedirectStandardError $FeErrFile `
         -PassThru -NoNewWindow
 
-    # Cho Vite Dev Server san sang tren port 1420
-    Write-Host "[INFO] Dang kiem tra ket noi port 1420..." -ForegroundColor Gray
-    $retry = 30
+    # Cho Vite Dev Server san sang va phan hoi HTTP 200 tren port 1420
+    Write-Host "[INFO] Dang cho Vite Frontend Server san sang tren http://localhost:1420..." -ForegroundColor Gray
+    $retry = 40
     $ready = $false
     while ($retry -gt 0) {
-        if (Get-NetTCPConnection -LocalPort 1420 -ErrorAction SilentlyContinue) {
-            $ready = $true
-            break
-        }
+        try {
+            $resp = Invoke-WebRequest -Uri "http://localhost:1420" -UseBasicParsing -TimeoutSec 1 -ErrorAction SilentlyContinue
+            if ($resp -and $resp.StatusCode -eq 200) {
+                $ready = $true
+                break
+            }
+        } catch {}
         Start-Sleep -Milliseconds 250
         $retry--
     }
 
     if ($ready) {
-        Write-Host "[SUCCESS] Vite Frontend Server da san sang tren http://localhost:1420" -ForegroundColor Green
+        Write-Host "[SUCCESS] Vite Frontend Server da san sang tren http://localhost:1420 (HTTP 200)" -ForegroundColor Green
     } else {
-        Write-Host "[WARN] Port 1420 chua san sang, tiep tuc chay Tauri Backend..." -ForegroundColor Yellow
+        Write-Host "[ERROR] Timeout: Vite Frontend Server khong phan hoi tren http://localhost:1420!" -ForegroundColor Red
+        if (Test-Path $FeErrFile) {
+            Get-Content $FeErrFile -Tail 15 | ForEach-Object { Write-Host "[Vite Error] $_" -ForegroundColor Red }
+        }
+        if (Test-Path $FeLogFile) {
+            Get-Content $FeLogFile -Tail 15 | ForEach-Object { Write-Host "[Vite Log] $_" -ForegroundColor Yellow }
+        }
+        exit 1
     }
 
     $BeConfigPath = Join-Path $ProjectRoot "scripts\tauri.be-logs.json"

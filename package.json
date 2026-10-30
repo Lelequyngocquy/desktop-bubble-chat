@@ -11,7 +11,12 @@
     "app:start": "powershell -ExecutionPolicy Bypass -File scripts/start.ps1",
     "app:stop": "powershell -ExecutionPolicy Bypass -File scripts/stop.ps1",
     "app:build": "powershell -ExecutionPolicy Bypass -File scripts/build.ps1",
-    "app:check": "powershell -ExecutionPolicy Bypass -File scripts/check_env.ps1"
+    "app:check": "powershell -ExecutionPolicy Bypass -File scripts/check_env.ps1",
+    "appium:start": "powershell -ExecutionPolicy Bypass -File scripts/appium-server.ps1 -Action start",
+    "appium:stop": "powershell -ExecutionPolicy Bypass -File scripts/appium-server.ps1 -Action stop",
+    "appium:status": "powershell -ExecutionPolicy Bypass -File scripts/appium-server.ps1 -Action status",
+    "appium:check": "node tests/e2e/run-appium-check.js",
+    "test:e2e": "node tests/e2e/run-appium-check.js"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -32,6 +37,7 @@
     "postcss": "^8.5.32",
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "webdriverio": "^10.1.0"
   }
 }

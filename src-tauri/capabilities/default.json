@@ -3,6 +3,13 @@
   "identifier": "default",
   "description": "Capability for all windows",
   "windows": ["*"],
+  "remote": {
+    "urls": [
+      "https://*.messenger.com/*",
+      "https://*.facebook.com/*",
+      "https://*.meta.com/*"
+    ]
+  },
   "permissions": [
     "core:default",
     "opener:default",

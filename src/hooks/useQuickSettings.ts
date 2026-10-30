@@ -5,17 +5,15 @@ import { systemService } from "../services/systemService";
 import { messengerService } from "../services/messenger";
 
 export function useQuickSettings() {
-  const {
-    isBubbleEnabled,
-    toggleBubble,
-    isAlwaysOnTop,
-    toggleAlwaysOnTop,
-    isNotificationsEnabled,
-    toggleNotifications,
-    isAutoStart,
-    setAutoStart,
-    toggleAutoStart,
-  } = useSettingsStore();
+  const isBubbleEnabled = useSettingsStore((s) => s.isBubbleEnabled);
+  const toggleBubble = useSettingsStore((s) => s.toggleBubble);
+  const isAlwaysOnTop = useSettingsStore((s) => s.isAlwaysOnTop);
+  const toggleAlwaysOnTop = useSettingsStore((s) => s.toggleAlwaysOnTop);
+  const isNotificationsEnabled = useSettingsStore((s) => s.isNotificationsEnabled);
+  const toggleNotifications = useSettingsStore((s) => s.toggleNotifications);
+  const isAutoStart = useSettingsStore((s) => s.isAutoStart);
+  const setAutoStart = useSettingsStore((s) => s.setAutoStart);
+  const toggleAutoStart = useSettingsStore((s) => s.toggleAutoStart);
 
   const isConnected = useMessengerStore(selectIsMessengerConnected);
   const activeAccountIndex = useMessengerStore((s) => s.activeAccountIndex);

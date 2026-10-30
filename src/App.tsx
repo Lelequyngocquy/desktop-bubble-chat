@@ -28,11 +28,11 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Check if this window instance is the floating bubble
+  // Check if this window instance is the floating bubble (supports bubble, bubble-01, bubble-02, etc.)
   const isBubbleWindow =
-    windowLabel === "bubble" ||
+    windowLabel.startsWith("bubble") ||
     window.location.search.includes("window=bubble") ||
-    window.location.hash === "#bubble";
+    window.location.hash.includes("bubble");
 
   if (isBubbleWindow) {
     return (

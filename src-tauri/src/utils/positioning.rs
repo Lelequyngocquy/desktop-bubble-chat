@@ -178,7 +178,7 @@ pub fn get_or_create_bubble_window(
 ) -> Result<tauri::WebviewWindow, String> {
     let label = get_bubble_window_label(account_index);
 
-    // 1. Kiểm tra cửa sổ đã tồn tại
+    // 1. Kiểm tra cửa sổ đã tồn tại (được khởi tạo tĩnh an toàn từ tauri.conf.json trên main thread)
     if let Some(win) = app.get_webview_window(&label) {
         return Ok(win);
     }
@@ -190,7 +190,7 @@ pub fn get_or_create_bubble_window(
         }
     }
 
-    // 3. Khởi tạo WebviewWindow Bubble động mới
+    // 3. Khởi tạo WebviewWindow Bubble dự phòng nếu chưa có
     let url_str = format!("index.html?window=bubble&account={}", account_index);
     let window = tauri::WebviewWindowBuilder::new(
         app,
@@ -208,9 +208,6 @@ pub fn get_or_create_bubble_window(
     .visible(false)
     .build()
     .map_err(|e| e.to_string())?;
-
-    #[cfg(target_os = "windows")]
-    crate::windows::bubble::setup_bubble_subclass(&window);
 
     Ok(window)
 }

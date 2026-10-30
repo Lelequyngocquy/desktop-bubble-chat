@@ -1,50 +1,152 @@
 // Preload script inject vào Messenger Web (420x620)
 (function () {
-  const hostname = window.location.hostname || "";
-  const pathname = window.location.pathname || "";
-  const url = window.location.href || "";
+  const TARGET_MESSENGER_URL = "https://www.messenger.com/";
 
-  // 1. NẾU ĐANG Ở TRANG FACEBOOK HOẶC META (XÁC THỰC 2FA / CAPTCHA / CHECKPOINT / OAUTH):
-  // TUYỆT ĐỐI KHÔNG CAN THIỆP ĐIỀU HƯỚNG, KHÔNG CHẶN CLICK, KHÔNG CHẶN WINDOW.OPEN, KHÔNG INJECT CSS!
-  // Để nguyên bản 100% trang web chính thức của Meta xử lý luồng bảo mật.
-  if (!hostname.includes("messenger.com")) {
+  // Helper IPC an toàn: Hỗ trợ cả Global Tauri v2 và __TAURI_INTERNALS__
+  function invokeTauri(cmd, args) {
+    try {
+      if (
+        window.__TAURI__ &&
+        window.__TAURI__.core &&
+        typeof window.__TAURI__.core.invoke === "function"
+      ) {
+        return window.__TAURI__.core.invoke(cmd, args);
+      }
+      if (
+        window.__TAURI_INTERNALS__ &&
+        typeof window.__TAURI_INTERNALS__.invoke === "function"
+      ) {
+        return window.__TAURI_INTERNALS__.invoke(cmd, args);
+      }
+    } catch (e) {
+      // IPC không khả dụng
+    }
+    return Promise.reject("Tauri IPC not available");
+  }
+
+  // 1. NHẬN DIỆN DANH TÍNH FACEBOOK/MESSENGER KHÔNG DỰA VÀO DOM (Industry Standard - c_user cookie):
+  // Quét cookie 'c_user' (chứa UID số của Facebook, HttpOnly: false)
+  // và Meta Client-side Runtime (CurrentUserInitialData / window.__user).
+  function getFacebookUserId() {
+    try {
+      // a. Cookie c_user: Tiêu chuẩn vàng của hệ thống Meta Web
+      const cookieMatch = document.cookie.match(/(?:^|;\s*)c_user=([0-9]+)/);
+      if (cookieMatch && cookieMatch[1] && cookieMatch[1] !== "0") {
+        return cookieMatch[1];
+      }
+
+      // b. Meta Client Module Runtime (require("CurrentUserInitialData").USER_ID)
+      if (typeof window.require === "function") {
+        try {
+          const currentUser = window.require("CurrentUserInitialData");
+          if (currentUser && currentUser.USER_ID && currentUser.USER_ID !== "0") {
+            return String(currentUser.USER_ID);
+          }
+        } catch (e) {}
+      }
+
+      // c. Biến ngữ cảnh toàn cục window.__user hoặc Env.user_id
+      if (window.__user && window.__user !== "0") {
+        return String(window.__user);
+      }
+      if (window.Env && window.Env.user_id && window.Env.user_id !== "0") {
+        return String(window.Env.user_id);
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  window.getFacebookUserId = getFacebookUserId;
+
+  const curHost = window.location.hostname || "";
+  const curPath = window.location.pathname || "";
+  const curUrl = window.location.href || "";
+
+  // 2. KHI ĐANG Ở DOMAIN FACEBOOK / META (LUỒNG XÁC THỰC, ĐĂNG NHẬP, 2FA, HOẶC CHECKPOINT):
+  if (curHost.includes("facebook.com") || curHost.includes("meta.com")) {
+    const isCheckpointOrAuth =
+      curPath.includes("/checkpoint") ||
+      curPath.includes("/two_step_verification") ||
+      curPath.includes("/login") ||
+      curPath.includes("/auth") ||
+      curUrl.includes("checkpoint") ||
+      curUrl.includes("two_step_verification") ||
+      curUrl.includes("/login");
+
+    const userId = getFacebookUserId();
+
+    // CHỈ điều hướng về Messenger khi:
+    // 1. ĐÃ XÁC THỰC THÀNH CÔNG (c_user tồn tại, userId != null)
+    // 2. VÀ KHÔNG CÒN Ở MÀN HÌNH NHẬP MÃ 2FA/CHECKPOINT DỞ (đã về trang chủ fb.com hoặc xong checkpoint)
+    if (userId && !isCheckpointOrAuth) {
+      console.log("[DesktopBubbleChat] Phát hiện đã đăng nhập và đang ở Facebook, chuyển hướng tức thì về Messenger!");
+      const accountIdx = window.__ACCOUNT_INDEX__ || 1;
+      invokeTauri("report_auth_status", {
+        connected: true,
+        name: userId,
+        accountIndex: accountIdx,
+      }).catch(() => {});
+
+      window.location.replace(TARGET_MESSENGER_URL);
+      return;
+    }
+
+    // Nếu đang trong luồng xác thực (nhập mật khẩu, 2FA, quét mã QR):
+    // GIỮ NGUYÊN BẢN 100% (Pass-Through) để Meta xử lý bảo mật. Không can thiệp, không chặn click, không chặn popup, không inject CSS.
+    // Lắng nghe liên tục: nếu người dùng quét mã xong hoặc duyệt trên điện thoại -> URL chuyển về FB home -> tự động nạp Messenger!
+    const authWatcher = setInterval(() => {
+      try {
+        const uid = getFacebookUserId();
+        const p = window.location.pathname || "";
+        const u = window.location.href || "";
+        const inAuth =
+          p.includes("/checkpoint") ||
+          p.includes("/two_step_verification") ||
+          p.includes("/login") ||
+          u.includes("checkpoint");
+
+        if (uid && !inAuth) {
+          clearInterval(authWatcher);
+          const accountIdx = window.__ACCOUNT_INDEX__ || 1;
+          invokeTauri("report_auth_status", {
+            connected: true,
+            name: uid,
+            accountIndex: accountIdx,
+          }).catch(() => {});
+          window.location.replace(TARGET_MESSENGER_URL);
+        }
+      } catch (e) {}
+    }, 500);
+
     return;
   }
 
-  if (window.__DESKTOP_BUBBLE_INJECTED__) return;
-  window.__DESKTOP_BUBBLE_INJECTED__ = true;
+  // Nếu không phải messenger.com (và cũng không phải facebook/meta), không can thiệp
+  if (!curHost.includes("messenger.com")) {
+    return;
+  }
 
-  const TARGET_MESSENGER_URL = "https://www.messenger.com/";
-
-  // 2. BẢO VỆ ĐIỀU HƯỚNG: Chỉ giữ trong messenger.com khi đang dùng tính năng chat
+  // 3. BẢO VỆ ĐIỀU HƯỚNG TRÊN MESSENGER.COM
   function enforceMessengerUrl() {
     try {
-      const curHost = window.location.hostname || "";
-      const curPath = window.location.pathname || "";
-      const curUrl = window.location.href || "";
+      const host = window.location.hostname || "";
+      const href = window.location.href || "";
 
-      if (!curHost || curUrl === "about:blank") return false;
+      if (!host || href === "about:blank") return false;
 
-      // Cho phép các trang đăng nhập, 2FA, checkpoint của Facebook / Meta
-      const isAuthFlow =
-        curHost.includes("messenger.com") ||
-        curHost.includes("facebook.com") ||
-        curHost.includes("meta.com") ||
-        curPath.includes("/login") ||
-        curPath.includes("/checkpoint") ||
-        curPath.includes("/two_step_verification") ||
-        curUrl.includes("checkpoint") ||
-        curUrl.includes("/login");
-
-      if (!isAuthFlow) {
-        window.location.replace(TARGET_MESSENGER_URL);
-        return true;
+      // Nếu đã có c_user mà bị văng sang trang chủ facebook (không phải checkpoint/login)
+      if (host.includes("facebook.com") && !href.includes("checkpoint") && !href.includes("/login")) {
+        const uid = getFacebookUserId();
+        if (uid) {
+          window.location.replace(TARGET_MESSENGER_URL);
+          return true;
+        }
       }
     } catch (e) {}
     return false;
   }
 
-  // 3. Chặn window.open và popup ngoài khi đang chat Messenger thông thường
+  // 4. Chặn window.open và popup ngoài khi đang chat Messenger thông thường
   try {
     window.open = function (openUrl) {
       if (!openUrl) return null;
@@ -62,14 +164,12 @@
       } catch (e) {}
 
       // Mở link ngoài bằng trình duyệt mặc định của hệ thống
-      if (window.__TAURI__ && window.__TAURI__.core) {
-        window.__TAURI__.core.invoke("open_external_url", { url: urlStr }).catch(() => {});
-      }
+      invokeTauri("open_external_url", { url: urlStr }).catch(() => {});
       return null;
     };
   } catch (e) {}
 
-  // 4. Chặn click thẻ <a> chuyển hướng ra ngoài messenger.com
+  // 5. Chặn click thẻ <a> chuyển hướng ra ngoài messenger.com
   document.addEventListener(
     "click",
     function (e) {
@@ -94,94 +194,123 @@
         e.stopPropagation();
 
         // Mở ra trình duyệt ngoài
-        if (window.__TAURI__ && window.__TAURI__.core) {
-          window.__TAURI__.core.invoke("open_external_url", { url: href }).catch(() => {});
-        }
+        invokeTauri("open_external_url", { url: href }).catch(() => {});
       } catch (err) {}
     },
     true
   );
 
-  // 5. Tự động kiểm tra trạng thái xác thực và gắn thẻ vào document.title
+  // 6. KIỂM TRA TRẠNG THÁI XÁC THỰC THỜI GIAN THỰC (BẤT BIẾN COOKIE C_USER)
+  let lastReportedAuth = null;
   const AUTH_OK_TAG = " [AUTH_OK]";
-  const AUTH_LOGIN_TAG = " [AUTH_LOGIN]";
 
-  function checkAndTagAuthStatus() {
+  function checkAndReportAuth() {
     try {
       enforceMessengerUrl();
 
-      const url = window.location.href || "";
-      const pathname = window.location.pathname || "";
-      const hostname = window.location.hostname || "";
+      const curUrl = window.location.href || "";
+      const curPath = window.location.pathname || "";
+      const curHost = window.location.hostname || "";
 
-      // Kiểm tra xem có đang ở trang login / checkpoint rõ ràng không
-      const isLoginUrl =
-        pathname.includes("/login") ||
-        url.includes("/checkpoint") ||
-        url.includes("facebook.com/login");
+      // Nếu đã bị nhảy sang facebook.com mà đã có c_user:
+      if (curHost.includes("facebook.com") || curHost.includes("meta.com")) {
+        const uid = getFacebookUserId();
+        const inAuth = curPath.includes("/checkpoint") || curPath.includes("/two_step_verification") || curPath.includes("/login");
+        if (uid && !inAuth) {
+          window.location.replace(TARGET_MESSENGER_URL);
+        }
+        return;
+      }
 
-      // Kiểm tra xem đã xuất hiện giao diện chat của Messenger chưa
-      const hasChatElements = !!(
-        document.querySelector('div[role="navigation"]') ||
-        document.querySelector('div[role="main"]') ||
-        document.querySelector('div[aria-label*="Đoạn chat"]') ||
-        document.querySelector('div[aria-label*="Chats"]') ||
-        document.querySelector('a[href*="/t/"]') ||
-        document.querySelector('div[data-pagelet="LeftRail"]')
+      if (!curHost.includes("messenger.com")) return;
+
+      const userId = getFacebookUserId();
+
+      // Kiểm tra có form đăng nhập hiển thị trên DOM hay không
+      const hasLoginForm = Boolean(
+        document.querySelector('input[name="pass"]') ||
+        document.querySelector('input[type="password"]') ||
+        document.querySelector('#loginbutton') ||
+        document.querySelector('button[name="login"]') ||
+        document.querySelector('form#login_form') ||
+        document.querySelector('form[action*="login"]')
       );
 
-      const isInboxPath = pathname.startsWith("/t/") || pathname.startsWith("/e2ee/");
+      // Trang đăng nhập rõ ràng qua URL hoặc khi có form đăng nhập trên màn hình
+      const isLoginUrl =
+        curPath.includes("/login") ||
+        curUrl.includes("/checkpoint") ||
+        curUrl.includes("two_step_verification") ||
+        hasLoginForm;
 
-      const titleLower = (document.title || "").toLowerCase();
-      const isLoginTitle =
-        titleLower.includes("log in to facebook") ||
-        titleLower.includes("log into facebook") ||
-        titleLower.includes("đăng nhập vào facebook");
+      // Chat inbox paths
+      const isChatPath = curPath.startsWith("/t/") || curPath.startsWith("/e2ee/");
 
-      // Đã đăng nhập: Trên messenger.com, không ở URL login/checkpoint, và có giao diện chat hoặc ở trang chủ Messenger
+      // Đã đăng nhập:
+      // 1. Phải KHÔNG có form đăng nhập hoặc URL đăng nhập
+      // 2. VÀ (Có c_user/userId hợp lệ HOẶC đang ở chat inbox path)
       const isLoggedIn =
-        hostname.includes("messenger.com") &&
+        curHost.includes("messenger.com") &&
         !isLoginUrl &&
-        !isLoginTitle &&
-        (hasChatElements || isInboxPath || pathname === "/" || pathname === "");
-
-      let rawTitle = document.title || "Messenger";
-      rawTitle = rawTitle.replace(AUTH_OK_TAG, "").replace(AUTH_LOGIN_TAG, "").trim();
+        (Boolean(userId) || isChatPath);
 
       if (isLoggedIn) {
         if (!document.title.includes(AUTH_OK_TAG)) {
+          const rawTitle = (document.title || "Messenger").replace(AUTH_OK_TAG, "").trim();
           document.title = rawTitle + AUTH_OK_TAG;
         }
-        if (window.__TAURI__ && window.__TAURI__.core) {
-          window.__TAURI__.core.invoke("report_auth_status", { connected: true }).catch(() => {});
+
+        // Đóng dấu UID lên URL hash để Rust backend đọc tức thì và đồng bộ 100% không phụ thuộc IPC
+        if (userId && !window.location.hash.includes("auth_uid=")) {
+          try {
+            const newHash = "#auth_uid=" + userId;
+            window.history.replaceState(null, "", newHash);
+          } catch (e) {}
         }
-      } else if (isLoginUrl || isLoginTitle) {
-        if (!document.title.includes(AUTH_LOGIN_TAG)) {
-          document.title = rawTitle + AUTH_LOGIN_TAG;
+      } else {
+        // Nếu chưa đăng nhập / đang ở màn hình login: xóa dấu AUTH_OK và auth_uid nếu còn sót
+        if (document.title.includes(AUTH_OK_TAG)) {
+          document.title = document.title.replace(AUTH_OK_TAG, "").trim();
         }
+        if (window.location.hash.includes("auth_uid=")) {
+          try {
+            window.history.replaceState(null, "", window.location.pathname + window.location.search);
+          } catch (e) {}
+        }
+      }
+
+      if (isLoggedIn !== lastReportedAuth) {
+        lastReportedAuth = isLoggedIn;
+        const accountIdx = window.__ACCOUNT_INDEX__ || 1;
+
+        invokeTauri("report_auth_status", {
+          connected: isLoggedIn,
+          name: userId || "",
+          accountIndex: accountIdx,
+        }).catch(() => {});
       }
     } catch (e) {
       // Ignored
     }
   }
 
-  // 5. Tự động trích xuất số tin nhắn chưa đọc từ document.title
+  window.checkAndReportAuth = checkAndReportAuth;
+
+  // 7. Tự động trích xuất số tin nhắn chưa đọc từ document.title
   let lastBadgeCount = -1;
 
   function reportBadge() {
     try {
-      checkAndTagAuthStatus();
+      checkAndReportAuth();
 
       const rawTitle = document.title || "";
-      const cleanTitle = rawTitle.replace(AUTH_OK_TAG, "").replace(AUTH_LOGIN_TAG, "").trim();
+      const cleanTitle = rawTitle.replace(AUTH_OK_TAG, "").trim();
       const match = cleanTitle.match(/\((\d+)\+?\)/);
       const count = match ? parseInt(match[1], 10) : 0;
 
       if (count !== lastBadgeCount) {
         lastBadgeCount = count;
-        if (window.__TAURI__ && window.__TAURI__.core) {
-          window.__TAURI__.core.invoke("update_unread_badge", { count: count });
-        }
+        invokeTauri("update_unread_badge", { count: count }).catch(() => {});
       }
     } catch (e) {
       // Ignored
@@ -209,11 +338,12 @@
     initObserver();
   }
 
-  // Kiểm tra định kỳ mỗi 800ms
+  // Kiểm tra định kỳ liên tục
+  setInterval(checkAndReportAuth, 500);
   setInterval(reportBadge, 800);
   setInterval(enforceMessengerUrl, 500);
 
-  // 6. Inject CSS thu gọn Messenger vừa vặn khung popup 420x620
+  // 8. Inject CSS thu gọn Messenger vừa vặn khung popup 420x620
   const styleId = "desktop-bubble-chat-style";
   if (!document.getElementById(styleId)) {
     const style = document.createElement("style");

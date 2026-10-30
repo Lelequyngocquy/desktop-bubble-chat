@@ -8,6 +8,98 @@ use crate::utils::time::now_millis;
 
 pub const MESSENGER_INJECT_SCRIPT: &str = include_str!("scripts/messenger_inject.js");
 
+#[derive(Clone, Copy, Debug)]
+pub struct AccountTheme {
+    pub hex: &'static str,
+    pub border_hex: &'static str,
+}
+
+pub fn get_account_theme(idx: u32) -> AccountTheme {
+    match idx {
+        1 => AccountTheme {
+            hex: "#06B6D4",
+            border_hex: "#0891B2",
+        },
+        2 => AccountTheme {
+            hex: "#EC4899",
+            border_hex: "#DB2777",
+        },
+        3 => AccountTheme {
+            hex: "#F97316",
+            border_hex: "#EA580C",
+        },
+        4 => AccountTheme {
+            hex: "#8B5CF6",
+            border_hex: "#7C3AED",
+        },
+        5 => AccountTheme {
+            hex: "#10B981",
+            border_hex: "#059669",
+        },
+        _ => AccountTheme {
+            hex: "#06B6D4",
+            border_hex: "#0891B2",
+        },
+    }
+}
+
+pub fn hex_to_colorref(hex: &str) -> u32 {
+    let clean = hex.trim_start_matches('#');
+    if clean.len() == 6 {
+        let r = u32::from_str_radix(&clean[0..2], 16).unwrap_or(0);
+        let g = u32::from_str_radix(&clean[2..4], 16).unwrap_or(0);
+        let b = u32::from_str_radix(&clean[4..6], 16).unwrap_or(0);
+        r | (g << 8) | (b << 16)
+    } else {
+        0
+    }
+}
+
+#[cfg(target_os = "windows")]
+pub fn apply_window_theme_color(window: &tauri::WebviewWindow, hex: &str, border_hex: &str) {
+    #[link(name = "dwmapi")]
+    unsafe extern "system" {
+        fn DwmSetWindowAttribute(
+            hwnd: *mut std::ffi::c_void,
+            dwAttribute: u32,
+            pvAttribute: *const std::ffi::c_void,
+            cbAttribute: u32,
+        ) -> i32;
+    }
+
+    if let Ok(hwnd) = window.hwnd() {
+        let raw_hwnd = hwnd.0 as *mut std::ffi::c_void;
+        let caption_color = hex_to_colorref(hex);
+        let border_color = hex_to_colorref(border_hex);
+        let text_color: u32 = 0x00FFFFFF; // Màu chữ trắng
+
+        const DWMWA_BORDER_COLOR: u32 = 34;
+        const DWMWA_CAPTION_COLOR: u32 = 35;
+        const DWMWA_TEXT_COLOR: u32 = 36;
+
+        unsafe {
+            let _ = DwmSetWindowAttribute(
+                raw_hwnd,
+                DWMWA_CAPTION_COLOR,
+                &caption_color as *const _ as *const std::ffi::c_void,
+                std::mem::size_of::<u32>() as u32,
+            );
+            let _ = DwmSetWindowAttribute(
+                raw_hwnd,
+                DWMWA_TEXT_COLOR,
+                &text_color as *const _ as *const std::ffi::c_void,
+                std::mem::size_of::<u32>() as u32,
+            );
+            let _ = DwmSetWindowAttribute(
+                raw_hwnd,
+                DWMWA_BORDER_COLOR,
+                &border_color as *const _ as *const std::ffi::c_void,
+                std::mem::size_of::<u32>() as u32,
+            );
+        }
+    }
+}
+
 /// Trả về label định danh cửa sổ chat Messenger theo số thứ tự tài khoản (ví dụ: chat-messenger-01)
 pub fn get_messenger_window_label(account_index: u32) -> String {
     format!("chat-messenger-{:02}", account_index)
@@ -90,6 +182,13 @@ pub fn get_or_create_messenger_window(
 
     let parsed_url = tauri::Url::parse("https://www.messenger.com/login/").map_err(|e| e.to_string())?;
 
+    let theme = get_account_theme(account_index);
+    let init_script = format!(
+        "window.__ACCOUNT_INDEX__ = {};\n{}",
+        account_index,
+        MESSENGER_INJECT_SCRIPT
+    );
+
     println!("[BE - Window] Đang build WebviewWindow mới cho '{}'...", label);
     let builder = tauri::WebviewWindowBuilder::new(
         app,
@@ -98,7 +197,7 @@ pub fn get_or_create_messenger_window(
     )
     .data_directory(profile_dir)
     .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0")
-    .initialization_script(MESSENGER_INJECT_SCRIPT)
+    .initialization_script(&init_script)
     .title(format!("Đăng nhập Messenger {:02}", account_index))
     .inner_size(560.0, 720.0)
     .min_inner_size(420.0, 560.0)
@@ -113,6 +212,8 @@ pub fn get_or_create_messenger_window(
         Ok(window) => {
             println!("\x1b[32m[BE - Window] Build thành công cửa sổ Webview: {}\x1b[0m", label);
             setup_window_events(app, &window, chat_state);
+            #[cfg(target_os = "windows")]
+            apply_window_theme_color(&window, theme.hex, theme.border_hex);
             Ok(window)
         }
         Err(err) => {
@@ -148,42 +249,37 @@ pub fn setup_chat_window(app: &AppHandle, chat_state: Arc<ChatState>) {
     }
 }
 
-/// Kiểm tra toàn diện trạng thái đăng nhập của WebView2 Messenger
+/// Kiểm tra trạng thái đăng nhập chuẩn theo đặc tả c_user và Routing Invariants (standard_mess_login.md)
+/// Hàm thuần túy truy vấn (Read-Only), tuyệt đối không gây side-effect điều hướng webview trong quá trình polling.
 pub fn is_window_logged_in(chat_window: &tauri::WebviewWindow) -> (bool, String) {
     let title = chat_window.title().unwrap_or_default();
     let url_str = chat_window.url().map(|u| u.to_string()).unwrap_or_default();
 
-    // 1. Thẻ xác thực rõ ràng từ injected script
+    // 1. Nếu đang ở domain facebook.com hoặc meta.com:
+    // Đang trong luồng xác thực / đăng nhập / 2FA / checkpoint của Meta -> Chưa hoàn tất đăng nhập Messenger
+    if url_str.contains("facebook.com") || url_str.contains("meta.com") {
+        return (false, String::new());
+    }
+
+    // 2. Kênh tốc độ cao: Đọc UID trực tiếp từ hash URL do injected script đóng dấu (#auth_uid=...)
+    if let Some(pos) = url_str.find("#auth_uid=") {
+        let uid_part = &url_str[pos + 10..];
+        let clean_uid = uid_part.split(['&', '#', '/']).next().unwrap_or("").trim().to_string();
+        if !clean_uid.is_empty() {
+            return (true, clean_uid);
+        }
+    }
+
+    // 3. Thẻ xác thực chuẩn [AUTH_OK] được injected script đóng dấu khi tìm thấy cookie c_user trên messenger.com
     if title.contains("[AUTH_OK]") {
         return (true, String::new());
     }
-    if title.contains("[AUTH_LOGIN]") {
-        return (false, String::new());
-    }
 
-    // 2. Nhận diện các trang đăng nhập / checkpoint rõ ràng
-    let title_lower = title.to_lowercase();
-    let is_login_page = url_str.contains("/login")
-        || url_str.contains("/checkpoint")
-        || url_str.contains("facebook.com/login")
-        || url_str.contains("two_step_verification")
-        || url_str.contains("pre_authentication")
-        || title_lower.contains("log in to facebook")
-        || title_lower.contains("log into facebook")
-        || title_lower.contains("đăng nhập vào facebook");
-
-    if is_login_page {
-        return (false, String::new());
-    }
-
-    // 3. Đường dẫn trực tiếp vào cuộc trò chuyện chat (chắc chắn đã đăng nhập)
-    let is_inbox_path = url_str.contains("/t/") || url_str.contains("/e2ee/");
-    if is_inbox_path {
-        return (true, String::new());
-    }
-
-    // 4. Nếu đang ở domain messenger.com và KHÔNG PHẢI trang đăng nhập / checkpoint
-    if url_str.contains("messenger.com") {
+    // 4. Bất biến Routing: Trên domain messenger.com, CHỈ KHI vào hẳn thread chat (/t/ hoặc /e2ee/)
+    // mới coi là đã đăng nhập thành công.
+    // LƯU Ý QUAN TRỌNG: Tuyệt đối KHÔNG coi https://www.messenger.com/ (không có /login) là logged in,
+    // vì Meta thường xuyên render form đăng nhập trực tiếp trên root path "/"!
+    if url_str.contains("messenger.com") && (url_str.contains("/t/") || url_str.contains("/e2ee/")) {
         return (true, String::new());
     }
 
