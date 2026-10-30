@@ -87,7 +87,7 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                             outside_open_chat_start = Some(Instant::now());
                         }
                         Some(start_time) => {
-                            if start_time.elapsed() >= Duration::from_millis(300) {
+                            if start_time.elapsed() >= Duration::from_millis(500) {
                                 let _ = ChatService::hide_chat(&app, active_idx);
                                 outside_open_chat_start = None;
                             }
