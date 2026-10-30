@@ -40,6 +40,7 @@ impl BubbleMovementEngine {
         let bubble_size = (config.size * scale) as i32;
         let dismiss_margin = (config.dismiss_margin * scale) as i32;
         let mid_x = screen.x + screen.width / 2;
+        let is_left_edge = win_pos.x + bubble_size / 2 < mid_x;
 
         // 1. Kiểm tra kéo vào vùng hủy (Dismiss area) ở đáy màn hình
         let dismiss_threshold = screen.y + screen.height - dismiss_margin;
@@ -48,11 +49,11 @@ impl BubbleMovementEngine {
                 target_x: win_pos.x,
                 target_y: win_pos.y,
                 should_dismiss: true,
+                is_left_edge,
             };
         }
 
         // 2. Xác định mép hít trái hay phải
-        let is_left_edge = win_pos.x + bubble_size / 2 < mid_x;
         let target_x = Self::calculate_edge_x(screen, config, win_pos.x, config.tuck_ratio);
 
         // 3. Giải quyết va chạm dọc với các bubble khác cùng mép
@@ -69,6 +70,7 @@ impl BubbleMovementEngine {
             target_x,
             target_y: resolved_y,
             should_dismiss: false,
+            is_left_edge,
         }
     }
 

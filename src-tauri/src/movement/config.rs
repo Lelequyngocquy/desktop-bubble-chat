@@ -29,6 +29,7 @@ pub struct SnapResult {
     pub target_x: i32,
     pub target_y: i32,
     pub should_dismiss: bool,
+    pub is_left_edge: bool,
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -57,7 +57,7 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                 already_opened_for_hover = false;
             }
 
-            // 3. Logic Auto-Close khi chuột rời khỏi cả Chat lẫn Bubble tương ứng
+            // 3. Logic Auto-Close khi chuột rời khỏi cả Chat lẫn Bubble tương ứng (chỉ khi không nhấn giữ chuột)
             let mut active_chat_info: Option<(u32, tauri::WebviewWindow)> = None;
             for idx in 1..=5 {
                 let label = get_messenger_window_label(idx);
@@ -71,28 +71,32 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                 }
             }
 
-            if let Some((active_idx, chat_win)) = active_chat_info {
-                let bubble_label = get_bubble_window_label(active_idx);
-                let over_chat = is_cursor_over_window(&chat_win);
-                let over_bubble = app
-                    .get_webview_window(&bubble_label)
-                    .map(|b| is_cursor_over_bubble(&b))
-                    .unwrap_or(false);
+            if !lbutton_down {
+                if let Some((active_idx, chat_win)) = active_chat_info {
+                    let bubble_label = get_bubble_window_label(active_idx);
+                    let over_chat = is_cursor_over_window(&chat_win);
+                    let over_bubble = app
+                        .get_webview_window(&bubble_label)
+                        .map(|b| is_cursor_over_bubble(&b))
+                        .unwrap_or(false);
 
-                if over_chat || over_bubble {
-                    outside_open_chat_start = None;
-                } else {
-                    match outside_open_chat_start {
-                        None => {
-                            outside_open_chat_start = Some(Instant::now());
-                        }
-                        Some(start_time) => {
-                            if start_time.elapsed() >= Duration::from_millis(300) {
-                                let _ = ChatService::hide_chat(&app, active_idx);
-                                outside_open_chat_start = None;
+                    if over_chat || over_bubble {
+                        outside_open_chat_start = None;
+                    } else {
+                        match outside_open_chat_start {
+                            None => {
+                                outside_open_chat_start = Some(Instant::now());
+                            }
+                            Some(start_time) => {
+                                if start_time.elapsed() >= Duration::from_millis(300) {
+                                    let _ = ChatService::hide_chat(&app, active_idx);
+                                    outside_open_chat_start = None;
+                                }
                             }
                         }
                     }
+                } else {
+                    outside_open_chat_start = None;
                 }
             } else {
                 outside_open_chat_start = None;
