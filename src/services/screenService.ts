@@ -44,10 +44,9 @@ export class ScreenService {
       return await invoke<SnapResult>(IPC_COMMANDS.GET_BUBBLE_DEFAULT_COORDS, { accountIndex });
     } catch {
       const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-      const width = typeof window !== "undefined" ? window.screen.width * dpr : 1920;
       const height = typeof window !== "undefined" ? window.screen.height * dpr : 1080;
       return {
-        targetX: width - Math.round(64 * dpr * 0.1),
+        targetX: -Math.round(56 * dpr * 0.75),
         targetY: Math.round(height / 3) + (accountIndex - 1) * Math.round(76 * dpr),
         shouldDismiss: false,
       };

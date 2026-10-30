@@ -107,14 +107,26 @@ impl BubbleMovementEngine {
         config: &BubblePhysicsConfig,
         existing_bubbles: &[BubbleRect],
     ) -> PhysicalPosition<i32> {
+        let is_left_edge = true; // Mặc định khởi tạo ở mép trái màn hình
+        let initial_x = if is_left_edge {
+            screen.x
+        } else {
+            screen.x + screen.width
+        };
+
         let target_x = Self::calculate_edge_x(
             screen,
             config,
-            screen.x + screen.width, // mặc định mép phải
+            initial_x,
             config.tuck_ratio,
         );
 
-        let target_y = CollisionResolver::find_free_stacked_slot(screen, config, existing_bubbles);
+        let target_y = CollisionResolver::find_free_stacked_slot(
+            screen,
+            config,
+            existing_bubbles,
+            is_left_edge,
+        );
 
         PhysicalPosition {
             x: target_x,

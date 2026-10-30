@@ -109,6 +109,7 @@ impl CollisionResolver {
         screen: &ScreenMetrics,
         config: &BubblePhysicsConfig,
         existing_bubbles: &[BubbleRect],
+        is_left_edge: bool,
     ) -> i32 {
         let scale = screen.scale_factor;
         let bubble_size = (config.size * scale) as i32;
@@ -120,35 +121,41 @@ impl CollisionResolver {
         let max_y = (screen.y + screen.height - bubble_size - taskbar_margin).max(min_y);
         let default_y = (screen.y + screen.height / 3).clamp(min_y, max_y);
 
-        // Lọc các bubble đang ở mép phải (vị trí mặc định)
+        // Lọc các bubble đang ở cùng mép (mép trái hoặc phải)
         let mid_x = screen.x + screen.width / 2;
-        let mut right_bubbles: Vec<&BubbleRect> = existing_bubbles
+        let mut same_edge_bubbles: Vec<&BubbleRect> = existing_bubbles
             .iter()
-            .filter(|b| b.x + b.width / 2 >= mid_x)
+            .filter(|b| {
+                if is_left_edge {
+                    b.x + b.width / 2 < mid_x
+                } else {
+                    b.x + b.width / 2 >= mid_x
+                }
+            })
             .collect();
 
-        if right_bubbles.is_empty() {
+        if same_edge_bubbles.is_empty() {
             return default_y;
         }
 
-        right_bubbles.sort_by_key(|b| b.y);
+        same_edge_bubbles.sort_by_key(|b| b.y);
 
         // Thử tìm slot trống ngay dưới bubble thấp nhất
-        let last_bubble = right_bubbles.last().unwrap();
+        let last_bubble = same_edge_bubbles.last().unwrap();
         let candidate_below = last_bubble.y + last_bubble.height + gap;
         if candidate_below <= max_y {
             return candidate_below;
         }
 
         // Nếu phía dưới đã chạm mép taskbar, thử xếp lên trên bubble cao nhất
-        let first_bubble = right_bubbles.first().unwrap();
+        let first_bubble = same_edge_bubbles.first().unwrap();
         let candidate_above = first_bubble.y - bubble_size - gap;
         if candidate_above >= min_y {
             return candidate_above;
         }
 
         // Nếu cả trên và dưới đều chật, tìm khe hở giữa 2 bubble liên tiếp
-        for window in right_bubbles.windows(2) {
+        for window in same_edge_bubbles.windows(2) {
             let top_b = window[0];
             let bottom_b = window[1];
             let available_space = bottom_b.y - (top_b.y + top_b.height);
