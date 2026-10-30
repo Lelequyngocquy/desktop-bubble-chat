@@ -5,12 +5,14 @@ import { ScreenService } from "../services";
 
 interface UseBubbleDragOptions {
   onBubbleClick?: () => void;
+  onBubbleHoverOpen?: () => void;
   isChatOpen?: boolean;
   accountIndex?: number;
 }
 
 export const useBubbleDrag = ({
   onBubbleClick,
+  onBubbleHoverOpen,
   isChatOpen = false,
   accountIndex = 1,
 }: UseBubbleDragOptions = {}) => {
@@ -20,6 +22,7 @@ export const useBubbleDrag = ({
 
   const hoverAnimRef = useRef<number | null>(null);
   const moveAnimRef = useRef<number | null>(null);
+  const hoverOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPosRef = useRef<{ x: number; y: number } | null>(null);
   const isHoveredRef = useRef<boolean>(false);
 
@@ -124,21 +127,47 @@ export const useBubbleDrag = ({
   // Lắng nghe sự kiện chuột ra/vào trên toàn bộ WebView2 window
   useEffect(() => {
     const handleMouseLeave = () => {
+      if (hoverOpenTimerRef.current) {
+        clearTimeout(hoverOpenTimerRef.current);
+        hoverOpenTimerRef.current = null;
+      }
       setHoverState(false);
     };
+
     const handleMouseEnter = () => {
       setHoverState(true);
+      if (hoverOpenTimerRef.current) {
+        clearTimeout(hoverOpenTimerRef.current);
+        hoverOpenTimerRef.current = null;
+      }
+      // Tự động mở khung chat sau khi hover liên tục 0.5s (500ms)
+      if (!isChatOpen) {
+        hoverOpenTimerRef.current = setTimeout(() => {
+          if (!dragRef.current.isDown) {
+            onBubbleHoverOpen?.();
+          }
+        }, 500);
+      }
     };
+
     window.addEventListener("mouseleave", handleMouseLeave);
     window.addEventListener("mouseenter", handleMouseEnter);
     return () => {
+      if (hoverOpenTimerRef.current) {
+        clearTimeout(hoverOpenTimerRef.current);
+        hoverOpenTimerRef.current = null;
+      }
       window.removeEventListener("mouseleave", handleMouseLeave);
       window.removeEventListener("mouseenter", handleMouseEnter);
     };
-  }, [setHoverState]);
+  }, [setHoverState, isChatOpen, onBubbleHoverOpen]);
 
   // Đồng bộ vị trí bong bóng khi mở hoặc đóng khung chat (Force animation để đảm bảo vị trí tuck/untuck tuyệt đối)
   useEffect(() => {
+    if (hoverOpenTimerRef.current) {
+      clearTimeout(hoverOpenTimerRef.current);
+      hoverOpenTimerRef.current = null;
+    }
     if (isChatOpen) {
       setHoverState(true, true);
     } else {
@@ -150,6 +179,12 @@ export const useBubbleDrag = ({
     async (e: React.PointerEvent<HTMLDivElement>) => {
       // Chỉ nhận chuột trái
       if (e.button !== 0) return;
+
+      // Hủy bộ đếm hover mở chat nếu người dùng bắt đầu nhấn / kéo chuột
+      if (hoverOpenTimerRef.current) {
+        clearTimeout(hoverOpenTimerRef.current);
+        hoverOpenTimerRef.current = null;
+      }
 
       // Hủy hoạt ảnh hover và drag trước đó nếu có
       if (hoverAnimRef.current) {

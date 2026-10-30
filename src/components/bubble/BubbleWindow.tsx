@@ -10,10 +10,12 @@ export const BubbleWindow: React.FC = () => {
     themeColor,
     isChatOpen,
     handleBubbleClick,
+    handleBubbleHoverOpen,
   } = useBubbleWindow();
 
   const { isDragging, dragOpacity, isNearDismiss, dragProps } = useBubbleDrag({
     onBubbleClick: handleBubbleClick,
+    onBubbleHoverOpen: handleBubbleHoverOpen,
     isChatOpen,
     accountIndex,
   });

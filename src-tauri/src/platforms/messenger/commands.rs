@@ -5,7 +5,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use crate::state::ChatState;
 use crate::utils::positioning::{
     dock_chat_window, ensure_bubble_positioned_and_visible, get_bubble_window_label,
-    tuck_bubble,
+    is_cursor_over_bubble, is_cursor_over_window, tuck_bubble,
 };
 use crate::utils::time::now_millis;
 use super::parser::parse_unread_from_title;
@@ -93,7 +93,11 @@ pub async fn open_messenger_auth(
         eprintln!("\x1b[31m[BE - Auth ERROR] chat_window.set_focus() lỗi: {:?}\x1b[0m", e);
     }
 
-    let _ = app.emit("chat-visibility-changed", true);
+    let _ = app.emit("chat-visibility-changed", serde_json::json!({
+        "accountIndex": idx,
+        "visible": true,
+        "windowLabel": chat_window.label()
+    }));
     println!("\x1b[32m[BE - Auth] HOÀN TẤT: Cửa sổ Đăng nhập Messenger {:02} đã được show() và set_focus()!\x1b[0m", idx);
     println!("\x1b[32m[BE - Auth] ========================================================\x1b[0m");
 
@@ -111,6 +115,11 @@ pub async fn open_chat(
     let _ = ensure_bubble_positioned_and_visible(&app, idx);
 
     let chat_window = get_or_create_messenger_window(&app, idx, Arc::clone(&state))?;
+
+    let is_already_visible = chat_window.is_visible().unwrap_or(false);
+    if is_already_visible {
+        return Ok(());
+    }
 
     // Ẩn tất cả các cửa sổ chat của tài khoản khác
     hide_all_other_messenger_windows(&app, &chat_window.label());
@@ -143,6 +152,7 @@ pub async fn open_chat(
     println!("[BE - Chat] Mở khung chat Messenger {:02} docked cạnh Bubble", idx);
     chat_window.show().map_err(|e| e.to_string())?;
     chat_window.set_focus().map_err(|e| e.to_string())?;
+    start_chat_auto_close_monitor(app.clone(), chat_window.clone(), idx, Arc::clone(&state));
     let _ = app.emit("bubble-visibility-changed", serde_json::json!({
         "accountIndex": idx,
         "visible": true
@@ -221,6 +231,7 @@ pub async fn toggle_chat(
 
         chat_window.show().map_err(|e| e.to_string())?;
         chat_window.set_focus().map_err(|e| e.to_string())?;
+        start_chat_auto_close_monitor(app.clone(), chat_window.clone(), idx, Arc::clone(&state));
         let _ = app.emit("chat-visibility-changed", serde_json::json!({
             "accountIndex": idx,
             "visible": true,
@@ -228,6 +239,64 @@ pub async fn toggle_chat(
         }));
         Ok(true)
     }
+}
+
+/// Giám sát chuột: Nếu chuột rời khỏi cả cửa sổ chat lẫn bong bóng tương ứng quá 1.0s, tự động đóng khung chat và thụt bubble vào trong
+pub fn start_chat_auto_close_monitor(
+    app: AppHandle,
+    chat_window: tauri::WebviewWindow,
+    account_index: u32,
+    chat_state: Arc<ChatState>,
+) {
+    let bubble_label = get_bubble_window_label(account_index);
+
+    std::thread::spawn(move || {
+        let mut outside_start: Option<std::time::Instant> = None;
+
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(80));
+
+            // 1. Dừng ngay lập tức nếu cửa sổ chat đã bị ẩn hoặc đóng
+            if !chat_window.is_visible().unwrap_or(false) {
+                break;
+            }
+
+            // 2. Không tự động đóng nếu đang ở chế độ Auth/Login
+            if chat_state.is_window_in_auth_mode(&chat_window.label()) {
+                continue;
+            }
+
+            // 3. Kiểm tra con trỏ chuột có đang nằm trên Chat hoặc Bubble tương ứng không
+            let over_chat = is_cursor_over_window(&chat_window);
+            let over_bubble = app
+                .get_webview_window(&bubble_label)
+                .map(|b| is_cursor_over_bubble(&b))
+                .unwrap_or(false);
+
+            if over_chat || over_bubble {
+                outside_start = None;
+            } else {
+                match outside_start {
+                    None => {
+                        outside_start = Some(std::time::Instant::now());
+                    }
+                    Some(start_time) => {
+                        if start_time.elapsed() >= std::time::Duration::from_millis(1000) {
+                            // Đã quá 1.0s di chuột ra ngoài cả khung chat lẫn bubble -> Đóng và thụt bubble
+                            let _ = chat_window.hide();
+                            let _ = app.emit("chat-visibility-changed", serde_json::json!({
+                                "accountIndex": account_index,
+                                "visible": false,
+                                "windowLabel": chat_window.label()
+                            }));
+                            tuck_bubble(&app, Some(account_index));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 /// Command ngắt kết nối Messenger, điều hướng về login và ẩn cửa sổ

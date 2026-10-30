@@ -133,6 +133,8 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                     // Khi click ra ngoài cả popup lẫn bubble -> thụt tất cả bubble vào mép
                     if !is_cursor_over_any_bubble(&app_handle) {
                         tuck_bubble(&app_handle, None);
+                    } else {
+                        tuck_bubble(&app_handle, Some(idx));
                     }
                 }
             }
@@ -152,6 +154,8 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
 
                 if !is_cursor_over_any_bubble(&app_handle) {
                     tuck_bubble(&app_handle, None);
+                } else {
+                    tuck_bubble(&app_handle, Some(idx));
                 }
             }
             _ => {}
@@ -238,34 +242,31 @@ pub fn get_or_create_messenger_window(
 }
 
 /// Đảm bảo chỉ có 1 cửa sổ chat/auth Messenger được hiển thị tại một thời điểm
+/// và tất cả các bubble khác đều bị thụt vào mép (tuck)
 pub fn hide_all_other_messenger_windows(app: &AppHandle, active_label: &str) {
     for idx in 1..=5 {
         let label = get_messenger_window_label(idx);
         if label != active_label {
             if let Some(w) = app.get_webview_window(&label) {
-                if w.is_visible().unwrap_or(false) {
-                    let _ = w.hide();
-                    let _ = app.emit("chat-visibility-changed", serde_json::json!({
-                        "accountIndex": idx,
-                        "visible": false,
-                        "windowLabel": &label
-                    }));
-                    tuck_bubble(app, Some(idx));
-                }
+                let _ = w.hide();
             }
+            let _ = app.emit("chat-visibility-changed", serde_json::json!({
+                "accountIndex": idx,
+                "visible": false,
+                "windowLabel": &label
+            }));
+            tuck_bubble(app, Some(idx));
         }
     }
     if active_label != "chat-messenger" {
         if let Some(w) = app.get_webview_window("chat-messenger") {
-            if w.is_visible().unwrap_or(false) {
-                let _ = w.hide();
-                let _ = app.emit("chat-visibility-changed", serde_json::json!({
-                    "accountIndex": 1,
-                    "visible": false,
-                    "windowLabel": "chat-messenger"
-                }));
-                tuck_bubble(app, Some(1));
-            }
+            let _ = w.hide();
+            let _ = app.emit("chat-visibility-changed", serde_json::json!({
+                "accountIndex": 1,
+                "visible": false,
+                "windowLabel": "chat-messenger"
+            }));
+            tuck_bubble(app, Some(1));
         }
     }
 }

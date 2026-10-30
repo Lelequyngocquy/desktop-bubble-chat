@@ -11,7 +11,19 @@ import { IPC_EVENTS, ChatVisibilityPayload } from "../types/ipc";
  * Custom hook dedicated to the floating Bubble window lifecycle and interactions.
  */
 export function useBubbleWindow() {
-  const [accountIndex, setAccountIndex] = useState<number>(1);
+  const [accountIndex, setAccountIndex] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const accountParam = params.get("account");
+      if (accountParam) return parseInt(accountParam, 10);
+      try {
+        const label = getCurrentWindow().label;
+        const match = label.match(/bubble-(\d+)/);
+        if (match) return parseInt(match[1], 10);
+      } catch {}
+    }
+    return 1;
+  });
   const { isChatOpen, setIsChatOpen } = useWindowStore();
 
   useEffect(() => {
@@ -52,9 +64,18 @@ export function useBubbleWindow() {
           visible = event.payload;
         }
 
-        // Cập nhật trạng thái nếu sự kiện dành cho tài khoản này hoặc là broadcast
-        if (targetAccount === undefined || targetAccount === accountIndex) {
+        // Nếu có chat của tài khoản khác vừa mở -> Chat của mình chắc chắn phải đóng và mình phải bị tuck đi
+        if (targetAccount !== undefined && targetAccount !== accountIndex && visible) {
+          setIsChatOpen(false);
+          return;
+        }
+
+        // Nếu sự kiện dành riêng cho tài khoản này -> Cập nhật trạng thái mở/đóng
+        if (targetAccount === accountIndex) {
           setIsChatOpen(visible);
+        } else if (targetAccount === undefined && !visible) {
+          // Broadcast ẩn toàn bộ chat
+          setIsChatOpen(false);
         }
       }
     ).then((un) => {
@@ -80,6 +101,16 @@ export function useBubbleWindow() {
     }
   }, [accountIndex, isChatOpen, setIsChatOpen]);
 
+  const handleBubbleHoverOpen = useCallback(async () => {
+    try {
+      await messengerService.openChat(accountIndex);
+      setIsChatOpen(true);
+    } catch {
+      // Dev / browser preview fallback
+      setIsChatOpen(true);
+    }
+  }, [accountIndex, setIsChatOpen]);
+
   return {
     accountIndex,
     currentAccount,
@@ -87,5 +118,6 @@ export function useBubbleWindow() {
     themeColor,
     isChatOpen,
     handleBubbleClick,
+    handleBubbleHoverOpen,
   };
 }

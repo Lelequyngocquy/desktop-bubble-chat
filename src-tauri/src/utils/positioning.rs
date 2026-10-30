@@ -439,6 +439,13 @@ pub fn dock_chat_window(app: &AppHandle, chat_window: &tauri::WebviewWindow, acc
             }
         }
     }
+
+    // Đảm bảo tất cả các bubble khác đều bị thụt vào mép (tuck), không được thò ra ngoài
+    for other_idx in 1..=5 {
+        if other_idx != account_index {
+            tuck_bubble(app, Some(other_idx));
+        }
+    }
 }
 
 /// Tự động thụt các bong bóng nổi vào mép màn hình (tuck_ratio)
@@ -484,9 +491,9 @@ pub fn is_cursor_over_any_bubble(app: &AppHandle) -> bool {
     false
 }
 
-/// Kiểm tra xem con trỏ chuột hiện tại có đang nằm trên cửa sổ bong bóng nổi hay không
+/// Kiểm tra xem con trỏ chuột hiện tại có đang nằm trên cửa sổ Webview bất kỳ hay không
 #[cfg(target_os = "windows")]
-pub fn is_cursor_over_bubble(bubble_window: &tauri::WebviewWindow) -> bool {
+pub fn is_cursor_over_window(window: &tauri::WebviewWindow) -> bool {
     #[repr(C)]
     struct POINT {
         x: i32,
@@ -504,8 +511,8 @@ pub fn is_cursor_over_bubble(bubble_window: &tauri::WebviewWindow) -> bool {
         }
     }
 
-    if let Ok(pos) = bubble_window.outer_position() {
-        if let Ok(size) = bubble_window.outer_size() {
+    if let Ok(pos) = window.outer_position() {
+        if let Ok(size) = window.outer_size() {
             return pt.x >= pos.x
                 && pt.x <= pos.x + size.width as i32
                 && pt.y >= pos.y
@@ -516,6 +523,11 @@ pub fn is_cursor_over_bubble(bubble_window: &tauri::WebviewWindow) -> bool {
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn is_cursor_over_bubble(_bubble_window: &tauri::WebviewWindow) -> bool {
+pub fn is_cursor_over_window(_window: &tauri::WebviewWindow) -> bool {
     false
+}
+
+/// Kiểm tra xem con trỏ chuột hiện tại có đang nằm trên cửa sổ bong bóng nổi hay không
+pub fn is_cursor_over_bubble(bubble_window: &tauri::WebviewWindow) -> bool {
+    is_cursor_over_window(bubble_window)
 }
