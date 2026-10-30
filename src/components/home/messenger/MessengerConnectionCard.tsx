@@ -69,7 +69,7 @@ export const MessengerConnectionCard: React.FC = () => {
   return (
     <div className="shrink-0 bg-white border border-[#E2E7EF] rounded-[12px] shadow-card overflow-hidden flex flex-col select-none">
       {/* Top Connection Details Area */}
-      <div className="p-6 flex items-start justify-between gap-6 flex-wrap lg:flex-nowrap">
+      <div className="p-6 flex items-stretch justify-between gap-6 flex-wrap lg:flex-nowrap">
         {/* Left: Platform Identity, Master Actions & Account List */}
         <div className="flex flex-col gap-4 flex-1 min-w-0 sm:min-w-[320px]">
           {/* 1. Header with Platform Info and Master Toolbar */}

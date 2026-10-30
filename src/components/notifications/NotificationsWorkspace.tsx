@@ -62,8 +62,7 @@ export const NotificationsWorkspace: React.FC = () => {
 
       {/* 2. Nội dung cuộn mượt mà luôn bung hết chiều rộng */}
       <main className="flex-1 min-h-0 overflow-y-auto px-8 py-6 flex flex-col gap-6 custom-scrollbar">
-        <div className="max-w-[880px] mx-auto w-full flex flex-col gap-6">
-          {/* Notifications List Card */}
+        {/* Notifications List Card */}
         <div className="bg-white border border-[#E2E7EF] rounded-[12px] shadow-card p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between pb-2 border-b border-[#E2E7EF]/60">
             <div className="flex items-center gap-2">
@@ -162,7 +161,6 @@ export const NotificationsWorkspace: React.FC = () => {
               })}
             </div>
           )}
-        </div>
         </div>
       </main>
     </div>

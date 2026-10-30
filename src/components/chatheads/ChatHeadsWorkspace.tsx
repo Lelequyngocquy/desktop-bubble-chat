@@ -39,8 +39,7 @@ export const ChatHeadsWorkspace: React.FC = () => {
 
       {/* 2. Nội dung cuộn mượt mà luôn bung hết chiều rộng */}
       <main className="flex-1 min-h-0 overflow-y-auto px-8 py-6 flex flex-col gap-6 custom-scrollbar">
-        <div className="max-w-[880px] mx-auto w-full flex flex-col gap-6">
-          {/* Section 1: Pinned Chat Heads */}
+        {/* Section 1: Pinned Chat Heads */}
         <div className="bg-white border border-[#E2E7EF] rounded-[12px] shadow-card p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -206,7 +205,6 @@ export const ChatHeadsWorkspace: React.FC = () => {
               ))}
             </div>
           )}
-        </div>
         </div>
       </main>
     </div>

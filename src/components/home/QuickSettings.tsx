@@ -21,18 +21,18 @@ export const QuickSettings: React.FC = () => {
     isAlwaysOnTop,
     isNotificationsEnabled,
     isAutoStart,
-    bubbleSize,
     isConnected,
     warningMessage,
     handleToggleBubble,
-    handleSetBubbleSize,
     handleToggleAlwaysOnTop,
     handleToggleNotifications,
     handleToggleAutoStart,
   } = useQuickSettings();
 
   const iconMap: Record<QuickSettingItem["iconName"], React.ReactNode> = {
-    MessageSquare: <MessageSquare className="w-[18px] h-[18px] text-[#6B7483]" />,
+    MessageSquare: (
+      <MessageSquare className="w-[18px] h-[18px] text-[#6B7483]" />
+    ),
     Pin: <Pin className="w-[18px] h-[18px] text-[#6B7483]" />,
     Bell: <Bell className="w-[18px] h-[18px] text-[#6B7483]" />,
     Power: <Power className="w-[18px] h-[18px] text-[#6B7483]" />,
@@ -100,7 +100,9 @@ export const QuickSettings: React.FC = () => {
         >
           <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
           <span className="flex-1 font-medium">{warningMessage}</span>
-          <span className="text-[10px] underline font-semibold">Kết nối ngay</span>
+          <span className="text-[10px] underline font-semibold">
+            Kết nối ngay
+          </span>
         </div>
       )}
 
@@ -134,32 +136,6 @@ export const QuickSettings: React.FC = () => {
                 aria-label={item.label}
               />
             </div>
-
-            {item.id === "bubble" && isConnected && (
-              <div className="ml-10 mb-2 flex items-center gap-1.5 p-1 bg-[#F1F5F9] rounded-lg w-fit text-[11px] animate-in fade-in duration-150">
-                <span className="text-[#64748B] px-1 text-[10px] font-medium">Cỡ:</span>
-                {(
-                  [
-                    { id: "sm", label: "Nhỏ (48px)" },
-                    { id: "md", label: "Vừa (56px)" },
-                    { id: "lg", label: "Lớn (64px)" },
-                  ] as const
-                ).map((size) => (
-                  <button
-                    key={size.id}
-                    type="button"
-                    onClick={() => handleSetBubbleSize(size.id)}
-                    className={`px-2 py-0.5 rounded-md font-medium transition-all cursor-pointer ${
-                      bubbleSize === size.id
-                        ? "bg-white text-[#0866FF] shadow-xs"
-                        : "text-[#64748B] hover:text-[#1E293B]"
-                    }`}
-                  >
-                    {size.label}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         ))}
       </div>

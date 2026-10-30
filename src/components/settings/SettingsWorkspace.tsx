@@ -82,8 +82,7 @@ export const SettingsWorkspace: React.FC = () => {
 
       {/* 2. Nội dung cuộn mượt mà luôn bung hết chiều rộng */}
       <main className="flex-1 min-h-0 overflow-y-auto px-8 py-6 flex flex-col gap-6 custom-scrollbar">
-        <div className="max-w-[880px] mx-auto w-full flex flex-col gap-6">
-          {/* Section 1: Hệ thống & Khởi động */}
+        {/* Section 1: Hệ thống & Khởi động */}
         <div className="bg-white border border-[#E2E7EF] rounded-[12px] shadow-card p-5 flex flex-col gap-4">
           <div className="flex items-center gap-2 pb-2 border-b border-[#E2E7EF]/60">
             <Power className="w-4 h-4 text-[#0866FF]" />
@@ -226,7 +225,6 @@ export const SettingsWorkspace: React.FC = () => {
             <span>DesktopBubbleChat v0.1.0 (Windows 11 / WebView2)</span>
             <span>Build Clean Architecture</span>
           </div>
-        </div>
         </div>
       </main>
     </div>

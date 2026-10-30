@@ -9,7 +9,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { useNavigationStore } from "../../stores/navigationStore";
-import { useMessengerStore, selectIsMessengerConnected } from "../../stores/messengerStore";
+import { useMessengerStore, selectConnectedAccounts } from "../../stores/messengerStore";
 import { useConversationStore } from "../../stores/conversationStore";
 import { useSystemUserStore } from "../../stores/systemUserStore";
 import { NavTab, NavigationItemConfig } from "../../types";
@@ -20,7 +20,7 @@ export const Sidebar: React.FC = () => {
   const activeTab = useNavigationStore((s) => s.activeTab);
   const setActiveTab = useNavigationStore((s) => s.setActiveTab);
   const conversations = useConversationStore((s) => s.conversations);
-  const isMessengerConnected = useMessengerStore(selectIsMessengerConnected);
+  const connectedAccounts = useMessengerStore(selectConnectedAccounts);
   const systemUser = useSystemUserStore((s) => s.systemUser);
   const systemUserInitials = useSystemUserStore((s) => s.systemUserInitials);
 
@@ -35,7 +35,7 @@ export const Sidebar: React.FC = () => {
   const getBadgeForTab = (id: NavTab): number | string | undefined => {
     switch (id) {
       case "connections":
-        return isMessengerConnected ? 1 : 0;
+        return connectedAccounts.length;
       case "chat-heads":
         return conversations.length;
       default:
