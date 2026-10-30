@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
-import { useMessengerStore, selectAccountByIndex } from "../stores/messengerStore";
-import { useWindowStore } from "../stores/windowStore";
-import { messengerService } from "../services/messenger";
-import { getAccountThemeColor } from "../constants/accountColors";
-import { IPC_EVENTS, ChatVisibilityPayload } from "../types/ipc";
+import { useMessengerStore, selectAccountByIndex } from "../../stores/messengerStore";
+import { useWindowStore, selectIsAccountChatOpen } from "../../stores/windowStore";
+import { getAccountThemeColor } from "../../constants/accountColors";
+import { IPC_EVENTS, ChatVisibilityPayload } from "../../types/ipc";
 
 /**
  * Custom hook dedicated to the floating Bubble window lifecycle and interactions.
@@ -24,7 +23,9 @@ export function useBubbleWindow() {
     }
     return 1;
   });
-  const { isChatOpen, setIsChatOpen } = useWindowStore();
+
+  const isChatOpen = useWindowStore((s) => selectIsAccountChatOpen(s, accountIndex));
+  const setOpenChatAccountIndex = useWindowStore((s) => s.setOpenChatAccountIndex);
 
   useEffect(() => {
     // 1. Resolve account index from URL query parameter
@@ -64,18 +65,12 @@ export function useBubbleWindow() {
           visible = event.payload;
         }
 
-        // Nếu có chat của tài khoản khác vừa mở -> Chat của mình chắc chắn phải đóng và mình phải bị tuck đi
-        if (targetAccount !== undefined && targetAccount !== accountIndex && visible) {
-          setIsChatOpen(false);
-          return;
-        }
-
-        // Nếu sự kiện dành riêng cho tài khoản này -> Cập nhật trạng thái mở/đóng
-        if (targetAccount === accountIndex) {
-          setIsChatOpen(visible);
-        } else if (targetAccount === undefined && !visible) {
-          // Broadcast ẩn toàn bộ chat
-          setIsChatOpen(false);
+        if (visible && targetAccount !== undefined) {
+          setOpenChatAccountIndex(targetAccount);
+        } else if (!visible) {
+          if (targetAccount === undefined || targetAccount === accountIndex) {
+            setOpenChatAccountIndex(null);
+          }
         }
       }
     ).then((un) => {
@@ -85,31 +80,11 @@ export function useBubbleWindow() {
     return () => {
       if (unlisten) unlisten();
     };
-  }, [accountIndex, setIsChatOpen]);
+  }, [accountIndex, setOpenChatAccountIndex]);
 
   const currentAccount = useMessengerStore((state) => selectAccountByIndex(state, accountIndex));
   const unreadCount = currentAccount?.unreadCount || 0;
   const themeColor = getAccountThemeColor(accountIndex);
-
-  const handleBubbleClick = useCallback(async () => {
-    try {
-      const isOpen = await messengerService.toggleChat(accountIndex);
-      setIsChatOpen(isOpen);
-    } catch {
-      // Dev / browser preview fallback
-      setIsChatOpen(!isChatOpen);
-    }
-  }, [accountIndex, isChatOpen, setIsChatOpen]);
-
-  const handleBubbleHoverOpen = useCallback(async () => {
-    try {
-      await messengerService.openChat(accountIndex);
-      setIsChatOpen(true);
-    } catch {
-      // Dev / browser preview fallback
-      setIsChatOpen(true);
-    }
-  }, [accountIndex, setIsChatOpen]);
 
   return {
     accountIndex,
@@ -117,7 +92,5 @@ export function useBubbleWindow() {
     unreadCount,
     themeColor,
     isChatOpen,
-    handleBubbleClick,
-    handleBubbleHoverOpen,
   };
 }

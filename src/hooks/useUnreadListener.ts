@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useMessengerStore } from "../stores/messengerStore";
-import { useSettingsStore } from "../stores/settingsStore";
 import { useWindowStore } from "../stores/windowStore";
 import { messengerService, messengerAuthManager } from "../services/messenger";
 import { systemService } from "../services/systemService";
@@ -49,8 +48,10 @@ export const useUnreadListener = () => {
                   isAuthenticating: false,
                   lastSynced: "Đồng bộ vừa xong",
                 });
-                useSettingsStore.getState().setBubbleEnabled(true);
-                messengerService.toggleBubble(true, acc.index).catch(() => {});
+                // Khôi phục hiển thị Bubble nếu tài khoản này đang có cấu hình bật
+                if (acc.isBubbleVisible) {
+                  messengerService.toggleBubble(true, acc.index).catch(() => {});
+                }
               }
             })
             .catch(() => {});
@@ -81,13 +82,14 @@ export const useUnreadListener = () => {
               store.updateAccount(accountId, {
                 isConnected,
                 isAuthenticating: false,
+                isBubbleVisible: isConnected ? true : existingAccount.isBubbleVisible,
                 lastSynced: isConnected ? "Đồng bộ vừa xong" : "Chưa kết nối",
               });
             }
 
             if (isConnected) {
               messengerAuthManager.cancelAuth(accountId);
-              useSettingsStore.getState().setBubbleEnabled(true);
+              store.setAccountBubbleVisibility(accountIdx, true);
               messengerService.toggleBubble(true, accountIdx).catch(() => {});
             }
           }
@@ -109,21 +111,34 @@ export const useUnreadListener = () => {
           }
         );
 
-        // 5. Floating bubble visibility change (e.g. dismissed to tray)
+        // 5. Floating bubble visibility change (Scoped theo accountIndex - SSOT)
         unlistenBubble = await listen<boolean | BubbleVisibilityPayload>(IPC_EVENTS.BUBBLE_VISIBILITY_CHANGED, (event) => {
           if (typeof event.payload === "object" && event.payload !== null && "visible" in event.payload) {
-            useSettingsStore.getState().setBubbleEnabled(event.payload.visible);
+            const { accountIndex, visible } = event.payload;
+            const idx = accountIndex || 1;
+            useMessengerStore.getState().setAccountBubbleVisibility(idx, visible);
           } else if (typeof event.payload === "boolean") {
-            useSettingsStore.getState().setBubbleEnabled(event.payload);
+            const activeIdx = useMessengerStore.getState().activeAccountIndex;
+            useMessengerStore.getState().setAccountBubbleVisibility(activeIdx, event.payload);
           }
         });
 
-        // 6. Messenger Chat popup visibility change
+        // 6. Messenger Chat popup visibility change (Scoped theo accountIndex - SSOT)
         unlistenChat = await listen<boolean | ChatVisibilityPayload>(IPC_EVENTS.CHAT_VISIBILITY_CHANGED, (event) => {
           if (typeof event.payload === "object" && event.payload !== null && "visible" in event.payload) {
-            useWindowStore.getState().setIsChatOpen(event.payload.visible);
+            const { accountIndex, visible } = event.payload;
+            if (visible) {
+              useWindowStore.getState().setOpenChatAccountIndex(accountIndex || 1);
+            } else {
+              useWindowStore.getState().setOpenChatAccountIndex(null);
+            }
           } else if (typeof event.payload === "boolean") {
-            useWindowStore.getState().setIsChatOpen(event.payload);
+            if (event.payload) {
+              const activeIdx = useMessengerStore.getState().activeAccountIndex;
+              useWindowStore.getState().setOpenChatAccountIndex(activeIdx);
+            } else {
+              useWindowStore.getState().setOpenChatAccountIndex(null);
+            }
           }
         });
       } catch (err) {

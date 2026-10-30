@@ -18,6 +18,7 @@ export const accountStorageService = {
             ...a,
             color: getAccountThemeColor(a.index).hex,
             isAuthenticating: false, // Invariant: Never persist in-flight authentication state
+            isBubbleVisible: typeof a.isBubbleVisible === "boolean" ? a.isBubbleVisible : a.isConnected,
           }));
         }
       }

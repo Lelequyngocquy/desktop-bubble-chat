@@ -22,6 +22,11 @@ interface MessengerState {
   disconnectAllAccounts: () => void;
   setAccountUnreadCount: (accountIndex: number, count: number) => void;
   setTotalUnreadCount: (count: number) => void;
+
+  // --- Per-Bubble Visibility Actions (SSOT) ---
+  setAccountBubbleVisibility: (accountIndex: number, visible: boolean) => void;
+  toggleAccountBubbleVisibility: (accountIndex: number) => void;
+  setAllBubblesVisibility: (visible: boolean) => void;
 }
 
 const initialAccounts = accountStorageService.load();
@@ -54,7 +59,6 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
     for (let i = 1; i <= MAX_MESSENGER_ACCOUNTS; i++) {
       if (!usedIndices.has(i)) {
         nextIndex = i;
-        break;
       }
     }
 
@@ -102,6 +106,7 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
       ...a,
       isConnected: false,
       isAuthenticating: false,
+      isBubbleVisible: false,
     }));
     accountStorageService.save(updated);
     set({ accounts: updated });
@@ -115,10 +120,36 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
   },
 
   setTotalUnreadCount: (count) => {
-    // If updating total count for single/active account
     const activeIndex = get().activeAccountIndex;
     const current = get().accounts;
     const updated = current.map((a) => (a.index === activeIndex ? { ...a, unreadCount: count } : a));
+    accountStorageService.save(updated);
+    set({ accounts: updated });
+  },
+
+  setAccountBubbleVisibility: (accountIndex, visible) => {
+    const current = get().accounts;
+    const updated = current.map((a) =>
+      a.index === accountIndex ? { ...a, isBubbleVisible: visible } : a
+    );
+    accountStorageService.save(updated);
+    set({ accounts: updated });
+  },
+
+  toggleAccountBubbleVisibility: (accountIndex) => {
+    const current = get().accounts;
+    const updated = current.map((a) =>
+      a.index === accountIndex ? { ...a, isBubbleVisible: !a.isBubbleVisible } : a
+    );
+    accountStorageService.save(updated);
+    set({ accounts: updated });
+  },
+
+  setAllBubblesVisibility: (visible) => {
+    const current = get().accounts;
+    const updated = current.map((a) =>
+      a.isConnected ? { ...a, isBubbleVisible: visible } : a
+    );
     accountStorageService.save(updated);
     set({ accounts: updated });
   },
@@ -146,3 +177,19 @@ export const selectActiveAccount = (state: MessengerState): MessengerAccount | u
 
 export const selectAccountByIndex = (state: MessengerState, index: number): MessengerAccount | undefined =>
   state.accounts.find((a) => a.index === index);
+
+export const selectVisibleBubbleCount = (state: MessengerState): number =>
+  state.accounts.filter((a) => a.isConnected && a.isBubbleVisible).length;
+
+export const selectAreAllBubblesVisible = (state: MessengerState): boolean => {
+  const connected = state.accounts.filter((a) => a.isConnected);
+  return connected.length > 0 && connected.every((a) => a.isBubbleVisible);
+};
+
+export const selectAreAnyBubblesVisible = (state: MessengerState): boolean =>
+  state.accounts.some((a) => a.isConnected && a.isBubbleVisible);
+
+export const selectIsAccountBubbleVisible = (state: MessengerState, accountIndex: number): boolean => {
+  const acc = state.accounts.find((a) => a.index === accountIndex);
+  return acc ? acc.isConnected && acc.isBubbleVisible : false;
+};

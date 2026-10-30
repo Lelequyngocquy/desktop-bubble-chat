@@ -1,6 +1,6 @@
 import React from "react";
 import { HelpCircle, ArrowRight } from "lucide-react";
-import { MOCK_TROUBLESHOOT_STEPS } from "../../../mocks";
+import { TROUBLESHOOT_STEPS } from "../../../config";
 
 export const MessengerTroubleshoot: React.FC = () => {
   return (
@@ -19,7 +19,7 @@ export const MessengerTroubleshoot: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {MOCK_TROUBLESHOOT_STEPS.map((step) => (
+        {TROUBLESHOOT_STEPS.map((step) => (
           <div key={step.num} className="flex items-start gap-2.5">
             <div className="w-5 h-5 rounded-full bg-[#EEF2F9] text-[#6B7483] font-semibold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
               {step.num}

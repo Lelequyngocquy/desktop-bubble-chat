@@ -1,13 +1,9 @@
 import { create } from "zustand";
 
 interface SettingsState {
-  isBubbleEnabled: boolean;
   isAlwaysOnTop: boolean;
   isNotificationsEnabled: boolean;
   isAutoStart: boolean;
-
-  setBubbleEnabled: (enabled: boolean) => void;
-  toggleBubble: () => void;
 
   setAlwaysOnTop: (enabled: boolean) => void;
   toggleAlwaysOnTop: () => void;
@@ -20,13 +16,9 @@ interface SettingsState {
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
-  isBubbleEnabled: false,
   isAlwaysOnTop: true,
   isNotificationsEnabled: true,
   isAutoStart: false,
-
-  setBubbleEnabled: (enabled) => set({ isBubbleEnabled: enabled }),
-  toggleBubble: () => set((state) => ({ isBubbleEnabled: !state.isBubbleEnabled })),
 
   setAlwaysOnTop: (enabled) => set({ isAlwaysOnTop: enabled }),
   toggleAlwaysOnTop: () => set((state) => ({ isAlwaysOnTop: !state.isAlwaysOnTop })),

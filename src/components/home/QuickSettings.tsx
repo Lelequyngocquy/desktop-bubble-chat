@@ -11,12 +11,13 @@ import {
 import { useNavigationStore } from "../../stores/navigationStore";
 import { useQuickSettings } from "../../hooks/useQuickSettings";
 import { SwitchButton } from "../common";
-import { MOCK_QUICK_SETTINGS_SCHEMA, QuickSettingItem } from "../../mocks";
+import { QUICK_SETTINGS_CONFIG, QuickSettingItem } from "../../config";
 
 export const QuickSettings: React.FC = () => {
   const setActiveTab = useNavigationStore((s) => s.setActiveTab);
   const {
     isBubbleEnabled,
+    bubbleDescription,
     isAlwaysOnTop,
     isNotificationsEnabled,
     isAutoStart,
@@ -58,13 +59,20 @@ export const QuickSettings: React.FC = () => {
     },
   };
 
-  const settings = MOCK_QUICK_SETTINGS_SCHEMA.map((item) => {
+  const settings = QUICK_SETTINGS_CONFIG.map((item) => {
     const action = actionMap[item.id];
     const isAvailable = !item.requiresConnection || isConnected;
+    const description =
+      item.id === "bubble"
+        ? bubbleDescription
+        : isAvailable
+          ? item.descriptionActive
+          : item.descriptionInactive;
+
     return {
       id: item.id,
       label: item.label,
-      description: isAvailable ? item.descriptionActive : item.descriptionInactive,
+      description,
       icon: iconMap[item.iconName],
       value: action?.value ?? false,
       onChange: action?.onChange ?? (() => {}),

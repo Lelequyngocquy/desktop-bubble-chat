@@ -13,7 +13,7 @@ import { useMessengerStore, selectIsMessengerConnected } from "../../stores/mess
 import { useConversationStore } from "../../stores/conversationStore";
 import { useSystemUserStore } from "../../stores/systemUserStore";
 import { NavTab, NavigationItemConfig } from "../../types";
-import { MOCK_NAVIGATION_ITEMS } from "../../mocks";
+import { NAVIGATION_ITEMS } from "../../config";
 import { AvatarCircle } from "../common";
 
 export const Sidebar: React.FC = () => {
@@ -43,7 +43,7 @@ export const Sidebar: React.FC = () => {
     }
   };
 
-  const primaryNavItems = MOCK_NAVIGATION_ITEMS.map((item) => ({
+  const primaryNavItems = NAVIGATION_ITEMS.map((item) => ({
     id: item.id,
     label: item.label,
     icon: navIconMap[item.iconName],

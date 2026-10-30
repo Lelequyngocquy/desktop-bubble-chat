@@ -2,7 +2,7 @@ import React from "react";
 import { MonitorCheck, RefreshCw, Layers } from "lucide-react";
 import { useMessengerStore, selectIsMessengerConnected } from "../../../stores/messengerStore";
 import { PlatformId } from "../../../types/platform";
-import { MOCK_PLATFORMS } from "../../../mocks";
+import { PLATFORM_CONFIGS } from "../../../config";
 import { PlatformIcon } from "../../icons";
 import { MessengerAccountList } from "./MessengerAccountList";
 
@@ -13,7 +13,7 @@ import { MessengerAccountList } from "./MessengerAccountList";
 export const MessengerManagerCard: React.FC = () => {
   const accounts = useMessengerStore((s) => s.accounts);
   const isMessengerConnected = useMessengerStore(selectIsMessengerConnected);
-  const messengerConfig = MOCK_PLATFORMS[PlatformId.MESSENGER];
+  const messengerConfig = PLATFORM_CONFIGS[PlatformId.MESSENGER];
 
   const connectedCount = accounts.filter((a) => a.isConnected).length;
   const totalAccounts = accounts.length;

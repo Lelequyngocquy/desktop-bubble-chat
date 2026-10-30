@@ -1,6 +1,5 @@
 import { messengerService } from "./messengerService";
 import { useMessengerStore } from "../../stores/messengerStore";
-import { useSettingsStore } from "../../stores/settingsStore";
 import { feLog } from "../loggerService";
 import { MessengerAccount } from "../../types/account";
 
@@ -57,9 +56,10 @@ class MessengerAuthManager {
             useMessengerStore.getState().updateAccount(accountId, {
               isConnected: true,
               isAuthenticating: false,
+              isBubbleVisible: true,
               lastSynced: "Đồng bộ vừa xong",
             });
-            useSettingsStore.getState().setBubbleEnabled(true);
+            useMessengerStore.getState().setAccountBubbleVisibility(account.index, true);
             messengerService.toggleBubble(true, account.index).catch(() => {});
           }
         } catch (err) {

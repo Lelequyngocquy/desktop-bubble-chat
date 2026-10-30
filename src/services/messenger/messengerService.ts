@@ -82,4 +82,13 @@ export const messengerService = {
   async toggleBubble(visible: boolean, accountIndex: number = 1): Promise<void> {
     await invoke(IPC_COMMANDS.TOGGLE_BUBBLE, { visible, accountIndex });
   },
+
+  /**
+   * Toggle or show/hide all bubble windows for specified account indices (or all 1..5).
+   */
+  async toggleAllBubbles(visible: boolean, accountIndices: number[] = [1, 2, 3, 4, 5]): Promise<void> {
+    await Promise.allSettled(
+      accountIndices.map((idx) => invoke(IPC_COMMANDS.TOGGLE_BUBBLE, { visible, accountIndex: idx }))
+    );
+  },
 };

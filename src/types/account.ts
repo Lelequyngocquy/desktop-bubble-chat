@@ -23,6 +23,7 @@ export interface MessengerAccount {
   color: string; // Mã màu hex đại diện riêng của tài khoản
   isConnected: boolean;
   isAuthenticating?: boolean;
+  isBubbleVisible: boolean; // SSOT trạng thái hiển thị bong bóng nổi của riêng tài khoản này
   unreadCount: number;
   lastSynced?: string;
 }
@@ -44,6 +45,7 @@ export function createMessengerAccount(index: number): MessengerAccount {
     color: getAccountThemeColor(index).hex,
     isConnected: false,
     isAuthenticating: false,
+    isBubbleVisible: false,
     unreadCount: 0,
     lastSynced: "Chưa kết nối",
   };

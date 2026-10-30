@@ -1,6 +1,5 @@
 import React from "react";
-import { useBubbleWindow } from "../../hooks/useBubbleWindow";
-import { useBubbleDrag } from "../../hooks/useBubbleDrag";
+import { useBubbleWindow, useBubbleDrag } from "../../hooks/bubble";
 import { MessengerIcon } from "../icons";
 
 export const BubbleWindow: React.FC = () => {
@@ -9,13 +8,9 @@ export const BubbleWindow: React.FC = () => {
     unreadCount,
     themeColor,
     isChatOpen,
-    handleBubbleClick,
-    handleBubbleHoverOpen,
   } = useBubbleWindow();
 
   const { isDragging, dragOpacity, isNearDismiss, dragProps } = useBubbleDrag({
-    onBubbleClick: handleBubbleClick,
-    onBubbleHoverOpen: handleBubbleHoverOpen,
     isChatOpen,
     accountIndex,
   });
