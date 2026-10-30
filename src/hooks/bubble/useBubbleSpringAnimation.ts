@@ -8,6 +8,7 @@ export function useBubbleSpringAnimation() {
   const hoverAnimRef = useRef<number | null>(null);
   const snapAnimRef = useRef<number | null>(null);
   const moveAnimRef = useRef<number | null>(null);
+  const latestMoveTargetRef = useRef<{ x: number; y: number } | null>(null);
 
   const cancelAllAnimations = useCallback(() => {
     if (hoverAnimRef.current) {
@@ -22,6 +23,7 @@ export function useBubbleSpringAnimation() {
       cancelAnimationFrame(moveAnimRef.current);
       moveAnimRef.current = null;
     }
+    latestMoveTargetRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -112,14 +114,17 @@ export function useBubbleSpringAnimation() {
     []
   );
 
-  // Throttled position update during drag to prevent IPC bottleneck
+  // Throttled position update during drag to prevent IPC bottleneck without dropping latest target
   const scheduleMove = useCallback((x: number, y: number) => {
+    latestMoveTargetRef.current = { x, y };
     if (!moveAnimRef.current) {
       moveAnimRef.current = requestAnimationFrame(async () => {
         moveAnimRef.current = null;
+        const target = latestMoveTargetRef.current;
+        if (!target) return;
         try {
           const appWin = getCurrentWindow();
-          await appWin.setPosition(new PhysicalPosition(x, y));
+          await appWin.setPosition(new PhysicalPosition(target.x, target.y));
         } catch {
           // Dev preview fallback
         }

@@ -50,9 +50,7 @@ export const BubbleWindow: React.FC = () => {
     <div
       {...dragProps}
       style={{ opacity: dragOpacity }}
-      className={`w-full h-full relative flex items-center justify-center bg-transparent select-none cursor-grab active:cursor-grabbing transition-all duration-75 ${
-        isNearDismiss ? "scale-90" : isDragging ? "scale-95" : "scale-100"
-      }`}
+      className="w-full h-full relative flex items-center justify-center bg-transparent select-none cursor-grab active:cursor-grabbing"
     >
       {/* 0. New Message Pulse / Ripple Effect (Bước 3.1) */}
       {hasPulse && (
@@ -68,8 +66,8 @@ export const BubbleWindow: React.FC = () => {
           background: `linear-gradient(180deg, ${themeColor.hex}, ${themeColor.borderHex})`,
           boxShadow: hasPulse ? `0 0 16px ${themeColor.hex}` : undefined,
         }}
-        className={`${sizeStyle.circle} rounded-full flex items-center justify-center text-white border-2 border-white relative shrink-0 transition-all duration-150 hover:brightness-105 active:scale-95 overflow-hidden shadow-bubble ${
-          isNearDismiss ? "brightness-90 ring-2 ring-red-400/50" : ""
+        className={`${sizeStyle.circle} rounded-full flex items-center justify-center text-white border-2 border-white relative shrink-0 transition-transform duration-150 hover:brightness-105 overflow-hidden shadow-bubble ${
+          isNearDismiss ? "scale-90 brightness-90 ring-2 ring-red-400/50" : isDragging ? "scale-95" : "scale-100"
         } ${hasPulse ? "ring-2 ring-white" : ""}`}
       >
         {/* Avatar Image (Bước 3.2) or Messenger Logo SVG */}

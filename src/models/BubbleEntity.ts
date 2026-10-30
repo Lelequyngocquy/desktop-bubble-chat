@@ -89,7 +89,12 @@ export class BubbleEntity {
     );
 
     this._targetPosition = { x: snapResult.targetX, y: snapResult.targetY };
-    this._edge = snapResult.targetX < 960 ? "left" : "right";
+    if (snapResult.isLeftEdge !== undefined) {
+      this._edge = snapResult.isLeftEdge ? "left" : "right";
+    } else {
+      const midX = typeof window !== "undefined" ? window.screen.width / 2 : 960;
+      this._edge = snapResult.targetX < midX ? "left" : "right";
+    }
 
     if (snapResult.shouldDismiss) {
       this._motionState = "DISMISSED";
@@ -102,7 +107,11 @@ export class BubbleEntity {
 
   public async getHoverCoords(isHovered: boolean): Promise<SnapResult> {
     this._motionState = isHovered ? "HOVERED" : "IDLE";
-    return await ScreenService.getHoverCoords(isHovered, this.accountIndex);
+    const snapResult = await ScreenService.getHoverCoords(isHovered, this.accountIndex);
+    if (snapResult.isLeftEdge !== undefined) {
+      this._edge = snapResult.isLeftEdge ? "left" : "right";
+    }
+    return snapResult;
   }
 
   public dismiss(): void {

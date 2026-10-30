@@ -1,7 +1,9 @@
-import React from "react";
-import { Users, Info } from "lucide-react";
-import { MAX_MESSENGER_ACCOUNTS } from "../../../types/account";
+import React, { useState } from "react";
+import { Users, Info, Trash2 } from "lucide-react";
+import { MAX_MESSENGER_ACCOUNTS, MessengerAccount } from "../../../types/account";
 import { useMessengerAccounts } from "../../../hooks/useMessengerAccounts";
+import { getAccountThemeColor } from "../../../constants/accountColors";
+import { CommonDialog } from "../../common";
 import { MessengerAccountRow } from "./MessengerAccountRow";
 import { AddAccountButton } from "./AddAccountButton";
 
@@ -20,6 +22,8 @@ export const MessengerAccountList: React.FC = () => {
     removeAccount,
     addAccount,
   } = useMessengerAccounts();
+
+  const [accountToRemove, setAccountToRemove] = useState<MessengerAccount | null>(null);
 
   return (
     <div className="flex flex-col gap-3">
@@ -47,7 +51,7 @@ export const MessengerAccountList: React.FC = () => {
               account={account}
               onOpen={openAccount}
               onRefresh={refreshAccount}
-              onRemove={removeAccount}
+              onRemove={(acc) => setAccountToRemove(acc)}
               onCancelAuth={cancelAuth}
               isRefreshing={refreshingId === account.id}
             />
@@ -69,6 +73,57 @@ export const MessengerAccountList: React.FC = () => {
           Mỗi tài khoản được cấp một phân vùng lưu trữ (User Data Directory) riêng biệt, đảm bảo các phiên đăng nhập không bao giờ bị trùng hoặc đá nhau.
         </span>
       </div>
+
+      {/* Dialog xác nhận gỡ bỏ tài khoản Messenger */}
+      <CommonDialog
+        isOpen={Boolean(accountToRemove)}
+        onClose={() => setAccountToRemove(null)}
+        eyebrow="QUẢN LÝ TÀI KHOẢN"
+        titleIcon={<Trash2 className="w-5 h-5 text-[#DC2626]" />}
+        title={`Gỡ bỏ ${accountToRemove?.name || "tài khoản"}`}
+        content={`Bạn có chắc chắn muốn gỡ bỏ tài khoản ${accountToRemove?.name}? Thao tác này sẽ đóng phiên làm việc, xóa dữ liệu đệm cục bộ và tắt bong bóng nổi tương ứng.`}
+        widget={
+          accountToRemove && (
+            <div className="p-3 bg-[#F8FAFD] rounded-[8px] border border-[#E2E7EF] flex flex-col gap-1.5 text-[12px] text-[#6B7483]">
+              <div className="flex items-center gap-2 font-medium text-[#202733]">
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{
+                    backgroundColor: getAccountThemeColor(accountToRemove.index).hex,
+                  }}
+                />
+                <span>
+                  {accountToRemove.name} (Vị trí Messenger{" "}
+                  {accountToRemove.index < 10
+                    ? `0${accountToRemove.index}`
+                    : accountToRemove.index}
+                  )
+                </span>
+              </div>
+              <span className="text-[11.5px]">
+                {accountToRemove.isConnected
+                  ? "Tài khoản hiện đang kết nối. Gỡ bỏ sẽ hủy phiên đăng nhập này."
+                  : "Tài khoản chưa đăng nhập. Bạn có thể thêm lại bất cứ lúc nào."}
+              </span>
+            </div>
+          )
+        }
+        backButton={{
+          label: "Hủy bỏ",
+          onClick: () => setAccountToRemove(null),
+        }}
+        rightButton={{
+          label: "Xác nhận gỡ bỏ",
+          variant: "danger",
+          onClick: async () => {
+            if (accountToRemove) {
+              const target = accountToRemove;
+              setAccountToRemove(null);
+              await removeAccount(target);
+            }
+          },
+        }}
+      />
     </div>
   );
 };

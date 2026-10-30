@@ -13,16 +13,10 @@ export const ConnectionMetricsColumn: React.FC<
   return (
     <div className="w-full lg:w-[260px] shrink-0 border-t lg:border-t-0 lg:border-l border-[#E2E7EF] pt-5 lg:pt-0 lg:pl-6 flex flex-col justify-between gap-3">
       {/* Header */}
-      <div className="flex items-center justify-between text-[#6B7483] pb-1">
-        <div className="flex items-center gap-1.5">
-          <Activity className="w-3.5 h-3.5 text-[#0084FF]" />
-          <span className="text-[11px] font-semibold tracking-wider uppercase text-[#475467]">
-            Trạng thái
-          </span>
-        </div>
-        <span className="text-[10px] bg-emerald-50 text-emerald-600 font-medium px-2 py-0.5 rounded-full border border-emerald-200/60 flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Realtime
+      <div className="flex items-center gap-1.5">
+        <Activity className="w-3.5 h-3.5 text-[#0084FF]" />
+        <span className="text-[11px] font-semibold tracking-wider uppercase text-[#475467]">
+          Trạng thái
         </span>
       </div>
 

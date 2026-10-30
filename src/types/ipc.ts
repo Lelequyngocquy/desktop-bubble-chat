@@ -77,6 +77,7 @@ export interface SnapResultPayload {
   targetX: number;
   targetY: number;
   shouldDismiss: boolean;
+  isLeftEdge?: boolean;
 }
 
 export interface BubblePositionPayload {
@@ -96,6 +97,11 @@ export interface BadgeUpdatedPayload {
 export interface BubbleVisibilityPayload {
   accountIndex: number;
   visible: boolean;
+}
+
+export interface ToggleAllBubblesPayload {
+  visible?: boolean;
+  accountIndices?: number[];
 }
 
 export interface BubbleConfigPayload {

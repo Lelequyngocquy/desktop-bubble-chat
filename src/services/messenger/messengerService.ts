@@ -92,14 +92,19 @@ export const messengerService = {
 
   /**
    * Toggle or show/hide all bubble windows for specified account indices (or all 1..5).
+   * Spawns bubbles sequentially with staggered commits so they never overlap.
    */
   async toggleAllBubbles(visible?: boolean, accountIndices: number[] = [1, 2, 3, 4, 5]): Promise<void> {
     try {
-      await invoke(IPC_COMMANDS.TOGGLE_ALL_BUBBLES, { visible });
+      await invoke(IPC_COMMANDS.TOGGLE_ALL_BUBBLES, { visible, accountIndices });
     } catch {
-      await Promise.allSettled(
-        accountIndices.map((idx) => invoke(IPC_COMMANDS.TOGGLE_BUBBLE, { visible, accountIndex: idx }))
-      );
+      // Fallback: Tuần tự hoá tuyệt đối nếu IPC gặp sự cố
+      for (const idx of accountIndices) {
+        await invoke(IPC_COMMANDS.TOGGLE_BUBBLE, { visible, accountIndex: idx });
+        if (visible) {
+          await new Promise((r) => setTimeout(r, 70));
+        }
+      }
     }
   },
 
