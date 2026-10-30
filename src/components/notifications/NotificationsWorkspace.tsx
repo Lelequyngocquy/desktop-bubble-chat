@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { Bell, CheckCheck, Trash2, ArrowUpRight, MessageCircle } from "lucide-react";
 import { useConversationStore } from "../../stores/conversationStore";
 import { messengerService } from "../../services/messenger";
-import { AvatarCircle, TabHeader } from "../common";
+import { AvatarCircle, TabHeader, CommonDialog } from "../common";
 import { getAccountThemeColor } from "../../constants/accountColors";
 
 export const NotificationsWorkspace: React.FC = () => {
@@ -10,6 +10,8 @@ export const NotificationsWorkspace: React.FC = () => {
   const setConversations = useConversationStore((s) => s.setConversations);
   const markConversationRead = useConversationStore((s) => s.markConversationRead);
   const removeConversation = useConversationStore((s) => s.removeConversation);
+
+  const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
 
   const totalUnread = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
 
@@ -48,7 +50,7 @@ export const NotificationsWorkspace: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={handleClearAll}
+                  onClick={() => setIsConfirmClearOpen(true)}
                   className="px-3 py-1.5 bg-white border border-[#E2E7EF] rounded-lg text-[12px] font-medium text-[#DC2626] hover:bg-[#FEECEE] flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -163,6 +165,28 @@ export const NotificationsWorkspace: React.FC = () => {
           )}
         </div>
       </main>
+
+      {/* Dialog xác nhận xóa lịch sử thông báo */}
+      <CommonDialog
+        isOpen={isConfirmClearOpen}
+        onClose={() => setIsConfirmClearOpen(false)}
+        eyebrow="XÁC NHẬN XÓA"
+        titleIcon={<Trash2 className="w-5 h-5 text-[#DC2626]" />}
+        title="Xóa lịch sử thông báo"
+        content="Bạn có chắc chắn muốn xóa toàn bộ danh sách thông báo? Thao tác này sẽ làm sạch các thông báo tin nhắn đã ghi nhận trên màn hình này."
+        backButton={{
+          label: "Hủy bỏ",
+          onClick: () => setIsConfirmClearOpen(false),
+        }}
+        rightButton={{
+          label: "Xác nhận xóa",
+          variant: "danger",
+          onClick: () => {
+            setIsConfirmClearOpen(false);
+            handleClearAll();
+          },
+        }}
+      />
     </div>
   );
 };

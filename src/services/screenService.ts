@@ -32,6 +32,7 @@ export class ScreenService {
         targetX: isLeft ? -Math.round(64 * dpr * 0.3) : width - Math.round(64 * dpr * 0.7),
         targetY: Math.max(12 * dpr, currentY),
         shouldDismiss: false,
+        isLeftEdge: isLeft,
       };
     }
   }
@@ -49,6 +50,7 @@ export class ScreenService {
         targetX: -Math.round(56 * dpr * 0.75),
         targetY: Math.round(height / 3) + (accountIndex - 1) * Math.round(76 * dpr),
         shouldDismiss: false,
+        isLeftEdge: true,
       };
     }
   }
@@ -74,6 +76,7 @@ export class ScreenService {
         targetX: width - bubbleW + tuck,
         targetY: Math.round(1080 / 3) + (accountIndex - 1) * Math.round(76 * dpr),
         shouldDismiss: false,
+        isLeftEdge: false,
       };
     }
   }

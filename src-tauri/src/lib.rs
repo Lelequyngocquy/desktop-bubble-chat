@@ -25,7 +25,10 @@ pub fn run() {
                     if event.state() == ShortcutState::Pressed {
                         if let Ok(target) = "Ctrl+Shift+M".parse::<Shortcut>() {
                             if shortcut == &target {
-                                commands::toggle_all_bubbles_impl(app_handle, None);
+                                let handle = app_handle.clone();
+                                tauri::async_runtime::spawn(async move {
+                                    commands::toggle_all_bubbles_impl(&handle, None, None).await;
+                                });
                             }
                         }
                     }

@@ -26,7 +26,10 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
                     }
                 }
                 "toggle_bubble_item" => {
-                    crate::commands::bubble::toggle_all_bubbles_impl(&app_handle, None);
+                    let handle = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        crate::commands::bubble::toggle_all_bubbles_impl(&handle, None, None).await;
+                    });
                 }
                 "quit" => {
                     app_handle.exit(0);

@@ -12,7 +12,7 @@ import { useSettingsStore, BubbleSize, BUBBLE_SIZE_PIXELS } from "../../stores/s
 import { systemService } from "../../services/systemService";
 import { messengerService } from "../../services/messenger";
 import { notificationService } from "../../services/notificationService";
-import { SwitchButton, TabHeader } from "../common";
+import { SwitchButton, TabHeader, CommonDialog } from "../common";
 
 export const SettingsWorkspace: React.FC = () => {
   const isAlwaysOnTop = useSettingsStore((s) => s.isAlwaysOnTop);
@@ -27,6 +27,7 @@ export const SettingsWorkspace: React.FC = () => {
   const setBubbleSize = useSettingsStore((s) => s.setBubbleSize);
 
   const [clearStatus, setClearStatus] = useState<string | null>(null);
+  const [isConfirmClearCacheOpen, setIsConfirmClearCacheOpen] = useState(false);
 
   const handleToggleAutoStart = async () => {
     const nextVal = !isAutoStart;
@@ -198,7 +199,7 @@ export const SettingsWorkspace: React.FC = () => {
             </div>
             <button
               type="button"
-              onClick={handleClearCache}
+              onClick={() => setIsConfirmClearCacheOpen(true)}
               disabled={clearStatus === "clearing"}
               className="px-3.5 py-1.5 border border-[#E2E7EF] rounded-lg text-[12px] font-medium text-[#DC2626] hover:bg-[#FEECEE] flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
             >
@@ -227,6 +228,34 @@ export const SettingsWorkspace: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* Dialog xác nhận xóa bộ nhớ đệm */}
+      <CommonDialog
+        isOpen={isConfirmClearCacheOpen}
+        onClose={() => setIsConfirmClearCacheOpen(false)}
+        eyebrow="XÁC NHẬN DỌN DẸP"
+        titleIcon={<Trash2 className="w-5 h-5 text-[#DC2626]" />}
+        title="Xóa bộ nhớ đệm WebView2"
+        content="Bạn có chắc chắn muốn xóa bộ nhớ đệm WebView2? Thao tác này sẽ giải phóng dung lượng ổ đĩa và làm mới hoàn toàn session dữ liệu của trình duyệt nhúng."
+        widget={
+          <div className="p-3 bg-[#FFF5F5] rounded-lg border border-[#FEE2E2] text-[12px] text-[#991B1B] leading-relaxed">
+            Lưu ý: Sau khi xóa bộ nhớ đệm, các phiên đăng nhập webview có thể cần tải lại tài nguyên trong lần mở kế tiếp.
+          </div>
+        }
+        backButton={{
+          label: "Hủy bỏ",
+          onClick: () => setIsConfirmClearCacheOpen(false),
+        }}
+        rightButton={{
+          label: "Xác nhận xóa",
+          variant: "danger",
+          loading: clearStatus === "clearing",
+          onClick: async () => {
+            setIsConfirmClearCacheOpen(false);
+            await handleClearCache();
+          },
+        }}
+      />
     </div>
   );
 };

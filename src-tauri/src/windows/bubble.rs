@@ -1,6 +1,6 @@
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, PhysicalPosition};
 
-use crate::movement::{BubbleMovementEngine, BubblePhysicsConfig, BubbleRect, ScreenMetrics};
+use crate::movement::{BubbleMovementEngine, BubbleRect, ScreenMetrics};
 
 #[cfg(target_os = "windows")]
 #[link(name = "comctl32")]
@@ -237,8 +237,12 @@ pub fn get_active_bubble_rects(
     rects
 }
 
-/// Hiển thị và định vị Bubble cho tài khoản chỉ định với cơ chế xếp chống va chạm
-pub fn ensure_bubble_positioned_and_visible(app: &AppHandle, account_index: u32) -> Result<(), String> {
+/// Hiển thị và định vị Bubble cho tài khoản chỉ định với cơ chế xếp chống va chạm có hỗ trợ obstacles bổ sung
+pub fn ensure_bubble_positioned_and_visible_with_extra(
+    app: &AppHandle,
+    account_index: u32,
+    extra_obstacles: &[BubbleRect],
+) -> Result<BubbleRect, String> {
     let bubble_window = get_or_create_bubble_window(app, account_index)?;
     let win_label = bubble_window.label().to_string();
 
@@ -257,20 +261,28 @@ pub fn ensure_bubble_positioned_and_visible(app: &AppHandle, account_index: u32)
         .or_else(|| bubble_window.current_monitor().ok().flatten())
         .or_else(|| app.primary_monitor().ok().flatten());
 
+    let mut committed_pos = PhysicalPosition { x: 0, y: 0 };
+    let mut bubble_w = 56;
+
     if let Some(monitor) = monitor {
         let win_pos = bubble_window.outer_position().unwrap_or_default();
         let screen = ScreenMetrics::from_monitor(&monitor);
-        let bubble_w = (config.size * screen.scale_factor) as i32;
+        bubble_w = (config.size * screen.scale_factor) as i32;
 
         let is_visible = bubble_window.is_visible().unwrap_or(false);
-        let is_out_of_bounds = win_pos.x < screen.x - bubble_w
-            || win_pos.x > screen.x + screen.width
-            || (win_pos.x == 0 && win_pos.y == 0);
+        // Nới lỏng khoảng kiểm tra biên an toàn (tránh việc bubble thụt mép trái hợp lệ bị coi là out of bounds)
+        let is_out_of_bounds = win_pos.x < screen.x - bubble_w * 2
+            || win_pos.x > screen.x + screen.width + bubble_w
+            || (!is_visible && win_pos.x == 0 && win_pos.y == 0);
 
         if !is_visible || is_out_of_bounds {
-            let other_bubbles = get_active_bubble_rects(app, Some(&win_label));
+            let mut other_bubbles = get_active_bubble_rects(app, Some(&win_label));
+            other_bubbles.extend_from_slice(extra_obstacles);
             let target_pos = BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &other_bubbles);
             let _ = bubble_window.set_position(tauri::Position::Physical(target_pos));
+            committed_pos = target_pos;
+        } else {
+            committed_pos = win_pos;
         }
     }
     let _ = bubble_window.show();
@@ -278,6 +290,19 @@ pub fn ensure_bubble_positioned_and_visible(app: &AppHandle, account_index: u32)
         "accountIndex": account_index,
         "visible": true
     }));
+
+    Ok(BubbleRect {
+        account_index,
+        x: committed_pos.x,
+        y: committed_pos.y,
+        width: bubble_w,
+        height: bubble_w,
+    })
+}
+
+/// Hiển thị và định vị Bubble cho tài khoản chỉ định với cơ chế xếp chống va chạm
+pub fn ensure_bubble_positioned_and_visible(app: &AppHandle, account_index: u32) -> Result<(), String> {
+    let _ = ensure_bubble_positioned_and_visible_with_extra(app, account_index, &[])?;
     Ok(())
 }
 
@@ -288,7 +313,7 @@ pub fn tuck_bubble(app: &AppHandle, account_index: Option<u32>) {
         None => (1..=5).collect(),
     };
 
-    let config = BubblePhysicsConfig::default();
+    let config = crate::movement::get_bubble_physics_config(app);
 
     for idx in indices {
         let label = get_bubble_window_label(idx);

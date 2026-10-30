@@ -1,11 +1,11 @@
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, Position};
 
 use crate::movement::{
-    get_bubble_physics_config, BubbleConfigState, BubbleMovementEngine, ScreenMetrics,
+    get_bubble_physics_config, BubbleConfigState, BubbleMovementEngine, BubbleRect, ScreenMetrics,
 };
 use crate::windows::bubble::{
-    ensure_bubble_positioned_and_visible, get_active_bubble_rects, get_bubble_window_label,
-    resize_bubble_window,
+    ensure_bubble_positioned_and_visible, ensure_bubble_positioned_and_visible_with_extra,
+    get_active_bubble_rects, get_bubble_window_label, resize_bubble_window,
 };
 
 #[derive(serde::Serialize)]
@@ -14,6 +14,7 @@ pub struct SnapCoordsDto {
     pub target_x: i32,
     pub target_y: i32,
     pub should_dismiss: bool,
+    pub is_left_edge: bool,
 }
 
 #[derive(serde::Serialize)]
@@ -161,6 +162,7 @@ pub fn get_bubble_snap_coords(
                 target_x: snap.target_x,
                 target_y: snap.target_y,
                 should_dismiss: snap.should_dismiss,
+                is_left_edge: snap.is_left_edge,
             });
         }
     }
@@ -199,6 +201,7 @@ pub fn get_bubble_default_coords(
             target_x: pos.x,
             target_y: pos.y,
             should_dismiss: false,
+            is_left_edge: true,
         });
     }
     Err("Monitor not available".into())
@@ -216,7 +219,10 @@ pub fn get_bubble_hover_coords(
 
     if let Some(window) = app.get_webview_window(&label) {
         if let Ok(Some(monitor)) = window.current_monitor() {
-            let win_pos = window.outer_position().unwrap_or_default();
+            let win_pos = match window.outer_position() {
+                Ok(pos) => pos,
+                Err(_) => return Err("Failed to get window position".into()),
+            };
             let screen = ScreenMetrics::from_monitor(&monitor);
             let config = get_bubble_physics_config(&app);
 
@@ -227,10 +233,14 @@ pub fn get_bubble_hover_coords(
                 win_pos.y,
                 is_hovered,
             );
+            let bubble_w = (config.size * screen.scale_factor) as i32;
+            let is_left = win_pos.x + bubble_w / 2 < (screen.x + screen.width / 2);
+
             return Ok(SnapCoordsDto {
                 target_x: target_pos.x,
                 target_y: target_pos.y,
                 should_dismiss: false,
+                is_left_edge: is_left,
             });
         }
     }
@@ -285,8 +295,12 @@ pub fn set_bubble_config(
     Ok(())
 }
 
-/// Helper & command bật/tắt toàn bộ bong bóng nổi (dùng chung cho Tray, Shortcut và IPC)
-pub fn toggle_all_bubbles_impl(app: &AppHandle, force_visible: Option<bool>) -> bool {
+/// Helper & command bật/tắt toàn bộ bong bóng nổi tuần tự (Async Sequential Pipeline & Committed Slots)
+pub async fn toggle_all_bubbles_impl(
+    app: &AppHandle,
+    force_visible: Option<bool>,
+    account_indices: Option<Vec<u32>>,
+) -> bool {
     let mut any_visible = false;
     for idx in 1..=5 {
         let label = get_bubble_window_label(idx);
@@ -304,7 +318,18 @@ pub fn toggle_all_bubbles_impl(app: &AppHandle, force_visible: Option<bool>) -> 
     };
 
     if next_visible {
-        let _ = ensure_bubble_positioned_and_visible(app, 1);
+        let targets = account_indices.unwrap_or_else(|| vec![1]);
+        let mut committed_rects: Vec<BubbleRect> = Vec::new();
+
+        for (i, idx) in targets.iter().enumerate() {
+            if let Ok(rect) = ensure_bubble_positioned_and_visible_with_extra(app, *idx, &committed_rects) {
+                committed_rects.push(rect);
+            }
+            // Giãn cách 70ms giữa các bubble để Windows DWM vẽ và tạo hiệu ứng thác nước mượt mà
+            if i + 1 < targets.len() {
+                tokio::time::sleep(std::time::Duration::from_millis(70)).await;
+            }
+        }
     } else {
         for idx in 1..=5 {
             let label = get_bubble_window_label(idx);
@@ -322,6 +347,10 @@ pub fn toggle_all_bubbles_impl(app: &AppHandle, force_visible: Option<bool>) -> 
 }
 
 #[tauri::command]
-pub fn toggle_all_bubbles(app: AppHandle, visible: Option<bool>) -> Result<bool, String> {
-    Ok(toggle_all_bubbles_impl(&app, visible))
+pub async fn toggle_all_bubbles(
+    app: AppHandle,
+    visible: Option<bool>,
+    account_indices: Option<Vec<u32>>,
+) -> Result<bool, String> {
+    Ok(toggle_all_bubbles_impl(&app, visible, account_indices).await)
 }
