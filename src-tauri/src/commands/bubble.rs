@@ -1,8 +1,8 @@
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, Position};
+
+use crate::movement::{BubbleMovementEngine, BubblePhysicsConfig, BubbleRect};
 use crate::utils::positioning::{
-    calculate_bubble_hover_pos, calculate_bubble_snap_with_collision,
-    calculate_stacked_bubble_pos, ensure_bubble_positioned_and_visible,
-    get_bubble_window_label, get_other_visible_bubble_rects, ScreenMetrics, DEFAULT_BUBBLE_CONFIG,
+    ensure_bubble_positioned_and_visible, get_bubble_window_label, ScreenMetrics,
 };
 
 #[derive(serde::Serialize)]
@@ -24,6 +24,28 @@ pub struct BubblePositionDto {
     pub is_visible: bool,
 }
 
+/// Helper lấy danh sách tọa độ bounding box của tất cả các Bubble đang hiển thị
+fn get_active_bubble_rects(app: &AppHandle) -> Vec<BubbleRect> {
+    let mut rects = Vec::new();
+    for idx in 1..=5 {
+        let label = get_bubble_window_label(idx);
+        if let Some(w) = app.get_webview_window(&label) {
+            if w.is_visible().unwrap_or(false) {
+                if let (Ok(pos), Ok(size)) = (w.outer_position(), w.outer_size()) {
+                    rects.push(BubbleRect {
+                        account_index: idx,
+                        x: pos.x,
+                        y: pos.y,
+                        width: size.width as i32,
+                        height: size.height as i32,
+                    });
+                }
+            }
+        }
+    }
+    rects
+}
+
 /// Command lấy vị trí hiện tại của một Bubble chỉ định
 #[tauri::command]
 pub fn get_bubble_position(
@@ -32,10 +54,8 @@ pub fn get_bubble_position(
 ) -> Result<PhysicalPosition<i32>, String> {
     let idx = account_index.unwrap_or(1);
     let label = get_bubble_window_label(idx);
-    let win = app.get_webview_window(&label)
-        .or_else(|| if idx == 1 { app.get_webview_window("bubble") } else { None });
 
-    if let Some(w) = win {
+    if let Some(w) = app.get_webview_window(&label) {
         return w.outer_position().map_err(|e| e.to_string());
     }
     Err(format!("Bubble for account {} not found", idx))
@@ -47,10 +67,7 @@ pub fn get_all_bubble_positions(app: AppHandle) -> Result<Vec<BubblePositionDto>
     let mut list = Vec::new();
     for idx in 1..=5 {
         let label = get_bubble_window_label(idx);
-        let win = app.get_webview_window(&label)
-            .or_else(|| if idx == 1 { app.get_webview_window("bubble") } else { None });
-
-        if let Some(w) = win {
+        if let Some(w) = app.get_webview_window(&label) {
             let is_vis = w.is_visible().unwrap_or(false);
             let pos = w.outer_position().unwrap_or_default();
             let size = w.outer_size().unwrap_or_default();
@@ -76,14 +93,15 @@ pub fn toggle_bubble(
 ) -> Result<(), String> {
     let idx = account_index.unwrap_or(1);
     let label = get_bubble_window_label(idx);
-    let win = app.get_webview_window(&label)
-        .or_else(|| if idx == 1 { app.get_webview_window("bubble") } else { None });
 
     if visible {
         let _ = ensure_bubble_positioned_and_visible(&app, idx);
-    } else if let Some(bubble_window) = win {
+    } else if let Some(bubble_window) = app.get_webview_window(&label) {
         let _ = bubble_window.hide();
-        let _ = app.emit("bubble-visibility-changed", false);
+        let _ = app.emit("bubble-visibility-changed", serde_json::json!({
+            "accountIndex": idx,
+            "visible": false
+        }));
     }
     Ok(())
 }
@@ -93,19 +111,28 @@ pub fn toggle_bubble(
 pub fn snap_bubble(app: AppHandle, account_index: Option<u32>) -> Result<(), String> {
     let idx = account_index.unwrap_or(1);
     let label = get_bubble_window_label(idx);
-    let win = app.get_webview_window(&label)
-        .or_else(|| if idx == 1 { app.get_webview_window("bubble") } else { None });
 
-    if let Some(window) = win {
+    if let Some(window) = app.get_webview_window(&label) {
         if let Ok(Some(monitor)) = window.current_monitor() {
             let win_pos = window.outer_position().map_err(|e| e.to_string())?;
             let screen = ScreenMetrics::from_monitor(&monitor);
-            let other_bubbles = get_other_visible_bubble_rects(&app, Some(window.label()));
-            let snap = calculate_bubble_snap_with_collision(&screen, win_pos, &DEFAULT_BUBBLE_CONFIG, &other_bubbles);
+            let config = BubblePhysicsConfig::default();
+            let all_bubbles = get_active_bubble_rects(&app);
+
+            let snap = BubbleMovementEngine::calculate_snap(
+                &screen,
+                &config,
+                win_pos,
+                idx,
+                &all_bubbles,
+            );
 
             if snap.should_dismiss {
                 let _ = window.hide();
-                let _ = app.emit("bubble-visibility-changed", false);
+                let _ = app.emit("bubble-visibility-changed", serde_json::json!({
+                    "accountIndex": idx,
+                    "visible": false
+                }));
                 return Ok(());
             }
 
@@ -130,18 +157,25 @@ pub fn get_bubble_snap_coords(
 ) -> Result<SnapCoordsDto, String> {
     let idx = account_index.unwrap_or(1);
     let label = get_bubble_window_label(idx);
-    let win = app.get_webview_window(&label)
-        .or_else(|| if idx == 1 { app.get_webview_window("bubble") } else { None });
 
-    if let Some(window) = win {
+    if let Some(window) = app.get_webview_window(&label) {
         if let Ok(Some(monitor)) = window.current_monitor() {
             let screen = ScreenMetrics::from_monitor(&monitor);
             let win_pos = PhysicalPosition {
                 x: current_x,
                 y: current_y,
             };
-            let other_bubbles = get_other_visible_bubble_rects(&app, Some(window.label()));
-            let snap = calculate_bubble_snap_with_collision(&screen, win_pos, &DEFAULT_BUBBLE_CONFIG, &other_bubbles);
+            let config = BubblePhysicsConfig::default();
+            let all_bubbles = get_active_bubble_rects(&app);
+
+            let snap = BubbleMovementEngine::calculate_snap(
+                &screen,
+                &config,
+                win_pos,
+                idx,
+                &all_bubbles,
+            );
+
             return Ok(SnapCoordsDto {
                 target_x: snap.target_x,
                 target_y: snap.target_y,
@@ -160,8 +194,7 @@ pub fn get_bubble_default_coords(
 ) -> Result<SnapCoordsDto, String> {
     let idx = account_index.unwrap_or(1);
     let label = get_bubble_window_label(idx);
-    let win = app.get_webview_window(&label)
-        .or_else(|| if idx == 1 { app.get_webview_window("bubble") } else { None });
+    let win = app.get_webview_window(&label);
 
     let monitor = app
         .get_webview_window("main")
@@ -177,9 +210,10 @@ pub fn get_bubble_default_coords(
 
     if let Some(monitor) = monitor {
         let screen = ScreenMetrics::from_monitor(&monitor);
-        let exclude_label = win.as_ref().map(|w| w.label());
-        let other_bubbles = get_other_visible_bubble_rects(&app, exclude_label);
-        let pos = calculate_stacked_bubble_pos(&screen, &DEFAULT_BUBBLE_CONFIG, &other_bubbles);
+        let config = BubblePhysicsConfig::default();
+        let all_bubbles = get_active_bubble_rects(&app);
+
+        let pos = BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &all_bubbles);
         return Ok(SnapCoordsDto {
             target_x: pos.x,
             target_y: pos.y,
@@ -198,19 +232,19 @@ pub fn get_bubble_hover_coords(
 ) -> Result<SnapCoordsDto, String> {
     let idx = account_index.unwrap_or(1);
     let label = get_bubble_window_label(idx);
-    let win = app.get_webview_window(&label)
-        .or_else(|| if idx == 1 { app.get_webview_window("bubble") } else { None });
 
-    if let Some(window) = win {
+    if let Some(window) = app.get_webview_window(&label) {
         if let Ok(Some(monitor)) = window.current_monitor() {
             let win_pos = window.outer_position().unwrap_or_default();
             let screen = ScreenMetrics::from_monitor(&monitor);
-            let target_pos = calculate_bubble_hover_pos(
+            let config = BubblePhysicsConfig::default();
+
+            let target_pos = BubbleMovementEngine::calculate_hover_pos(
                 &screen,
+                &config,
                 win_pos.x,
                 win_pos.y,
                 is_hovered,
-                &DEFAULT_BUBBLE_CONFIG,
             );
             return Ok(SnapCoordsDto {
                 target_x: target_pos.x,

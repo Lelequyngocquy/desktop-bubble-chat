@@ -9,6 +9,9 @@ import {
   IPC_EVENTS,
   MessengerAuthStatusPayload,
   MessengerAuthClosedPayload,
+  BadgeUpdatedPayload,
+  BubbleVisibilityPayload,
+  ChatVisibilityPayload,
 } from "../types/ipc";
 
 /**
@@ -53,10 +56,15 @@ export const useUnreadListener = () => {
             .catch(() => {});
         });
 
-        // 2. Unread Badge Count event
-        unlistenBadge = await listen<number>(IPC_EVENTS.BADGE_UPDATED, (event) => {
-          const activeIndex = useMessengerStore.getState().activeAccountIndex;
-          useMessengerStore.getState().setAccountUnreadCount(activeIndex, event.payload);
+        // 2. Unread Badge Count event (Scoped theo accountIndex)
+        unlistenBadge = await listen<number | BadgeUpdatedPayload>(IPC_EVENTS.BADGE_UPDATED, (event) => {
+          if (typeof event.payload === "object" && event.payload !== null && "count" in event.payload) {
+            const { accountIndex, count } = event.payload;
+            useMessengerStore.getState().setAccountUnreadCount(accountIndex, count);
+          } else if (typeof event.payload === "number") {
+            const activeIndex = useMessengerStore.getState().activeAccountIndex;
+            useMessengerStore.getState().setAccountUnreadCount(activeIndex, event.payload);
+          }
         });
 
         // 3. Messenger real-time authentication status change
@@ -102,13 +110,21 @@ export const useUnreadListener = () => {
         );
 
         // 5. Floating bubble visibility change (e.g. dismissed to tray)
-        unlistenBubble = await listen<boolean>(IPC_EVENTS.BUBBLE_VISIBILITY_CHANGED, (event) => {
-          useSettingsStore.getState().setBubbleEnabled(event.payload);
+        unlistenBubble = await listen<boolean | BubbleVisibilityPayload>(IPC_EVENTS.BUBBLE_VISIBILITY_CHANGED, (event) => {
+          if (typeof event.payload === "object" && event.payload !== null && "visible" in event.payload) {
+            useSettingsStore.getState().setBubbleEnabled(event.payload.visible);
+          } else if (typeof event.payload === "boolean") {
+            useSettingsStore.getState().setBubbleEnabled(event.payload);
+          }
         });
 
         // 6. Messenger Chat popup visibility change
-        unlistenChat = await listen<boolean>(IPC_EVENTS.CHAT_VISIBILITY_CHANGED, (event) => {
-          useWindowStore.getState().setIsChatOpen(event.payload);
+        unlistenChat = await listen<boolean | ChatVisibilityPayload>(IPC_EVENTS.CHAT_VISIBILITY_CHANGED, (event) => {
+          if (typeof event.payload === "object" && event.payload !== null && "visible" in event.payload) {
+            useWindowStore.getState().setIsChatOpen(event.payload.visible);
+          } else if (typeof event.payload === "boolean") {
+            useWindowStore.getState().setIsChatOpen(event.payload);
+          }
         });
       } catch (err) {
         console.warn("[useUnreadListener] Desktop IPC event listeners not available in preview:", err);

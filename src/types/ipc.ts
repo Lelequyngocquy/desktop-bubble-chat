@@ -78,3 +78,20 @@ export interface BubblePositionPayload {
   height: number;
   isVisible: boolean;
 }
+
+export interface BadgeUpdatedPayload {
+  accountIndex: number;
+  count: number;
+}
+
+export interface BubbleVisibilityPayload {
+  accountIndex: number;
+  visible: boolean;
+}
+
+export interface ChatVisibilityPayload {
+  accountIndex: number;
+  visible: boolean;
+  windowLabel?: string;
+}
+

@@ -310,7 +310,8 @@
 
       if (count !== lastBadgeCount) {
         lastBadgeCount = count;
-        invokeTauri("update_unread_badge", { count: count }).catch(() => {});
+        const accountIdx = window.__ACCOUNT_INDEX__ || 1;
+        invokeTauri("update_unread_badge", { count: count, accountIndex: accountIdx }).catch(() => {});
       }
     } catch (e) {
       // Ignored

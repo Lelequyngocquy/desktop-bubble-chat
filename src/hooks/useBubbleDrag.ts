@@ -69,14 +69,14 @@ export const useBubbleDrag = ({
 
   // Điều khiển hoạt ảnh trượt ra (appear_ratio 0.0) / trượt vào (tuck_ratio)
   const setHoverState = useCallback(
-    async (hovered: boolean) => {
+    async (hovered: boolean, force: boolean = false) => {
       // Tuyệt đối không can thiệp nếu đang giữ kéo chuột
       if (dragRef.current.isDown) return;
 
       // Nếu cửa sổ chat đang mở, bong bóng luôn giữ trạng thái kéo ra toàn bộ (0.0)
       const targetHovered = isChatOpen ? true : hovered;
 
-      if (isHoveredRef.current === targetHovered) return;
+      if (!force && isHoveredRef.current === targetHovered) return;
       isHoveredRef.current = targetHovered;
 
       try {
@@ -118,7 +118,7 @@ export const useBubbleDrag = ({
         // Fallback
       }
     },
-    [isChatOpen]
+    [isChatOpen, accountIndex]
   );
 
   // Lắng nghe sự kiện chuột ra/vào trên toàn bộ WebView2 window
@@ -137,13 +137,12 @@ export const useBubbleDrag = ({
     };
   }, [setHoverState]);
 
-  // Đồng bộ vị trí bong bóng khi mở hoặc đóng khung chat
+  // Đồng bộ vị trí bong bóng khi mở hoặc đóng khung chat (Force animation để đảm bảo vị trí tuck/untuck tuyệt đối)
   useEffect(() => {
     if (isChatOpen) {
-      setHoverState(true);
+      setHoverState(true, true);
     } else {
-      isHoveredRef.current = false;
-      setHoverState(false);
+      setHoverState(false, true);
     }
   }, [isChatOpen, setHoverState]);
 

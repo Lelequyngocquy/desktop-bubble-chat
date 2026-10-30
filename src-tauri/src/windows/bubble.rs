@@ -135,9 +135,6 @@ pub fn setup_bubble_subclass(bubble: &tauri::WebviewWindow) {
 /// Cấu hình cửa sổ bong bóng: Cho phép kích thước nhỏ hơn SM_CXMINTRACK (136px) của Windows
 #[cfg(target_os = "windows")]
 pub fn setup_bubble_window(app: &AppHandle) {
-    if let Some(bubble) = app.get_webview_window("bubble") {
-        setup_bubble_subclass(&bubble);
-    }
     for idx in 1..=5 {
         let label = format!("bubble-{:02}", idx);
         if let Some(bubble) = app.get_webview_window(&label) {

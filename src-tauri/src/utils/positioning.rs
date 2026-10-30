@@ -183,14 +183,7 @@ pub fn get_or_create_bubble_window(
         return Ok(win);
     }
 
-    // 2. Tương thích ngược: Account 1 có thể dùng cửa sổ "bubble" từ config tĩnh
-    if account_index == 1 {
-        if let Some(win) = app.get_webview_window("bubble") {
-            return Ok(win);
-        }
-    }
-
-    // 3. Khởi tạo WebviewWindow Bubble dự phòng nếu chưa có
+    // 2. Khởi tạo WebviewWindow Bubble dự phòng nếu chưa có
     let url_str = format!("index.html?window=bubble&account={}", account_index);
     let window = tauri::WebviewWindowBuilder::new(
         app,
@@ -221,8 +214,7 @@ pub fn get_other_visible_bubble_rects(
 
     for idx in 1..=5 {
         let label = get_bubble_window_label(idx);
-        let win = app.get_webview_window(&label)
-            .or_else(|| if idx == 1 { app.get_webview_window("bubble") } else { None });
+        let win = app.get_webview_window(&label);
 
         if let Some(w) = win {
             if Some(w.label()) == exclude_label {
@@ -385,15 +377,17 @@ pub fn ensure_bubble_positioned_and_visible(app: &AppHandle, account_index: u32)
         }
     }
     let _ = bubble_window.show();
-    let _ = app.emit("bubble-visibility-changed", true);
+    let _ = app.emit("bubble-visibility-changed", serde_json::json!({
+        "accountIndex": account_index,
+        "visible": true
+    }));
     Ok(())
 }
 
 /// Dock cửa sổ chat Messenger vào đúng Bubble của tài khoản tương ứng
 pub fn dock_chat_window(app: &AppHandle, chat_window: &tauri::WebviewWindow, account_index: u32) {
     let bubble_label = get_bubble_window_label(account_index);
-    let bubble_win = app.get_webview_window(&bubble_label)
-        .or_else(|| if account_index == 1 { app.get_webview_window("bubble") } else { None });
+    let bubble_win = app.get_webview_window(&bubble_label);
 
     if let Some(bubble_window) = bubble_win {
         if let Ok(Some(monitor)) = bubble_window.current_monitor() {
@@ -456,8 +450,7 @@ pub fn tuck_bubble(app: &AppHandle, account_index: Option<u32>) {
 
     for idx in indices {
         let label = get_bubble_window_label(idx);
-        let win = app.get_webview_window(&label)
-            .or_else(|| if idx == 1 { app.get_webview_window("bubble") } else { None });
+        let win = app.get_webview_window(&label);
 
         if let Some(bubble_window) = win {
             if let Ok(Some(monitor)) = bubble_window.current_monitor() {
@@ -480,8 +473,7 @@ pub fn tuck_bubble(app: &AppHandle, account_index: Option<u32>) {
 pub fn is_cursor_over_any_bubble(app: &AppHandle) -> bool {
     for idx in 1..=5 {
         let label = get_bubble_window_label(idx);
-        let win = app.get_webview_window(&label)
-            .or_else(|| if idx == 1 { app.get_webview_window("bubble") } else { None });
+        let win = app.get_webview_window(&label);
 
         if let Some(w) = win {
             if w.is_visible().unwrap_or(false) && is_cursor_over_bubble(&w) {

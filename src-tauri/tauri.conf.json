@@ -26,20 +26,6 @@
         "center": true
       },
       {
-        "label": "bubble",
-        "title": "DesktopBubbleChat - Bubble",
-        "url": "index.html?window=bubble&account=1",
-        "width": 64,
-        "height": 64,
-        "resizable": false,
-        "decorations": false,
-        "transparent": true,
-        "alwaysOnTop": true,
-        "skipTaskbar": true,
-        "shadow": false,
-        "visible": false
-      },
-      {
         "label": "bubble-01",
         "title": "DesktopBubbleChat - Bubble 01",
         "url": "index.html?window=bubble&account=1",

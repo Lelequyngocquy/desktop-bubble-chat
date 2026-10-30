@@ -5,7 +5,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use crate::state::ChatState;
 use crate::utils::positioning::{
     dock_chat_window, ensure_bubble_positioned_and_visible, get_bubble_window_label,
-    is_cursor_over_any_bubble, tuck_bubble,
+    tuck_bubble,
 };
 use crate::utils::time::now_millis;
 use super::parser::parse_unread_from_title;
@@ -134,14 +134,24 @@ pub async fn open_chat(
 
     if let Ok(title) = chat_window.title() {
         let count = parse_unread_from_title(&title);
-        let _ = app.emit("badge-updated", count);
+        let _ = app.emit("badge-updated", serde_json::json!({
+            "accountIndex": idx,
+            "count": count
+        }));
     }
 
     println!("[BE - Chat] Mở khung chat Messenger {:02} docked cạnh Bubble", idx);
     chat_window.show().map_err(|e| e.to_string())?;
     chat_window.set_focus().map_err(|e| e.to_string())?;
-    let _ = app.emit("bubble-visibility-changed", true);
-    let _ = app.emit("chat-visibility-changed", true);
+    let _ = app.emit("bubble-visibility-changed", serde_json::json!({
+        "accountIndex": idx,
+        "visible": true
+    }));
+    let _ = app.emit("chat-visibility-changed", serde_json::json!({
+        "accountIndex": idx,
+        "visible": true,
+        "windowLabel": chat_window.label()
+    }));
 
     Ok(())
 }
@@ -161,14 +171,23 @@ pub async fn toggle_chat(
     if is_visible {
         state.last_blur_time.store(now_millis(), Ordering::SeqCst);
         chat_window.hide().map_err(|e| e.to_string())?;
-        let _ = app.emit("chat-visibility-changed", false);
-        if !is_cursor_over_any_bubble(&app) {
-            tuck_bubble(&app, Some(idx));
-        }
+        let _ = app.emit("chat-visibility-changed", serde_json::json!({
+            "accountIndex": idx,
+            "visible": false,
+            "windowLabel": chat_window.label()
+        }));
+        tuck_bubble(&app, Some(idx));
         Ok(false)
     } else {
         let last_blur = state.last_blur_time.load(Ordering::SeqCst);
         if now_millis() - last_blur < 250 {
+            // Cửa sổ vừa bị ẩn bởi sự kiện blur khi người dùng click vào bong bóng nổi -> Giữ ẩn và tuck bubble
+            tuck_bubble(&app, Some(idx));
+            let _ = app.emit("chat-visibility-changed", serde_json::json!({
+                "accountIndex": idx,
+                "visible": false,
+                "windowLabel": chat_window.label()
+            }));
             return Ok(false);
         }
 
@@ -194,12 +213,19 @@ pub async fn toggle_chat(
 
         if let Ok(title) = chat_window.title() {
             let count = parse_unread_from_title(&title);
-            let _ = app.emit("badge-updated", count);
+            let _ = app.emit("badge-updated", serde_json::json!({
+                "accountIndex": idx,
+                "count": count
+            }));
         }
 
         chat_window.show().map_err(|e| e.to_string())?;
         chat_window.set_focus().map_err(|e| e.to_string())?;
-        let _ = app.emit("chat-visibility-changed", true);
+        let _ = app.emit("chat-visibility-changed", serde_json::json!({
+            "accountIndex": idx,
+            "visible": true,
+            "windowLabel": chat_window.label()
+        }));
         Ok(true)
     }
 }
@@ -227,7 +253,7 @@ pub fn disconnect_messenger(
 
     // Ẩn bubble tương ứng nếu có
     let bubble_label = get_bubble_window_label(idx);
-    if let Some(bubble_win) = app.get_webview_window(&bubble_label).or_else(|| if idx == 1 { app.get_webview_window("bubble") } else { None }) {
+    if let Some(bubble_win) = app.get_webview_window(&bubble_label) {
         let _ = bubble_win.hide();
     }
 
@@ -289,11 +315,6 @@ pub fn close_messenger_window(
     let bubble_label = get_bubble_window_label(idx);
     if let Some(bw) = app.get_webview_window(&bubble_label) {
         let _ = bw.hide();
-    }
-    if idx == 1 {
-        if let Some(bw) = app.get_webview_window("bubble") {
-            let _ = bw.hide();
-        }
     }
 
     // 3. Xoá triệt để thư mục profile/storage trên ổ cứng (User Data Directory)
@@ -389,7 +410,11 @@ pub fn check_messenger_auth(
             let _ = chat_window.set_decorations(false);
             let _ = chat_window.set_skip_taskbar(true);
             let _ = ensure_bubble_positioned_and_visible(&app, idx);
-            let _ = app.emit("chat-visibility-changed", false);
+            let _ = app.emit("chat-visibility-changed", serde_json::json!({
+                "accountIndex": idx,
+                "visible": false,
+                "windowLabel": &label
+            }));
             let _ = app.emit("messenger-auth-status", serde_json::json!({
                 "accountIndex": idx,
                 "connected": true,
@@ -447,7 +472,11 @@ pub fn report_auth_status(
             let _ = win.set_skip_taskbar(true);
         }
         let _ = ensure_bubble_positioned_and_visible(&app, idx);
-        let _ = app.emit("chat-visibility-changed", false);
+        let _ = app.emit("chat-visibility-changed", serde_json::json!({
+            "accountIndex": idx,
+            "visible": false,
+            "windowLabel": &label
+        }));
     }
 
     let _ = app.emit("messenger-auth-status", serde_json::json!({

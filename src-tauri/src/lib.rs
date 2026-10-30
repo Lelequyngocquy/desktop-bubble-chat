@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod movement;
 pub mod platforms;
 pub mod state;
 pub mod tray;

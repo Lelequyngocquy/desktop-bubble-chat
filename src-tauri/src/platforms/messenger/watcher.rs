@@ -60,7 +60,11 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                             let _ = chat_window.hide();
                             let _ = chat_window.set_decorations(false);
                             let _ = chat_window.set_skip_taskbar(true);
-                            let _ = app_handle.emit("chat-visibility-changed", false);
+                            let _ = app_handle.emit("chat-visibility-changed", serde_json::json!({
+                                "accountIndex": idx,
+                                "visible": false,
+                                "windowLabel": &win_label
+                            }));
                             // Bật bong bóng nổi cho tài khoản này
                             let _ = ensure_bubble_positioned_and_visible(&app_handle, idx);
                         } else {
@@ -78,7 +82,10 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                     if is_logged_in {
                         if let Ok(title) = chat_window.title() {
                             let count = parse_unread_from_title(&title);
-                            let _ = app_handle.emit("badge-updated", count);
+                            let _ = app_handle.emit("badge-updated", serde_json::json!({
+                                "accountIndex": idx,
+                                "count": count
+                            }));
                         }
                     }
                 }

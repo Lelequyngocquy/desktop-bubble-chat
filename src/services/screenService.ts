@@ -99,4 +99,27 @@ export class ScreenService {
   public static async snapBubble(accountIndex: number = 1): Promise<void> {
     await invoke(IPC_COMMANDS.SNAP_BUBBLE, { accountIndex });
   }
+
+  /**
+   * Realtime check if a given coordinate overlaps with any other active bubble.
+   */
+  public static async checkCollision(
+    accountIndex: number,
+    candidateX: number,
+    candidateY: number,
+    bubbleSize: number = 64,
+    gap: number = 12
+  ): Promise<boolean> {
+    try {
+      const allBubbles = await this.getAllBubblePositions();
+      return allBubbles.some((b) => {
+        if (b.accountIndex === accountIndex || !b.isVisible) return false;
+        const xOverlap = Math.abs(candidateX - b.x) < bubbleSize;
+        const yOverlap = Math.abs(candidateY - b.y) < bubbleSize + gap;
+        return xOverlap && yOverlap;
+      });
+    } catch {
+      return false;
+    }
+  }
 }
