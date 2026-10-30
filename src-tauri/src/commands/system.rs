@@ -163,13 +163,31 @@ pub fn exit_app(app: AppHandle) {
     app.exit(0);
 }
 
-/// Command điều khiển chế độ Luôn trên cùng (Always on Top) cho cửa sổ chính và các khung chat
+/// Command điều khiển chế độ Luôn nổi trên cùng (Always on Top) dành riêng cho các Bong bóng nổi
 #[tauri::command]
 pub fn set_always_on_top(app: AppHandle, enabled: bool) -> Result<(), String> {
     use tauri::Manager;
-    if let Some(main_win) = app.get_webview_window("main") {
-        let _ = main_win.set_always_on_top(enabled);
+    use std::sync::atomic::Ordering;
+
+    // 1. Lưu trạng thái vào ChatState để các Bubble khởi tạo / hiển thị sau này tuân thủ
+    if let Some(chat_state) = app.try_state::<crate::state::ChatState>() {
+        chat_state.is_always_on_top.store(enabled, Ordering::SeqCst);
     }
+
+    // 2. Dashboard chính tuyệt đối KHÔNG ghim Always-on-top (luôn là cửa sổ tiêu chuẩn của OS)
+    if let Some(main_win) = app.get_webview_window("main") {
+        let _ = main_win.set_always_on_top(false);
+    }
+
+    // 3. Áp dụng Always-on-top cho tất cả các cửa sổ Bong bóng nổi (bubble-01 -> bubble-05)
+    for idx in 1..=5 {
+        let bubble_label = format!("bubble-{:02}", idx);
+        if let Some(w) = app.get_webview_window(&bubble_label) {
+            let _ = w.set_always_on_top(enabled);
+        }
+    }
+
+    // 4. Khung chat Messenger đồng bộ trạng thái nổi cùng bong bóng
     for idx in 1..=5 {
         let chat_label = format!("chat-messenger-{:02}", idx);
         if let Some(w) = app.get_webview_window(&chat_label) {

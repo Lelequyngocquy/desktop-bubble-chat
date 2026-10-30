@@ -18,9 +18,9 @@ export const QUICK_SETTINGS_CONFIG: QuickSettingItem[] = [
   },
   {
     id: "always-on-top",
-    label: "Luôn nổi trên cùng",
-    descriptionActive: "Giữ phía trên các cửa sổ khác",
-    descriptionInactive: "Giữ phía trên các cửa sổ khác",
+    label: "Bong bóng luôn nổi trên cùng",
+    descriptionActive: "Bong bóng nổi trên các ứng dụng khác",
+    descriptionInactive: "Bong bóng có thể bị ứng dụng khác che phủ",
     iconName: "Pin",
     requiresConnection: false,
   },

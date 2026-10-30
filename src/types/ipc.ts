@@ -52,6 +52,7 @@ export const IPC_EVENTS = {
   MESSENGER_AUTH_STATUS: "messenger-auth-status",
   MESSENGER_AUTH_CLOSED: "messenger-auth-closed",
   BUBBLE_VISIBILITY_CHANGED: "bubble-visibility-changed",
+  BUBBLE_SPAWNED: "bubble-spawned",
   CHAT_VISIBILITY_CHANGED: "chat-visibility-changed",
   NEW_MESSAGE_RECEIVED: "new-message-received",
   RECENT_CONVERSATIONS_SYNCED: "recent-conversations-synced",
@@ -97,6 +98,14 @@ export interface BadgeUpdatedPayload {
 export interface BubbleVisibilityPayload {
   accountIndex: number;
   visible: boolean;
+  x?: number;
+  y?: number;
+}
+
+export interface BubbleSpawnedPayload {
+  accountIndex: number;
+  x: number;
+  y: number;
 }
 
 export interface ToggleAllBubblesPayload {

@@ -64,6 +64,7 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
     for (let i = 1; i <= MAX_MESSENGER_ACCOUNTS; i++) {
       if (!usedIndices.has(i)) {
         nextIndex = i;
+        break; // Dừng ngay ở vị trí trống nhỏ nhất đầu tiên (ưu tiên tăng dần 01 -> 05)
       }
     }
 
