@@ -8,7 +8,11 @@ import {
   RefreshCw,
   HardDrive,
 } from "lucide-react";
-import { useSettingsStore, BubbleSize, BUBBLE_SIZE_PIXELS } from "../../stores/settingsStore";
+import {
+  useSettingsStore,
+  BubbleSize,
+  BUBBLE_SIZE_PIXELS,
+} from "../../stores/settingsStore";
 import { systemService } from "../../services/systemService";
 import { messengerService } from "../../services/messenger";
 import { notificationService } from "../../services/notificationService";
@@ -17,11 +21,15 @@ import { SwitchButton, TabHeader, CommonDialog } from "../common";
 export const SettingsWorkspace: React.FC = () => {
   const isAlwaysOnTop = useSettingsStore((s) => s.isAlwaysOnTop);
   const toggleAlwaysOnTop = useSettingsStore((s) => s.toggleAlwaysOnTop);
-  const isNotificationsEnabled = useSettingsStore((s) => s.isNotificationsEnabled);
+  const isNotificationsEnabled = useSettingsStore(
+    (s) => s.isNotificationsEnabled,
+  );
   const toggleNotifications = useSettingsStore((s) => s.toggleNotifications);
   const isAutoStart = useSettingsStore((s) => s.isAutoStart);
   const toggleAutoStart = useSettingsStore((s) => s.toggleAutoStart);
-  const isGlobalShortcutEnabled = useSettingsStore((s) => s.isGlobalShortcutEnabled);
+  const isGlobalShortcutEnabled = useSettingsStore(
+    (s) => s.isGlobalShortcutEnabled,
+  );
   const toggleGlobalShortcut = useSettingsStore((s) => s.toggleGlobalShortcut);
   const bubbleSize = useSettingsStore((s) => s.bubbleSize);
   const setBubbleSize = useSettingsStore((s) => s.setBubbleSize);
@@ -87,38 +95,58 @@ export const SettingsWorkspace: React.FC = () => {
         <div className="bg-white border border-[#E2E7EF] rounded-[12px] shadow-card p-5 flex flex-col gap-4">
           <div className="flex items-center gap-2 pb-2 border-b border-[#E2E7EF]/60">
             <Power className="w-4 h-4 text-[#0866FF]" />
-            <h2 className="text-[15px] font-semibold text-[#1E293B] m-0">Hệ thống & Khởi động</h2>
+            <h2 className="text-[15px] font-semibold text-[#1E293B] m-0">
+              Hệ thống & Khởi động
+            </h2>
           </div>
 
           <div className="flex flex-col divide-y divide-[#E2E7EF]">
             <div className="py-3 flex items-center justify-between gap-4">
               <div className="flex flex-col gap-0.5">
-                <span className="text-[13px] font-medium text-[#1E293B]">Khởi động cùng Windows</span>
+                <span className="text-[13px] font-medium text-[#1E293B]">
+                  Khởi động cùng Windows
+                </span>
                 <span className="text-[11px] text-[#64748B]">
                   Tự động bật DesktopBubbleChat khi bạn đăng nhập vào máy tính
                 </span>
               </div>
-              <SwitchButton checked={isAutoStart} onChange={handleToggleAutoStart} />
+              <SwitchButton
+                checked={isAutoStart}
+                onChange={handleToggleAutoStart}
+              />
             </div>
 
             <div className="py-3 flex items-center justify-between gap-4">
               <div className="flex flex-col gap-0.5">
-                <span className="text-[13px] font-medium text-[#1E293B]">Cửa sổ luôn trên cùng</span>
+                <span className="text-[13px] font-medium text-[#1E293B]">
+                  Bong bóng nổi trên cùng (Tắt vẫn có thể mở khung trò chuyện
+                  nếu di chuột đúng vị trí)
+                </span>
                 <span className="text-[11px] text-[#64748B]">
-                  Giữ cửa sổ và bong bóng nổi không bị che khuất bởi các ứng dụng khác
+                  Giữ các bong bóng chat luôn hiển thị trên các ứng dụng khác.
+                  Khi tắt, các ứng dụng khác có thể che phủ bong bóng.
                 </span>
               </div>
-              <SwitchButton checked={isAlwaysOnTop} onChange={handleToggleAlwaysOnTop} />
+              <SwitchButton
+                checked={isAlwaysOnTop}
+                onChange={handleToggleAlwaysOnTop}
+              />
             </div>
 
             <div className="py-3 flex items-center justify-between gap-4">
               <div className="flex flex-col gap-0.5">
-                <span className="text-[13px] font-medium text-[#1E293B]">Thông báo desktop & Âm thanh</span>
+                <span className="text-[13px] font-medium text-[#1E293B]">
+                  Thông báo desktop & Âm thanh
+                </span>
                 <span className="text-[11px] text-[#64748B]">
-                  Phát âm thanh bong bóng nhẹ và hiển thị thông báo toast khi có tin nhắn mới
+                  Phát âm thanh bong bóng nhẹ và hiển thị thông báo toast khi có
+                  tin nhắn mới
                 </span>
               </div>
-              <SwitchButton checked={isNotificationsEnabled} onChange={handleToggleNotifications} />
+              <SwitchButton
+                checked={isNotificationsEnabled}
+                onChange={handleToggleNotifications}
+              />
             </div>
           </div>
         </div>
@@ -127,18 +155,34 @@ export const SettingsWorkspace: React.FC = () => {
         <div className="bg-white border border-[#E2E7EF] rounded-[12px] shadow-card p-5 flex flex-col gap-4">
           <div className="flex items-center gap-2 pb-2 border-b border-[#E2E7EF]/60">
             <CircleDot className="w-4 h-4 text-[#0866FF]" />
-            <h2 className="text-[15px] font-semibold text-[#1E293B] m-0">Tùy biến Bong bóng nổi</h2>
+            <h2 className="text-[15px] font-semibold text-[#1E293B] m-0">
+              Tùy biến Bong bóng nổi
+            </h2>
           </div>
 
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <span className="text-[13px] font-medium text-[#1E293B]">Kích thước hiển thị</span>
+              <span className="text-[13px] font-medium text-[#1E293B]">
+                Kích thước hiển thị
+              </span>
               <div className="grid grid-cols-3 gap-3 max-w-[480px]">
                 {(
                   [
-                    { id: "sm", label: "Nhỏ (48px)", desc: "Gọn gàng, ít choán màn hình" },
-                    { id: "md", label: "Vừa (56px)", desc: "Kích thước chuẩn khuyến nghị" },
-                    { id: "lg", label: "Lớn (64px)", desc: "Dễ click, avatar to rõ" },
+                    {
+                      id: "sm",
+                      label: "Nhỏ (48px)",
+                      desc: "Gọn gàng, ít choán màn hình",
+                    },
+                    {
+                      id: "md",
+                      label: "Vừa (56px)",
+                      desc: "Kích thước chuẩn khuyến nghị",
+                    },
+                    {
+                      id: "lg",
+                      label: "Lớn (64px)",
+                      desc: "Dễ click, avatar to rõ",
+                    },
                   ] as const
                 ).map((item) => (
                   <button
@@ -152,7 +196,9 @@ export const SettingsWorkspace: React.FC = () => {
                     }`}
                   >
                     <span className="text-[13px]">{item.label}</span>
-                    <span className="text-[10px] text-[#64748B] leading-tight">{item.desc}</span>
+                    <span className="text-[10px] text-[#64748B] leading-tight">
+                      {item.desc}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -164,22 +210,30 @@ export const SettingsWorkspace: React.FC = () => {
         <div className="bg-white border border-[#E2E7EF] rounded-[12px] shadow-card p-5 flex flex-col gap-4">
           <div className="flex items-center gap-2 pb-2 border-b border-[#E2E7EF]/60">
             <Keyboard className="w-4 h-4 text-[#0866FF]" />
-            <h2 className="text-[15px] font-semibold text-[#1E293B] m-0">Phím tắt toàn cục</h2>
+            <h2 className="text-[15px] font-semibold text-[#1E293B] m-0">
+              Phím tắt toàn cục
+            </h2>
           </div>
 
           <div className="flex items-center justify-between gap-4 py-1">
             <div className="flex flex-col gap-0.5">
               <div className="flex items-center gap-2">
-                <span className="text-[13px] font-medium text-[#1E293B]">Bật/Tắt nhanh bong bóng chat</span>
+                <span className="text-[13px] font-medium text-[#1E293B]">
+                  Bật/Tắt nhanh bong bóng chat
+                </span>
                 <span className="px-2 py-0.5 bg-[#F1F5F9] border border-[#CBD5E1] rounded text-[11px] font-mono text-[#334155] font-semibold">
                   Ctrl + Shift + M
                 </span>
               </div>
               <span className="text-[11px] text-[#64748B]">
-                Bấm tổ hợp phím này ở bất cứ đâu trong Windows để ẩn hoặc hiện toàn bộ bong bóng nổi
+                Bấm tổ hợp phím này ở bất cứ đâu trong Windows để ẩn hoặc hiện
+                toàn bộ bong bóng nổi
               </span>
             </div>
-            <SwitchButton checked={isGlobalShortcutEnabled} onChange={toggleGlobalShortcut} />
+            <SwitchButton
+              checked={isGlobalShortcutEnabled}
+              onChange={toggleGlobalShortcut}
+            />
           </div>
         </div>
 
@@ -187,14 +241,19 @@ export const SettingsWorkspace: React.FC = () => {
         <div className="bg-white border border-[#E2E7EF] rounded-[12px] shadow-card p-5 flex flex-col gap-4">
           <div className="flex items-center gap-2 pb-2 border-b border-[#E2E7EF]/60">
             <HardDrive className="w-4 h-4 text-[#0866FF]" />
-            <h2 className="text-[15px] font-semibold text-[#1E293B] m-0">Dữ liệu & Bộ nhớ đệm</h2>
+            <h2 className="text-[15px] font-semibold text-[#1E293B] m-0">
+              Dữ liệu & Bộ nhớ đệm
+            </h2>
           </div>
 
           <div className="flex items-center justify-between gap-4 py-1">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[13px] font-medium text-[#1E293B]">Xóa bộ nhớ đệm WebView2</span>
+              <span className="text-[13px] font-medium text-[#1E293B]">
+                Xóa bộ nhớ đệm WebView2
+              </span>
               <span className="text-[11px] text-[#64748B]">
-                Giải phóng dung lượng ổ đĩa và làm mới hoàn toàn session nếu gặp lỗi hiển thị
+                Giải phóng dung lượng ổ đĩa và làm mới hoàn toàn session nếu gặp
+                lỗi hiển thị
               </span>
             </div>
             <button
@@ -239,7 +298,8 @@ export const SettingsWorkspace: React.FC = () => {
         content="Bạn có chắc chắn muốn xóa bộ nhớ đệm WebView2? Thao tác này sẽ giải phóng dung lượng ổ đĩa và làm mới hoàn toàn session dữ liệu của trình duyệt nhúng."
         widget={
           <div className="p-3 bg-[#FFF5F5] rounded-lg border border-[#FEE2E2] text-[12px] text-[#991B1B] leading-relaxed">
-            Lưu ý: Sau khi xóa bộ nhớ đệm, các phiên đăng nhập webview có thể cần tải lại tài nguyên trong lần mở kế tiếp.
+            Lưu ý: Sau khi xóa bộ nhớ đệm, các phiên đăng nhập webview có thể
+            cần tải lại tài nguyên trong lần mở kế tiếp.
           </div>
         }
         backButton={{

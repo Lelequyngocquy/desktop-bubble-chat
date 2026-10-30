@@ -15,6 +15,7 @@ pub struct ChatState {
     pub is_auth_mode: AtomicBool,
     pub auth_windows: Mutex<HashSet<String>>,
     pub account_auth: Mutex<HashMap<u32, AccountAuthInfo>>,
+    pub is_always_on_top: AtomicBool,
 }
 
 impl Default for ChatState {
@@ -24,6 +25,7 @@ impl Default for ChatState {
             is_auth_mode: AtomicBool::new(false),
             auth_windows: Mutex::new(HashSet::new()),
             account_auth: Mutex::new(HashMap::new()),
+            is_always_on_top: AtomicBool::new(true),
         }
     }
 }

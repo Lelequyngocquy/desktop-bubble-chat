@@ -82,6 +82,7 @@ export function useMessengerAccounts() {
       feLog.info(`[UI Click] Xóa tài khoản: ${account.name} (ID: ${account.id}, Index: ${account.index})`);
       removeAccount(account.id);
       try {
+        await messengerService.toggleBubble(false, account.index);
         await messengerService.clearStorage(account.index);
       } catch (err) {
         console.error("[useMessengerAccounts] Failed to clear account storage:", err);

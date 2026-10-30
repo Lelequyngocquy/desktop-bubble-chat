@@ -30,7 +30,9 @@ export const QuickSettings: React.FC = () => {
   } = useQuickSettings();
 
   const iconMap: Record<QuickSettingItem["iconName"], React.ReactNode> = {
-    MessageSquare: <MessageSquare className="w-[18px] h-[18px] text-[#6B7483]" />,
+    MessageSquare: (
+      <MessageSquare className="w-[18px] h-[18px] text-[#6B7483]" />
+    ),
     Pin: <Pin className="w-[18px] h-[18px] text-[#6B7483]" />,
     Bell: <Bell className="w-[18px] h-[18px] text-[#6B7483]" />,
     Power: <Power className="w-[18px] h-[18px] text-[#6B7483]" />,
@@ -80,11 +82,16 @@ export const QuickSettings: React.FC = () => {
     };
   });
 
+  // Tính số lượng thiết lập đang được bật
+  const activeCount = settings.filter((s) => s.value).length;
+
   return (
     <CommonWidget
       className="w-full lg:w-[432px] shrink-0"
       title="Thiết lập nhanh"
-      headerAction={<SlidersHorizontal className="w-[18px] h-[18px] text-[#6B7483]" />}
+      headerAction={
+        <SlidersHorizontal className="w-[18px] h-[18px] text-[#6B7483]" />
+      }
       banner={
         warningMessage ? (
           <div
@@ -93,11 +100,18 @@ export const QuickSettings: React.FC = () => {
           >
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
             <span className="flex-1 font-medium">{warningMessage}</span>
-            <span className="text-[10px] underline font-semibold">Kết nối ngay</span>
+            <span className="text-[10px] underline font-semibold">
+              Kết nối ngay
+            </span>
           </div>
         ) : undefined
       }
       bodyClassName="py-1"
+      footerLeft={
+        <span className="text-[11px] text-[#6B7483]">
+          {activeCount}/{settings.length} tính năng đang bật
+        </span>
+      }
       footerRight={
         <button
           type="button"

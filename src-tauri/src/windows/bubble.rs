@@ -180,6 +180,11 @@ pub fn get_or_create_bubble_window(
 
     // 2. Khởi tạo WebviewWindow Bubble dự phòng nếu chưa có
     let url_str = format!("index.html?window=bubble&account={}", account_index);
+    let is_on_top = app
+        .try_state::<crate::state::ChatState>()
+        .map(|s| s.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst))
+        .unwrap_or(true);
+
     let window = tauri::WebviewWindowBuilder::new(
         app,
         &label,
@@ -190,7 +195,7 @@ pub fn get_or_create_bubble_window(
     .resizable(false)
     .decorations(false)
     .transparent(true)
-    .always_on_top(true)
+    .always_on_top(is_on_top)
     .skip_taskbar(true)
     .shadow(false)
     .visible(false)
@@ -284,6 +289,10 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
         } else {
             committed_pos = win_pos;
         }
+    }
+    if let Some(chat_state) = app.try_state::<crate::state::ChatState>() {
+        let is_on_top = chat_state.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst);
+        let _ = bubble_window.set_always_on_top(is_on_top);
     }
     let _ = bubble_window.show();
     let _ = app.emit("bubble-visibility-changed", serde_json::json!({

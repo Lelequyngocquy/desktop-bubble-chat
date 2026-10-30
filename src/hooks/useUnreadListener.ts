@@ -63,10 +63,6 @@ export const useUnreadListener = () => {
                   isAuthenticating: false,
                   lastSynced: "Đồng bộ vừa xong",
                 });
-                // Khôi phục hiển thị Bubble nếu tài khoản này đang có cấu hình bật
-                if (acc.isBubbleVisible) {
-                  messengerService.toggleBubble(true, acc.index).catch(() => {});
-                }
               }
             })
             .catch(() => {});
