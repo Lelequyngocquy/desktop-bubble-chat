@@ -1,4 +1,4 @@
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -155,6 +155,39 @@ pub fn is_autostart_enabled() -> bool {
         }
     }
     false
+}
+
+// Command thu nhỏ cửa sổ Dashboard chính xuống Taskbar
+#[tauri::command]
+pub fn minimize_main_window(app: AppHandle) {
+    if let Some(main_win) = app.get_webview_window("main") {
+        let _ = main_win.minimize();
+    }
+}
+
+// Command phóng to / khôi phục kích thước cửa sổ Dashboard chính
+#[tauri::command]
+pub fn toggle_maximize_main_window(app: AppHandle) -> Result<bool, String> {
+    if let Some(main_win) = app.get_webview_window("main") {
+        let is_max = main_win.is_maximized().map_err(|e| e.to_string())?;
+        if is_max {
+            main_win.unmaximize().map_err(|e| e.to_string())?;
+            Ok(false)
+        } else {
+            main_win.maximize().map_err(|e| e.to_string())?;
+            Ok(true)
+        }
+    } else {
+        Err("Main window not found".to_string())
+    }
+}
+
+// Command ẩn cửa sổ Dashboard chính về khay hệ thống (System Tray)
+#[tauri::command]
+pub fn hide_main_window(app: AppHandle) {
+    if let Some(main_win) = app.get_webview_window("main") {
+        let _ = main_win.hide();
+    }
 }
 
 // Command thoát ứng dụng hoàn toàn

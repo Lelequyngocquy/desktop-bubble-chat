@@ -64,6 +64,9 @@ pub fn run() {
             commands::is_autostart_enabled,
             commands::get_system_username,
             commands::open_external_url,
+            commands::minimize_main_window,
+            commands::toggle_maximize_main_window,
+            commands::hide_main_window,
             commands::exit_app,
             commands::set_always_on_top,
             commands::log_frontend
