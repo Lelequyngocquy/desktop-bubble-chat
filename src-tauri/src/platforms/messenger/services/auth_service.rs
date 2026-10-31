@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::platforms::messenger::constants::MESSENGER_INJECT_SCRIPT;
+use crate::platforms::messenger::constants::{MESSENGER_BASE_URL, MESSENGER_INJECT_SCRIPT};
 use crate::platforms::messenger::verifier::is_window_logged_in;
 use crate::platforms::messenger::windows::{
     apply_window_theme_color, get_account_theme, get_messenger_window_label,
@@ -60,13 +60,14 @@ impl AuthService {
         #[cfg(target_os = "windows")]
         apply_window_theme_color(&chat_window, theme.hex, theme.border_hex);
 
-        // Đảm bảo URL đang ở trang đăng nhập Messenger nếu cửa sổ đang trống hoặc chưa ở trang login/2FA
-        if let Ok(url) = tauri::Url::parse("https://www.messenger.com/login/") {
+        // Đảm bảo URL đang ở trang Messenger nếu cửa sổ đang trống hoặc chưa ở trang messenger/2FA
+        if let Ok(url) = tauri::Url::parse(MESSENGER_BASE_URL) {
             let current_url = chat_window.url().map(|u| u.to_string()).unwrap_or_default();
             println!("[BE - Auth] URL hiện tại của cửa sổ: '{}'", current_url);
             let in_2fa = current_url.contains("checkpoint") || current_url.contains("two_step_verification");
-            if current_url.is_empty() || current_url == "about:blank" || (!in_2fa && !current_url.contains("/login")) {
-                println!("[BE - Auth] Điều hướng sang: https://www.messenger.com/login/");
+            let in_messenger = current_url.contains("messenger.com");
+            if current_url.is_empty() || current_url == "about:blank" || (!in_2fa && !in_messenger) {
+                println!("[BE - Auth] Điều hướng sang: {}", MESSENGER_BASE_URL);
                 let _ = chat_window.navigate(url);
             }
         }
@@ -117,7 +118,8 @@ impl AuthService {
             .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
 
         if let Some(chat_window) = win {
-            let _ = chat_window.eval("window.location.href = 'https://www.messenger.com/login/';");
+            let nav_cmd = format!("window.location.href = '{}';", MESSENGER_BASE_URL);
+            let _ = chat_window.eval(&nav_cmd);
             let _ = chat_window.hide();
             let _ = chat_window.set_decorations(false);
         }
