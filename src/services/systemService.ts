@@ -72,6 +72,17 @@ export const systemService = {
   },
 
   /**
+   * Updates the System Tray context menu items according to connected account state.
+   */
+  async updateTrayMenu(hasConnectedAccounts: boolean): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.UPDATE_TRAY_MENU_STATUS, { hasConnectedAccounts });
+    } catch (err) {
+      console.warn("[SystemService] Failed to update tray menu:", err);
+    }
+  },
+
+  /**
    * Completely terminates the desktop application.
    */
   async exitApp(): Promise<void> {

@@ -135,6 +135,9 @@ impl AuthService {
             "connected": false
         }));
 
+        let has_connected = state.has_any_connected_account();
+        let _ = crate::tray::update_tray_menu(app, has_connected);
+
         Ok(())
     }
 
@@ -257,6 +260,10 @@ impl AuthService {
             "connected": connected,
             "name": name
         }));
+
+        let has_connected = state.has_any_connected_account();
+        let _ = crate::tray::update_tray_menu(app, has_connected);
+
         Ok(())
     }
 }

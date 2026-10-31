@@ -1,19 +1,40 @@
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::Manager;
+use tauri::{AppHandle, Manager};
+
+pub const TRAY_ID: &str = "main_tray";
+
+/// Cập nhật menu của System Tray theo trạng thái có tài khoản kết nối hay không
+pub fn update_tray_menu(app_handle: &AppHandle, has_connected_accounts: bool) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(tray) = app_handle.tray_by_id(TRAY_ID) {
+        let show_home = MenuItem::with_id(app_handle, "show_home", "Mở Trang chủ", true, None::<&str>)?;
+        let separator = PredefinedMenuItem::separator(app_handle)?;
+        let quit = MenuItem::with_id(app_handle, "quit", "Thoát hoàn toàn", true, None::<&str>)?;
+
+        let menu = if has_connected_accounts {
+            let toggle_bubble_item = MenuItem::with_id(app_handle, "toggle_bubble_item", "Bật/Tắt Bong bóng nổi", true, None::<&str>)?;
+            Menu::with_items(app_handle, &[&show_home, &toggle_bubble_item, &separator, &quit])?
+        } else {
+            Menu::with_items(app_handle, &[&show_home, &separator, &quit])?
+        };
+
+        tray.set_menu(Some(menu))?;
+    }
+    Ok(())
+}
 
 /// Khởi tạo System Tray Icon & Menu điều khiển
 pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let show_home = MenuItem::with_id(app, "show_home", "Mở Trang chủ", true, None::<&str>)?;
-    let toggle_bubble_item = MenuItem::with_id(app, "toggle_bubble_item", "Bật/Tắt Bong bóng nổi", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "Thoát hoàn toàn", true, None::<&str>)?;
 
-    let menu = Menu::with_items(app, &[&show_home, &toggle_bubble_item, &separator, &quit])?;
+    // Mặc định ban đầu: Ẩn nút "Bật/Tắt Bong bóng nổi" khi chưa có liên kết đăng nhập nào
+    let menu = Menu::with_items(app, &[&show_home, &separator, &quit])?;
 
     let icon = app.default_window_icon().cloned().ok_or("Failed to get app icon")?;
 
-    let _tray = TrayIconBuilder::new()
+    let _tray = TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon)
         .menu(&menu)
         .show_menu_on_left_click(false)

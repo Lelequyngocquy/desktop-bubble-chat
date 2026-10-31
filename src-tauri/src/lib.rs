@@ -67,6 +67,7 @@ pub fn run() {
             commands::minimize_main_window,
             commands::toggle_maximize_main_window,
             commands::hide_main_window,
+            commands::update_tray_menu_status,
             commands::exit_app,
             commands::set_always_on_top,
             commands::log_frontend

@@ -7,7 +7,7 @@ export const MessengerExplainerCard: React.FC = () => {
     <CommonLargeCard
       icon={<PanelsTopLeft className="w-4 h-4 text-[#0866FF]" />}
       title="Cơ chế Multi-Account"
-      className="w-full xl:w-[380px] shrink-0 p-6 justify-between gap-5 select-none"
+      className="w-full   shrink-0 p-6 justify-between gap-5 select-none"
     >
       <div className="flex flex-col gap-4">
         <div className="space-y-3 text-[12px] text-[#475467] leading-relaxed">

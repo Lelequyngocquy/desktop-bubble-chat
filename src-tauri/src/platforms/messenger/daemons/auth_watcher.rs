@@ -79,6 +79,10 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                             "connected": is_logged_in,
                             "name": if is_logged_in { &user_name } else { "" }
                         }));
+
+                        // Tự động đồng bộ menu System Tray (ẩn hoặc hiện nút Bật/Tắt Bong bóng nổi)
+                        let has_connected = chat_state.has_any_connected_account();
+                        let _ = crate::tray::update_tray_menu(&app_handle, has_connected);
                     }
 
                     // Đồng bộ badge tin chưa đọc

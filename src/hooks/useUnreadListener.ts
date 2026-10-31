@@ -53,6 +53,9 @@ export const useUnreadListener = () => {
       try {
         // 1. Initial health-check: Verify and restore real authentication status for all accounts on boot
         const currentAccounts = useMessengerStore.getState().accounts;
+        const initialHasConnected = currentAccounts.some((a) => a.isConnected);
+        systemService.updateTrayMenu(initialHasConnected);
+
         currentAccounts.forEach((acc) => {
           messengerService
             .checkAuth(acc.index)
@@ -219,10 +222,19 @@ export const useUnreadListener = () => {
       }
     };
 
+    const unsubscribeStore = useMessengerStore.subscribe((state, prevState) => {
+      const wasConnected = prevState.accounts.some((a) => a.isConnected);
+      const isConnected = state.accounts.some((a) => a.isConnected);
+      if (wasConnected !== isConnected) {
+        systemService.updateTrayMenu(isConnected);
+      }
+    });
+
     setupListeners();
 
     return () => {
       clearTimeout(graceTimer);
+      unsubscribeStore();
       if (unlistenBadge) unlistenBadge();
       if (unlistenAuth) unlistenAuth();
       if (unlistenAuthClosed) unlistenAuthClosed();

@@ -190,6 +190,15 @@ pub fn hide_main_window(app: AppHandle) {
     }
 }
 
+// Command đồng bộ trạng thái hiển thị menu System Tray từ Frontend / Store
+#[tauri::command]
+pub fn update_tray_menu_status(
+    app: AppHandle,
+    has_connected_accounts: bool,
+) -> Result<(), String> {
+    crate::tray::update_tray_menu(&app, has_connected_accounts).map_err(|e| e.to_string())
+}
+
 // Command thoát ứng dụng hoàn toàn
 #[tauri::command]
 pub fn exit_app(app: AppHandle) {

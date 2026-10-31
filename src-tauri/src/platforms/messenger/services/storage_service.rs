@@ -19,6 +19,8 @@ impl StorageService {
         let label = get_messenger_window_label(idx);
         println!("[StorageService] Đóng cửa sổ và dọn dẹp profile cho Messenger {:02}", idx);
         state.clear_account_auth(idx);
+        let has_connected = state.has_any_connected_account();
+        let _ = crate::tray::update_tray_menu(app, has_connected);
 
         // 1. Huỷ cửa sổ chat webview
         let win = app

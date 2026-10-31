@@ -26,6 +26,7 @@ dist-ssr
 #plan
 build_md/
 graphify-out/
+dev_md/
 # Markdown files (ignore all except README.md and documentation specs)
 *.md
 !README.md

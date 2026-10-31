@@ -80,6 +80,13 @@ impl ChatState {
         }
     }
 
+    pub fn has_any_connected_account(&self) -> bool {
+        if let Ok(map) = self.account_auth.lock() {
+            return map.values().any(|info| info.connected);
+        }
+        false
+    }
+
     pub fn save_previously_visible_bubbles(&self, indices: Vec<u32>) {
         if let Ok(mut prev) = self.previously_visible_bubbles.lock() {
             if !indices.is_empty() {
