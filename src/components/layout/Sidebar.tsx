@@ -30,6 +30,7 @@ export const Sidebar: React.FC = () => {
     MessageSquare: <MessageSquare className="w-[18px] h-[18px]" />,
     Bell: <Bell className="w-[18px] h-[18px]" />,
     Settings2: <Settings2 className="w-[18px] h-[18px]" />,
+    HelpCircle: <HelpCircle className="w-[18px] h-[18px]" />,
   };
 
   const getBadgeForTab = (id: NavTab): number | string | undefined => {
@@ -49,6 +50,19 @@ export const Sidebar: React.FC = () => {
     icon: navIconMap[item.iconName],
     badge: getBadgeForTab(item.id),
   }));
+
+  const secondaryNavItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
+    {
+      id: "settings",
+      label: "Cài đặt",
+      icon: <Settings2 className="w-[18px] h-[18px]" />,
+    },
+    {
+      id: "help",
+      label: "Trợ giúp & phản hồi",
+      icon: <HelpCircle className="w-[18px] h-[18px]" />,
+    },
+  ];
 
   return (
     <aside className="w-[232px] shrink-0 bg-[#EEF2F9] border-r border-[#E2E7EF] flex flex-col justify-between p-[14px_12px_16px] select-none h-full overflow-hidden">
@@ -151,20 +165,46 @@ export const Sidebar: React.FC = () => {
 
         {/* Secondary Navigation */}
         <div className="flex flex-col gap-1">
-          <button
-            onClick={() => setActiveTab("settings")}
-            className="flex items-center gap-3 h-[38px] px-3 rounded-[6px] hover:bg-white/40 active:bg-white/60 transition-colors text-left text-[#202733]"
-          >
-            <Settings2 className="w-[18px] h-[18px] text-[#6B7483]" />
-            <span className="text-[13px] font-normal">Cài đặt</span>
-          </button>
-          <button
-            onClick={() => {}}
-            className="flex items-center gap-3 h-[38px] px-3 rounded-[6px] hover:bg-white/40 active:bg-white/60 transition-colors text-left text-[#202733]"
-          >
-            <HelpCircle className="w-[18px] h-[18px] text-[#6B7483]" />
-            <span className="text-[13px] font-normal">Trợ giúp & phản hồi</span>
-          </button>
+          {secondaryNavItems.map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`relative flex items-center justify-between h-[38px] px-3 rounded-[6px] transition-all text-left group ${
+                  isActive
+                    ? "bg-white/70 shadow-sm"
+                    : "hover:bg-white/40 active:bg-white/60"
+                }`}
+              >
+                {/* Active selection indicator */}
+                {isActive && (
+                  <div className="absolute left-0 top-[11px] w-[3px] h-[16px] bg-[#0866FF] rounded-[2px]" />
+                )}
+
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`transition-colors ${
+                      isActive
+                        ? "text-[#0759DB]"
+                        : "text-[#6B7483] group-hover:text-[#202733]"
+                    }`}
+                  >
+                    {item.icon}
+                  </span>
+                  <span
+                    className={`text-[13px] leading-tight transition-colors ${
+                      isActive
+                        ? "font-semibold text-[#0759DB]"
+                        : "font-normal text-[#202733] group-hover:text-[#202733]"
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {/* App Version */}

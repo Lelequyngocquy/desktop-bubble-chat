@@ -7,6 +7,7 @@ import { ConnectionsWorkspace } from "./components/connections/ConnectionsWorksp
 import { ChatHeadsWorkspace } from "./components/chatheads/ChatHeadsWorkspace";
 import { NotificationsWorkspace } from "./components/notifications/NotificationsWorkspace";
 import { SettingsWorkspace } from "./components/settings/SettingsWorkspace";
+import { HelpWorkspace } from "./components/help/HelpWorkspace";
 import { BubbleWindow } from "./components/bubble/BubbleWindow";
 import { BubbleSpawnIndicator } from "./components/common/BubbleSpawnIndicator";
 import { useBubbleAutoRestore } from "./hooks/bubble";
@@ -68,6 +69,8 @@ export const App: React.FC = () => {
           <NotificationsWorkspace />
         ) : activeTab === "settings" ? (
           <SettingsWorkspace />
+        ) : activeTab === "help" ? (
+          <HelpWorkspace />
         ) : (
           <HomeWorkspace />
         )}
