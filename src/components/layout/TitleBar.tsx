@@ -117,7 +117,7 @@ export const TitleBar: React.FC = () => {
             className="w-[22px] h-[22px] object-contain rounded-[6px] shadow-xs select-none pointer-events-none"
           />
           <span className="text-[12px] font-medium text-[#202733] tracking-tight">
-            DesktopBubbleChat
+            DesktopBubbleChat - Bong Bóng Trò Chuyện
           </span>
         </div>
 
