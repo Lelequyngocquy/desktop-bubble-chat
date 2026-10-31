@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { MessageSquare, Minus, Square, Copy, X } from "lucide-react";
+import { Minus, Square, Copy, X } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { AvatarSquareRounded } from "../common";
 
 export const TitleBar: React.FC = () => {
   const [isMaximized, setIsMaximized] = useState(false);
@@ -59,12 +58,10 @@ export const TitleBar: React.FC = () => {
         data-tauri-drag-region
         className="flex items-center gap-[10px] cursor-default"
       >
-        <AvatarSquareRounded
-          size={24}
-          radius={7}
-          bg="#0866FF"
-          shadow
-          icon={<MessageSquare className="w-[14px] h-[14px] text-white stroke-[2.2]" />}
+        <img
+          src="/app-icon.png"
+          alt="DesktopBubbleChat Logo"
+          className="w-[22px] h-[22px] object-contain rounded-[6px] shadow-xs select-none pointer-events-none"
         />
         <span className="text-[12px] font-medium text-[#202733] tracking-tight">
           DesktopBubbleChat

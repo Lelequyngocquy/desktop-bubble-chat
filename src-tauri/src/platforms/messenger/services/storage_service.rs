@@ -53,12 +53,16 @@ impl StorageService {
 
             #[cfg(target_os = "windows")]
             {
+                use std::os::windows::process::CommandExt;
+                const CREATE_NO_WINDOW: u32 = 0x08000000;
+
                 let kill_cmd = format!(
                     "Get-CimInstance Win32_Process | Where-Object {{ $_.Name -like '*msedgewebview2*' -and $_.CommandLine -like '*{}*' }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }}",
                     target_needle
                 );
                 match std::process::Command::new("powershell")
-                    .args(["-NoProfile", "-Command", &kill_cmd])
+                    .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", &kill_cmd])
+                    .creation_flags(CREATE_NO_WINDOW)
                     .output()
                 {
                     Ok(output) => {
