@@ -37,7 +37,8 @@ dev_md/
 !step.md
 
 logs/
-scripts/
+scripts/*
 !scripts/start.ps1
 !scripts/check_env.ps1
+!scripts/status.ps1
 tests/

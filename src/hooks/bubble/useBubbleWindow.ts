@@ -28,6 +28,10 @@ export function useBubbleWindow() {
   const isChatOpen = useWindowStore((s) => selectIsAccountChatOpen(s, accountIndex));
   const setOpenChatAccountIndex = useWindowStore((s) => s.setOpenChatAccountIndex);
 
+  const [directUnreadCount, setDirectUnreadCount] = useState<number>(0);
+  const [directAvatarUrl, setDirectAvatarUrl] = useState<string | undefined>(undefined);
+  const [directHasPulse, setDirectHasPulse] = useState<boolean>(false);
+
   useEffect(() => {
     // 1. Resolve account index from URL query parameter
     const params = new URLSearchParams(window.location.search);
@@ -126,14 +130,58 @@ export function useBubbleWindow() {
     };
   }, [accountIndex, setOpenChatAccountIndex]);
 
+  // Lắng nghe trực tiếp sự kiện BADGE_UPDATED và INCOMING_MESSAGE từ Rust Core
+  useEffect(() => {
+    let unlistenBadge: (() => void) | undefined;
+    let unlistenMessage: (() => void) | undefined;
+
+    listen<number | { accountIndex?: number; count: number }>(IPC_EVENTS.BADGE_UPDATED, (event) => {
+      let idx = 1;
+      let count = 0;
+      if (typeof event.payload === "object" && event.payload !== null && "count" in event.payload) {
+        idx = event.payload.accountIndex || 1;
+        count = event.payload.count;
+      } else if (typeof event.payload === "number") {
+        count = event.payload;
+      }
+      if (idx === accountIndex) {
+        setDirectUnreadCount(count);
+      }
+    }).then((un) => {
+      unlistenBadge = un;
+    });
+
+    listen<{ accountIndex?: number; avatarUrl?: string }>(IPC_EVENTS.NEW_MESSAGE_RECEIVED, (event) => {
+      const idx = event.payload?.accountIndex || 1;
+      if (idx === accountIndex) {
+        if (event.payload?.avatarUrl) {
+          setDirectAvatarUrl(event.payload.avatarUrl);
+        }
+        setDirectHasPulse(true);
+        setTimeout(() => setDirectHasPulse(false), 3000);
+      }
+    }).then((un) => {
+      unlistenMessage = un;
+    });
+
+    return () => {
+      if (unlistenBadge) unlistenBadge();
+      if (unlistenMessage) unlistenMessage();
+    };
+  }, [accountIndex]);
+
   const currentAccount = useMessengerStore((state) => selectAccountByIndex(state, accountIndex));
-  const unreadCount = currentAccount?.unreadCount || 0;
+  const unreadCount = directUnreadCount || currentAccount?.unreadCount || 0;
+  const avatarUrl = directAvatarUrl || currentAccount?.latestSenderAvatar;
+  const hasPulse = directHasPulse || currentAccount?.hasNewMessagePulse || false;
   const themeColor = getAccountThemeColor(accountIndex);
 
   return {
     accountIndex,
     currentAccount,
     unreadCount,
+    avatarUrl,
+    hasPulse,
     themeColor,
     isChatOpen,
   };

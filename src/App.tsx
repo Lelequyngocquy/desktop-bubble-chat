@@ -15,41 +15,19 @@ import { useUnreadListener } from "./hooks/useUnreadListener";
 import { useSystemUser } from "./hooks/useSystemUser";
 import { useNavigationStore } from "./stores/navigationStore";
 
-export const App: React.FC = () => {
-  const [windowLabel, setWindowLabel] = useState<string>("main");
+const isSearchBubble =
+  typeof window !== "undefined" &&
+  (window.location.search.includes("window=bubble") ||
+    window.location.hash.includes("bubble"));
+
+const DashboardApp: React.FC = () => {
   const activeTab = useNavigationStore((s) => s.activeTab);
 
-  // Initialize background system listeners & delayed bubble auto-restore
+  // Initialize background system listeners & delayed bubble auto-restore (Main Dashboard only)
   useUnreadListener();
   useSystemUser();
   useBubbleAutoRestore();
 
-  useEffect(() => {
-    try {
-      const win = getCurrentWindow();
-      if (win && win.label) {
-        setWindowLabel(win.label);
-      }
-    } catch {
-      // In standard browser Vite preview mode, default to 'main'
-    }
-  }, []);
-
-  // Check if this window instance is the floating bubble (supports bubble, bubble-01, bubble-02, etc.)
-  const isBubbleWindow =
-    windowLabel.startsWith("bubble") ||
-    window.location.search.includes("window=bubble") ||
-    window.location.hash.includes("bubble");
-
-  if (isBubbleWindow) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-transparent overflow-hidden select-none">
-        <BubbleWindow />
-      </div>
-    );
-  }
-
-  // Default: Desktop Main App (Home Page / Connections / etc.)
   return (
     <div className="flex flex-col h-screen w-screen bg-[#EEF2F9] overflow-hidden text-[#202733] select-none font-sans border border-[#E2E7EF] shadow-window">
       {/* 1. Custom Title Bar */}
@@ -57,10 +35,7 @@ export const App: React.FC = () => {
 
       {/* 2. Main Workspace (Sidebar + Dynamic Workspace Content) */}
       <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
-        {/* Sidebar Navigation */}
         <Sidebar />
-
-        {/* Dynamic Workspace */}
         {activeTab === "connections" ? (
           <ConnectionsWorkspace />
         ) : activeTab === "chat-heads" ? (
@@ -80,6 +55,41 @@ export const App: React.FC = () => {
       <BubbleSpawnIndicator />
     </div>
   );
+};
+
+export const App: React.FC = () => {
+  const [windowLabel, setWindowLabel] = useState<string>(() => {
+    try {
+      const win = getCurrentWindow();
+      if (win && win.label) return win.label;
+    } catch {}
+    return "main";
+  });
+
+  useEffect(() => {
+    try {
+      const win = getCurrentWindow();
+      if (win && win.label) {
+        setWindowLabel(win.label);
+      }
+    } catch {}
+  }, []);
+
+  const isBubbleWindow =
+    isSearchBubble ||
+    windowLabel.startsWith("bubble") ||
+    window.location.search.includes("window=bubble") ||
+    window.location.hash.includes("bubble");
+
+  if (isBubbleWindow) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-transparent overflow-hidden select-none">
+        <BubbleWindow />
+      </div>
+    );
+  }
+
+  return <DashboardApp />;
 };
 
 export default App;

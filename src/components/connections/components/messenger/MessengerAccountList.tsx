@@ -1,6 +1,9 @@
 import React, { useState } from "react";
-import { Users, Info, Trash2 } from "lucide-react";
-import { MAX_MESSENGER_ACCOUNTS, MessengerAccount } from "../../../../types/account";
+import { Users, Trash2 } from "lucide-react";
+import {
+  MAX_MESSENGER_ACCOUNTS,
+  MessengerAccount,
+} from "../../../../types/account";
 import { useMessengerAccounts } from "../../../../hooks/useMessengerAccounts";
 import { getAccountThemeColor } from "../../../../constants/accountColors";
 import { CommonDialog } from "../../../common";
@@ -23,7 +26,8 @@ export const MessengerAccountList: React.FC = () => {
     addAccount,
   } = useMessengerAccounts();
 
-  const [accountToRemove, setAccountToRemove] = useState<MessengerAccount | null>(null);
+  const [accountToRemove, setAccountToRemove] =
+    useState<MessengerAccount | null>(null);
 
   return (
     <div className="flex flex-col gap-3">
@@ -38,7 +42,8 @@ export const MessengerAccountList: React.FC = () => {
               Chưa có tài khoản Messenger nào
             </span>
             <span className="text-[12px] text-[#6B7483] max-w-[340px]">
-              Bấm dấu cộng bên dưới để thêm tài khoản đầu tiên (hỗ trợ tối đa 5 tài khoản độc lập).
+              Bấm dấu cộng bên dưới để thêm tài khoản đầu tiên (hỗ trợ tối đa 5
+              tài khoản độc lập).
             </span>
           </div>
         </div>
@@ -66,14 +71,6 @@ export const MessengerAccountList: React.FC = () => {
         onAdd={addAccount}
       />
 
-      {/* Context info banner */}
-      <div className="flex items-start gap-2 pt-1 text-[11.5px] text-[#6B7483]">
-        <Info className="w-3.5 h-3.5 text-[#0866FF] shrink-0 mt-0.5" />
-        <span>
-          Mỗi tài khoản được cấp một phân vùng lưu trữ (User Data Directory) riêng biệt, đảm bảo các phiên đăng nhập không bao giờ bị trùng hoặc đá nhau.
-        </span>
-      </div>
-
       {/* Dialog xác nhận gỡ bỏ tài khoản Messenger */}
       <CommonDialog
         isOpen={Boolean(accountToRemove)}
@@ -89,7 +86,8 @@ export const MessengerAccountList: React.FC = () => {
                 <span
                   className="w-2.5 h-2.5 rounded-full"
                   style={{
-                    backgroundColor: getAccountThemeColor(accountToRemove.index).hex,
+                    backgroundColor: getAccountThemeColor(accountToRemove.index)
+                      .hex,
                   }}
                 />
                 <span>

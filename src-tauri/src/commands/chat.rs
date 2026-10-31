@@ -40,6 +40,27 @@ pub fn report_new_message(
         timestamp: now,
     };
 
+    // 1. Phát âm thanh Pop thuần Native trong Rust Core
+    crate::utils::native_sound::play_bubble_pop();
+
+    // 2. Gửi Windows Toast Notification thuần Native nếu khung chat của account này đang không mở
+    use tauri_plugin_notification::NotificationExt;
+    let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
+    let is_chat_open = app
+        .get_webview_window(&chat_label)
+        .map(|w| w.is_visible().unwrap_or(false))
+        .unwrap_or(false);
+
+    if !is_chat_open {
+        let notif_body = payload.body.as_deref().unwrap_or("Bạn có tin nhắn mới");
+        let _ = app
+            .notification()
+            .builder()
+            .title(&payload.sender_name)
+            .body(notif_body)
+            .show();
+    }
+
     app.emit("new-message-received", &payload).map_err(|e| e.to_string())
 }
 

@@ -1,13 +1,11 @@
 import { useEffect, useRef } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import { useMessengerStore } from "../stores/messengerStore";
 import { useWindowStore } from "../stores/windowStore";
-import { useSettingsStore } from "../stores/settingsStore";
 import { useConversationStore } from "../stores/conversationStore";
 import { messengerService, messengerAuthManager } from "../services/messenger";
 import { systemService } from "../services/systemService";
-import { soundService } from "../services/soundService";
-import { notificationService } from "../services/notificationService";
 import {
   IPC_EVENTS,
   MessengerAuthStatusPayload,
@@ -29,6 +27,13 @@ export const useUnreadListener = () => {
 
   useEffect(() => {
     // Chỉ kích hoạt bộ lắng nghe IPC toàn cục trên cửa sổ chính (main), tránh nhân bản listener trong các bubble window
+    try {
+      const currentWin = getCurrentWindow();
+      if (currentWin && currentWin.label && currentWin.label !== "main") {
+        return;
+      }
+    } catch {}
+
     if (
       typeof window !== "undefined" &&
       (window.location.search.includes("window=bubble") ||
@@ -88,18 +93,6 @@ export const useUnreadListener = () => {
           const prev = prevUnreadMap.current.get(idx) ?? 0;
           if (!isInitialGracePeriod.current && count > prev) {
             useMessengerStore.getState().triggerAccountPulse(idx);
-            const isNotificationsEnabled = useSettingsStore.getState().isNotificationsEnabled;
-            const openChatAccount = useWindowStore.getState().openChatAccountIndex;
-            const isChatOpenForAccount = openChatAccount === idx;
-
-            if (isNotificationsEnabled && !isChatOpenForAccount) {
-              soundService.playBubblePop();
-              const account = useMessengerStore.getState().accounts.find((a) => a.index === idx);
-              const accountName = account ? account.name : `Messenger ${idx.toString().padStart(2, "0")}`;
-              notificationService.sendNotification(`Tin nhắn mới từ ${accountName}`, {
-                body: `Bạn có ${count} tin nhắn chưa đọc`,
-              });
-            }
           }
           prevUnreadMap.current.set(idx, count);
         });
@@ -189,18 +182,6 @@ export const useUnreadListener = () => {
             useMessengerStore.getState().triggerAccountPulse(msg.accountIndex);
             if (msg.avatarUrl) {
               useMessengerStore.getState().setAccountLatestAvatar(msg.accountIndex, msg.avatarUrl);
-            }
-
-            const isNotificationsEnabled = useSettingsStore.getState().isNotificationsEnabled;
-            const openChatAccount = useWindowStore.getState().openChatAccountIndex;
-            const isChatOpenForAccount = openChatAccount === msg.accountIndex;
-
-            if (isNotificationsEnabled && !isChatOpenForAccount) {
-              soundService.playBubblePop();
-              notificationService.sendNotification(msg.senderName, {
-                body: msg.body || "Đã gửi một tin nhắn",
-                icon: msg.avatarUrl,
-              });
             }
           }
         );

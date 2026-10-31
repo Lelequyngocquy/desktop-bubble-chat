@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useBubbleWindow, useBubbleDrag } from "../../hooks/bubble";
 import { useSettingsStore, BubbleSize } from "../../stores/settingsStore";
-import { useMessengerStore } from "../../stores/messengerStore";
 import { MessengerIcon } from "../icons";
 
 const BUBBLE_STYLE_MAP: Record<
@@ -31,11 +30,12 @@ export const BubbleWindow: React.FC = () => {
     unreadCount,
     themeColor,
     isChatOpen,
+    avatarUrl,
+    hasPulse,
+    currentAccount,
   } = useBubbleWindow();
 
-  const account = useMessengerStore((s) => s.accounts.find((a) => a.index === accountIndex));
-  const hasPulse = account?.hasNewMessagePulse ?? false;
-  const avatarUrl = account?.latestSenderAvatar;
+  const account = currentAccount;
   const [imageError, setImageError] = useState(false);
 
   const bubbleSize = useSettingsStore((s) => s.bubbleSize);

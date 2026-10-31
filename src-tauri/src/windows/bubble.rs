@@ -179,8 +179,7 @@ pub fn get_or_create_bubble_window(
         return Ok(win);
     }
 
-    // 2. Khởi tạo WebviewWindow Bubble dự phòng nếu chưa có
-    let url_str = format!("index.html?window=bubble&account={}", account_index);
+    // 2. Khởi tạo WebviewWindow Bubble động khi cần (Zero-Query-Param architecture)
     let is_on_top = app
         .try_state::<Arc<crate::state::ChatState>>()
         .map(|s| s.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst))
@@ -189,7 +188,7 @@ pub fn get_or_create_bubble_window(
     let window = tauri::WebviewWindowBuilder::new(
         app,
         &label,
-        tauri::WebviewUrl::App(url_str.into()),
+        tauri::WebviewUrl::App("index.html".into()),
     )
     .title(format!("DesktopBubbleChat - Bubble {:02}", account_index))
     .inner_size(64.0, 64.0)
@@ -204,7 +203,11 @@ pub fn get_or_create_bubble_window(
     .map_err(|e| e.to_string())?;
 
     #[cfg(target_os = "windows")]
-    setup_bubble_subclass(&window);
+    {
+        setup_bubble_subclass(&window);
+        let config = crate::movement::get_bubble_physics_config(app);
+        resize_bubble_window(&window, config.size);
+    }
 
     Ok(window)
 }

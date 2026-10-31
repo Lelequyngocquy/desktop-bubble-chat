@@ -24,20 +24,193 @@
     return Promise.reject("Tauri IPC not available");
   }
 
-  // --- TẦNG 1: NON-DOM INTERCEPTION VIA W3C NOTIFICATION API ---
+  // --- BỘ ĐỆM KHỬ TRÙNG LẶP TIN NHẮN THỜI GIAN THỰC (5000ms sliding window) ---
+  const recentMessageDeduplicationMap = new Map();
+
+  function reportMessageSafely(senderName, body, avatarUrl, threadId) {
+    const accountIdx = window.__ACCOUNT_INDEX__ || 1;
+    const cleanSender = (senderName || "Tin nhắn mới").trim();
+    const cleanBody = (body || "").trim();
+    const cleanThread = (threadId || "").trim();
+    const key = `${accountIdx}:${cleanThread}:${cleanSender}:${cleanBody}`;
+    const now = Date.now();
+
+    if (recentMessageDeduplicationMap.has(key)) {
+      const prevTime = recentMessageDeduplicationMap.get(key);
+      if (now - prevTime < 5000) {
+        return; // Bỏ qua trùng lặp trong 5 giây
+      }
+    }
+
+    recentMessageDeduplicationMap.set(key, now);
+    if (recentMessageDeduplicationMap.size > 200) {
+      for (const [k, t] of recentMessageDeduplicationMap.entries()) {
+        if (now - t > 10000) recentMessageDeduplicationMap.delete(k);
+      }
+    }
+
+    invokeTauri("report_new_message", {
+      senderName: cleanSender,
+      body: cleanBody,
+      avatarUrl: avatarUrl || "",
+      threadId: cleanThread,
+      accountIndex: accountIdx,
+    }).catch(() => {});
+  }
+
+  // --- TRÍCH XUẤT CẤU TRÚC GRAPHQL / WEBSOCKET PAYLOAD (NETWORK INGESTION) ---
+  function handleParsedNetworkData(data) {
+    if (!data || typeof data !== "object") return;
+    const accountIdx = window.__ACCOUNT_INDEX__ || 1;
+
+    try {
+      // 1. Quét tìm số unread_count trực tiếp từ gói GraphQL
+      function findUnreadCount(obj, depth = 0) {
+        if (!obj || typeof obj !== "object" || depth > 5) return null;
+        if (typeof obj.unread_count === "number") return obj.unread_count;
+        if (typeof obj.num_unread_threads === "number") return obj.num_unread_threads;
+        if (typeof obj.unread_threads_count === "number") return obj.unread_threads_count;
+        for (const k of Object.keys(obj)) {
+          if (typeof obj[k] === "object" && obj[k] !== null) {
+            const found = findUnreadCount(obj[k], depth + 1);
+            if (found !== null) return found;
+          }
+        }
+        return null;
+      }
+
+      const unreadCount = findUnreadCount(data);
+      if (unreadCount !== null) {
+        invokeTauri("update_unread_badge", { count: unreadCount, accountIndex: accountIdx }).catch(() => {});
+      }
+
+      // 2. Quét tìm tin nhắn mới từ Delta / Messages (MQTT Over WebSocket)
+      if (Array.isArray(data.deltas)) {
+        for (const delta of data.deltas) {
+          if (delta && delta.body && delta.messageMetadata) {
+            const meta = delta.messageMetadata;
+            const threadId = meta.threadKey ? (meta.threadKey.otherUserFbId || meta.threadKey.threadFbId || "") : "";
+            const sender = meta.actorFbId ? `Người gửi (${meta.actorFbId})` : "Tin nhắn mới";
+            reportMessageSafely(sender, delta.body, "", String(threadId));
+          }
+        }
+      }
+
+      // 3. Quét danh sách threads từ GraphQL
+      function findMessageThreads(obj, depth = 0) {
+        if (!obj || typeof obj !== "object" || depth > 5) return;
+        if (Array.isArray(obj.nodes) && obj.nodes.length > 0 && obj.nodes[0]?.thread_key) {
+          const conversations = [];
+          for (const node of obj.nodes) {
+            const threadId = node.thread_key?.thread_fbid || node.thread_key?.other_user_id || "";
+            const lastMsg = node.last_message?.nodes?.[0];
+            const senderName = node.name || lastMsg?.snippet_sender?.name || "Người dùng";
+            const body = lastMsg?.snippet || node.snippet || "";
+            const avatarUrl = node.customization_info?.thread_picture?.uri || "";
+
+            if (threadId) {
+              conversations.push({
+                threadId: String(threadId),
+                senderName: senderName,
+                body: body,
+                avatarUrl: avatarUrl,
+                accountIndex: accountIdx,
+                timestamp: Date.now(),
+              });
+            }
+          }
+          if (conversations.length > 0) {
+            invokeTauri("sync_recent_conversations", {
+              conversations: conversations,
+              accountIndex: accountIdx,
+            }).catch(() => {});
+          }
+          return;
+        }
+
+        for (const k of Object.keys(obj)) {
+          if (typeof obj[k] === "object" && obj[k] !== null) {
+            findMessageThreads(obj[k], depth + 1);
+          }
+        }
+      }
+
+      findMessageThreads(data);
+    } catch (e) {
+      // Ignored
+    }
+  }
+
+  function parseNetworkPayloadString(rawText) {
+    if (!rawText || typeof rawText !== "string") return;
+    try {
+      let clean = rawText.trim();
+      if (clean.startsWith("for (;;);")) {
+        clean = clean.substring(9).trim();
+      }
+
+      const lines = clean.split("\n");
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || (!trimmed.startsWith("{") && !trimmed.startsWith("["))) continue;
+        try {
+          const parsed = JSON.parse(trimmed);
+          handleParsedNetworkData(parsed);
+        } catch (e) {}
+      }
+    } catch (e) {}
+  }
+
+  // --- TẦNG HOOK NETWORK: FETCH & XMLHTTPREQUEST ---
+  try {
+    const origFetch = window.fetch;
+    window.fetch = async function (...args) {
+      const response = await origFetch.apply(this, args);
+      try {
+        const url = typeof args[0] === "string" ? args[0] : (args[0] && args[0].url) || "";
+        if (url.includes("/api/graphql") || url.includes("/ajax/mercury") || url.includes("graphql")) {
+          const clone = response.clone();
+          clone.text().then((text) => {
+            parseNetworkPayloadString(text);
+          }).catch(() => {});
+        }
+      } catch (e) {}
+      return response;
+    };
+
+    const origXhrOpen = XMLHttpRequest.prototype.open;
+    const origXhrSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function (method, url) {
+      this._dbc_url = url;
+      return origXhrOpen.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function () {
+      this.addEventListener("load", function () {
+        try {
+          const url = this._dbc_url || "";
+          if (url.includes("/api/graphql") || url.includes("/ajax/mercury") || url.includes("graphql")) {
+            parseNetworkPayloadString(this.responseText);
+          }
+        } catch (e) {}
+      });
+      return origXhrSend.apply(this, arguments);
+    };
+  } catch (e) {
+    console.warn("[Messenger Inject] Network hook error:", e);
+  }
+
+  // --- TẦNG 1: NON-DOM INTERCEPTION VIA W3C NOTIFICATION API (FALLBACK CAO CẤP) ---
   try {
     function MockNotification(title, options) {
       options = options || {};
-      const accountIdx = window.__ACCOUNT_INDEX__ || 1;
 
-      // Báo cáo tin nhắn mới trực tiếp về Tauri IPC <10ms
-      invokeTauri("report_new_message", {
-        senderName: title || "Tin nhắn mới",
-        body: options.body || "",
-        avatarUrl: options.icon || "",
-        threadId: options.tag || "",
-        accountIndex: accountIdx,
-      }).catch(() => {});
+      // Báo cáo tin nhắn qua hàm khử trùng an toàn
+      reportMessageSafely(
+        title || "Tin nhắn mới",
+        options.body || "",
+        options.icon || "",
+        options.tag || ""
+      );
 
       this.title = title;
       this.body = options.body || "";
@@ -398,19 +571,12 @@
         invokeTauri("update_unread_badge", { count: count, accountIndex: accountIdx }).catch(() => {});
       }
 
-      // TẦNG 2: Bắt tiêu đề nhấp nháy thông báo tin nhắn mới từ người gửi
+      // TẦNG 2: Bắt tiêu đề nhấp nháy thông báo tin nhắn mới từ người gửi (Fallback)
       const senderPattern = /^(.+?)\s+(?:đã gửi một tin nhắn|sent a message|sent a photo|đã gửi một ảnh|sent an attachment|đã gửi một file)/i;
       const titleSenderMatch = cleanTitle.match(senderPattern);
       if (titleSenderMatch && titleSenderMatch[1]) {
         const sender = titleSenderMatch[1].replace(/^\(\d+\)\s*/, "").trim();
-        const accountIdx = window.__ACCOUNT_INDEX__ || 1;
-        invokeTauri("report_new_message", {
-          senderName: sender,
-          body: "Đã gửi một tin nhắn mới",
-          avatarUrl: "",
-          threadId: "",
-          accountIndex: accountIdx,
-        }).catch(() => {});
+        reportMessageSafely(sender, "Đã gửi một tin nhắn mới", "", "");
       }
     } catch (e) {
       // Ignored

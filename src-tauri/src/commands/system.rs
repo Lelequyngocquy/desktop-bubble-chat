@@ -187,6 +187,17 @@ pub fn toggle_maximize_main_window(app: AppHandle) -> Result<bool, String> {
 pub fn hide_main_window(app: AppHandle) {
     if let Some(main_win) = app.get_webview_window("main") {
         let _ = main_win.hide();
+        #[cfg(target_os = "windows")]
+        crate::windows::main_window::trim_current_process_working_set();
+    }
+}
+
+// Command mở lại cửa sổ Dashboard chính
+#[tauri::command]
+pub fn show_main_window(app: AppHandle) {
+    if let Some(main_win) = app.get_webview_window("main") {
+        let _ = main_win.show();
+        let _ = main_win.set_focus();
     }
 }
 

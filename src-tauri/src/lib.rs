@@ -19,6 +19,7 @@ pub fn run() {
         .manage(chat_state)
         .manage(movement::BubbleConfigState::default())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(move |app_handle, shortcut, event| {
@@ -67,6 +68,7 @@ pub fn run() {
             commands::minimize_main_window,
             commands::toggle_maximize_main_window,
             commands::hide_main_window,
+            commands::show_main_window,
             commands::update_tray_menu_status,
             commands::exit_app,
             commands::set_always_on_top,

@@ -1,5 +1,13 @@
 import React from "react";
-import { ArrowUpRight, LogIn, RefreshCw, Trash2, CheckCircle2, AlertCircle, X } from "lucide-react";
+import {
+  ArrowUpRight,
+  LogIn,
+  RefreshCw,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
+  X,
+} from "lucide-react";
 import { MessengerAccount } from "../../../../types/account";
 import { AvatarCircle, CommonButton } from "../../../common";
 import { getAccountThemeColor } from "../../../../constants/accountColors";
@@ -20,10 +28,10 @@ interface MessengerAccountRowProps {
 export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
   account,
   onOpen,
-  onRefresh,
+  // onRefresh,
   onRemove,
   onCancelAuth,
-  isRefreshing = false,
+  // isRefreshing = false,
 }) => {
   const themeColor = getAccountThemeColor(account.index);
 
@@ -83,7 +91,9 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
             <CommonButton
               variant="secondary"
               size="sm"
-              iconTrailing={<RefreshCw className="w-3.5 h-3.5 animate-spin text-[#0866FF]" />}
+              iconTrailing={
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#0866FF]" />
+              }
               onClick={() => onOpen(account)}
               title="Bấm để đưa cửa sổ đăng nhập lên phía trước"
             >
@@ -118,7 +128,7 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
         )}
 
         {/* Nút Làm mới phiên */}
-        {account.isConnected && (
+        {/* {account.isConnected && (
           <button
             type="button"
             title="Làm mới phiên tài khoản này"
@@ -128,7 +138,7 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
           </button>
-        )}
+        )} */}
 
         {/* Nút Gỡ bỏ tài khoản */}
         <button

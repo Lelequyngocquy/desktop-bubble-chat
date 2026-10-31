@@ -12,6 +12,7 @@ use crate::windows::bubble::ensure_bubble_positioned_and_visible;
 pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
     std::thread::spawn(move || {
         let mut logged_in_map: std::collections::HashMap<u32, bool> = std::collections::HashMap::new();
+        let mut unread_map: std::collections::HashMap<u32, u32> = std::collections::HashMap::new();
 
         loop {
             std::thread::sleep(Duration::from_millis(700));
@@ -89,6 +90,12 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                     if is_logged_in {
                         if let Ok(title) = chat_window.title() {
                             let count = parse_unread_from_title(&title);
+                            let prev_count = *unread_map.get(&idx).unwrap_or(&0);
+                            if count > prev_count {
+                                crate::utils::native_sound::play_bubble_pop();
+                            }
+                            unread_map.insert(idx, count);
+
                             let _ = app_handle.emit("badge-updated", serde_json::json!({
                                 "accountIndex": idx,
                                 "count": count
