@@ -6,3 +6,4 @@ export * from "./TabHeader";
 export * from "./CommonWidget";
 export * from "./CommonDialog";
 export * from "./BubbleSpawnIndicator";
+export * from "./CommonLargeCard";

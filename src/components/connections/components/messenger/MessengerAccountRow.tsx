@@ -1,8 +1,8 @@
 import React from "react";
 import { ArrowUpRight, LogIn, RefreshCw, Trash2, CheckCircle2, AlertCircle, X } from "lucide-react";
-import { MessengerAccount } from "../../../types/account";
-import { AvatarCircle, CommonButton } from "../../common";
-import { getAccountThemeColor } from "../../../constants/accountColors";
+import { MessengerAccount } from "../../../../types/account";
+import { AvatarCircle, CommonButton } from "../../../common";
+import { getAccountThemeColor } from "../../../../constants/accountColors";
 
 interface MessengerAccountRowProps {
   account: MessengerAccount;
@@ -94,7 +94,7 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
                 type="button"
                 title="Hủy chờ đăng nhập"
                 onClick={() => onCancelAuth(account)}
-                className="p-2 rounded-[6px] text-[#6B7483] hover:text-[#DC2626] hover:bg-[#FEE2E2]/40 border border-[#E2E7EF] transition-all"
+                className="p-2 rounded-[6px] text-[#6B7483] hover:text-[#DC2626] hover:bg-[#FEE2E2]/40 border border-[#E2E7EF] transition-all cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -124,7 +124,7 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
             title="Làm mới phiên tài khoản này"
             onClick={() => onRefresh(account)}
             disabled={isRefreshing}
-            className="p-2 rounded-[6px] text-[#6B7483] hover:text-[#0866FF] hover:bg-white border border-transparent hover:border-[#E2E7EF] transition-all disabled:opacity-50"
+            className="p-2 rounded-[6px] text-[#6B7483] hover:text-[#0866FF] hover:bg-white border border-transparent hover:border-[#E2E7EF] transition-all disabled:opacity-50 cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
           </button>
@@ -135,7 +135,7 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
           type="button"
           title={`Gỡ bỏ ${account.name}`}
           onClick={() => onRemove(account)}
-          className="p-2 rounded-[6px] text-[#94A3B8] hover:text-[#DC2626] hover:bg-[#FEE2E2]/40 border border-transparent hover:border-[#FECACA] transition-all"
+          className="p-2 rounded-[6px] text-[#94A3B8] hover:text-[#DC2626] hover:bg-[#FEE2E2]/40 border border-transparent hover:border-[#FECACA] transition-all cursor-pointer"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>

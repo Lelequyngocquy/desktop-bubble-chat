@@ -1,15 +1,11 @@
 import React from "react";
 import { MonitorCheck, RefreshCw, Layers } from "lucide-react";
-import { useMessengerStore, selectIsMessengerConnected } from "../../../stores/messengerStore";
-import { PlatformId } from "../../../types/platform";
-import { PLATFORM_CONFIGS } from "../../../config";
-import { PlatformIcon } from "../../icons";
+import { useMessengerStore, selectIsMessengerConnected } from "../../../../stores/messengerStore";
+import { PlatformId } from "../../../../types/platform";
+import { PLATFORM_CONFIGS } from "../../../../config";
+import { PlatformIcon } from "../../../icons";
 import { MessengerAccountList } from "./MessengerAccountList";
 
-/**
- * Messenger platform management container card in Connections view.
- * Renders platform metadata, multi-account list, and WebView2 isolation status.
- */
 export const MessengerManagerCard: React.FC = () => {
   const accounts = useMessengerStore((s) => s.accounts);
   const isMessengerConnected = useMessengerStore(selectIsMessengerConnected);

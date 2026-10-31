@@ -1,9 +1,9 @@
 import React from "react";
 import { Settings } from "lucide-react";
-import { PlatformId } from "../../../types/platform";
-import { PLATFORM_CONFIGS } from "../../../config";
-import { PlatformIcon } from "../../icons";
-import { AvatarSquareRounded, CommonButton } from "../../common";
+import { PlatformId } from "../../../../types/platform";
+import { PLATFORM_CONFIGS } from "../../../../config";
+import { PlatformIcon } from "../../../icons";
+import { AvatarSquareRounded, CommonButton } from "../../../common";
 
 interface MessengerPlatformHeaderProps {
   totalConnected: number;

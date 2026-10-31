@@ -8,10 +8,11 @@ import {
   ArrowRight,
   AlertTriangle,
 } from "lucide-react";
-import { useNavigationStore } from "../../stores/navigationStore";
-import { useQuickSettings } from "../../hooks/useQuickSettings";
-import { SwitchButton, CommonWidget } from "../common";
-import { QUICK_SETTINGS_CONFIG, QuickSettingItem } from "../../config";
+import { useNavigationStore } from "../../../stores/navigationStore";
+import { useQuickSettings } from "../../../hooks/useQuickSettings";
+import { CommonWidget } from "../../common";
+import { QUICK_SETTINGS_CONFIG, QuickSettingItem } from "../../../config";
+import { QuickSettingRow } from "./QuickSettingRow";
 
 export const QuickSettings: React.FC = () => {
   const setActiveTab = useNavigationStore((s) => s.setActiveTab);
@@ -87,7 +88,7 @@ export const QuickSettings: React.FC = () => {
 
   return (
     <CommonWidget
-      className="w-full lg:w-[432px] shrink-0"
+      className="w-full lg:w-[432px] shrink-0 h-[380px] lg:h-full"
       title="Thiết lập nhanh"
       headerAction={
         <SlidersHorizontal className="w-[18px] h-[18px] text-[#6B7483]" />
@@ -106,7 +107,7 @@ export const QuickSettings: React.FC = () => {
           </div>
         ) : undefined
       }
-      bodyClassName="py-1"
+      bodyClassName="py-1 flex flex-col justify-between"
       footerLeft={
         <span className="text-[11px] text-[#6B7483]">
           {activeCount}/{settings.length} tính năng đang bật
@@ -116,7 +117,7 @@ export const QuickSettings: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab("settings")}
-          className="flex items-center gap-1.5 text-[12px] font-medium text-[#0759DB] hover:text-[#0866FF] transition-colors"
+          className="flex items-center gap-1.5 text-[12px] font-medium text-[#0759DB] hover:text-[#0866FF] transition-colors cursor-pointer"
         >
           <span>Tất cả cài đặt</span>
           <ArrowRight className="w-3.5 h-3.5" />
@@ -124,34 +125,15 @@ export const QuickSettings: React.FC = () => {
       }
     >
       {settings.map((item) => (
-        <div key={item.id} className="flex flex-col">
-          <div
-            className={`h-[56px] flex items-center justify-between gap-3 group ${
-              item.disabled ? "opacity-60" : ""
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 flex items-center justify-center shrink-0">
-                {item.icon}
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[13px] font-medium text-[#202733] leading-tight">
-                  {item.label}
-                </span>
-                <span className="text-[11px] text-[#6B7483] leading-tight">
-                  {item.description}
-                </span>
-              </div>
-            </div>
-
-            <SwitchButton
-              checked={item.value}
-              onChange={item.onChange}
-              disabled={item.disabled}
-              aria-label={item.label}
-            />
-          </div>
-        </div>
+        <QuickSettingRow
+          key={item.id}
+          label={item.label}
+          description={item.description}
+          icon={item.icon}
+          value={item.value}
+          disabled={item.disabled}
+          onChange={item.onChange}
+        />
       ))}
     </CommonWidget>
   );

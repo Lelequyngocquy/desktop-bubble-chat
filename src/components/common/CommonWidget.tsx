@@ -37,10 +37,10 @@ export const CommonWidget: React.FC<CommonWidgetProps> = ({
 }) => {
   return (
     <div
-      className={`bg-white border border-[#E2E7EF] rounded-[12px] shadow-card flex flex-col justify-between min-h-[352px] min-w-0 select-none ${className}`}
+      className={`bg-white border border-[#E2E7EF] rounded-[12px] shadow-card flex flex-col justify-between min-w-0 select-none ${className}`}
     >
       {/* 1. Header */}
-      <div className="p-[20px_22px_12px] flex flex-col gap-1.5 border-b border-[#E2E7EF]/50">
+      <div className="p-[20px_22px_12px] flex flex-col gap-1.5 border-b border-[#E2E7EF]/50 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-[17px] font-semibold text-[#202733] m-0">
@@ -66,10 +66,10 @@ export const CommonWidget: React.FC<CommonWidgetProps> = ({
       </div>
 
       {/* Banner / Notification (Nếu có) */}
-      {banner && <div className="px-[22px] pt-2">{banner}</div>}
+      {banner && <div className="px-[22px] pt-2 shrink-0">{banner}</div>}
 
       {/* 2. Body Slot */}
-      <div className={`px-[22px] flex-1 flex flex-col ${bodyClassName}`}>
+      <div className={`px-[22px] flex-1 min-h-0 flex flex-col ${bodyClassName}`}>
         {children}
       </div>
 

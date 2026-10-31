@@ -2,11 +2,13 @@ import React from "react";
 import { MonitorCheck } from "lucide-react";
 import { useSystemUserStore } from "../../stores/systemUserStore";
 import { TabHeader } from "../common/TabHeader";
-import { MessengerConnectionCard } from "./messenger";
-import { ActiveChatHeads } from "./ActiveChatHeads";
-import { QuickSettings } from "./QuickSettings";
-import { PlatformRoadmap } from "./PlatformRoadmap";
-import { HomeFooter } from "./HomeFooter";
+import {
+  MessengerConnectionCard,
+  ActiveChatHeads,
+  QuickSettings,
+  PlatformRoadmap,
+  HomeFooter,
+} from "./components";
 
 export const HomeWorkspace: React.FC = () => {
   const systemUser = useSystemUserStore((s) => s.systemUser);
@@ -33,11 +35,8 @@ export const HomeWorkspace: React.FC = () => {
         {/* Thẻ Hero kết nối Messenger */}
         <MessengerConnectionCard />
 
-        {/* Thẻ Hero kết nối Zalo
-        <MessengerConnectionCard /> */}
-
-        {/* Khối 2 cột: Chat heads & Thiết lập nhanh */}
-        <div className="shrink-0 flex flex-col lg:flex-row items-stretch gap-6">
+        {/* Khối 2 cột: Chat heads & Thiết lập nhanh (cố định chiều cao, chat heads cho phép cuộn) */}
+        <div className="shrink-0 flex flex-col lg:flex-row items-stretch gap-6 h-auto lg:h-[380px]">
           <ActiveChatHeads />
           <QuickSettings />
         </div>

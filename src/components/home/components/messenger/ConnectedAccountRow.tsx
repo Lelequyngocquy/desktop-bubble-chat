@@ -1,6 +1,6 @@
 import React from "react";
-import { MessengerAccount } from "../../../types/account";
-import { AvatarCircle, SwitchButton } from "../../common";
+import { MessengerAccount } from "../../../../types/account";
+import { AvatarCircle, SwitchButton } from "../../../common";
 
 interface ConnectedAccountRowProps {
   account: MessengerAccount;

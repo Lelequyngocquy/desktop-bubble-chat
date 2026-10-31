@@ -1,23 +1,28 @@
 import React from "react";
 import { HelpCircle, ArrowRight } from "lucide-react";
-import { TROUBLESHOOT_STEPS } from "../../../config";
+import { TROUBLESHOOT_STEPS } from "../../../../config";
+import { CommonLargeCard } from "../../../common/index";
+import { useNavigationStore } from "../../../../stores/navigationStore";
 
 export const MessengerTroubleshoot: React.FC = () => {
+  const setActiveTab = useNavigationStore((s) => s.setActiveTab);
+
   return (
-    <div className="shrink-0 bg-white border border-[#E2E7EF] rounded-[12px] shadow-card p-5 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <HelpCircle className="w-[17px] h-[17px] text-[#6B7483]" />
-          <h3 className="text-[16px] font-semibold text-[#202733] m-0">
-            Gặp vấn đề kết nối Messenger?
-          </h3>
-        </div>
-        <button className="flex items-center gap-1 text-[12px] font-medium text-[#0759DB] hover:underline">
+    <CommonLargeCard
+      icon={<HelpCircle className="w-4 h-4 text-[#0866FF]" />}
+      title="Gặp vấn đề kết nối Messenger?"
+      linkTitle={
+        <button
+          type="button"
+          onClick={() => setActiveTab("help")}
+          className="flex items-center gap-1 text-[12px] font-medium text-[#0759DB] hover:underline cursor-pointer"
+        >
           <span>Trợ giúp & phản hồi</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
-      </div>
-
+      }
+      className="shrink-0"
+    >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {TROUBLESHOOT_STEPS.map((step) => (
           <div key={step.num} className="flex items-start gap-2.5">
@@ -35,6 +40,6 @@ export const MessengerTroubleshoot: React.FC = () => {
           </div>
         ))}
       </div>
-    </div>
+    </CommonLargeCard>
   );
 };

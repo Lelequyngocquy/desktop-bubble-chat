@@ -1,16 +1,16 @@
 import React, { useMemo } from "react";
 import { ShieldCheck, LogIn } from "lucide-react";
-import { messengerService } from "../../../services/messenger";
+import { messengerService } from "../../../../services/messenger";
 import {
   useMessengerStore,
   selectTotalUnreadCount,
   selectVisibleBubbleCount,
   selectAreAnyBubblesVisible,
-} from "../../../stores/messengerStore";
-import { useWindowStore } from "../../../stores/windowStore";
-import { useNavigationStore } from "../../../stores/navigationStore";
-import { MessengerAccount } from "../../../types/account";
-import { CommonButton } from "../../common";
+} from "../../../../stores/messengerStore";
+import { useWindowStore } from "../../../../stores/windowStore";
+import { useNavigationStore } from "../../../../stores/navigationStore";
+import { MessengerAccount } from "../../../../types/account";
+import { CommonButton } from "../../../common";
 import { MessengerPlatformHeader } from "./MessengerPlatformHeader";
 import { ConnectedAccountRow } from "./ConnectedAccountRow";
 import { ConnectionMetricsColumn } from "./ConnectionMetricsColumn";

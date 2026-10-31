@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { Users, Info, Trash2 } from "lucide-react";
-import { MAX_MESSENGER_ACCOUNTS, MessengerAccount } from "../../../types/account";
-import { useMessengerAccounts } from "../../../hooks/useMessengerAccounts";
-import { getAccountThemeColor } from "../../../constants/accountColors";
-import { CommonDialog } from "../../common";
+import { MAX_MESSENGER_ACCOUNTS, MessengerAccount } from "../../../../types/account";
+import { useMessengerAccounts } from "../../../../hooks/useMessengerAccounts";
+import { getAccountThemeColor } from "../../../../constants/accountColors";
+import { CommonDialog } from "../../../common";
 import { MessengerAccountRow } from "./MessengerAccountRow";
 import { AddAccountButton } from "./AddAccountButton";
 

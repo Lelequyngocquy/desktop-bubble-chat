@@ -1,12 +1,12 @@
 import React from "react";
-import { AvatarSquareRounded } from "../common";
-import { UPCOMING_PLATFORMS } from "../../config";
-import { PlatformIcon } from "../icons";
+import { AvatarSquareRounded } from "../../common";
+import { UPCOMING_PLATFORMS } from "../../../config";
+import { PlatformIcon } from "../../icons";
 
 export const PlatformRoadmap: React.FC = () => {
   return (
     <div className="shrink-0 flex flex-col gap-3.5 select-none">
-      {/* Section Heading (Figma Node #3:1336) */}
+      {/* Section Heading */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
         <h2 className="text-[17px] font-semibold text-[#202733] m-0">
           Sắp có thêm nhiều kết nối
@@ -16,7 +16,7 @@ export const PlatformRoadmap: React.FC = () => {
         </span>
       </div>
 
-      {/* Upcoming Platforms Cards (Figma Node #3:1339) */}
+      {/* Upcoming Platforms Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
         {UPCOMING_PLATFORMS.map((p) => (
           <div
