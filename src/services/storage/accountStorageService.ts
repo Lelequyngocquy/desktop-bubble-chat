@@ -14,12 +14,23 @@ export const accountStorageService = {
       if (raw !== null) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          return parsed.map((a: MessengerAccount) => ({
-            ...a,
-            color: getAccountThemeColor(a.index).hex,
-            isAuthenticating: false, // Invariant: Never persist in-flight authentication state
-            isBubbleVisible: typeof a.isBubbleVisible === "boolean" ? a.isBubbleVisible : a.isConnected,
-          }));
+          return parsed.map((a: MessengerAccount) => {
+            const shouldRestore =
+              typeof a.shouldRestoreBubble === "boolean"
+                ? a.shouldRestoreBubble
+                : typeof a.isBubbleVisible === "boolean"
+                ? a.isBubbleVisible
+                : a.isConnected;
+
+            return {
+              ...a,
+              color: getAccountThemeColor(a.index).hex,
+              isAuthenticating: false, // Invariant: Never persist in-flight authentication state
+              // Khởi động app với switch TẮT và bubble ẩn cho tới khi Messenger tải xong & ổn định
+              isBubbleVisible: false,
+              shouldRestoreBubble: shouldRestore,
+            };
+          });
         }
       }
     } catch (err) {
@@ -33,6 +44,10 @@ export const accountStorageService = {
       const sanitized = accounts.map((a) => ({
         ...a,
         isAuthenticating: false,
+        shouldRestoreBubble:
+          typeof a.shouldRestoreBubble === "boolean"
+            ? a.shouldRestoreBubble
+            : a.isBubbleVisible,
       }));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
     } catch (err) {

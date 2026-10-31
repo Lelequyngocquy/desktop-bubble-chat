@@ -167,10 +167,11 @@ pub fn exit_app(app: AppHandle) {
 #[tauri::command]
 pub fn set_always_on_top(app: AppHandle, enabled: bool) -> Result<(), String> {
     use tauri::Manager;
+    use std::sync::Arc;
     use std::sync::atomic::Ordering;
 
     // 1. Lưu trạng thái vào ChatState để các Bubble khởi tạo / hiển thị sau này tuân thủ
-    if let Some(chat_state) = app.try_state::<crate::state::ChatState>() {
+    if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
         chat_state.is_always_on_top.store(enabled, Ordering::SeqCst);
     }
 

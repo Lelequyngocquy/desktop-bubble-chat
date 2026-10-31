@@ -47,6 +47,7 @@ pub fn run() {
             commands::set_bubble_config,
             commands::toggle_chat,
             commands::open_chat,
+            commands::preload_chat,
             commands::open_thread,
             commands::open_messenger_auth,
             commands::check_messenger_auth,

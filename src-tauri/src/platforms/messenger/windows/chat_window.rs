@@ -3,11 +3,12 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
 use super::theme::{apply_window_theme_color, get_account_theme};
-use crate::platforms::messenger::constants::{MESSENGER_INJECT_SCRIPT, MESSENGER_LOGIN_URL};
+use crate::platforms::messenger::constants::{MESSENGER_BASE_URL, MESSENGER_INJECT_SCRIPT};
 use crate::platforms::messenger::services::ChatService;
 use crate::state::ChatState;
 use crate::utils::time::now_millis;
-use crate::windows::bubble::tuck_bubble;
+use crate::utils::win32::{is_cursor_over_bubble, is_cursor_over_window};
+use crate::windows::bubble::{get_bubble_window_label, tuck_bubble};
 
 /// Trả về label định danh cửa sổ chat Messenger theo số thứ tự tài khoản (ví dụ: chat-messenger-01)
 pub fn get_messenger_window_label(account_index: u32) -> String {
@@ -31,8 +32,19 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
             tauri::WindowEvent::Focused(false) => {
                 // Chỉ tự động ẩn khi KHÔNG ở chế độ đăng nhập (Auth Mode) của đúng cửa sổ này (SSOT)
                 if !state_clone.is_window_in_auth_mode(&win_label) {
-                    state_clone.last_blur_time.store(now_millis(), Ordering::SeqCst);
-                    let _ = ChatService::hide_chat(&app_handle, idx);
+                    let bubble_label = get_bubble_window_label(idx);
+                    let over_bubble = app_handle
+                        .get_webview_window(&bubble_label)
+                        .map(|b| is_cursor_over_bubble(&b))
+                        .unwrap_or(false);
+                    let over_chat = is_cursor_over_window(&chat_clone);
+
+                    // Chỉ ẩn khi người dùng thực sự di chuột / click ra ngoài
+                    // Tránh giật tắt do focus jitter khi vừa khởi tạo Webview2 hoặc khi chuyển focus nội bộ
+                    if !over_bubble && !over_chat {
+                        state_clone.last_blur_time.store(now_millis(), Ordering::SeqCst);
+                        let _ = ChatService::hide_chat(&app_handle, idx);
+                    }
                 }
             }
             tauri::WindowEvent::CloseRequested { api, .. } => {
@@ -83,7 +95,7 @@ pub fn get_or_create_messenger_window(
     let _ = std::fs::create_dir_all(&profile_dir);
     println!("[BE - Window] Thư mục profile: {:?}", profile_dir);
 
-    let parsed_url = tauri::Url::parse(MESSENGER_LOGIN_URL).map_err(|e| e.to_string())?;
+    let parsed_url = tauri::Url::parse(MESSENGER_BASE_URL).map_err(|e| e.to_string())?;
 
     let theme = get_account_theme(account_index);
     let init_script = format!(
@@ -101,13 +113,13 @@ pub fn get_or_create_messenger_window(
     .data_directory(profile_dir)
     .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0")
     .initialization_script(&init_script)
-    .title(format!("Đăng nhập Messenger {:02}", account_index))
+    .title(format!("Messenger {:02}", account_index))
     .inner_size(560.0, 720.0)
     .min_inner_size(420.0, 560.0)
     .resizable(true)
-    .decorations(true)
+    .decorations(false)
     .always_on_top(true)
-    .skip_taskbar(false)
+    .skip_taskbar(true)
     .shadow(true)
     .visible(false);
 
@@ -157,10 +169,48 @@ pub fn hide_all_other_messenger_windows(app: &AppHandle, active_label: &str) {
     }
 }
 
-/// Cấu hình sự kiện tự động ẩn khi blur và chặn close cho cửa sổ chat Messenger mặc định
+/// Tải trước (preload) Webview Messenger ngầm trong nền cho tài khoản chỉ định
+pub fn preload_messenger_window(
+    app: &AppHandle,
+    account_index: u32,
+    chat_state: Arc<ChatState>,
+) {
+    let app_handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = get_or_create_messenger_window(&app_handle, account_index, chat_state);
+    });
+}
+
+/// Quét các profile Messenger hiện có trên đĩa và tải trước các cửa sổ Webview ngầm
+pub fn preload_existing_messenger_windows(app: &AppHandle, chat_state: Arc<ChatState>) {
+    let app_handle = app.clone();
+    std::thread::spawn(move || {
+        // Chờ 300ms để Dashboard chính (main window) render xong FCP/LCP trước khi tải các Webview ngầm
+        std::thread::sleep(std::time::Duration::from_millis(300));
+
+        let app_data_dir = match app_handle.path().app_data_dir() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+        let profiles_dir = app_data_dir.join("profiles");
+
+        for idx in 1..=5 {
+            let account_profile = profiles_dir.join(format!("messenger_{:02}", idx));
+            // Tải trước nếu profile của tài khoản này đã tồn tại trên đĩa (đã từng cấu hình/đăng nhập)
+            // hoặc mặc định tài khoản 01 nếu chưa có profile nào
+            if account_profile.exists() || (idx == 1 && !profiles_dir.exists()) {
+                println!("[BE - Window] Khởi chạy preload ngầm cho Messenger {:02}...", idx);
+                let _ = get_or_create_messenger_window(&app_handle, idx, Arc::clone(&chat_state));
+            }
+        }
+    });
+}
+
+/// Cấu hình sự kiện và khởi chạy tải trước (preload) các cửa sổ chat Messenger trong nền
 pub fn setup_chat_window(app: &AppHandle, chat_state: Arc<ChatState>) {
     if let Some(chat_window) = app.get_webview_window("chat-messenger") {
-        setup_window_events(app, &chat_window, chat_state);
+        setup_window_events(app, &chat_window, Arc::clone(&chat_state));
         let _ = chat_window.eval(MESSENGER_INJECT_SCRIPT);
     }
+    preload_existing_messenger_windows(app, chat_state);
 }

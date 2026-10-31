@@ -23,7 +23,8 @@ export interface MessengerAccount {
   color: string; // Mã màu hex đại diện riêng của tài khoản
   isConnected: boolean;
   isAuthenticating?: boolean;
-  isBubbleVisible: boolean; // SSOT trạng thái hiển thị bong bóng nổi của riêng tài khoản này
+  isBubbleVisible: boolean; // Trạng thái hiển thị bong bóng nổi đang active hiện tại
+  shouldRestoreBubble?: boolean; // Cấu hình người dùng: Tự động bật lại bong bóng khi Messenger tải xong
   unreadCount: number;
   lastSynced?: string;
   latestSenderAvatar?: string;

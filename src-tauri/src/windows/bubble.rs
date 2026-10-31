@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition};
 
 use crate::movement::{BubbleMovementEngine, BubbleRect, ScreenMetrics};
@@ -181,7 +182,7 @@ pub fn get_or_create_bubble_window(
     // 2. Khởi tạo WebviewWindow Bubble dự phòng nếu chưa có
     let url_str = format!("index.html?window=bubble&account={}", account_index);
     let is_on_top = app
-        .try_state::<crate::state::ChatState>()
+        .try_state::<Arc<crate::state::ChatState>>()
         .map(|s| s.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst))
         .unwrap_or(true);
 
@@ -290,7 +291,7 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
             committed_pos = win_pos;
         }
     }
-    if let Some(chat_state) = app.try_state::<crate::state::ChatState>() {
+    if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
         let is_on_top = chat_state.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst);
         let _ = bubble_window.set_always_on_top(is_on_top);
     }
@@ -301,6 +302,15 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
         "x": committed_pos.x,
         "y": committed_pos.y
     }));
+
+    // Tải trước (preload) cửa sổ chat Webview Messenger trong nền ngay khi Bubble hiển thị
+    if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
+        crate::platforms::messenger::windows::preload_messenger_window(
+            app,
+            account_index,
+            Arc::clone(&chat_state),
+        );
+    }
 
     Ok(BubbleRect {
         account_index,

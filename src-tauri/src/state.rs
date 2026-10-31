@@ -16,6 +16,7 @@ pub struct ChatState {
     pub auth_windows: Mutex<HashSet<String>>,
     pub account_auth: Mutex<HashMap<u32, AccountAuthInfo>>,
     pub is_always_on_top: AtomicBool,
+    pub previously_visible_bubbles: Mutex<Vec<u32>>,
 }
 
 impl Default for ChatState {
@@ -26,6 +27,7 @@ impl Default for ChatState {
             auth_windows: Mutex::new(HashSet::new()),
             account_auth: Mutex::new(HashMap::new()),
             is_always_on_top: AtomicBool::new(true),
+            previously_visible_bubbles: Mutex::new(Vec::new()),
         }
     }
 }
@@ -76,5 +78,20 @@ impl ChatState {
         if let Ok(mut map) = self.account_auth.lock() {
             map.remove(&account_index);
         }
+    }
+
+    pub fn save_previously_visible_bubbles(&self, indices: Vec<u32>) {
+        if let Ok(mut prev) = self.previously_visible_bubbles.lock() {
+            if !indices.is_empty() {
+                *prev = indices;
+            }
+        }
+    }
+
+    pub fn get_previously_visible_bubbles(&self) -> Vec<u32> {
+        if let Ok(prev) = self.previously_visible_bubbles.lock() {
+            return prev.clone();
+        }
+        Vec::new()
     }
 }

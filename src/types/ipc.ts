@@ -33,6 +33,7 @@ export const IPC_COMMANDS = {
   OPEN_MESSENGER_AUTH: "open_messenger_auth",
   CHECK_MESSENGER_AUTH: "check_messenger_auth",
   OPEN_CHAT: "open_chat",
+  PRELOAD_CHAT: "preload_chat",
   OPEN_THREAD: "open_thread",
   TOGGLE_CHAT: "toggle_chat",
   REFRESH_MESSENGER: "refresh_messenger",

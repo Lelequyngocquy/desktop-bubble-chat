@@ -100,7 +100,7 @@ impl ChatService {
         // Đảm bảo URL luôn ở messenger.com, ngăn chặn tuyệt đối việc hiển thị giao diện facebook.com
         if let Ok(curr_url) = chat_window.url() {
             let u = curr_url.to_string();
-            if !u.contains("messenger.com") || u.contains("facebook.com") {
+            if u.contains("facebook.com") || (!u.is_empty() && u != "about:blank" && !u.contains("messenger.com")) {
                 println!("[BE - Chat] Cửa sổ đang ở URL '{}', chuyển hướng bắt buộc về https://www.messenger.com/", u);
                 if let Ok(target) = tauri::Url::parse("https://www.messenger.com/") {
                     let _ = chat_window.navigate(target);

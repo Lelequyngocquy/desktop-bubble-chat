@@ -57,18 +57,19 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                                 }
                             }
 
-                            // Đã đăng nhập xong: Tắt auth mode, đóng popup đăng nhập, chuyển sang chế độ chat docked
-                            chat_state.set_window_auth_mode(&win_label, false);
-                            let _ = chat_window.hide();
-                            let _ = chat_window.set_decorations(false);
-                            let _ = chat_window.set_skip_taskbar(true);
-                            let _ = app_handle.emit("chat-visibility-changed", serde_json::json!({
-                                "accountIndex": idx,
-                                "visible": false,
-                                "windowLabel": &win_label
-                            }));
-                            // Bật bong bóng nổi cho tài khoản này
-                            let _ = ensure_bubble_positioned_and_visible(&app_handle, idx);
+                            // Chỉ xử lý đóng popup và bật bubble NẾU cửa sổ đang ở chế độ Auth Popup thủ công
+                            if chat_state.is_window_in_auth_mode(&win_label) {
+                                chat_state.set_window_auth_mode(&win_label, false);
+                                let _ = chat_window.hide();
+                                let _ = chat_window.set_decorations(false);
+                                let _ = chat_window.set_skip_taskbar(true);
+                                let _ = app_handle.emit("chat-visibility-changed", serde_json::json!({
+                                    "accountIndex": idx,
+                                    "visible": false,
+                                    "windowLabel": &win_label
+                                }));
+                                let _ = ensure_bubble_positioned_and_visible(&app_handle, idx);
+                            }
                         } else {
                             chat_state.clear_account_auth(idx);
                         }

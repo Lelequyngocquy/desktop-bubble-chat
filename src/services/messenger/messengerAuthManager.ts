@@ -88,6 +88,13 @@ class MessengerAuthManager {
   }
 
   /**
+   * Check if an active authentication session exists for an account.
+   */
+  hasSession(accountId: string): boolean {
+    return this.activeSessions.has(accountId);
+  }
+
+  /**
    * Cancel and cleanup any running polling or timeout for an account.
    */
   cancelAuth(accountId: string): void {

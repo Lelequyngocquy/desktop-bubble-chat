@@ -137,3 +137,15 @@ pub fn clear_account_storage(
     let idx = account_index.unwrap_or(1);
     StorageService::clean_account_session(&app, &state, idx)
 }
+
+/// Command chủ động tải trước Webview Messenger trong nền cho tài khoản chỉ định
+#[tauri::command]
+pub async fn preload_chat(
+    app: AppHandle,
+    state: State<'_, Arc<ChatState>>,
+    account_index: Option<u32>,
+) -> Result<(), String> {
+    let idx = account_index.unwrap_or(1);
+    let _ = crate::platforms::messenger::windows::get_or_create_messenger_window(&app, idx, Arc::clone(&state))?;
+    Ok(())
+}

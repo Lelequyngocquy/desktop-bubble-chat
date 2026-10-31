@@ -136,7 +136,9 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
   setAccountBubbleVisibility: (accountIndex, visible) => {
     const current = get().accounts;
     const updated = current.map((a) =>
-      a.index === accountIndex ? { ...a, isBubbleVisible: visible } : a
+      a.index === accountIndex
+        ? { ...a, isBubbleVisible: visible, shouldRestoreBubble: visible }
+        : a
     );
     accountStorageService.save(updated);
     set({ accounts: updated });
@@ -144,9 +146,13 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
 
   toggleAccountBubbleVisibility: (accountIndex) => {
     const current = get().accounts;
-    const updated = current.map((a) =>
-      a.index === accountIndex ? { ...a, isBubbleVisible: !a.isBubbleVisible } : a
-    );
+    const updated = current.map((a) => {
+      if (a.index === accountIndex) {
+        const nextVal = !a.isBubbleVisible;
+        return { ...a, isBubbleVisible: nextVal, shouldRestoreBubble: nextVal };
+      }
+      return a;
+    });
     accountStorageService.save(updated);
     set({ accounts: updated });
   },
@@ -154,7 +160,9 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
   setAllBubblesVisibility: (visible) => {
     const current = get().accounts;
     const updated = current.map((a) =>
-      a.isConnected ? { ...a, isBubbleVisible: visible } : a
+      a.isConnected
+        ? { ...a, isBubbleVisible: visible, shouldRestoreBubble: visible }
+        : a
     );
     accountStorageService.save(updated);
     set({ accounts: updated });

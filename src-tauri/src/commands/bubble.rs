@@ -1,8 +1,10 @@
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, Position};
 
 use crate::movement::{
     get_bubble_physics_config, BubbleConfigState, BubbleMovementEngine, BubbleRect, ScreenMetrics,
 };
+use crate::state::ChatState;
 use crate::windows::bubble::{
     ensure_bubble_positioned_and_visible, ensure_bubble_positioned_and_visible_with_extra,
     get_active_bubble_rects, get_bubble_window_label, resize_bubble_window,
@@ -307,16 +309,17 @@ pub async fn toggle_all_bubbles_impl(
     force_visible: Option<bool>,
     account_indices: Option<Vec<u32>>,
 ) -> bool {
-    let mut any_visible = false;
+    let mut visible_indices: Vec<u32> = Vec::new();
     for idx in 1..=5 {
         let label = get_bubble_window_label(idx);
         if let Some(bw) = app.get_webview_window(&label) {
             if bw.is_visible().unwrap_or(false) {
-                any_visible = true;
-                break;
+                visible_indices.push(idx);
             }
         }
     }
+
+    let any_visible = !visible_indices.is_empty();
 
     let next_visible = match force_visible {
         Some(v) => v,
@@ -324,7 +327,56 @@ pub async fn toggle_all_bubbles_impl(
     };
 
     if next_visible {
-        let targets = account_indices.unwrap_or_else(|| vec![1]);
+        let chat_state = app.try_state::<Arc<ChatState>>();
+
+        let targets = if let Some(indices) = account_indices {
+            indices
+        } else {
+            // 1. Ưu tiên các Bubble đã hiển thị trước thời điểm ẩn (ghi nhớ trạng thái)
+            let prev = chat_state
+                .as_ref()
+                .map(|s| s.get_previously_visible_bubbles())
+                .unwrap_or_default();
+
+            if !prev.is_empty() {
+                prev
+            } else {
+                // 2. Nếu chưa có lịch sử, lấy tất cả tài khoản đã kết nối
+                let mut connected = Vec::new();
+                if let Some(state) = chat_state.as_ref() {
+                    if let Ok(map) = state.account_auth.lock() {
+                        for (idx, info) in map.iter() {
+                            if info.connected {
+                                connected.push(*idx);
+                            }
+                        }
+                    }
+                }
+                connected.sort();
+
+                if !connected.is_empty() {
+                    connected
+                } else {
+                    // 3. Kiểm tra các profile tồn tại trên đĩa
+                    let mut disk_profiles = Vec::new();
+                    if let Ok(app_data_dir) = app.path().app_data_dir() {
+                        let profiles_dir = app_data_dir.join("profiles");
+                        for idx in 1..=5 {
+                            if profiles_dir.join(format!("messenger_{:02}", idx)).exists() {
+                                disk_profiles.push(idx);
+                            }
+                        }
+                    }
+
+                    if !disk_profiles.is_empty() {
+                        disk_profiles
+                    } else {
+                        vec![1]
+                    }
+                }
+            }
+        };
+
         let mut committed_rects: Vec<BubbleRect> = Vec::new();
 
         for (i, idx) in targets.iter().enumerate() {
@@ -342,6 +394,11 @@ pub async fn toggle_all_bubbles_impl(
             }
         }
     } else {
+        // Ghi nhớ danh sách các Bubble đang mở trước khi ẩn
+        if let Some(chat_state) = app.try_state::<Arc<ChatState>>() {
+            chat_state.save_previously_visible_bubbles(visible_indices);
+        }
+
         for idx in 1..=5 {
             let label = get_bubble_window_label(idx);
             if let Some(bw) = app.get_webview_window(&label) {

@@ -89,8 +89,13 @@ export const useBubbleDrag = ({
     };
   }, [setHoverState]);
 
-  // Đồng bộ vị trí bong bóng khi mở hoặc đóng khung chat
+  // Đồng bộ vị trí bong bóng khi mở hoặc đóng khung chat (bỏ qua lần mount đầu tiên để tránh giật vị trí đã xếp chuẩn)
+  const isInitialChatOpenSyncRef = useRef<boolean>(true);
   useEffect(() => {
+    if (isInitialChatOpenSyncRef.current) {
+      isInitialChatOpenSyncRef.current = false;
+      return;
+    }
     setHoverState(isChatOpen, true);
   }, [isChatOpen, setHoverState]);
 

@@ -115,12 +115,12 @@ export const useUnreadListener = () => {
               store.updateAccount(accountId, {
                 isConnected,
                 isAuthenticating: false,
-                isBubbleVisible: isConnected ? true : existingAccount.isBubbleVisible,
                 lastSynced: isConnected ? "Đồng bộ vừa xong" : "Chưa kết nối",
               });
             }
 
-            if (isConnected) {
+            // Chỉ tự động bật Bubble khi người dùng vừa chủ động hoàn tất đăng nhập qua Modal Auth
+            if (isConnected && (existingAccount?.isAuthenticating || messengerAuthManager.hasSession(accountId))) {
               messengerAuthManager.cancelAuth(accountId);
               store.setAccountBubbleVisibility(accountIdx, true);
               messengerService.toggleBubble(true, accountIdx).catch(() => {});

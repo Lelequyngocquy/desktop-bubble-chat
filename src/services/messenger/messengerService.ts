@@ -31,6 +31,13 @@ export const messengerService = {
   },
 
   /**
+   * Preload the Messenger chat webview in background for instant hover response.
+   */
+  async preloadChat(accountIndex: number = 1): Promise<void> {
+    await invoke(IPC_COMMANDS.PRELOAD_CHAT, { accountIndex }).catch(() => {});
+  },
+
+  /**
    * Open a specific conversation thread and dock chat window next to Bubble.
    */
   async openThread(threadId: string, accountIndex: number = 1): Promise<void> {

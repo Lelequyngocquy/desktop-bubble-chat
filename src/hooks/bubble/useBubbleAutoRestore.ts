@@ -1,24 +1,25 @@
 import { useRef, useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
 import { useMessengerStore } from "../../stores/messengerStore";
 import { messengerService } from "../../services/messenger/messengerService";
 import { feLog } from "../../services/loggerService";
-
-const INITIAL_RESTORE_DELAY_MS = 1000; // Trì hoãn 1s sau khi Dashboard hoàn tất FCP/LCP
-const STAGGER_INTERVAL_MS = 250; // Giãn cách 250ms giữa mỗi Bubble chống nghẽn Win32 thread & va chạm
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+import { IPC_EVENTS, MessengerAuthStatusPayload } from "../../types/ipc";
 
 /**
- * Hook chuyên trách tự động khôi phục hiển thị bong bóng nổi một cách trì hoãn & tuần tự
- * khi người dùng khởi động ứng dụng (SRP Pattern).
+ * Hook chuyên trách tự động khôi phục hiển thị bong bóng nổi SAU KHI Messenger load xong và đạt trạng thái ổn định.
+ *
+ * Tiêu chí kỹ thuật:
+ * 1. Khi App vừa bật: Nút switch ở trạng thái TẮT, Bubble KHÔNG hiển thị ngay (loại bỏ hoàn toàn rung giật & nhảy vị trí).
+ * 2. Webview Messenger được nạp ngầm trong nền.
+ * 3. Khi Messenger báo cáo hoàn tất nạp & xác thực ổn định (MESSENGER_AUTH_STATUS: connected === true):
+ *    - Tự động bật nút Switch trên UI Dashboard sang BẬT.
+ *    - Hiển thị Bubble tương ứng mượt mà ở vị trí đã định sẵn.
  *
  * Chỉ chạy 1 lần duy nhất trên cửa sổ chính ('main').
- * Khắc phục triệt để lỗi React 18 StrictMode hủy timer trong môi trường dev,
- * và đồng bộ chính xác với cờ isBubbleVisible của tài khoản.
  */
 export function useBubbleAutoRestore() {
-  const hasFinishedRef = useRef<boolean>(false);
+  const restoredIndicesRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     // 1. Chỉ thực thi trên cửa sổ Dashboard chính ('main'), tuyệt đối không chạy trên cửa sổ bubble
@@ -41,72 +42,65 @@ export function useBubbleAutoRestore() {
       return;
     }
 
-    // Nếu đã hoàn tất khôi phục thành công trước đó thì không chạy lại
-    if (hasFinishedRef.current) {
-      return;
+    const restoreAccountIfEligible = async (accountIndex: number) => {
+      if (restoredIndicesRef.current.has(accountIndex)) return;
+
+      const accounts = useMessengerStore.getState().accounts;
+      const acc = accounts.find((a) => a.index === accountIndex);
+      if (!acc) return;
+
+      // Chỉ khôi phục nếu tài khoản được đánh dấu shouldRestoreBubble (người dùng trước đó đã bật)
+      if (!acc.shouldRestoreBubble) {
+        return;
+      }
+
+      // Đánh dấu tài khoản này đã được khôi phục để tránh gọi lặp
+      restoredIndicesRef.current.add(accountIndex);
+
+      const accName = acc.name || `Messenger ${acc.index.toString().padStart(2, "0")}`;
+      feLog.info(
+        `[AutoRestore] ${accName} (index: ${accountIndex}) đã load xong & ổn định. Bật Switch và hiển thị Bubble!`
+      );
+
+      // 1. Chuyển trạng thái Switch sang BẬT trên UI Dashboard
+      useMessengerStore.getState().setAccountBubbleVisibility(accountIndex, true);
+
+      // 2. Kích hoạt hiển thị Bong bóng nổi
+      try {
+        await messengerService.toggleBubble(true, accountIndex);
+      } catch (err) {
+        feLog.error(`[AutoRestore] Lỗi khi hiển thị Bubble cho ${accName}:`, err);
+      }
+    };
+
+    // 2. Lắng nghe sự kiện Messenger nạp xong và xác thực ổn định từ backend
+    let unlistenAuth: (() => void) | undefined;
+    listen<MessengerAuthStatusPayload>(IPC_EVENTS.MESSENGER_AUTH_STATUS, async (event) => {
+      if (event.payload?.connected) {
+        const idx = event.payload.accountIndex || 1;
+        await restoreAccountIfEligible(idx);
+      }
+    }).then((un) => {
+      unlistenAuth = un;
+    });
+
+    // 3. Kiểm tra các tài khoản đã sẵn sàng từ trước (health-check)
+    const accounts = useMessengerStore.getState().accounts;
+    for (const acc of accounts) {
+      if (acc.shouldRestoreBubble) {
+        messengerService
+          .checkAuth(acc.index)
+          .then(async (res) => {
+            if (res && res.connected) {
+              await restoreAccountIfEligible(acc.index);
+            }
+          })
+          .catch(() => {});
+      }
     }
 
-    // 2. Khởi chạy luồng trì hoãn khôi phục
-    const restoreTimer = setTimeout(async () => {
-      if (hasFinishedRef.current) return;
-
-      try {
-        const accounts = useMessengerStore.getState().accounts;
-        // Khôi phục tất cả tài khoản đang có cấu hình bật bong bóng nổi (isBubbleVisible === true)
-        const candidates = accounts.filter((acc) => acc.isBubbleVisible);
-
-        if (candidates.length === 0) {
-          feLog.info("[AutoRestore] Không có tài khoản nào có cấu hình isBubbleVisible = true.");
-          hasFinishedRef.current = true;
-          return;
-        }
-
-        feLog.info(
-          `[AutoRestore] Khởi động trình tự động khôi phục ${candidates.length} bong bóng nổi sau khởi động...`
-        );
-        feLog.info(
-          `[AutoRestore] Danh sách tài khoản: [${candidates
-            .map((c) => c.name || `Messenger ${c.index.toString().padStart(2, "0")}`)
-            .join(", ")}]`
-        );
-
-        // Đánh dấu đã bắt đầu tiến trình khôi phục
-        hasFinishedRef.current = true;
-
-        // 3. Kích hoạt tuần tự từng bong bóng với khoảng cách 250ms
-        for (let i = 0; i < candidates.length; i++) {
-          const acc = candidates[i];
-          const accName = acc.name || `Messenger ${acc.index.toString().padStart(2, "0")}`;
-
-          feLog.info(
-            `[AutoRestore] [${i + 1}/${candidates.length}] Đang hiển thị Bubble cho ${accName} (index: ${acc.index})...`
-          );
-
-          try {
-            await messengerService.toggleBubble(true, acc.index);
-          } catch (err) {
-            feLog.error(
-              `[AutoRestore] Lỗi khi kích hoạt Bubble cho ${accName}:`,
-              err
-            );
-          }
-
-          // Giãn cách 250ms giữa các Bubble để Rust tính toán tọa độ xếp chồng chống va chạm
-          if (i + 1 < candidates.length) {
-            await sleep(STAGGER_INTERVAL_MS);
-          }
-        }
-
-        feLog.info("[AutoRestore] Hoàn tất khôi phục toàn bộ bong bóng thành công!");
-      } catch (globalErr) {
-        feLog.error("[AutoRestore] Lỗi ngoại lệ trong quá trình auto-restore:", globalErr);
-      }
-    }, INITIAL_RESTORE_DELAY_MS);
-
     return () => {
-      // Trong React 18 Strict Mode, nếu unmount trước khi timer chạy, clearTimeout sẽ hủy timer cũ
-      // Nhưng hasFinishedRef.current vẫn là false, nên lần remount tiếp theo sẽ hẹn giờ lại chính xác!
-      clearTimeout(restoreTimer);
+      if (unlistenAuth) unlistenAuth();
     };
   }, []);
 }
