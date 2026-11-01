@@ -18,6 +18,11 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
             std::thread::sleep(Duration::from_millis(700));
 
             for idx in 1..=5 {
+                // Nếu tài khoản đang ngủ đông/tắt bubble (suspended), bỏ qua không gọi COM để tránh xung đột
+                if chat_state.is_account_suspended(idx) {
+                    continue;
+                }
+
                 let label = get_messenger_window_label(idx);
                 let win = app_handle
                     .get_webview_window(&label)

@@ -17,10 +17,17 @@ pub struct ChatState {
     pub account_auth: Mutex<HashMap<u32, AccountAuthInfo>>,
     pub is_always_on_top: AtomicBool,
     pub previously_visible_bubbles: Mutex<Vec<u32>>,
+    pub bypass_close_guard: Mutex<HashSet<String>>,
+    pub transition_locks: Mutex<HashSet<u32>>,
+    pub suspended_accounts: Mutex<HashSet<u32>>,
 }
 
 impl Default for ChatState {
     fn default() -> Self {
+        let mut suspended = HashSet::new();
+        for idx in 1..=5 {
+            suspended.insert(idx);
+        }
         Self {
             last_blur_time: AtomicI64::new(0),
             is_auth_mode: AtomicBool::new(false),
@@ -28,6 +35,9 @@ impl Default for ChatState {
             account_auth: Mutex::new(HashMap::new()),
             is_always_on_top: AtomicBool::new(true),
             previously_visible_bubbles: Mutex::new(Vec::new()),
+            bypass_close_guard: Mutex::new(HashSet::new()),
+            transition_locks: Mutex::new(HashSet::new()),
+            suspended_accounts: Mutex::new(suspended),
         }
     }
 }
@@ -100,5 +110,56 @@ impl ChatState {
             return prev.clone();
         }
         Vec::new()
+    }
+
+    pub fn set_bypass_close_guard(&self, label: &str, bypass: bool) {
+        if let Ok(mut set) = self.bypass_close_guard.lock() {
+            if bypass {
+                set.insert(label.to_string());
+            } else {
+                set.remove(label);
+            }
+        }
+    }
+
+    pub fn is_bypass_close_guard(&self, label: &str) -> bool {
+        if let Ok(set) = self.bypass_close_guard.lock() {
+            return set.contains(label);
+        }
+        false
+    }
+
+    pub fn try_acquire_transition_lock(&self, account_index: u32) -> bool {
+        if let Ok(mut set) = self.transition_locks.lock() {
+            if set.contains(&account_index) {
+                return false;
+            }
+            set.insert(account_index);
+            return true;
+        }
+        false
+    }
+
+    pub fn release_transition_lock(&self, account_index: u32) {
+        if let Ok(mut set) = self.transition_locks.lock() {
+            set.remove(&account_index);
+        }
+    }
+
+    pub fn set_account_suspended(&self, account_index: u32, suspended: bool) {
+        if let Ok(mut set) = self.suspended_accounts.lock() {
+            if suspended {
+                set.insert(account_index);
+            } else {
+                set.remove(&account_index);
+            }
+        }
+    }
+
+    pub fn is_account_suspended(&self, account_index: u32) -> bool {
+        if let Ok(set) = self.suspended_accounts.lock() {
+            return set.contains(&account_index);
+        }
+        false
     }
 }

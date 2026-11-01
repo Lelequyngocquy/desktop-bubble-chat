@@ -25,6 +25,7 @@ impl AuthService {
 
         // 0. Xóa trạng thái auth cũ của tài khoản này để bắt đầu phiên xác thực sạch sẽ
         state.clear_account_auth(idx);
+        state.set_account_suspended(idx, false);
 
         // 1. Lấy hoặc tạo cửa sổ chat Messenger tương ứng với profile riêng biệt
         let chat_window = match get_or_create_messenger_window(app, idx, Arc::clone(state)) {
@@ -113,6 +114,7 @@ impl AuthService {
         println!("[BE - Messenger] Ngắt kết nối tài khoản Messenger {:02}", idx);
         state.set_window_auth_mode(&label, false);
         state.clear_account_auth(idx);
+        state.set_account_suspended(idx, true);
         let win = app
             .get_webview_window(&label)
             .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });

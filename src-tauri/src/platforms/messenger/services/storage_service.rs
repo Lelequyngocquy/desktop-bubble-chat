@@ -124,4 +124,41 @@ impl StorageService {
 
         Ok(())
     }
+
+    /// Chấm dứt tiến trình WebView2 của riêng tài khoản chỉ định để giải phóng RAM,
+    /// TUYỆT ĐỐI BẢO LƯU THƯ MỤC PROFILE/CACHE TRÊN ĐĨA.
+    /// Thực thi ĐỒNG BỘ (Synchronous), bảo đảm không để lại luồng chạy trễ giết nhầm tiến trình mới tái tạo.
+    pub fn terminate_profile_process_only(account_index: u32) {
+        let target_needle = format!("messenger_{:02}", account_index);
+
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+            let kill_cmd = format!(
+                "Get-CimInstance Win32_Process | Where-Object {{ $_.Name -like '*msedgewebview2*' -and $_.CommandLine -like '*{}*' }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }}",
+                target_needle
+            );
+            let output = std::process::Command::new("powershell")
+                .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", &kill_cmd])
+                .creation_flags(CREATE_NO_WINDOW)
+                .output();
+
+            match output {
+                Ok(out) => {
+                    println!(
+                        "[StorageService] Đã chấm dứt tiến trình WebView2 cho profile '{}' (status: {:?})",
+                        target_needle, out.status
+                    );
+                }
+                Err(e) => {
+                    eprintln!(
+                        "[StorageService ERROR] Không thể gọi PowerShell để chấm dứt process {}: {}",
+                        target_needle, e
+                    );
+                }
+            }
+        }
+    }
 }

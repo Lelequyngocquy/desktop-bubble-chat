@@ -48,6 +48,12 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                 }
             }
             tauri::WindowEvent::CloseRequested { api, .. } => {
+                // Nếu hệ thống đang chủ động shutdown/destroy cửa sổ để giải phóng RAM, cho phép đóng hoàn toàn
+                if state_clone.is_bypass_close_guard(&win_label) {
+                    state_clone.set_bypass_close_guard(&win_label, false);
+                    return;
+                }
+
                 // Chặn đóng tiến trình, ẩn cửa sổ và reset chế độ Auth cho riêng cửa sổ này
                 api.prevent_close();
                 state_clone.set_window_auth_mode(&win_label, false);
@@ -70,9 +76,29 @@ pub fn get_or_create_messenger_window(
     let label = get_messenger_window_label(account_index);
     println!("[BE - Window] get_or_create_messenger_window cho label='{}' (index={})", label, account_index);
 
-    // 1. Kiểm tra cửa sổ đã tồn tại theo label tuần tự
+    // 1. Kiểm tra cửa sổ đã tồn tại theo label tuần tự và còn hợp lệ trong OS
     if let Some(win) = app.get_webview_window(&label) {
-        println!("[BE - Window] Cửa sổ '{}' đã tồn tại, tái sử dụng.", label);
+        #[cfg(target_os = "windows")]
+        {
+            #[link(name = "user32")]
+            unsafe extern "system" {
+                fn IsWindow(hWnd: *mut std::ffi::c_void) -> i32;
+            }
+            let is_alive = if let Ok(hwnd) = win.hwnd() {
+                unsafe { IsWindow(hwnd.0 as *mut std::ffi::c_void) != 0 }
+            } else {
+                false
+            };
+
+            if is_alive {
+                println!("[BE - Window] Cửa sổ '{}' đang tồn tại và hợp lệ, tái sử dụng.", label);
+                return Ok(win);
+            } else {
+                println!("[BE - Window] Cửa sổ '{}' trong manager đã bị destroy trước đó, dọn dẹp để build mới.", label);
+                let _ = win.destroy();
+            }
+        }
+        #[cfg(not(target_os = "windows"))]
         return Ok(win);
     }
 
@@ -206,11 +232,13 @@ pub fn preload_existing_messenger_windows(app: &AppHandle, chat_state: Arc<ChatS
     });
 }
 
-/// Cấu hình sự kiện và khởi chạy tải trước (preload) các cửa sổ chat Messenger trong nền
+/// Cấu hình sự kiện cho cửa sổ chat Messenger
 pub fn setup_chat_window(app: &AppHandle, chat_state: Arc<ChatState>) {
     if let Some(chat_window) = app.get_webview_window("chat-messenger") {
         setup_window_events(app, &chat_window, Arc::clone(&chat_state));
         let _ = chat_window.eval(MESSENGER_INJECT_SCRIPT);
     }
-    preload_existing_messenger_windows(app, chat_state);
+    // Tuyệt đối KHÔNG preload mù quáng tất cả profile trên đĩa lúc khởi động app.
+    // Việc nạp Webview vào RAM hoàn toàn do trạng thái SSOT của từng Bubble quyết định:
+    // Bubble nào được cấu hình BẬT mới được nạp; Bubble nào TẮT giữ nguyên Cold Standby (0 MB RAM).
 }

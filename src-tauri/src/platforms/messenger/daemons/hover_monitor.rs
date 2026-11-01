@@ -25,6 +25,9 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
             let mut detected_hover_bubble: Option<u32> = None;
             if !lbutton_down {
                 for idx in 1..=5 {
+                    if chat_state.is_account_suspended(idx) {
+                        continue;
+                    }
                     let label = get_bubble_window_label(idx);
                     if let Some(bubble_win) = app.get_webview_window(&label) {
                         if bubble_win.is_visible().unwrap_or(false) && is_cursor_over_bubble(&bubble_win) {
@@ -60,6 +63,9 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
             // 3. Logic Auto-Close khi chuột rời khỏi cả Chat lẫn Bubble tương ứng (chỉ khi không nhấn giữ chuột)
             let mut active_chat_info: Option<(u32, tauri::WebviewWindow)> = None;
             for idx in 1..=5 {
+                if chat_state.is_account_suspended(idx) {
+                    continue;
+                }
                 let label = get_messenger_window_label(idx);
                 if let Some(chat_win) = app.get_webview_window(&label) {
                     if chat_win.is_visible().unwrap_or(false) {

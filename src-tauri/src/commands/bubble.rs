@@ -4,6 +4,8 @@ use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, Position};
 use crate::movement::{
     get_bubble_physics_config, BubbleConfigState, BubbleMovementEngine, BubbleRect, ScreenMetrics,
 };
+use crate::platforms::messenger::services::StorageService;
+use crate::platforms::messenger::windows::get_messenger_window_label;
 use crate::state::ChatState;
 use crate::windows::bubble::{
     ensure_bubble_positioned_and_visible, ensure_bubble_positioned_and_visible_with_extra,
@@ -68,6 +70,79 @@ pub fn get_all_bubble_positions(app: AppHandle) -> Result<Vec<BubblePositionDto>
     Ok(list)
 }
 
+/// Helper shutdown: Hủy cửa sổ chat webview, giải phóng RAM, terminate process nhưng bảo toàn cache trên đĩa
+pub fn suspend_account_bubble_and_chat(app: &AppHandle, account_index: u32) {
+    let idx = account_index;
+    let bubble_label = get_bubble_window_label(idx);
+    let chat_label = get_messenger_window_label(idx);
+
+    if let Some(state) = app.try_state::<Arc<ChatState>>() {
+        state.set_bypass_close_guard(&chat_label, true);
+        state.set_account_suspended(idx, true);
+    }
+
+    // 1. Hủy cửa sổ chat Messenger (giải phóng WebView2 COM/DOM trong RAM)
+    let win = app
+        .get_webview_window(&chat_label)
+        .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
+
+    if let Some(cw) = win {
+        let _ = cw.hide();
+        let _ = cw.close();
+        let _ = cw.destroy();
+    }
+
+    // 2. Ẩn cửa sổ Bubble
+    if let Some(bw) = app.get_webview_window(&bubble_label) {
+        let _ = bw.hide();
+    }
+
+    // 3. Chấm dứt tiến trình con msedgewebview2 của riêng profile này (bảo toàn 100% cache đĩa)
+    StorageService::terminate_profile_process_only(idx);
+
+    // 4. Phát event thông báo đã ẩn
+    let _ = app.emit("bubble-visibility-changed", serde_json::json!({
+        "accountIndex": idx,
+        "visible": false
+    }));
+}
+
+/// Helper resume: Tái sử dụng flow của Bubble 05 (nạp lại webview từ cache đĩa và đặt vị trí snap)
+pub fn resume_account_bubble_and_chat(
+    app: &AppHandle,
+    account_index: u32,
+    committed_rects: Option<&[BubbleRect]>,
+) -> Result<BubbleRect, String> {
+    let idx = account_index;
+
+    // 1. Đánh dấu gỡ trạng thái ngủ đông trong state
+    if let Some(state) = app.try_state::<Arc<ChatState>>() {
+        state.set_account_suspended(idx, false);
+    }
+
+    // 2. Định vị và hiển thị Bubble lên màn hình ngay lập tức (Hàm chuẩn của Bubble 05).
+    // ensure_bubble_positioned_and_visible đã tích hợp sẵn preload_messenger_window
+    // chạy ngầm (async spawn) để tải session chat từ cache đĩa mà không block UI.
+    let rect = if let Some(committed) = committed_rects {
+        ensure_bubble_positioned_and_visible_with_extra(app, idx, committed)?
+    } else {
+        ensure_bubble_positioned_and_visible(app, idx)?
+    };
+
+    // 3. Phát event thông báo
+    let _ = app.emit("bubble-spawned", serde_json::json!({
+        "accountIndex": idx,
+        "x": rect.x,
+        "y": rect.y
+    }));
+    let _ = app.emit("bubble-visibility-changed", serde_json::json!({
+        "accountIndex": idx,
+        "visible": true
+    }));
+
+    Ok(rect)
+}
+
 /// Command điều khiển ẩn/hiện cửa sổ bong bóng nổi cho tài khoản chỉ định
 #[tauri::command]
 pub fn toggle_bubble(
@@ -76,23 +151,24 @@ pub fn toggle_bubble(
     account_index: Option<u32>,
 ) -> Result<(), String> {
     let idx = account_index.unwrap_or(1);
-    let label = get_bubble_window_label(idx);
+
+    if let Some(state) = app.try_state::<Arc<ChatState>>() {
+        if !state.try_acquire_transition_lock(idx) {
+            println!("[toggle_bubble] Account {} is transitioning, skipping duplicate toggle", idx);
+            return Ok(());
+        }
+    }
 
     if visible {
-        if let Ok(rect) = ensure_bubble_positioned_and_visible(&app, idx) {
-            let _ = app.emit("bubble-spawned", serde_json::json!({
-                "accountIndex": idx,
-                "x": rect.x,
-                "y": rect.y
-            }));
-        }
-    } else if let Some(bubble_window) = app.get_webview_window(&label) {
-        let _ = bubble_window.hide();
-        let _ = app.emit("bubble-visibility-changed", serde_json::json!({
-            "accountIndex": idx,
-            "visible": false
-        }));
+        let _ = resume_account_bubble_and_chat(&app, idx, None);
+    } else {
+        suspend_account_bubble_and_chat(&app, idx);
     }
+
+    if let Some(state) = app.try_state::<Arc<ChatState>>() {
+        state.release_transition_lock(idx);
+    }
+
     Ok(())
 }
 
@@ -118,11 +194,7 @@ pub fn snap_bubble(app: AppHandle, account_index: Option<u32>) -> Result<(), Str
             );
 
             if snap.should_dismiss {
-                let _ = window.hide();
-                let _ = app.emit("bubble-visibility-changed", serde_json::json!({
-                    "accountIndex": idx,
-                    "visible": false
-                }));
+                suspend_account_bubble_and_chat(&app, idx);
                 return Ok(());
             }
 
@@ -380,13 +452,8 @@ pub async fn toggle_all_bubbles_impl(
         let mut committed_rects: Vec<BubbleRect> = Vec::new();
 
         for (i, idx) in targets.iter().enumerate() {
-            if let Ok(rect) = ensure_bubble_positioned_and_visible_with_extra(app, *idx, &committed_rects) {
+            if let Ok(rect) = resume_account_bubble_and_chat(app, *idx, Some(&committed_rects)) {
                 committed_rects.push(rect);
-                let _ = app.emit("bubble-spawned", serde_json::json!({
-                    "accountIndex": *idx,
-                    "x": rect.x,
-                    "y": rect.y
-                }));
             }
             // Giãn cách 70ms giữa các bubble để Windows DWM vẽ và tạo hiệu ứng thác nước mượt mà
             if i + 1 < targets.len() {
@@ -400,14 +467,7 @@ pub async fn toggle_all_bubbles_impl(
         }
 
         for idx in 1..=5 {
-            let label = get_bubble_window_label(idx);
-            if let Some(bw) = app.get_webview_window(&label) {
-                let _ = bw.hide();
-                let _ = app.emit("bubble-visibility-changed", serde_json::json!({
-                    "accountIndex": idx,
-                    "visible": false
-                }));
-            }
+            suspend_account_bubble_and_chat(app, idx);
         }
     }
 
