@@ -1,6 +1,6 @@
 import React from "react";
 import { Keyboard } from "lucide-react";
-import { SwitchButton } from "../../common";
+import { SwitchButton, CommonLargeCard } from "../../common";
 
 interface GlobalShortcutSectionProps {
   isGlobalShortcutEnabled: boolean;
@@ -12,14 +12,10 @@ export const GlobalShortcutSection: React.FC<GlobalShortcutSectionProps> = ({
   onToggleGlobalShortcut,
 }) => {
   return (
-    <div className="bg-white border border-[#E2E7EF] rounded-[12px] shadow-card p-5 flex flex-col gap-4">
-      <div className="flex items-center gap-2 pb-2 border-b border-[#E2E7EF]/60">
-        <Keyboard className="w-4 h-4 text-[#0866FF]" />
-        <h2 className="text-[15px] font-semibold text-[#1E293B] m-0">
-          Phím tắt toàn cục
-        </h2>
-      </div>
-
+    <CommonLargeCard
+      icon={<Keyboard className="w-4 h-4 text-[#0866FF]" />}
+      title="Phím tắt toàn cục"
+    >
       <div className="flex items-center justify-between gap-4 py-1">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2">
@@ -40,7 +36,7 @@ export const GlobalShortcutSection: React.FC<GlobalShortcutSectionProps> = ({
           onChange={onToggleGlobalShortcut}
         />
       </div>
-    </div>
+    </CommonLargeCard>
   );
 };
 

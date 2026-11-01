@@ -41,9 +41,7 @@ export const ConnectedAccountRow: React.FC<ConnectedAccountRowProps> = ({
           <span className="text-[11px] text-[#6B7483] truncate leading-tight mt-0.5">
             {account.isBubbleVisible
               ? "Bong bóng đang bật"
-              : account.shouldRestoreBubble
-              ? "Đang tải Messenger..."
-              : "Bong bóng đang ẩn"}{" "}
+              : "Ngủ đông (0% RAM)"}{" "}
             • {account.lastSynced || "Đồng bộ vừa xong"}
           </span>
         </div>

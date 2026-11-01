@@ -7,9 +7,11 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
+  Activity,
+  Moon,
 } from "lucide-react";
 import { MessengerAccount } from "../../../../types/account";
-import { AvatarCircle, CommonButton } from "../../../common";
+import { AvatarCircle, CommonButton, CommonBadge } from "../../../common";
 import { getAccountThemeColor } from "../../../../constants/accountColors";
 
 interface MessengerAccountRowProps {
@@ -56,10 +58,30 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
 
             {/* Trạng thái kết nối của tài khoản */}
             {account.isConnected ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#E9F5EF] text-[#25805C] text-[10.5px] font-medium rounded-full shrink-0">
-                <CheckCircle2 className="w-3 h-3 text-[#25805C]" />
-                Đã kết nối
-              </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {/* Trường hợp: Đã kết nối */}
+                <CommonBadge
+                  status="Đã kết nối"
+                  icon={<CheckCircle2 />}
+                  color="success"
+                />
+
+                {/* Trường hợp: Đang hoạt động / Ngủ đông */}
+                {account.isBubbleVisible ? (
+                  <CommonBadge
+                    status="Đang hoạt động"
+                    icon={<Activity />}
+                    color="primary"
+                  />
+                ) : (
+                  <CommonBadge
+                    status="Đang ngủ đông"
+                    icon={<Moon />}
+                    color="secondary"
+                    title="Tiến trình đã tắt hoàn toàn, 0 MB RAM, cache bảo toàn trên đĩa"
+                  />
+                )}
+              </div>
             ) : account.isAuthenticating ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#EFF6FF] text-[#0866FF] text-[10.5px] font-medium rounded-full shrink-0">
                 <RefreshCw className="w-3 h-3 animate-spin text-[#0866FF]" />

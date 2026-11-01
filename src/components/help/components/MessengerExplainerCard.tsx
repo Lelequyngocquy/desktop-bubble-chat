@@ -27,8 +27,7 @@ export const MessengerExplainerCard: React.FC = () => {
               2. Đa màu sắc nhận diện
             </span>
             <span>
-              Hệ thống tự động gán màu sắc riêng (M1 Xanh dương, M2 Tím, M3 Xanh
-              ngọc, M4 Cam, M5 Đỏ san hô) để bạn không bao giờ nhầm lẫn.
+              Hệ thống tự động gán màu sắc riêng để bạn không bao giờ nhầm lẫn.
             </span>
           </div>
 
