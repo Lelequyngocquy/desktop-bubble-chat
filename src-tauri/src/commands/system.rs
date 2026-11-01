@@ -182,23 +182,16 @@ pub fn toggle_maximize_main_window(app: AppHandle) -> Result<bool, String> {
     }
 }
 
-// Command ẩn cửa sổ Dashboard chính về khay hệ thống (System Tray)
+// Command ẩn cửa sổ Dashboard chính về khay hệ thống (System Tray) - Kích hoạt Dynamic Destruction (0 MB UI RAM)
 #[tauri::command]
 pub fn hide_main_window(app: AppHandle) {
-    if let Some(main_win) = app.get_webview_window("main") {
-        let _ = main_win.hide();
-        #[cfg(target_os = "windows")]
-        crate::windows::main_window::trim_current_process_working_set();
-    }
+    crate::windows::main_window::destroy_or_hibernate_main_window(&app);
 }
 
-// Command mở lại cửa sổ Dashboard chính
+// Command mở lại cửa sổ Dashboard chính (Tái sinh hoặc hiển thị lại)
 #[tauri::command]
 pub fn show_main_window(app: AppHandle) {
-    if let Some(main_win) = app.get_webview_window("main") {
-        let _ = main_win.show();
-        let _ = main_win.set_focus();
-    }
+    let _ = crate::windows::main_window::get_or_create_main_window(&app);
 }
 
 // Command đồng bộ trạng thái hiển thị menu System Tray từ Frontend / Store

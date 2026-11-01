@@ -205,10 +205,7 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
             let id_str = event.id.as_ref();
             match id_str {
                 "show_home" => {
-                    if let Some(main_win) = app_handle.get_webview_window("main") {
-                        let _ = main_win.show();
-                        let _ = main_win.set_focus();
-                    }
+                    let _ = crate::windows::main_window::get_or_create_main_window(app_handle);
                 }
                 "toggle_all_bubbles" | "toggle_bubble_item" => {
                     let handle = app_handle.clone();
@@ -242,10 +239,7 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
             } = event
             {
                 let app_handle = tray.app_handle();
-                if let Some(main_win) = app_handle.get_webview_window("main") {
-                    let _ = main_win.show();
-                    let _ = main_win.set_focus();
-                }
+                let _ = crate::windows::main_window::get_or_create_main_window(app_handle);
             }
         })
         .build(app)?;
