@@ -25,7 +25,7 @@ export const accountStorageService = {
                 ? a.shouldRestoreBubble
                 : typeof a.isBubbleVisible === "boolean"
                 ? a.isBubbleVisible
-                : a.isConnected;
+                : false;
 
             return {
               ...a,

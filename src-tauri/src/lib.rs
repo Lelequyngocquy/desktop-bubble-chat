@@ -47,6 +47,7 @@ pub fn run() {
             commands::get_bubble_hover_coords,
             commands::get_bubble_position,
             commands::get_all_bubble_positions,
+            commands::get_active_bubble_accounts,
             commands::set_bubble_config,
             commands::toggle_chat,
             commands::open_chat,

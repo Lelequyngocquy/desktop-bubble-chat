@@ -34,6 +34,23 @@ pub fn get_bubble_position(
     Err(format!("Bubble for account {} not found", idx))
 }
 
+/// Command lấy danh sách các account_index đang có Bubble hiển thị (Active) trên màn hình (Read-Only SSOT)
+#[tauri::command]
+pub fn get_active_bubble_accounts(app: AppHandle) -> Result<Vec<u32>, String> {
+    let mut active = Vec::new();
+    for idx in 1..=5 {
+        let is_suspended = app
+            .try_state::<Arc<ChatState>>()
+            .map(|s| s.is_account_suspended(idx))
+            .unwrap_or(false);
+
+        if !is_suspended && crate::tray::is_bubble_visible(&app, idx) {
+            active.push(idx);
+        }
+    }
+    Ok(active)
+}
+
 /// Command lấy danh sách tọa độ của tất cả các Bubble trên màn hình
 #[tauri::command]
 pub fn get_all_bubble_positions(app: AppHandle) -> Result<Vec<BubblePositionDto>, String> {

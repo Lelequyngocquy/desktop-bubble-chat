@@ -92,6 +92,17 @@ export const messengerService = {
   },
 
   /**
+   * Truy vấn danh sách snapshot các account_index đang có Bubble hiển thị thực tế trên màn hình (Read-Only SSOT).
+   */
+  async getActiveBubbleAccounts(): Promise<number[]> {
+    try {
+      return await invoke<number[]>(IPC_COMMANDS.GET_ACTIVE_BUBBLE_ACCOUNTS);
+    } catch {
+      return [];
+    }
+  },
+
+  /**
    * Toggle or show/hide the bubble window for a specific account.
    */
   async toggleBubble(visible: boolean, accountIndex: number = 1): Promise<void> {

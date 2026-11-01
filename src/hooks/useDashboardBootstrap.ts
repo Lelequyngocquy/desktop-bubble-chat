@@ -89,7 +89,22 @@ export function useDashboardBootstrap() {
           feLog.warn("[useDashboardBootstrap] Không thể đồng bộ tài khoản Messenger:", err);
         }
 
-        // 4. Settling buffer 200ms giúp React layout ổn định không bị giật nhấp nháy
+        // 4. Đồng bộ snapshot thực tế các Bong bóng đang hiển thị từ Backend (SSOT - Read Only)
+        try {
+          const activeIndices = await messengerService.getActiveBubbleAccounts();
+          const activeSet = new Set(activeIndices);
+          const store = useMessengerStore.getState();
+          for (const acc of store.accounts) {
+            const isLive = activeSet.has(acc.index);
+            if (acc.isBubbleVisible !== isLive) {
+              store.setAccountBubbleVisibility(acc.index, isLive);
+            }
+          }
+        } catch (err) {
+          feLog.warn("[useDashboardBootstrap] Không thể lấy snapshot active bubbles:", err);
+        }
+
+        // 5. Settling buffer 200ms giúp React layout ổn định không bị giật nhấp nháy
         await new Promise((resolve) => setTimeout(resolve, 200));
 
         feLog.info("[useDashboardBootstrap] Hoàn tất bootstrap! Dashboard đã sẵn sàng.");

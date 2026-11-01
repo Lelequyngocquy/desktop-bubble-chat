@@ -25,6 +25,7 @@ export const IPC_COMMANDS = {
   SNAP_BUBBLE: "snap_bubble",
   GET_BUBBLE_POSITION: "get_bubble_position",
   GET_ALL_BUBBLE_POSITIONS: "get_all_bubble_positions",
+  GET_ACTIVE_BUBBLE_ACCOUNTS: "get_active_bubble_accounts",
   GET_BUBBLE_SNAP_COORDS: "get_bubble_snap_coords",
   GET_BUBBLE_DEFAULT_COORDS: "get_bubble_default_coords",
   GET_BUBBLE_HOVER_COORDS: "get_bubble_hover_coords",

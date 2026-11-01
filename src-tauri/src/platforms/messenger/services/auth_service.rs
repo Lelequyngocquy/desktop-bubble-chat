@@ -187,7 +187,7 @@ impl AuthService {
                 let _ = chat_window.hide();
                 let _ = chat_window.set_decorations(false);
                 let _ = chat_window.set_skip_taskbar(true);
-                let _ = ensure_bubble_positioned_and_visible(app, idx);
+                // SSOT: check_auth là hàm truy vấn thuần túy, tuyệt đối KHÔNG tự ý ép hiện bubble
                 let _ = app.emit("chat-visibility-changed", serde_json::json!({
                     "accountIndex": idx,
                     "visible": false,
@@ -232,6 +232,7 @@ impl AuthService {
         state.set_chat_ready(idx, true);
 
         if connected {
+            let was_in_auth_mode = state.is_window_in_auth_mode(&label);
             state.set_window_auth_mode(&label, false);
             if let Some(win) = app.get_webview_window(&label) {
                 // Nếu cửa sổ đang ở domain facebook.com, lập tức chuyển hướng về messenger.com
@@ -249,7 +250,10 @@ impl AuthService {
                 let _ = win.set_decorations(false);
                 let _ = win.set_skip_taskbar(true);
             }
-            let _ = ensure_bubble_positioned_and_visible(app, idx);
+            // Chỉ hiển thị bubble mới nếu tài khoản VỪA HOÀN TẤT ĐĂNG NHẬP QUA MODAL AUTH và KHÔNG bị người dùng đình chỉ (suspended)
+            if was_in_auth_mode && !state.is_account_suspended(idx) {
+                let _ = ensure_bubble_positioned_and_visible(app, idx);
+            }
             let _ = app.emit("chat-visibility-changed", serde_json::json!({
                 "accountIndex": idx,
                 "visible": false,
