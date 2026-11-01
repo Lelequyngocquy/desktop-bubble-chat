@@ -144,6 +144,10 @@ impl ChatService {
             let _ = ensure_bubble_positioned_and_visible(app, idx);
         }
 
+        if state.is_account_suspended(idx) {
+            return Ok(());
+        }
+
         let chat_window = get_or_create_messenger_window(app, idx, Arc::clone(state))?;
 
         let is_already_visible = chat_window.is_visible().unwrap_or(false);

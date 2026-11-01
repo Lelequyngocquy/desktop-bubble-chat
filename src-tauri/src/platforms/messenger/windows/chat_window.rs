@@ -36,7 +36,14 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                     let over_bubble = app_handle
                         .get_webview_window(&bubble_label)
                         .map(|b| is_cursor_over_bubble(&b))
-                        .unwrap_or(false);
+                        .unwrap_or_else(|| {
+                            #[cfg(target_os = "windows")]
+                            {
+                                crate::windows::native_bubble::is_cursor_over_native_bubble(idx)
+                            }
+                            #[cfg(not(target_os = "windows"))]
+                            false
+                        });
                     let over_chat = is_cursor_over_window(&chat_clone);
 
                     // Chỉ ẩn khi người dùng thực sự di chuột / click ra ngoài
@@ -131,23 +138,31 @@ pub fn get_or_create_messenger_window(
     );
 
     println!("[BE - Window] Đang build WebviewWindow mới cho '{}'...", label);
+    let state_page_load = Arc::clone(&chat_state);
     let builder = tauri::WebviewWindowBuilder::new(
         app,
         &label,
         tauri::WebviewUrl::External(parsed_url),
     )
+    .background_color(tauri::utils::config::Color(255, 255, 255, 255))
     .data_directory(profile_dir)
     .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0")
     .initialization_script(&init_script)
     .title(format!("Messenger {:02}", account_index))
-    .inner_size(404.0, 620.0)
-    .min_inner_size(404.0, 500.0)
+    .inner_size(404.0, 550.0)
+    .min_inner_size(404.0, 550.0)
     .resizable(true)
     .decorations(false)
     .always_on_top(true)
     .skip_taskbar(true)
     .shadow(true)
-    .visible(false);
+    .visible(false)
+    .on_page_load(move |_win, payload| {
+        if let tauri::webview::PageLoadEvent::Finished = payload.event() {
+            state_page_load.set_chat_ready(account_index, true);
+            println!("\x1b[32m[BE - Window] Webview Messenger {:02} nạp ngầm hoàn tất (Ready)!\x1b[0m", account_index);
+        }
+    });
 
     match builder.build() {
         Ok(window) => {

@@ -229,6 +229,7 @@ impl AuthService {
         );
 
         state.set_account_auth(idx, connected, name.clone());
+        state.set_chat_ready(idx, true);
 
         if connected {
             state.set_window_auth_mode(&label, false);

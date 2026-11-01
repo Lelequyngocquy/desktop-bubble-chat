@@ -19,6 +19,7 @@ pub fn suspend_account_bubble_and_chat(app: &AppHandle, account_index: u32) {
     if let Some(state) = app.try_state::<Arc<ChatState>>() {
         state.set_bypass_close_guard(&chat_label, true);
         state.set_account_suspended(idx, true);
+        state.set_chat_ready(idx, false);
         state.remove_bubble_rect(idx);
     }
 
@@ -62,9 +63,10 @@ pub fn resume_account_bubble_and_chat(
 ) -> Result<BubbleRect, String> {
     let idx = account_index;
 
-    // 1. Đánh dấu gỡ trạng thái ngủ đông trong state
+    // 1. Đánh dấu gỡ trạng thái ngủ đông trong state và reset cờ chat ready
     if let Some(state) = app.try_state::<Arc<ChatState>>() {
         state.set_account_suspended(idx, false);
+        state.set_chat_ready(idx, false);
     }
 
     // 2. Định vị và hiển thị Bubble lên màn hình ngay lập tức (Hàm chuẩn của Bubble 05).

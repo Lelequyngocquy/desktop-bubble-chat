@@ -20,6 +20,7 @@ pub struct ChatState {
     pub bypass_close_guard: Mutex<HashSet<String>>,
     pub transition_locks: Mutex<HashSet<u32>>,
     pub suspended_accounts: Mutex<HashSet<u32>>,
+    pub ready_accounts: Mutex<HashSet<u32>>,
     pub is_explicit_exit: AtomicBool,
     pub active_bubble_rects: Mutex<HashMap<u32, crate::movement::BubbleRect>>,
 }
@@ -40,6 +41,7 @@ impl Default for ChatState {
             bypass_close_guard: Mutex::new(HashSet::new()),
             transition_locks: Mutex::new(HashSet::new()),
             suspended_accounts: Mutex::new(suspended),
+            ready_accounts: Mutex::new(HashSet::new()),
             is_explicit_exit: AtomicBool::new(false),
             active_bubble_rects: Mutex::new(HashMap::new()),
         }
@@ -162,6 +164,23 @@ impl ChatState {
 
     pub fn is_account_suspended(&self, account_index: u32) -> bool {
         if let Ok(set) = self.suspended_accounts.lock() {
+            return set.contains(&account_index);
+        }
+        false
+    }
+
+    pub fn set_chat_ready(&self, account_index: u32, ready: bool) {
+        if let Ok(mut set) = self.ready_accounts.lock() {
+            if ready {
+                set.insert(account_index);
+            } else {
+                set.remove(&account_index);
+            }
+        }
+    }
+
+    pub fn is_chat_ready(&self, account_index: u32) -> bool {
+        if let Ok(set) = self.ready_accounts.lock() {
             return set.contains(&account_index);
         }
         false

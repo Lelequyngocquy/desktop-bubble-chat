@@ -41,14 +41,21 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                 }
             }
 
-            // 2. Logic Hover 0.1s (100ms) để tự động mở Chat tương ứng
+            // 2. Logic Hover 0.1s (100ms) để tự động mở Chat tương ứng (có Preload Gatekeeper)
             if let Some(hovered_idx) = detected_hover_bubble {
                 if current_hover_bubble == Some(hovered_idx) {
                     if !already_opened_for_hover {
                         if let Some(start) = hover_start {
                             if start.elapsed() >= Duration::from_millis(100) {
-                                let _ = ChatService::open_chat(&app, &chat_state, hovered_idx);
-                                already_opened_for_hover = true;
+                                // Kiểm tra xem Webview đã nạp ngầm xong (ready) hay chưa
+                                if chat_state.is_chat_ready(hovered_idx) {
+                                    let _ = ChatService::open_chat(&app, &chat_state, hovered_idx);
+                                    already_opened_for_hover = true;
+                                } else if start.elapsed() >= Duration::from_millis(400) {
+                                    // Chờ tối đa 400ms cho quá trình nạp cache đĩa khi vừa bật lại Bubble
+                                    let _ = ChatService::open_chat(&app, &chat_state, hovered_idx);
+                                    already_opened_for_hover = true;
+                                }
                             }
                         }
                     }
