@@ -169,6 +169,8 @@ pub fn toggle_bubble(
         state.release_transition_lock(idx);
     }
 
+    let _ = crate::tray::update_tray_menu(&app);
+
     Ok(())
 }
 
@@ -399,53 +401,14 @@ pub async fn toggle_all_bubbles_impl(
     };
 
     if next_visible {
-        let chat_state = app.try_state::<Arc<ChatState>>();
-
         let targets = if let Some(indices) = account_indices {
             indices
         } else {
-            // 1. Ưu tiên các Bubble đã hiển thị trước thời điểm ẩn (ghi nhớ trạng thái)
-            let prev = chat_state
-                .as_ref()
-                .map(|s| s.get_previously_visible_bubbles())
-                .unwrap_or_default();
-
-            if !prev.is_empty() {
-                prev
+            let available = crate::tray::get_available_account_indices(app);
+            if available.is_empty() {
+                vec![1]
             } else {
-                // 2. Nếu chưa có lịch sử, lấy tất cả tài khoản đã kết nối
-                let mut connected = Vec::new();
-                if let Some(state) = chat_state.as_ref() {
-                    if let Ok(map) = state.account_auth.lock() {
-                        for (idx, info) in map.iter() {
-                            if info.connected {
-                                connected.push(*idx);
-                            }
-                        }
-                    }
-                }
-                connected.sort();
-
-                if !connected.is_empty() {
-                    connected
-                } else {
-                    // 3. Kiểm tra các profile tồn tại trên đĩa
-                    let mut disk_profiles = Vec::new();
-                    if let Ok(app_data_dir) = app.path().app_data_dir() {
-                        let profiles_dir = app_data_dir.join("profiles");
-                        for idx in 1..=5 {
-                            if profiles_dir.join(format!("messenger_{:02}", idx)).exists() {
-                                disk_profiles.push(idx);
-                            }
-                        }
-                    }
-
-                    if !disk_profiles.is_empty() {
-                        disk_profiles
-                    } else {
-                        vec![1]
-                    }
-                }
+                available
             }
         };
 
@@ -470,6 +433,8 @@ pub async fn toggle_all_bubbles_impl(
             suspend_account_bubble_and_chat(app, idx);
         }
     }
+
+    let _ = crate::tray::update_tray_menu(app);
 
     next_visible
 }

@@ -205,9 +205,9 @@ pub fn show_main_window(app: AppHandle) {
 #[tauri::command]
 pub fn update_tray_menu_status(
     app: AppHandle,
-    has_connected_accounts: bool,
+    _has_connected_accounts: Option<bool>,
 ) -> Result<(), String> {
-    crate::tray::update_tray_menu(&app, has_connected_accounts).map_err(|e| e.to_string())
+    crate::tray::update_tray_menu(&app).map_err(|e| e.to_string())
 }
 
 // Command thoát ứng dụng hoàn toàn
