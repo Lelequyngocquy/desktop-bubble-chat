@@ -8,6 +8,7 @@ pub fn update_unread_badge(
     account_index: Option<u32>,
 ) -> Result<(), String> {
     let idx = account_index.unwrap_or(1);
+    crate::windows::native_bubble::set_native_bubble_unread_count(idx, count);
     let _ = app.emit("badge-updated", serde_json::json!({
         "accountIndex": idx,
         "count": count
@@ -23,6 +24,7 @@ pub fn set_badge_count(
     account_index: Option<u32>,
 ) -> Result<(), String> {
     let idx = account_index.unwrap_or(1);
+    crate::windows::native_bubble::set_native_bubble_unread_count(idx, count);
     let _ = app.emit("badge-updated", serde_json::json!({
         "accountIndex": idx,
         "count": count

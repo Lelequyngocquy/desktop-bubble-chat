@@ -43,7 +43,10 @@ pub fn report_new_message(
     // 1. Phát âm thanh Pop thuần Native trong Rust Core
     crate::utils::native_sound::play_bubble_pop();
 
-    // 2. Gửi Windows Toast Notification thuần Native nếu khung chat của account này đang không mở
+    // 2. Kích hoạt hiệu ứng sóng lan tỏa Pulse trên Bong bóng Native Win32 (Giai đoạn 3)
+    crate::windows::native_bubble::trigger_native_bubble_pulse(idx);
+
+    // 3. Gửi Windows Toast Notification thuần Native nếu khung chat của account này đang không mở
     use tauri_plugin_notification::NotificationExt;
     let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
     let is_chat_open = app

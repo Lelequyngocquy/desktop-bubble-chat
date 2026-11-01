@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import React from "react";
 import { TitleBar } from "./components/layout/TitleBar";
 import { Sidebar } from "./components/layout/Sidebar";
 import { HomeWorkspace } from "./components/home";
@@ -8,22 +7,16 @@ import { ChatHeadsWorkspace } from "./components/chatheads";
 import { NotificationsWorkspace } from "./components/notifications";
 import { SettingsWorkspace } from "./components/settings";
 import { HelpWorkspace } from "./components/help";
-import { BubbleWindow } from "./components/bubble/BubbleWindow";
 import { BubbleSpawnIndicator } from "./components/common/BubbleSpawnIndicator";
 import { useBubbleAutoRestore } from "./hooks/bubble";
 import { useUnreadListener } from "./hooks/useUnreadListener";
 import { useSystemUser } from "./hooks/useSystemUser";
 import { useNavigationStore } from "./stores/navigationStore";
 
-const isSearchBubble =
-  typeof window !== "undefined" &&
-  (window.location.search.includes("window=bubble") ||
-    window.location.hash.includes("bubble"));
-
-const DashboardApp: React.FC = () => {
+export const App: React.FC = () => {
   const activeTab = useNavigationStore((s) => s.activeTab);
 
-  // Initialize background system listeners & delayed bubble auto-restore (Main Dashboard only)
+  // Khởi tạo các listener giám sát hệ thống và khôi phục bong bóng nền (Dashboard chính)
   useUnreadListener();
   useSystemUser();
   useBubbleAutoRestore();
@@ -55,41 +48,6 @@ const DashboardApp: React.FC = () => {
       <BubbleSpawnIndicator />
     </div>
   );
-};
-
-export const App: React.FC = () => {
-  const [windowLabel, setWindowLabel] = useState<string>(() => {
-    try {
-      const win = getCurrentWindow();
-      if (win && win.label) return win.label;
-    } catch {}
-    return "main";
-  });
-
-  useEffect(() => {
-    try {
-      const win = getCurrentWindow();
-      if (win && win.label) {
-        setWindowLabel(win.label);
-      }
-    } catch {}
-  }, []);
-
-  const isBubbleWindow =
-    isSearchBubble ||
-    windowLabel.startsWith("bubble") ||
-    window.location.search.includes("window=bubble") ||
-    window.location.hash.includes("bubble");
-
-  if (isBubbleWindow) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-transparent overflow-hidden select-none">
-        <BubbleWindow />
-      </div>
-    );
-  }
-
-  return <DashboardApp />;
 };
 
 export default App;

@@ -103,15 +103,18 @@ function Show-StatusSnapshot {
         return $false
     }
 
-    $totalRAM_MB = [math]::Round(($processes | Measure-Object -Property WorkingSetMB -Sum).Sum, 2)
-    $totalRAM_GB = [math]::Round($totalRAM_MB / 1024, 2)
-    $totalCount = $processes.Count
+    $procList = @($processes)
+    $totalCount = $procList.Count
 
-    $rustCoreRAM = ($processes | Where-Object { $_.Category -like "*Rust Host*" } | Measure-Object -Property WorkingSetMB -Sum).Sum
-    $renderersRAM = ($processes | Where-Object { $_.Category -like "*Renderer*" } | Measure-Object -Property WorkingSetMB -Sum).Sum
-    $gpuRAM = ($processes | Where-Object { $_.Category -like "*GPU*" } | Measure-Object -Property WorkingSetMB -Sum).Sum
-    $utilityRAM = ($processes | Where-Object { $_.Category -like "*Utility*" } | Measure-Object -Property WorkingSetMB -Sum).Sum
-    $brokerRAM = ($processes | Where-Object { $_.Category -like "*Broker*" } | Measure-Object -Property WorkingSetMB -Sum).Sum
+    $sumMB = ($procList | Measure-Object -Property WorkingSetMB -Sum).Sum
+    $totalRAM_MB = [math]::Round([double]$sumMB, 2)
+    $totalRAM_GB = [math]::Round($totalRAM_MB / 1024, 2)
+
+    $rustCoreRAM = [double](($procList | Where-Object { $_.Category -like "*Rust Host*" } | Measure-Object -Property WorkingSetMB -Sum).Sum)
+    $renderersRAM = [double](($procList | Where-Object { $_.Category -like "*Renderer*" } | Measure-Object -Property WorkingSetMB -Sum).Sum)
+    $gpuRAM = [double](($procList | Where-Object { $_.Category -like "*GPU*" } | Measure-Object -Property WorkingSetMB -Sum).Sum)
+    $utilityRAM = [double](($procList | Where-Object { $_.Category -like "*Utility*" } | Measure-Object -Property WorkingSetMB -Sum).Sum)
+    $brokerRAM = [double](($procList | Where-Object { $_.Category -like "*Broker*" } | Measure-Object -Property WorkingSetMB -Sum).Sum)
 
     $nowStr = Get-Date -Format "HH:mm:ss dd/MM/yyyy"
 
@@ -128,23 +131,23 @@ function Show-StatusSnapshot {
     Write-Host ""
 
     Write-Host " [PHAN BO BO NHO THEO VAI TRO]" -ForegroundColor Yellow
-    Write-Host ("   - Rust Host (App Core)     : " + [string]::Format("{0:N2} MB", $rustCoreRAM)) -ForegroundColor Cyan
-    Write-Host ("   - Web Renderers (Giao dien): " + [string]::Format("{0:N2} MB", $renderersRAM)) -ForegroundColor Magenta
-    Write-Host ("   - GPU Engine (Direct3D)    : " + [string]::Format("{0:N2} MB", $gpuRAM)) -ForegroundColor DarkCyan
-    Write-Host ("   - WebView2 Broker Processes: " + [string]::Format("{0:N2} MB", $brokerRAM)) -ForegroundColor Gray
-    Write-Host ("   - Utility Services (Net/Aud): " + [string]::Format("{0:N2} MB", $utilityRAM)) -ForegroundColor DarkYellow
+    Write-Host ("   - Rust Host (App Core)     : " + ("{0:N2} MB" -f $rustCoreRAM)) -ForegroundColor Cyan
+    Write-Host ("   - Web Renderers (Giao dien): " + ("{0:N2} MB" -f $renderersRAM)) -ForegroundColor Magenta
+    Write-Host ("   - GPU Engine (Direct3D)    : " + ("{0:N2} MB" -f $gpuRAM)) -ForegroundColor DarkCyan
+    Write-Host ("   - WebView2 Broker Processes: " + ("{0:N2} MB" -f $brokerRAM)) -ForegroundColor Gray
+    Write-Host ("   - Utility Services (Net/Aud): " + ("{0:N2} MB" -f $utilityRAM)) -ForegroundColor DarkYellow
     Write-Host ""
 
     Write-Host " [DANH SACH CHI TIET TUNG TIEN TRINH]" -ForegroundColor Yellow
 
-    $sorted = $processes | Sort-Object WorkingSetMB -Descending
+    $sorted = $procList | Sort-Object WorkingSetMB -Descending
 
     $formatTable = $sorted | Select-Object `
         @{Name="PID"; Expression={$_.PID}}, `
         @{Name="Vai tro / Phan loai"; Expression={$_.Category}}, `
         @{Name="Profile"; Expression={$_.Profile}}, `
-        @{Name="RAM (MB)"; Expression={[string]::Format("{0:N2}", $_.WorkingSetMB)}}, `
-        @{Name="CPU (s)"; Expression={[string]::Format("{0:N2}", $_.CPU_Sec)}}
+        @{Name="RAM (MB)"; Expression={"{0:N2}" -f [double]$_.WorkingSetMB}}, `
+        @{Name="CPU (s)"; Expression={"{0:N2}" -f [double]$_.CPU_Sec}}
 
     $formatTable | Format-Table -AutoSize | Out-String | Write-Host -ForegroundColor White
 

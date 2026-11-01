@@ -74,7 +74,12 @@ pub fn run() {
             commands::update_tray_menu_status,
             commands::exit_app,
             commands::set_always_on_top,
-            commands::log_frontend
+            commands::log_frontend,
+            commands::toggle_native_bubble_preview,
+            commands::trigger_native_bubble_pulse_preview,
+            commands::set_native_bubble_badge_preview,
+            commands::tuck_native_bubble_preview,
+            commands::untuck_native_bubble_preview
         ])
         .setup(move |app| {
             // 1. Cấu hình System Tray Menu & Icon

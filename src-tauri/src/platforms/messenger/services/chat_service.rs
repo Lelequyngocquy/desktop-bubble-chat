@@ -68,6 +68,61 @@ impl ChatService {
                     }));
                 }
             }
+        } else if let Some(cs) = app.try_state::<Arc<ChatState>>() {
+            // Hỗ trợ Docking khi sử dụng Bong bóng Native Win32 hoặc WebView đã đóng/ẩn
+            if let Some(rect) = cs.get_bubble_rect(account_index) {
+                let monitor = app
+                    .get_webview_window("main")
+                    .and_then(|m| m.current_monitor().ok().flatten())
+                    .or_else(|| app.primary_monitor().ok().flatten());
+
+                if let Some(mon) = monitor {
+                    let screen = ScreenMetrics::from_monitor(&mon);
+                    let scale = screen.scale_factor;
+                    let config = crate::movement::get_bubble_physics_config(app);
+
+                    let chat_w = (config.chat_width * scale).round() as i32;
+                    let chat_h = (config.chat_height * scale).round() as i32;
+                    let bubble_w = (config.size * scale).round() as i32;
+                    let gap = (config.chat_gap * scale).round() as i32;
+                    let margin = (config.margin * scale).round() as i32;
+                    let taskbar_margin = (config.taskbar_margin * scale).round() as i32;
+
+                    let _ = chat_window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+                        width: chat_w as u32,
+                        height: chat_h as u32,
+                    }));
+
+                    let untucked_pos = BubbleMovementEngine::calculate_hover_pos(
+                        &screen,
+                        &config,
+                        rect.x,
+                        rect.y,
+                        true,
+                    );
+
+                    let mid_x = screen.x + screen.width / 2;
+
+                    let target_x = if untucked_pos.x + bubble_w / 2 >= mid_x {
+                        untucked_pos.x - chat_w - gap
+                    } else {
+                        untucked_pos.x + bubble_w + gap
+                    };
+
+                    let min_x = screen.x + margin;
+                    let max_x = screen.x + screen.width - chat_w - margin;
+                    let final_x = target_x.clamp(min_x, max_x);
+
+                    let min_y = screen.y + margin;
+                    let max_y = screen.y + screen.height - chat_h - taskbar_margin;
+                    let final_y = untucked_pos.y.clamp(min_y, max_y);
+
+                    let _ = chat_window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                        x: final_x,
+                        y: final_y,
+                    }));
+                }
+            }
         }
 
         // Đảm bảo tất cả các bubble khác đều bị thụt vào mép (tuck), không được thò ra ngoài
