@@ -5,8 +5,8 @@ import {
   BUBBLE_SIZE_PIXELS,
 } from "../../stores/settingsStore";
 import { systemService } from "../../services/systemService";
-import { messengerService } from "../../services/messenger";
 import { notificationService } from "../../services/notificationService";
+import { messengerService } from "../../platforms/messenger";
 import { TabHeader } from "../common";
 import {
   SystemStartupSection,

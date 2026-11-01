@@ -6,9 +6,9 @@ import {
   selectAreAnyBubblesVisible,
   selectAreAllBubblesVisible,
   selectVisibleBubbleCount,
-} from "../stores/messengerStore";
+  messengerService,
+} from "../platforms/messenger";
 import { systemService } from "../services/systemService";
-import { messengerService } from "../services/messenger";
 import { notificationService } from "../services/notificationService";
 
 export function useQuickSettings() {

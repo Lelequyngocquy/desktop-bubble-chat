@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { MessengerAuthStatus } from "./types";
-import { IPC_COMMANDS } from "../../types/ipc";
+import { MessengerAuthStatus } from "../types";
+import { IPC_COMMANDS } from "../../../types/ipc";
 
 /**
  * Service encapsulating all Tauri IPC commands for the Messenger platform.

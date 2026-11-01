@@ -1,10 +1,13 @@
 import { useEffect, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
-import { useMessengerStore } from "../stores/messengerStore";
 import { useWindowStore } from "../stores/windowStore";
 import { useConversationStore } from "../stores/conversationStore";
-import { messengerService, messengerAuthManager } from "../services/messenger";
+import {
+  useMessengerStore,
+  messengerService,
+  messengerAuthManager,
+} from "../platforms/messenger";
 import { systemService } from "../services/systemService";
 import {
   IPC_EVENTS,

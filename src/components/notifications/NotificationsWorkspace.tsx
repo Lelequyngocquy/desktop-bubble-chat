@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useConversationStore } from "../../stores/conversationStore";
-import { messengerService } from "../../services/messenger";
+import { messengerService } from "../../platforms/messenger";
 import { TabHeader } from "../common";
 import { Conversation } from "../../types/conversation";
 import { NotificationsHeaderActions, NotificationListCard } from "./components";

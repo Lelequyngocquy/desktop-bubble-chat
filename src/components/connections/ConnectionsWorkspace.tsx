@@ -3,7 +3,7 @@ import { CheckCircle2, AlertCircle } from "lucide-react";
 import {
   useMessengerStore,
   selectIsMessengerConnected,
-} from "../../stores/messengerStore";
+} from "../../platforms/messenger";
 import { TabHeader } from "../common/TabHeader";
 import {
   MessengerManagerCard,

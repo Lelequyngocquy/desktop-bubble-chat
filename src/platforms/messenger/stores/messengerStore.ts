@@ -5,11 +5,11 @@ import {
   MAX_MESSENGER_ACCOUNTS,
   createMessengerAccount,
   ProcessLifecycleState,
-} from "../types/account";
-import { accountStorageService } from "../services/storage/accountStorageService";
-import { messengerAuthManager } from "../services/messenger/messengerAuthManager";
+} from "../types";
+import { accountStorageService } from "../services/accountStorageService";
+import { messengerAuthManager } from "../services/messengerAuthManager";
 
-interface MessengerState {
+export interface MessengerState {
   // --- SSOT Data ---
   accounts: MessengerAccount[];
   activeAccountIndex: number;

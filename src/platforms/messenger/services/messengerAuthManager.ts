@@ -1,7 +1,7 @@
 import { messengerService } from "./messengerService";
-import { useMessengerStore } from "../../stores/messengerStore";
-import { feLog } from "../loggerService";
-import { MessengerAccount } from "../../types/account";
+import { useMessengerStore } from "../stores/messengerStore";
+import { feLog } from "../../../services/loggerService";
+import { MessengerAccount } from "../types";
 
 interface ActiveSession {
   pollInterval: ReturnType<typeof setInterval>;

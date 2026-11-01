@@ -8,7 +8,7 @@ import { NotificationsWorkspace } from "./components/notifications";
 import { SettingsWorkspace } from "./components/settings";
 import { HelpWorkspace } from "./components/help";
 import { BubbleSpawnIndicator } from "./components/common/BubbleSpawnIndicator";
-import { useBubbleAutoRestore } from "./hooks/bubble";
+import { useBubbleAutoRestore } from "./hooks";
 import { useUnreadListener } from "./hooks/useUnreadListener";
 import { useSystemUser } from "./hooks/useSystemUser";
 import { useNavigationStore } from "./stores/navigationStore";

@@ -4,7 +4,7 @@ import {
   MAX_MESSENGER_ACCOUNTS,
   MessengerAccount,
 } from "../../../../types/account";
-import { useMessengerAccounts } from "../../../../hooks/useMessengerAccounts";
+import { useMessengerAccounts } from "../../../../platforms/messenger";
 import { getAccountThemeColor } from "../../../../constants/accountColors";
 import { CommonDialog } from "../../../common";
 import { MessengerAccountRow } from "./MessengerAccountRow";

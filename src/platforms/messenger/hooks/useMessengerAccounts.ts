@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
 import { useMessengerStore, selectIsMessengerConnected } from "../stores/messengerStore";
-import { messengerService, messengerAuthManager } from "../services/messenger";
-import { feLog } from "../services/loggerService";
-import { MessengerAccount } from "../types/account";
+import { messengerService, messengerAuthManager } from "../services";
+import { feLog } from "../../../services/loggerService";
+import { MessengerAccount } from "../types";
 
 /**
  * Custom hook encapsulating UI actions for Messenger Accounts.
@@ -14,8 +14,8 @@ export function useMessengerAccounts() {
     accounts,
     activeAccountIndex,
     setActiveAccountIndex,
-    addAccount,
-    removeAccount,
+    addAccount: addAccountToStore,
+    removeAccount: removeAccountFromStore,
     updateAccount,
   } = useMessengerStore();
 
@@ -59,6 +59,7 @@ export function useMessengerAccounts() {
   const handleRefreshAccount = useCallback(
     async (account: MessengerAccount) => {
       setRefreshingId(account.id);
+      feLog.info(`[useMessengerAccounts] Người dùng làm mới trạng thái tài khoản ${account.index}...`);
       try {
         await messengerService.refresh(account.index);
         const res = await messengerService.checkAuth(account.index);
@@ -69,7 +70,7 @@ export function useMessengerAccounts() {
           });
         }
       } catch (err) {
-        console.warn("[useMessengerAccounts] Failed to refresh account:", err);
+        feLog.error(`[useMessengerAccounts] Refresh error for account ${account.index}:`, err);
       } finally {
         setTimeout(() => setRefreshingId(null), 800);
       }
@@ -77,40 +78,75 @@ export function useMessengerAccounts() {
     [updateAccount]
   );
 
-  const handleRemoveAccount = useCallback(
+  const handleDisconnect = useCallback(
     async (account: MessengerAccount) => {
-      feLog.info(`[UI Click] Xóa tài khoản: ${account.name} (ID: ${account.id}, Index: ${account.index})`);
-      removeAccount(account.id);
+      feLog.warn(`[useMessengerAccounts] Ngắt kết nối tài khoản: ${account.name} (${account.id})`);
+      messengerAuthManager.cancelAuth(account.id);
       try {
-        await messengerService.toggleBubble(false, account.index);
-        await messengerService.clearStorage(account.index);
+        await messengerService.disconnect(account.index);
       } catch (err) {
-        console.error("[useMessengerAccounts] Failed to clear account storage:", err);
+        feLog.error(`[useMessengerAccounts] Disconnect error:`, err);
       }
+      updateAccount(account.id, {
+        isConnected: false,
+        isAuthenticating: false,
+        isBubbleVisible: false,
+      });
     },
-    [removeAccount]
+    [updateAccount]
   );
 
   const handleAddAccount = useCallback(() => {
-    feLog.info(`[UI Click] Người dùng bấm 'Thêm tài khoản Messenger'`);
-    const newAcc = addAccount();
+    feLog.info("[useMessengerAccounts] Thêm profile Messenger mới...");
+    const newAcc = addAccountToStore();
     if (newAcc) {
       feLog.info(`[useMessengerAccounts] Đã tạo tài khoản mới:`, newAcc);
     } else {
       feLog.warn(`[useMessengerAccounts] Không thể thêm tài khoản (đã đạt giới hạn tối đa)`);
     }
     return newAcc;
-  }, [addAccount]);
+  }, [addAccountToStore]);
+
+  const handleRemoveAccount = useCallback(
+    async (account: MessengerAccount) => {
+      feLog.info(`[useMessengerAccounts] Xóa tài khoản: ${account.name} (ID: ${account.id}, Index: ${account.index})`);
+      removeAccountFromStore(account.id);
+      try {
+        await messengerService.toggleBubble(false, account.index);
+        await messengerService.clearStorage(account.index);
+      } catch (err) {
+        feLog.error("[useMessengerAccounts] Failed to clear account storage:", err);
+      }
+    },
+    [removeAccountFromStore]
+  );
 
   return {
     accounts,
     activeAccountIndex,
     isConnected,
     refreshingId,
+
+    // Primary & Alias action handlers for full consumer compatibility
     openAccount: handleOpenAccount,
+    handleOpenAccount,
+
     cancelAuth: handleCancelAuth,
+    handleCancelAuth,
+
     refreshAccount: handleRefreshAccount,
+    handleRefresh: handleRefreshAccount,
+
     removeAccount: handleRemoveAccount,
+    handleRemoveAccount,
+
     addAccount: handleAddAccount,
+    handleAddAccount,
+
+    disconnectAccount: handleDisconnect,
+    handleDisconnect,
+
+    setActiveAccountIndex,
+    updateAccount,
   };
 }

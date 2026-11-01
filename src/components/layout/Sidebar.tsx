@@ -9,7 +9,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { useNavigationStore } from "../../stores/navigationStore";
-import { useMessengerStore, selectConnectedAccounts } from "../../stores/messengerStore";
+import { useMessengerStore, selectConnectedAccounts } from "../../platforms/messenger";
 import { useConversationStore } from "../../stores/conversationStore";
 import { useSystemUserStore } from "../../stores/systemUserStore";
 import { NavTab, NavigationItemConfig } from "../../types";

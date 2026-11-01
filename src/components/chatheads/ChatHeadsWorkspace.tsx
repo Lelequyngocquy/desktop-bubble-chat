@@ -1,8 +1,11 @@
 import React from "react";
 import { useConversationStore } from "../../stores/conversationStore";
-import { useMessengerStore, selectIsMessengerConnected } from "../../stores/messengerStore";
 import { useNavigationStore } from "../../stores/navigationStore";
-import { messengerService } from "../../services/messenger";
+import {
+  useMessengerStore,
+  selectIsMessengerConnected,
+  messengerService,
+} from "../../platforms/messenger";
 import { TabHeader } from "../common";
 import { Conversation } from "../../types/conversation";
 import { PinnedChatHeadsCard, RecentConversationsCard } from "./components";

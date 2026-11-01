@@ -1,12 +1,12 @@
 import React from "react";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { useConversationStore } from "../../../stores/conversationStore";
+import { useNavigationStore } from "../../../stores/navigationStore";
 import {
   useMessengerStore,
   selectIsMessengerConnected,
-} from "../../../stores/messengerStore";
-import { useNavigationStore } from "../../../stores/navigationStore";
-import { messengerService } from "../../../services/messenger";
+  messengerService,
+} from "../../../platforms/messenger";
 import { CommonWidget } from "../../common";
 import { Conversation } from "../../../types/conversation";
 import { ActiveChatHeadItem } from "./ActiveChatHeadItem";

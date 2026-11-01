@@ -1,5 +1,5 @@
-import { MessengerAccount, createMessengerAccount } from "../../types/account";
-import { getAccountThemeColor } from "../../constants/accountColors";
+import { MessengerAccount, createMessengerAccount } from "../types";
+import { getAccountThemeColor } from "../../../constants/accountColors";
 
 const STORAGE_KEY = "desktop_bubble_chat_messenger_accounts";
 

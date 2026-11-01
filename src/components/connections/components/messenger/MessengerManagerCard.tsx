@@ -3,7 +3,7 @@ import { MonitorCheck, RefreshCw, Layers } from "lucide-react";
 import {
   useMessengerStore,
   selectIsMessengerConnected,
-} from "../../../../stores/messengerStore";
+} from "../../../../platforms/messenger";
 import { PlatformId } from "../../../../types/platform";
 import { PLATFORM_CONFIGS } from "../../../../config";
 import { PlatformIcon } from "../../../icons";
