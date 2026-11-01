@@ -8,7 +8,8 @@ import { NotificationsWorkspace } from "./components/notifications";
 import { SettingsWorkspace } from "./components/settings";
 import { HelpWorkspace } from "./components/help";
 import { BubbleSpawnIndicator } from "./components/common/BubbleSpawnIndicator";
-import { useBubbleAutoRestore } from "./hooks";
+import { DashboardLoadingOverlay } from "./components/common/DashboardLoadingOverlay";
+import { useBubbleAutoRestore, useDashboardBootstrap } from "./hooks";
 import { useUnreadListener } from "./hooks/useUnreadListener";
 import { useSystemUser } from "./hooks/useSystemUser";
 import { useNavigationStore } from "./stores/navigationStore";
@@ -16,7 +17,8 @@ import { useNavigationStore } from "./stores/navigationStore";
 export const App: React.FC = () => {
   const activeTab = useNavigationStore((s) => s.activeTab);
 
-  // Khởi tạo các listener giám sát hệ thống và khôi phục bong bóng nền (Dashboard chính)
+  // Khởi tạo các listener giám sát hệ thống, bootstrap vòng đời và khôi phục bong bóng nền (Dashboard chính)
+  useDashboardBootstrap();
   useUnreadListener();
   useSystemUser();
   useBubbleAutoRestore();
@@ -26,8 +28,8 @@ export const App: React.FC = () => {
       {/* 1. Custom Title Bar */}
       <TitleBar />
 
-      {/* 2. Main Workspace (Sidebar + Dynamic Workspace Content) */}
-      <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
+      {/* 2. Main Workspace (Sidebar + Dynamic Workspace Content + Blocking Loading Overlay) */}
+      <div className="relative flex flex-1 min-h-0 min-w-0 overflow-hidden">
         <Sidebar />
         {activeTab === "connections" ? (
           <ConnectionsWorkspace />
@@ -42,9 +44,12 @@ export const App: React.FC = () => {
         ) : (
           <HomeWorkspace />
         )}
+
+        {/* 3. Dashboard Initialization & Hibernation Loading Overlay */}
+        <DashboardLoadingOverlay />
       </div>
 
-      {/* 3. Dynamic Bubble Spawn Directional Arrow Indicator */}
+      {/* 4. Dynamic Bubble Spawn Directional Arrow Indicator */}
       <BubbleSpawnIndicator />
     </div>
   );

@@ -8,3 +8,4 @@ export * from "./CommonDialog";
 export * from "./BubbleSpawnIndicator";
 export * from "./CommonLargeCard";
 export * from "./CommonBadge";
+export * from "./DashboardLoadingOverlay";

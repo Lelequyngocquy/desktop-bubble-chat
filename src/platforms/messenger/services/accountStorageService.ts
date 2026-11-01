@@ -1,11 +1,16 @@
-import { MessengerAccount, createMessengerAccount } from "../types";
+import {
+  MessengerAccount,
+  createMessengerAccount,
+  formatMessengerName,
+  formatMessengerAvatarText,
+} from "../types";
 import { getAccountThemeColor } from "../../../constants/accountColors";
 
 const STORAGE_KEY = "desktop_bubble_chat_messenger_accounts";
 
 /**
  * Service handling persistent storage of Messenger accounts in localStorage.
- * Ensures data hygiene (e.g. resetting transient authentication flags).
+ * Ensures data hygiene (e.g. resetting transient authentication flags, maintaining canonical naming).
  */
 export const accountStorageService = {
   load(): MessengerAccount[] {
@@ -24,6 +29,9 @@ export const accountStorageService = {
 
             return {
               ...a,
+              // Bất biến SSOT: Tên tài khoản luôn luôn là "Messenger 01", "Messenger 02",... tuyệt đối không bị ghi đè bởi chuỗi số định danh UID
+              name: formatMessengerName(a.index),
+              avatarText: formatMessengerAvatarText(a.index),
               color: getAccountThemeColor(a.index).hex,
               isAuthenticating: false, // Invariant: Never persist in-flight authentication state
               // Khởi động app với switch TẮT và bubble ẩn cho tới khi Messenger tải xong & ổn định
@@ -43,6 +51,9 @@ export const accountStorageService = {
     try {
       const sanitized = accounts.map((a) => ({
         ...a,
+        // Bảo vệ tên chuẩn mực "Messenger 01", "Messenger 02",... khi lưu trữ
+        name: formatMessengerName(a.index),
+        avatarText: formatMessengerAvatarText(a.index),
         isAuthenticating: false,
         shouldRestoreBubble:
           typeof a.shouldRestoreBubble === "boolean"

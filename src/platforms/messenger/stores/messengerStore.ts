@@ -4,6 +4,8 @@ import {
   ConnectedAccount,
   MAX_MESSENGER_ACCOUNTS,
   createMessengerAccount,
+  formatMessengerName,
+  formatMessengerAvatarText,
   ProcessLifecycleState,
 } from "../types";
 import { accountStorageService } from "../services/accountStorageService";
@@ -101,7 +103,20 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
 
   updateAccount: (id, updates) => {
     const current = get().accounts;
-    const updated = current.map((a) => (a.id === id ? { ...a, ...updates } : a));
+    const updated = current.map((a) => {
+      if (a.id === id) {
+        const safeUpdates = { ...updates };
+        // Bảo vệ SSOT: Tên luôn là "Messenger 01", "Messenger 02",... tuyệt đối không bị ghi đè bởi chuỗi số định danh UID
+        delete safeUpdates.name;
+        return {
+          ...a,
+          ...safeUpdates,
+          name: formatMessengerName(a.index),
+          avatarText: formatMessengerAvatarText(a.index),
+        };
+      }
+      return a;
+    });
     accountStorageService.save(updated);
     set({ accounts: updated });
   },
