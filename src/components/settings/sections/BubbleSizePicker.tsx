@@ -35,7 +35,7 @@ export const BubbleSizePicker: React.FC<BubbleSizePickerProps> = ({
   onSelectSize,
 }) => {
   return (
-    <div className="grid grid-cols-3 gap-3 max-w-[480px]">
+    <div className="grid grid-cols-3 gap-3 max-w-[580px]">
       {BUBBLE_SIZE_OPTIONS.map((item) => {
         const isSelected = currentSize === item.id;
         return (

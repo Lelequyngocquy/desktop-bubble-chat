@@ -1,5 +1,6 @@
 import React from "react";
 import { HardDrive, Trash2, RefreshCw, Check } from "lucide-react";
+import { CommonLargeCard } from "../../common";
 
 interface DataCacheSectionProps {
   clearStatus: string | null;
@@ -11,14 +12,10 @@ export const DataCacheSection: React.FC<DataCacheSectionProps> = ({
   onOpenClearDialog,
 }) => {
   return (
-    <div className="bg-white border border-[#E2E7EF] rounded-[12px] shadow-card p-5 flex flex-col gap-4">
-      <div className="flex items-center gap-2 pb-2 border-b border-[#E2E7EF]/60">
-        <HardDrive className="w-4 h-4 text-[#0866FF]" />
-        <h2 className="text-[15px] font-semibold text-[#1E293B] m-0">
-          Dữ liệu & Bộ nhớ đệm
-        </h2>
-      </div>
-
+    <CommonLargeCard
+      icon={<HardDrive className="w-4 h-4 text-[#0866FF]" />}
+      title="Dữ liệu & Bộ nhớ đệm"
+    >
       <div className="flex items-center justify-between gap-4 py-1">
         <div className="flex flex-col gap-0.5">
           <span className="text-[13px] font-medium text-[#1E293B]">
@@ -58,7 +55,7 @@ export const DataCacheSection: React.FC<DataCacheSectionProps> = ({
         <span>DesktopBubbleChat v0.1.0 (Windows 11 / WebView2)</span>
         <span>Build Clean Architecture</span>
       </div>
-    </div>
+    </CommonLargeCard>
   );
 };
 

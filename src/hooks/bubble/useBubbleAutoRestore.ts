@@ -73,7 +73,17 @@ export function useBubbleAutoRestore() {
       }
     };
 
-    // 2. Lắng nghe sự kiện Messenger nạp xong và xác thực ổn định từ backend
+    // 2. Khởi động các tài khoản đã kết nối và được cấu hình BẬT bong bóng (shouldRestoreBubble === true)
+    const restoreTimer = setTimeout(() => {
+      const accounts = useMessengerStore.getState().accounts;
+      for (const acc of accounts) {
+        if (acc.isConnected && acc.shouldRestoreBubble) {
+          restoreAccountIfEligible(acc.index);
+        }
+      }
+    }, 200);
+
+    // 3. Lắng nghe sự kiện Messenger nạp xong và xác thực ổn định từ backend (khi login tài khoản mới)
     let unlistenAuth: (() => void) | undefined;
     listen<MessengerAuthStatusPayload>(IPC_EVENTS.MESSENGER_AUTH_STATUS, async (event) => {
       if (event.payload?.connected) {
@@ -84,22 +94,8 @@ export function useBubbleAutoRestore() {
       unlistenAuth = un;
     });
 
-    // 3. Kiểm tra các tài khoản đã sẵn sàng từ trước (health-check)
-    const accounts = useMessengerStore.getState().accounts;
-    for (const acc of accounts) {
-      if (acc.shouldRestoreBubble) {
-        messengerService
-          .checkAuth(acc.index)
-          .then(async (res) => {
-            if (res && res.connected) {
-              await restoreAccountIfEligible(acc.index);
-            }
-          })
-          .catch(() => {});
-      }
-    }
-
     return () => {
+      clearTimeout(restoreTimer);
       if (unlistenAuth) unlistenAuth();
     };
   }, []);

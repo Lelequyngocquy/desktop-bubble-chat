@@ -1,10 +1,14 @@
 import React from "react";
 import { MonitorCheck, RefreshCw, Layers } from "lucide-react";
-import { useMessengerStore, selectIsMessengerConnected } from "../../../../stores/messengerStore";
+import {
+  useMessengerStore,
+  selectIsMessengerConnected,
+} from "../../../../stores/messengerStore";
 import { PlatformId } from "../../../../types/platform";
 import { PLATFORM_CONFIGS } from "../../../../config";
 import { PlatformIcon } from "../../../icons";
 import { MessengerAccountList } from "./MessengerAccountList";
+import { CommonBadge } from "../../../common";
 
 export const MessengerManagerCard: React.FC = () => {
   const accounts = useMessengerStore((s) => s.accounts);
@@ -24,7 +28,10 @@ export const MessengerManagerCard: React.FC = () => {
               className="w-[52px] h-[52px] rounded-[14.5px] flex items-center justify-center shrink-0 shadow-sm text-white"
               style={{ backgroundColor: messengerConfig.brandColor }}
             >
-              <PlatformIcon platformId={PlatformId.MESSENGER} className="w-8 h-8 fill-current" />
+              <PlatformIcon
+                platformId={PlatformId.MESSENGER}
+                className="w-8 h-8 fill-current"
+              />
             </div>
 
             <div className="flex flex-col gap-1">
@@ -35,19 +42,23 @@ export const MessengerManagerCard: React.FC = () => {
 
                 {/* Connection Status Badge */}
                 {connectedCount > 0 ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#E9F5EF] text-[#25805C] text-[11px] font-medium rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#25805C]" />
-                    {connectedCount}/{totalAccounts} tài khoản kết nối
-                  </span>
+                  <CommonBadge
+                    color="success"
+                    icon={
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#25805C]" />
+                    }
+                    status={`${connectedCount}/${totalAccounts} tài khoản kết nối`}
+                  />
                 ) : totalAccounts > 0 ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#FFF3E8] text-[#D97706] text-[11px] font-medium rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#D97706]" />
-                    {totalAccounts} tài khoản (chưa đăng nhập)
-                  </span>
+                  <CommonBadge
+                    color="warning"
+                    icon={
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#D97706]" />
+                    }
+                    status={`${totalAccounts} tài khoản (chưa đăng nhập)`}
+                  />
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#EEF2F9] text-[#6B7483] text-[11px] font-medium rounded-full">
-                    Chưa thêm tài khoản
-                  </span>
+                  <CommonBadge color="secondary" status="Chưa thêm tài khoản" />
                 )}
               </div>
               <span className="text-[12px] text-[#6B7483]">
@@ -80,7 +91,9 @@ export const MessengerManagerCard: React.FC = () => {
                 CƠ CHẾ PHÂN TÁCH DỮ LIỆU
               </span>
               <span className="text-[13px] font-medium text-[#202733]">
-                {totalAccounts > 0 ? `${totalAccounts} Profile độc lập` : "Chưa cấu hình"}
+                {totalAccounts > 0
+                  ? `${totalAccounts} Profile độc lập`
+                  : "Chưa cấu hình"}
               </span>
               <span className="text-[11px] text-[#6B7483]">
                 Lưu tại thư mục AppData riêng biệt
@@ -95,7 +108,9 @@ export const MessengerManagerCard: React.FC = () => {
                 ĐỒNG BỘ TIN CHƯA ĐỌC
               </span>
               <span className="text-[13px] font-medium text-[#202733]">
-                {isMessengerConnected ? "Thời gian thực (Realtime)" : "Chưa có kết nối"}
+                {isMessengerConnected
+                  ? "Thời gian thực (Realtime)"
+                  : "Chưa có kết nối"}
               </span>
               <span className="text-[11px] text-[#6B7483]">
                 Tự động gom số unread lên bong bóng

@@ -4,6 +4,7 @@ import {
   ConnectedAccount,
   MAX_MESSENGER_ACCOUNTS,
   createMessengerAccount,
+  ProcessLifecycleState,
 } from "../types/account";
 import { accountStorageService } from "../services/storage/accountStorageService";
 import { messengerAuthManager } from "../services/messenger/messengerAuthManager";
@@ -137,7 +138,12 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
     const current = get().accounts;
     const updated = current.map((a) =>
       a.index === accountIndex
-        ? { ...a, isBubbleVisible: visible, shouldRestoreBubble: visible }
+        ? {
+            ...a,
+            isBubbleVisible: visible,
+            shouldRestoreBubble: visible,
+            lifecycleState: (visible ? "active" : "cold") as ProcessLifecycleState,
+          }
         : a
     );
     accountStorageService.save(updated);
@@ -149,7 +155,12 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
     const updated = current.map((a) => {
       if (a.index === accountIndex) {
         const nextVal = !a.isBubbleVisible;
-        return { ...a, isBubbleVisible: nextVal, shouldRestoreBubble: nextVal };
+        return {
+          ...a,
+          isBubbleVisible: nextVal,
+          shouldRestoreBubble: nextVal,
+          lifecycleState: (nextVal ? "active" : "cold") as ProcessLifecycleState,
+        };
       }
       return a;
     });
@@ -161,7 +172,12 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
     const current = get().accounts;
     const updated = current.map((a) =>
       a.isConnected
-        ? { ...a, isBubbleVisible: visible, shouldRestoreBubble: visible }
+        ? {
+            ...a,
+            isBubbleVisible: visible,
+            shouldRestoreBubble: visible,
+            lifecycleState: (visible ? "active" : "cold") as ProcessLifecycleState,
+          }
         : a
     );
     accountStorageService.save(updated);

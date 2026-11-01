@@ -1,6 +1,6 @@
 import React from "react";
 import { Power } from "lucide-react";
-import { SwitchButton } from "../../common";
+import { SwitchButton, CommonLargeCard } from "../../common";
 
 interface SystemStartupSectionProps {
   isAutoStart: boolean;
@@ -20,14 +20,10 @@ export const SystemStartupSection: React.FC<SystemStartupSectionProps> = ({
   onToggleNotifications,
 }) => {
   return (
-    <div className="bg-white border border-[#E2E7EF] rounded-[12px] shadow-card p-5 flex flex-col gap-4">
-      <div className="flex items-center gap-2 pb-2 border-b border-[#E2E7EF]/60">
-        <Power className="w-4 h-4 text-[#0866FF]" />
-        <h2 className="text-[15px] font-semibold text-[#1E293B] m-0">
-          Hệ thống & Khởi động
-        </h2>
-      </div>
-
+    <CommonLargeCard
+      icon={<Power className="w-4 h-4 text-[#0866FF]" />}
+      title="Hệ thống & Khởi động"
+    >
       <div className="flex flex-col divide-y divide-[#E2E7EF]">
         <div className="py-3 flex items-center justify-between gap-4">
           <div className="flex flex-col gap-0.5">
@@ -76,7 +72,7 @@ export const SystemStartupSection: React.FC<SystemStartupSectionProps> = ({
           />
         </div>
       </div>
-    </div>
+    </CommonLargeCard>
   );
 };
 

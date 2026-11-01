@@ -1,5 +1,5 @@
 import React from "react";
-import { AvatarSquareRounded } from "../../common";
+import { AvatarSquareRounded, CommonBadge } from "../../common";
 import { UPCOMING_PLATFORMS } from "../../../config";
 import { PlatformIcon } from "../../icons";
 
@@ -43,9 +43,10 @@ export const PlatformRoadmap: React.FC = () => {
                 <span className="text-[14px] font-medium text-[#202733] truncate">
                   {p.name}
                 </span>
-                <span className="px-[7px] py-[2px] bg-[#EEF2F9] text-[#6B7483] text-[10px] rounded-[6px] shrink-0 font-normal">
-                  {p.upcomingBadgeText || "Sắp ra mắt"}
-                </span>
+                <CommonBadge
+                  color="secondary"
+                  status={p.upcomingBadgeText || "Sắp ra mắt"}
+                />
               </div>
               <span className="text-[11px] text-[#6B7483] truncate">
                 {p.description}

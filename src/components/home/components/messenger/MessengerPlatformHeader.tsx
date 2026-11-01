@@ -3,7 +3,11 @@ import { Settings } from "lucide-react";
 import { PlatformId } from "../../../../types/platform";
 import { PLATFORM_CONFIGS } from "../../../../config";
 import { PlatformIcon } from "../../../icons";
-import { AvatarSquareRounded, CommonButton } from "../../../common";
+import {
+  AvatarSquareRounded,
+  CommonBadge,
+  CommonButton,
+} from "../../../common";
 
 interface MessengerPlatformHeaderProps {
   totalConnected: number;
@@ -43,21 +47,25 @@ export const MessengerPlatformHeader: React.FC<
             </span>
 
             {isConnected ? (
-              <div className="flex items-center gap-1.5 px-[10px] py-1 bg-[#EAF6EF] rounded-full">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#25805C]" />
-                <span className="text-[12px] font-medium text-[#25805C] leading-none">
-                  {totalConnected === 1
+              <CommonBadge
+                color="success"
+                icon={
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#25805C]" />
+                }
+                status={
+                  totalConnected === 1
                     ? "Đã kết nối"
-                    : `${totalConnected}/${totalAccounts} tài khoản kết nối`}
-                </span>
-              </div>
+                    : `${totalConnected}/${totalAccounts} tài khoản kết nối`
+                }
+              />
             ) : (
-              <div className="flex items-center gap-1.5 px-[10px] py-1 bg-[#FFF3E8] rounded-full">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#D97706]" />
-                <span className="text-[12px] font-medium text-[#D97706] leading-none">
-                  Chưa kết nối
-                </span>
-              </div>
+              <CommonBadge
+                color="warning"
+                icon={
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#D97706]" />
+                }
+                status="Chưa kết nối"
+              />
             )}
           </div>
           <span className="text-[13px] text-[#6B7483]">
