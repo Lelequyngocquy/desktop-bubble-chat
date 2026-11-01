@@ -206,6 +206,9 @@ pub fn update_tray_menu_status(
 // Command thoát ứng dụng hoàn toàn
 #[tauri::command]
 pub fn exit_app(app: AppHandle) {
+    if let Some(state) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
+        state.is_explicit_exit.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
     app.exit(0);
 }
 

@@ -120,7 +120,7 @@ impl BubbleMovementEngine {
             screen,
             config,
             initial_x,
-            config.tuck_ratio,
+            config.appear_ratio,
         );
 
         let target_y = CollisionResolver::find_free_stacked_slot(

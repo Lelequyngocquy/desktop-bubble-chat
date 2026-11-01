@@ -43,6 +43,7 @@ pub fn destroy_or_hibernate_main_window(app: &AppHandle) {
         let _ = main_window.destroy();
         #[cfg(target_os = "windows")]
         trim_current_process_working_set();
+        let _ = crate::tray::update_tray_menu(app);
     }
 }
 
@@ -65,6 +66,7 @@ pub fn get_or_create_main_window(app: &AppHandle) -> Result<WebviewWindow, Strin
             let _ = existing.show();
             let _ = existing.unminimize();
             let _ = existing.set_focus();
+            let _ = crate::tray::update_tray_menu(app);
             return Ok(existing);
         } else {
             let _ = existing.destroy();
@@ -89,6 +91,7 @@ pub fn get_or_create_main_window(app: &AppHandle) -> Result<WebviewWindow, Strin
 
     let _ = new_window.show();
     let _ = new_window.set_focus();
+    let _ = crate::tray::update_tray_menu(app);
 
     Ok(new_window)
 }

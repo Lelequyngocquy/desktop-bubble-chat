@@ -138,23 +138,28 @@ pub fn setup_bubble_window(app: &AppHandle) {
 /// Thay đổi kích thước cửa sổ Bubble trực tiếp qua Win32 SetWindowPos và Tauri set_size
 pub fn resize_bubble_window(bubble: &tauri::WebviewWindow, size_px: f64) {
     #[cfg(target_os = "windows")]
-    if let Ok(hwnd) = bubble.hwnd() {
-        let raw_hwnd = hwnd.0 as *mut std::ffi::c_void;
-        if let Ok(Some(monitor)) = bubble.current_monitor() {
-            let scale = monitor.scale_factor();
-            let size = (size_px * scale) as i32;
-            unsafe {
-                SetWindowPos(
-                    raw_hwnd,
-                    std::ptr::null_mut(),
-                    0,
-                    0,
-                    size,
-                    size,
-                    SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
-                );
+    {
+        let bubble_clone = bubble.clone();
+        let _ = bubble.run_on_main_thread(move || {
+            if let Ok(hwnd) = bubble_clone.hwnd() {
+                let raw_hwnd = hwnd.0 as *mut std::ffi::c_void;
+                if let Ok(Some(monitor)) = bubble_clone.current_monitor() {
+                    let scale = monitor.scale_factor();
+                    let size = (size_px * scale) as i32;
+                    unsafe {
+                        SetWindowPos(
+                            raw_hwnd,
+                            std::ptr::null_mut(),
+                            0,
+                            0,
+                            size,
+                            size,
+                            SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+                        );
+                    }
+                }
             }
-        }
+        });
     }
     let _ = bubble.set_size(tauri::Size::Logical(tauri::LogicalSize {
         width: size_px,
@@ -174,12 +179,39 @@ pub fn get_or_create_bubble_window(
 ) -> Result<tauri::WebviewWindow, String> {
     let label = get_bubble_window_label(account_index);
 
-    // 1. Kiểm tra cửa sổ đã tồn tại
-    if let Some(win) = app.get_webview_window(&label) {
-        return Ok(win);
+    // 1. Kiểm tra cửa sổ đã tồn tại và HWND Win32 còn hợp lệ (kèm grace period dọn dẹp nếu đã destroy)
+    for attempt in 0..10 {
+        if let Some(win) = app.get_webview_window(&label) {
+            #[cfg(target_os = "windows")]
+            {
+                #[link(name = "user32")]
+                unsafe extern "system" {
+                    fn IsWindow(hWnd: *mut std::ffi::c_void) -> i32;
+                }
+                let is_alive = if let Ok(hwnd) = win.hwnd() {
+                    unsafe { IsWindow(hwnd.0 as *mut std::ffi::c_void) != 0 }
+                } else {
+                    false
+                };
+
+                if is_alive {
+                    return Ok(win);
+                } else {
+                    let _ = win.destroy();
+                    if attempt < 9 {
+                        std::thread::sleep(std::time::Duration::from_millis(20));
+                    }
+                    continue;
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            return Ok(win);
+        } else {
+            break;
+        }
     }
 
-    // 2. Khởi tạo WebviewWindow Bubble động khi cần (Zero-Query-Param architecture)
+    // 2. Khởi tạo WebviewWindow Bubble động khi cần (Dynamic Lifecycle Spawning)
     let is_on_top = app
         .try_state::<Arc<crate::state::ChatState>>()
         .map(|s| s.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst))
@@ -192,6 +224,7 @@ pub fn get_or_create_bubble_window(
     )
     .title(format!("DesktopBubbleChat - Bubble {:02}", account_index))
     .inner_size(64.0, 64.0)
+    .min_inner_size(1.0, 1.0)
     .resizable(false)
     .decorations(false)
     .transparent(true)
@@ -200,11 +233,14 @@ pub fn get_or_create_bubble_window(
     .shadow(false)
     .visible(false)
     .build()
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| format!("Lỗi khởi tạo Bubble {:02}: {}", account_index, e))?;
 
     #[cfg(target_os = "windows")]
     {
-        setup_bubble_subclass(&window);
+        let win_clone = window.clone();
+        let _ = window.run_on_main_thread(move || {
+            setup_bubble_subclass(&win_clone);
+        });
         let config = crate::movement::get_bubble_physics_config(app);
         resize_bubble_window(&window, config.size);
     }
@@ -219,6 +255,12 @@ pub fn get_active_bubble_rects(
 ) -> Vec<BubbleRect> {
     let mut rects = Vec::new();
 
+    // 1. Lấy danh sách rect đã commit trong ChatState (SSOT bảo vệ chống race condition)
+    let state_rects: std::collections::HashMap<u32, BubbleRect> = app
+        .try_state::<Arc<crate::state::ChatState>>()
+        .and_then(|s| s.active_bubble_rects.lock().ok().map(|g| g.clone()))
+        .unwrap_or_default();
+
     for idx in 1..=5 {
         let label = get_bubble_window_label(idx);
         if let Some(exclude) = exclude_label {
@@ -229,17 +271,26 @@ pub fn get_active_bubble_rects(
         let win = app.get_webview_window(&label);
 
         if let Some(w) = win {
-            if w.is_visible().unwrap_or(false) {
+            let is_vis = w.is_visible().unwrap_or(false);
+            if is_vis || state_rects.contains_key(&idx) {
                 if let (Ok(pos), Ok(size)) = (w.outer_position(), w.outer_size()) {
-                    rects.push(BubbleRect {
-                        account_index: idx,
-                        x: pos.x,
-                        y: pos.y,
-                        width: size.width as i32,
-                        height: size.height as i32,
-                    });
+                    if pos.x != 0 || pos.y != 0 {
+                        rects.push(BubbleRect {
+                            account_index: idx,
+                            x: pos.x,
+                            y: pos.y,
+                            width: size.width as i32,
+                            height: size.height as i32,
+                        });
+                        continue;
+                    }
+                }
+                if let Some(sr) = state_rects.get(&idx) {
+                    rects.push(*sr);
                 }
             }
+        } else if let Some(sr) = state_rects.get(&idx) {
+            rects.push(*sr);
         }
     }
 
@@ -286,7 +337,11 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
 
         if !is_visible || is_out_of_bounds {
             let mut other_bubbles = get_active_bubble_rects(app, Some(&win_label));
-            other_bubbles.extend_from_slice(extra_obstacles);
+            for obs in extra_obstacles {
+                if !other_bubbles.iter().any(|b| b.account_index == obs.account_index) {
+                    other_bubbles.push(*obs);
+                }
+            }
             let target_pos = BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &other_bubbles);
             let _ = bubble_window.set_position(tauri::Position::Physical(target_pos));
             committed_pos = target_pos;
@@ -299,6 +354,21 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
         let _ = bubble_window.set_always_on_top(is_on_top);
     }
     let _ = bubble_window.show();
+    let _ = bubble_window.unminimize();
+
+    let rect = BubbleRect {
+        account_index,
+        x: committed_pos.x,
+        y: committed_pos.y,
+        width: bubble_w,
+        height: bubble_w,
+    };
+
+    // Cập nhật vị trí vào SSOT ChatState ngay lập tức
+    if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
+        chat_state.set_bubble_rect(account_index, rect);
+    }
+
     let _ = app.emit("bubble-visibility-changed", serde_json::json!({
         "accountIndex": account_index,
         "visible": true,

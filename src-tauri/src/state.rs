@@ -20,6 +20,8 @@ pub struct ChatState {
     pub bypass_close_guard: Mutex<HashSet<String>>,
     pub transition_locks: Mutex<HashSet<u32>>,
     pub suspended_accounts: Mutex<HashSet<u32>>,
+    pub is_explicit_exit: AtomicBool,
+    pub active_bubble_rects: Mutex<HashMap<u32, crate::movement::BubbleRect>>,
 }
 
 impl Default for ChatState {
@@ -38,6 +40,8 @@ impl Default for ChatState {
             bypass_close_guard: Mutex::new(HashSet::new()),
             transition_locks: Mutex::new(HashSet::new()),
             suspended_accounts: Mutex::new(suspended),
+            is_explicit_exit: AtomicBool::new(false),
+            active_bubble_rects: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -161,5 +165,24 @@ impl ChatState {
             return set.contains(&account_index);
         }
         false
+    }
+
+    pub fn set_bubble_rect(&self, account_index: u32, rect: crate::movement::BubbleRect) {
+        if let Ok(mut map) = self.active_bubble_rects.lock() {
+            map.insert(account_index, rect);
+        }
+    }
+
+    pub fn remove_bubble_rect(&self, account_index: u32) {
+        if let Ok(mut map) = self.active_bubble_rects.lock() {
+            map.remove(&account_index);
+        }
+    }
+
+    pub fn get_bubble_rect(&self, account_index: u32) -> Option<crate::movement::BubbleRect> {
+        if let Ok(map) = self.active_bubble_rects.lock() {
+            return map.get(&account_index).copied();
+        }
+        None
     }
 }

@@ -6,8 +6,10 @@ pub mod tray;
 pub mod utils;
 pub mod windows;
 
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use state::ChatState;
+use tauri::Manager;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -15,7 +17,7 @@ pub fn run() {
     let chat_state = Arc::new(ChatState::default());
     let chat_state_clone = Arc::clone(&chat_state);
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .manage(chat_state)
         .manage(movement::BubbleConfigState::default())
         .plugin(tauri_plugin_opener::init())
@@ -103,6 +105,23 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|app_handle, event| {
+        if let tauri::RunEvent::ExitRequested { code, api, .. } = event {
+            let is_explicit = app_handle
+                .try_state::<Arc<ChatState>>()
+                .map(|s| s.is_explicit_exit.load(Ordering::SeqCst))
+                .unwrap_or(false);
+
+            if !is_explicit {
+                // Ngăn chặn Tauri tự động thoát tiến trình Backend khi toàn bộ cửa sổ đã bị đóng/hủy
+                println!("[Tauri Lifecycle] Chặn thoát tự động: Giữ Rust Host & System Tray tiếp tục chạy ngầm (Exit code: {:?})", code);
+                api.prevent_exit();
+            } else {
+                println!("[Tauri Lifecycle] Người dùng xác nhận thoát hoàn toàn ứng dụng (Exit code: {:?})", code);
+            }
+        }
+    });
 }

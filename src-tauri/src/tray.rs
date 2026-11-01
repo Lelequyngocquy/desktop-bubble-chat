@@ -85,7 +85,7 @@ pub fn confirm_exit_dialog() -> bool {
 }
 
 /// Helper điều khiển bật/tắt riêng một bong bóng chỉ định từ Tray Icon
-pub fn toggle_single_bubble_from_tray(app: &AppHandle, account_index: u32) {
+pub async fn toggle_single_bubble_from_tray(app: &AppHandle, account_index: u32) {
     let bubble_label = format!("bubble-{:02}", account_index);
     let is_visible = app
         .get_webview_window(&bubble_label)
@@ -93,14 +93,52 @@ pub fn toggle_single_bubble_from_tray(app: &AppHandle, account_index: u32) {
         .unwrap_or(false);
 
     let next_visible = !is_visible;
-    let _ = crate::commands::bubble::toggle_bubble(app.clone(), next_visible, Some(account_index));
+    let _ = crate::commands::bubble::toggle_bubble(app.clone(), next_visible, Some(account_index)).await;
+}
+
+/// Kiểm tra xem cửa sổ Dashboard chính có đang mở và hiển thị hay không
+pub fn is_main_window_open(app_handle: &AppHandle) -> bool {
+    if let Some(main_win) = app_handle.get_webview_window("main") {
+        #[cfg(target_os = "windows")]
+        {
+            #[link(name = "user32")]
+            unsafe extern "system" {
+                fn IsWindow(hWnd: *mut std::ffi::c_void) -> i32;
+            }
+            let is_alive = if let Ok(hwnd) = main_win.hwnd() {
+                unsafe { IsWindow(hwnd.0 as *mut std::ffi::c_void) != 0 }
+            } else {
+                false
+            };
+            is_alive && main_win.is_visible().unwrap_or(false)
+        }
+        #[cfg(not(target_os = "windows"))]
+        main_win.is_visible().unwrap_or(false)
+    } else {
+        false
+    }
+}
+
+/// Helper điều khiển Mở/Đóng Dashboard động từ System Tray
+pub fn toggle_main_window(app_handle: &AppHandle) {
+    if is_main_window_open(app_handle) {
+        crate::windows::main_window::destroy_or_hibernate_main_window(app_handle);
+    } else {
+        let _ = crate::windows::main_window::get_or_create_main_window(app_handle);
+    }
 }
 
 /// Dựng menu động cho System Tray: Mở Trang chủ, Bật/Tắt tất cả, list từng Bong bóng kèm checkmark
 pub fn build_tray_menu(app_handle: &AppHandle) -> Result<Menu<tauri::Wry>, Box<dyn std::error::Error>> {
     let menu = Menu::new(app_handle)?;
 
-    let show_home = MenuItem::with_id(app_handle, "show_home", "Mở Trang chủ", true, None::<&str>)?;
+    let is_open = is_main_window_open(app_handle);
+    let home_title = if is_open {
+        "Đóng Trang chủ"
+    } else {
+        "Mở Trang chủ"
+    };
+    let show_home = MenuItem::with_id(app_handle, "show_home", home_title, true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app_handle)?;
     menu.append(&show_home)?;
     menu.append(&sep1)?;
@@ -205,7 +243,7 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
             let id_str = event.id.as_ref();
             match id_str {
                 "show_home" => {
-                    let _ = crate::windows::main_window::get_or_create_main_window(app_handle);
+                    toggle_main_window(app_handle);
                 }
                 "toggle_all_bubbles" | "toggle_bubble_item" => {
                     let handle = app_handle.clone();
@@ -216,6 +254,9 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
                 }
                 "quit" => {
                     if confirm_exit_dialog() {
+                        if let Some(state) = app_handle.try_state::<Arc<crate::state::ChatState>>() {
+                            state.is_explicit_exit.store(true, std::sync::atomic::Ordering::SeqCst);
+                        }
                         app_handle.exit(0);
                     }
                 }
@@ -223,7 +264,7 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
                     if let Ok(idx) = id.trim_start_matches("toggle_bubble_").parse::<u32>() {
                         let handle = app_handle.clone();
                         tauri::async_runtime::spawn(async move {
-                            toggle_single_bubble_from_tray(&handle, idx);
+                            toggle_single_bubble_from_tray(&handle, idx).await;
                             let _ = update_tray_menu(&handle);
                         });
                     }
@@ -239,7 +280,7 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
             } = event
             {
                 let app_handle = tray.app_handle();
-                let _ = crate::windows::main_window::get_or_create_main_window(app_handle);
+                toggle_main_window(app_handle);
             }
         })
         .build(app)?;

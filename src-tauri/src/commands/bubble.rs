@@ -4,7 +4,6 @@ use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, Position};
 use crate::movement::{
     get_bubble_physics_config, BubbleConfigState, BubbleMovementEngine, BubbleRect, ScreenMetrics,
 };
-use crate::platforms::messenger::services::StorageService;
 use crate::platforms::messenger::windows::get_messenger_window_label;
 use crate::state::ChatState;
 use crate::windows::bubble::{
@@ -51,12 +50,27 @@ pub fn get_bubble_position(
 #[tauri::command]
 pub fn get_all_bubble_positions(app: AppHandle) -> Result<Vec<BubblePositionDto>, String> {
     let mut list = Vec::new();
+    let state_rects: std::collections::HashMap<u32, BubbleRect> = app
+        .try_state::<Arc<ChatState>>()
+        .and_then(|s| s.active_bubble_rects.lock().ok().map(|g| g.clone()))
+        .unwrap_or_default();
+
     for idx in 1..=5 {
         let label = get_bubble_window_label(idx);
         if let Some(w) = app.get_webview_window(&label) {
             let is_vis = w.is_visible().unwrap_or(false);
-            let pos = w.outer_position().unwrap_or_default();
-            let size = w.outer_size().unwrap_or_default();
+            let mut pos = w.outer_position().unwrap_or_default();
+            let mut size = w.outer_size().unwrap_or_default();
+
+            if pos.x == 0 && pos.y == 0 {
+                if let Some(sr) = state_rects.get(&idx) {
+                    pos.x = sr.x;
+                    pos.y = sr.y;
+                    size.width = sr.width as u32;
+                    size.height = sr.height as u32;
+                }
+            }
+
             list.push(BubblePositionDto {
                 account_index: idx,
                 x: pos.x,
@@ -79,6 +93,7 @@ pub fn suspend_account_bubble_and_chat(app: &AppHandle, account_index: u32) {
     if let Some(state) = app.try_state::<Arc<ChatState>>() {
         state.set_bypass_close_guard(&chat_label, true);
         state.set_account_suspended(idx, true);
+        state.remove_bubble_rect(idx);
     }
 
     // 1. Hủy cửa sổ chat Messenger (giải phóng WebView2 COM/DOM trong RAM)
@@ -92,13 +107,14 @@ pub fn suspend_account_bubble_and_chat(app: &AppHandle, account_index: u32) {
         let _ = cw.destroy();
     }
 
-    // 2. Ẩn cửa sổ Bubble
+    // 2. Ẩn và tiêu hủy cửa sổ Bubble (Dynamic Destruction giải phóng Renderer RAM của Bong bóng)
     if let Some(bw) = app.get_webview_window(&bubble_label) {
         let _ = bw.hide();
+        let _ = bw.destroy();
     }
 
-    // 3. Chấm dứt tiến trình con msedgewebview2 của riêng profile này (bảo toàn 100% cache đĩa)
-    StorageService::terminate_profile_process_only(idx);
+    #[cfg(target_os = "windows")]
+    crate::windows::main_window::trim_current_process_working_set();
 
     // 4. Phát event thông báo đã ẩn
     let _ = app.emit("bubble-visibility-changed", serde_json::json!({
@@ -143,31 +159,55 @@ pub fn resume_account_bubble_and_chat(
     Ok(rect)
 }
 
+/// RAII Guard bảo đảm khóa transition_lock luôn luôn được giải phóng khi kết thúc tác vụ
+struct TransitionLockGuard {
+    state: Option<Arc<ChatState>>,
+    account_index: u32,
+}
+
+impl TransitionLockGuard {
+    fn new(state: Option<Arc<ChatState>>, account_index: u32) -> Self {
+        Self { state, account_index }
+    }
+}
+
+impl Drop for TransitionLockGuard {
+    fn drop(&mut self) {
+        if let Some(state) = &self.state {
+            state.release_transition_lock(self.account_index);
+        }
+    }
+}
+
 /// Command điều khiển ẩn/hiện cửa sổ bong bóng nổi cho tài khoản chỉ định
 #[tauri::command]
-pub fn toggle_bubble(
+pub async fn toggle_bubble(
     app: AppHandle,
     visible: bool,
     account_index: Option<u32>,
 ) -> Result<(), String> {
     let idx = account_index.unwrap_or(1);
 
-    if let Some(state) = app.try_state::<Arc<ChatState>>() {
-        if !state.try_acquire_transition_lock(idx) {
+    let state = app.try_state::<Arc<ChatState>>().map(|s| Arc::clone(&s));
+    if let Some(s) = &state {
+        if !s.try_acquire_transition_lock(idx) {
             println!("[toggle_bubble] Account {} is transitioning, skipping duplicate toggle", idx);
             return Ok(());
         }
     }
+    let guard = TransitionLockGuard::new(state, idx);
 
     if visible {
-        let _ = resume_account_bubble_and_chat(&app, idx, None);
+        match resume_account_bubble_and_chat(&app, idx, None) {
+            Ok(_) => println!("[toggle_bubble] Account {} bubble resumed successfully", idx),
+            Err(e) => eprintln!("[toggle_bubble ERROR] Failed to resume bubble for account {}: {}", idx, e),
+        }
     } else {
         suspend_account_bubble_and_chat(&app, idx);
+        println!("[toggle_bubble] Account {} bubble suspended successfully", idx);
     }
 
-    if let Some(state) = app.try_state::<Arc<ChatState>>() {
-        state.release_transition_lock(idx);
-    }
+    drop(guard);
 
     let _ = crate::tray::update_tray_menu(&app);
 
@@ -206,6 +246,20 @@ pub fn snap_bubble(app: AppHandle, account_index: Option<u32>) -> Result<(), Str
                     y: snap.target_y,
                 }))
                 .map_err(|e| e.to_string())?;
+
+            if let Some(chat_state) = app.try_state::<Arc<ChatState>>() {
+                let bubble_w = (config.size * screen.scale_factor) as i32;
+                chat_state.set_bubble_rect(
+                    idx,
+                    BubbleRect {
+                        account_index: idx,
+                        x: snap.target_x,
+                        y: snap.target_y,
+                        width: bubble_w,
+                        height: bubble_w,
+                    },
+                );
+            }
         }
     }
     Ok(())
@@ -415,8 +469,14 @@ pub async fn toggle_all_bubbles_impl(
         let mut committed_rects: Vec<BubbleRect> = Vec::new();
 
         for (i, idx) in targets.iter().enumerate() {
-            if let Ok(rect) = resume_account_bubble_and_chat(app, *idx, Some(&committed_rects)) {
-                committed_rects.push(rect);
+            match resume_account_bubble_and_chat(app, *idx, Some(&committed_rects)) {
+                Ok(rect) => {
+                    println!("[toggle_all_bubbles] Account {} bubble resumed successfully", idx);
+                    committed_rects.push(rect);
+                }
+                Err(err) => {
+                    eprintln!("[toggle_all_bubbles ERROR] Failed to resume bubble for account {}: {}", idx, err);
+                }
             }
             // Giãn cách 70ms giữa các bubble để Windows DWM vẽ và tạo hiệu ứng thác nước mượt mà
             if i + 1 < targets.len() {

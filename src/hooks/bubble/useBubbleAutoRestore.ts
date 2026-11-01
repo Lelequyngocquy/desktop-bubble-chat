@@ -74,12 +74,30 @@ export function useBubbleAutoRestore() {
     };
 
     // 2. Khởi động các tài khoản đã kết nối và được cấu hình BẬT bong bóng (shouldRestoreBubble === true)
-    const restoreTimer = setTimeout(() => {
+    // Tự động khôi phục tuần tự (toggleAllBubbles) để đảm bảo các bong bóng xếp dọc mép không bao giờ đè lên nhau.
+    const restoreTimer = setTimeout(async () => {
       const accounts = useMessengerStore.getState().accounts;
-      for (const acc of accounts) {
-        if (acc.isConnected && acc.shouldRestoreBubble) {
-          restoreAccountIfEligible(acc.index);
-        }
+      const eligibleAccounts = accounts.filter(
+        (acc) => acc.isConnected && acc.shouldRestoreBubble
+      );
+
+      if (eligibleAccounts.length === 0) return;
+
+      // Đánh dấu và bật switch Dashboard trước
+      for (const acc of eligibleAccounts) {
+        restoredIndicesRef.current.add(acc.index);
+        useMessengerStore.getState().setAccountBubbleVisibility(acc.index, true);
+        const accName = acc.name || `Messenger ${acc.index.toString().padStart(2, "0")}`;
+        feLog.info(
+          `[AutoRestore] Khôi phục khi khởi động: ${accName} (index: ${acc.index})`
+        );
+      }
+
+      const eligibleIndices = eligibleAccounts.map((a) => a.index);
+      try {
+        await messengerService.toggleAllBubbles(true, eligibleIndices);
+      } catch (err) {
+        feLog.error("[AutoRestore] Lỗi khi hiển thị tuần tự toàn bộ Bubbles:", err);
       }
     }, 200);
 
