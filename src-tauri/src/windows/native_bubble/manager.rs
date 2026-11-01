@@ -93,6 +93,13 @@ pub enum NativeBubbleAction {
         account_index: u32,
         app: AppHandle,
     },
+    SetAlwaysOnTop {
+        enabled: bool,
+    },
+    SetSize {
+        account_index: u32,
+        size: u32,
+    },
 }
 
 /// Trình quản lý luồng Win32 chuyên trách (Dedicated Native Bubble UI Thread)
@@ -234,6 +241,22 @@ impl NativeBubbleManager {
                                                     true,
                                                 );
                                                 win.animate_to(target_pos.x, target_pos.y, 180);
+                                            }
+                                        }
+                                    }
+                                    NativeBubbleAction::SetAlwaysOnTop { enabled } => {
+                                        for win in bubbles.values() {
+                                            win.set_always_on_top(enabled);
+                                        }
+                                    }
+                                    NativeBubbleAction::SetSize { account_index, size } => {
+                                        if let Some(win) = bubbles.get_mut(&account_index) {
+                                            win.resize(size);
+                                        }
+                                        if let Ok(mut cache) = bounds_clone.write() {
+                                            if let Some(b) = cache.get_mut(&account_index) {
+                                                b.2 = size;
+                                                b.3 = size;
                                             }
                                         }
                                     }

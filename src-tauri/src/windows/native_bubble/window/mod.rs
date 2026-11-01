@@ -9,7 +9,7 @@ pub use types::*;
 pub use wndproc::*;
 
 use std::sync::Once;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 static REGISTER_CLASS_ONCE: Once = Once::new();
 
@@ -64,11 +64,18 @@ impl NativeBubbleWindow {
             .encode_utf16()
             .collect();
 
+        let is_on_top = app
+            .as_ref()
+            .and_then(|a| a.try_state::<std::sync::Arc<crate::state::ChatState>>())
+            .map(|s| s.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst))
+            .unwrap_or(true);
+
         unsafe {
             let hinstance = GetModuleHandleW(std::ptr::null());
+            let topmost_flag = if is_on_top { WS_EX_TOPMOST } else { 0 };
 
             let hwnd = CreateWindowExW(
-                WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
+                WS_EX_LAYERED | topmost_flag | WS_EX_TOOLWINDOW,
                 class_name_u16.as_ptr(),
                 title_u16.as_ptr(),
                 WS_POPUP,
@@ -182,6 +189,38 @@ impl NativeBubbleWindow {
                 0,
                 SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
             );
+        }
+    }
+
+    /// Thiết lập chế độ luôn hiển thị trên cùng (Always-on-top / Topmost)
+    pub fn set_always_on_top(&self, enabled: bool) {
+        unsafe {
+            let insert_after = if enabled {
+                -1 as isize as *mut std::ffi::c_void // HWND_TOPMOST
+            } else {
+                -2 as isize as *mut std::ffi::c_void // HWND_NOTOPMOST
+            };
+            SetWindowPos(
+                self.hwnd,
+                insert_after,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+            );
+        }
+    }
+
+    /// Thay đổi kích thước cửa sổ Native Bubble và cập nhật bộ đệm Skia
+    pub fn resize(&mut self, new_size: u32) {
+        self.width = new_size;
+        self.height = new_size;
+        unsafe {
+            let ptr = GetWindowLongPtrW(self.hwnd, GWLP_USERDATA) as *mut BubbleWindowState;
+            if let Some(state) = ptr.as_mut() {
+                state.resize(new_size);
+            }
         }
     }
 

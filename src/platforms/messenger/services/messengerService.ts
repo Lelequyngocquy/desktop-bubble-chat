@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { MessengerAuthStatus } from "../types";
 import { IPC_COMMANDS } from "../../../types/ipc";
+import { systemService } from "../../../services/systemService";
 
 /**
  * Service encapsulating all Tauri IPC commands for the Messenger platform.
@@ -119,10 +120,6 @@ export const messengerService = {
    * Cấu hình kích thước và tỉ lệ lấn mép của Bong bóng nổi.
    */
   async setBubbleConfig(size?: number, tuckRatio?: number): Promise<void> {
-    try {
-      await invoke(IPC_COMMANDS.SET_BUBBLE_CONFIG, { size, tuckRatio });
-    } catch (e) {
-      console.warn("[MessengerService] Failed to set bubble config:", e);
-    }
+    await systemService.setBubbleConfig(size, tuckRatio);
   },
 };

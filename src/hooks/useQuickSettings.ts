@@ -39,13 +39,14 @@ export function useQuickSettings() {
       setAutoStart(enabled);
     });
     systemService.setAlwaysOnTop(isAlwaysOnTop);
-    messengerService.setBubbleConfig(BUBBLE_SIZE_PIXELS[bubbleSize]);
-  }, [setAutoStart, isAlwaysOnTop, bubbleSize]);
+    systemService.setBubbleConfig(BUBBLE_SIZE_PIXELS[bubbleSize]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSetBubbleSize = useCallback(
     async (size: BubbleSize) => {
       setBubbleSize(size);
-      await messengerService.setBubbleConfig(BUBBLE_SIZE_PIXELS[size]);
+      await systemService.setBubbleConfig(BUBBLE_SIZE_PIXELS[size]);
     },
     [setBubbleSize]
   );

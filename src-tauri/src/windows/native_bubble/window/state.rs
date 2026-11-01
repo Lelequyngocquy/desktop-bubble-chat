@@ -43,6 +43,55 @@ pub struct BubbleWindowState {
 }
 
 impl BubbleWindowState {
+    /// Thay đổi kích thước bộ đệm GDI DIBSection và cập nhật cửa sổ
+    pub fn resize(&mut self, new_size: u32) {
+        if self.width == new_size && self.height == new_size {
+            return;
+        }
+        self.width = new_size;
+        self.height = new_size;
+
+        unsafe {
+            let mut bmi: BITMAPINFO = std::mem::zeroed();
+            bmi.bmi_header.bi_size = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
+            bmi.bmi_header.bi_width = new_size as i32;
+            bmi.bmi_header.bi_height = -(new_size as i32);
+            bmi.bmi_header.bi_planes = 1;
+            bmi.bmi_header.bi_bit_count = 32;
+            bmi.bmi_header.bi_compression = BI_RGB;
+
+            let mut p_bits: *mut u8 = std::ptr::null_mut();
+            let new_hbitmap = CreateDIBSection(
+                self.hdc_mem,
+                &bmi,
+                DIB_RGB_COLORS,
+                &mut p_bits,
+                std::ptr::null_mut(),
+                0,
+            );
+
+            if !new_hbitmap.is_null() && !p_bits.is_null() {
+                SelectObject(self.hdc_mem, self.old_bitmap);
+                DeleteObject(self.hbitmap);
+                self.hbitmap = new_hbitmap;
+                self.old_bitmap = SelectObject(self.hdc_mem, new_hbitmap);
+                self.p_bits = p_bits;
+            }
+
+            SetWindowPos(
+                self.hwnd,
+                std::ptr::null_mut(),
+                0,
+                0,
+                new_size as i32,
+                new_size as i32,
+                SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE,
+            );
+        }
+
+        self.update_layered_buffer();
+    }
+
     /// Cập nhật và vẽ lại nội dung Bong bóng qua UpdateLayeredWindow
     pub fn update_layered_buffer(&mut self) {
         let opts = BubbleRenderOptions {

@@ -1,11 +1,6 @@
 import React, { useState } from "react";
-import {
-  useSettingsStore,
-  BubbleSize,
-  BUBBLE_SIZE_PIXELS,
-} from "../../stores/settingsStore";
-import { systemService } from "../../services/systemService";
-import { notificationService } from "../../services/notificationService";
+import { useSettingsStore } from "../../stores/settingsStore";
+import { useQuickSettings } from "../../hooks/useQuickSettings";
 import { messengerService } from "../../platforms/messenger";
 import { TabHeader } from "../common";
 import {
@@ -17,44 +12,22 @@ import {
 import { ClearCacheDialog } from "./dialogs";
 
 export const SettingsWorkspace: React.FC = () => {
-  const isAlwaysOnTop = useSettingsStore((s) => s.isAlwaysOnTop);
-  const toggleAlwaysOnTop = useSettingsStore((s) => s.toggleAlwaysOnTop);
-  const isNotificationsEnabled = useSettingsStore((s) => s.isNotificationsEnabled);
-  const toggleNotifications = useSettingsStore((s) => s.toggleNotifications);
-  const isAutoStart = useSettingsStore((s) => s.isAutoStart);
-  const toggleAutoStart = useSettingsStore((s) => s.toggleAutoStart);
+  const {
+    isAlwaysOnTop,
+    handleToggleAlwaysOnTop,
+    isNotificationsEnabled,
+    handleToggleNotifications,
+    isAutoStart,
+    handleToggleAutoStart,
+    bubbleSize,
+    handleSetBubbleSize,
+  } = useQuickSettings();
+
   const isGlobalShortcutEnabled = useSettingsStore((s) => s.isGlobalShortcutEnabled);
   const toggleGlobalShortcut = useSettingsStore((s) => s.toggleGlobalShortcut);
-  const bubbleSize = useSettingsStore((s) => s.bubbleSize);
-  const setBubbleSize = useSettingsStore((s) => s.setBubbleSize);
 
   const [clearStatus, setClearStatus] = useState<string | null>(null);
   const [isConfirmClearCacheOpen, setIsConfirmClearCacheOpen] = useState(false);
-
-  const handleToggleAutoStart = async () => {
-    const nextVal = !isAutoStart;
-    toggleAutoStart();
-    await systemService.toggleAutostart(nextVal);
-  };
-
-  const handleToggleAlwaysOnTop = async () => {
-    const nextVal = !isAlwaysOnTop;
-    toggleAlwaysOnTop();
-    await systemService.setAlwaysOnTop(nextVal);
-  };
-
-  const handleToggleNotifications = async () => {
-    const nextVal = !isNotificationsEnabled;
-    toggleNotifications();
-    if (nextVal) {
-      await notificationService.requestPermission();
-    }
-  };
-
-  const handleSelectBubbleSize = async (size: BubbleSize) => {
-    setBubbleSize(size);
-    await messengerService.setBubbleConfig(BUBBLE_SIZE_PIXELS[size]);
-  };
 
   const handleClearCache = async () => {
     try {
@@ -96,7 +69,7 @@ export const SettingsWorkspace: React.FC = () => {
 
         <BubbleCustomizationSection
           bubbleSize={bubbleSize}
-          onSelectSize={handleSelectBubbleSize}
+          onSelectSize={handleSetBubbleSize}
         />
 
         <GlobalShortcutSection

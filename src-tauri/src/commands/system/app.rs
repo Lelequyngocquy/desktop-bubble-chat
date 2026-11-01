@@ -71,7 +71,10 @@ pub fn set_always_on_top(app: AppHandle, enabled: bool) -> Result<(), String> {
         let _ = main_win.set_always_on_top(false);
     }
 
-    // 3. Áp dụng Always-on-top cho tất cả các cửa sổ Bong bóng nổi (bubble-01 -> bubble-05)
+    // 3. Áp dụng Always-on-top cho tất cả các Bong bóng nổi Native Win32 (SSOT)
+    #[cfg(target_os = "windows")]
+    crate::windows::native_bubble::set_native_bubble_always_on_top(enabled);
+
     for idx in 1..=5 {
         let bubble_label = format!("bubble-{:02}", idx);
         if let Some(w) = app.get_webview_window(&bubble_label) {

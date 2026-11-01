@@ -83,6 +83,17 @@ export const systemService = {
   },
 
   /**
+   * Sets bubble physics and dimension configuration (size in px, tuck ratio).
+   */
+  async setBubbleConfig(size?: number, tuckRatio?: number): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.SET_BUBBLE_CONFIG, { size, tuckRatio });
+    } catch (err) {
+      console.warn("[SystemService] Failed to set bubble config:", err);
+    }
+  },
+
+  /**
    * Completely terminates the desktop application.
    */
   async exitApp(): Promise<void> {

@@ -129,6 +129,23 @@ pub fn set_bubble_config(
         }
     }
 
+    #[cfg(target_os = "windows")]
+    {
+        let monitor = app
+            .get_webview_window("main")
+            .and_then(|m| m.current_monitor().ok().flatten())
+            .or_else(|| app.primary_monitor().ok().flatten());
+        let scale = monitor.map(|m| m.scale_factor()).unwrap_or(1.0);
+        let bubble_size_px = (config.size * scale).round() as u32;
+
+        for idx in 1..=5 {
+            if crate::windows::native_bubble::has_native_bubble(idx) {
+                crate::windows::native_bubble::set_native_bubble_size(idx, bubble_size_px);
+                let _ = snap_bubble(app.clone(), Some(idx));
+            }
+        }
+    }
+
     let size_str = if config.size <= 50.0 {
         "sm"
     } else if config.size <= 60.0 {

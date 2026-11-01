@@ -12,6 +12,8 @@ pub use renderer::*;
 pub use manager::*;
 #[cfg(target_os = "windows")]
 pub use window::*;
+#[cfg(target_os = "windows")]
+use tauri::Manager;
 
 /// Helper bật/tắt một Bong bóng Native Win32 (ủy quyền cho Dedicated UI Thread)
 #[cfg(target_os = "windows")]
@@ -23,11 +25,19 @@ pub fn toggle_native_bubble_prototype(
     if visible {
         let y_pos = 180 + ((account_index.max(1) - 1) as i32) * 72;
         if let Some(app_handle) = app {
+            let config = crate::movement::get_bubble_physics_config(&app_handle);
+            let monitor = app_handle
+                .get_webview_window("main")
+                .and_then(|m| m.current_monitor().ok().flatten())
+                .or_else(|| app_handle.primary_monitor().ok().flatten());
+            let scale = monitor.map(|m| m.scale_factor()).unwrap_or(1.0);
+            let size = (config.size * scale).round() as u32;
+
             NativeBubbleManager::global().dispatch(NativeBubbleAction::Show {
                 account_index,
                 x: 30,
                 y: y_pos,
-                size: 64,
+                size,
                 app: app_handle,
             });
         }
@@ -80,6 +90,18 @@ pub fn untuck_native_bubble(app: &tauri::AppHandle, account_index: u32) {
     });
 }
 
+/// Áp dụng chế độ luôn hiển thị trên cùng (Always-on-top) cho tất cả Native Bubble
+#[cfg(target_os = "windows")]
+pub fn set_native_bubble_always_on_top(enabled: bool) {
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::SetAlwaysOnTop { enabled });
+}
+
+/// Thay đổi kích thước hiển thị cho Native Bubble tương ứng
+#[cfg(target_os = "windows")]
+pub fn set_native_bubble_size(account_index: u32, size: u32) {
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::SetSize { account_index, size });
+}
+
 #[cfg(not(target_os = "windows"))]
 pub fn has_native_bubble(_account_index: u32) -> bool {
     false
@@ -101,3 +123,9 @@ pub fn tuck_native_bubble(_app: &tauri::AppHandle, _account_index: u32) {}
 
 #[cfg(not(target_os = "windows"))]
 pub fn untuck_native_bubble(_app: &tauri::AppHandle, _account_index: u32) {}
+
+#[cfg(not(target_os = "windows"))]
+pub fn set_native_bubble_always_on_top(_enabled: bool) {}
+
+#[cfg(not(target_os = "windows"))]
+pub fn set_native_bubble_size(_account_index: u32, _size: u32) {}
