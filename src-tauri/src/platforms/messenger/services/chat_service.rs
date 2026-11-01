@@ -15,114 +15,98 @@ pub struct ChatService;
 impl ChatService {
     /// Dock cửa sổ chat Messenger vào đúng Bubble của tài khoản tương ứng
     pub fn dock_chat_window(app: &AppHandle, chat_window: &tauri::WebviewWindow, account_index: u32) {
+        #[cfg(target_os = "windows")]
+        let native_bounds = crate::windows::native_bubble::NativeBubbleManager::global().get_bounds(account_index);
+        #[cfg(not(target_os = "windows"))]
+        let native_bounds: Option<(i32, i32, u32, u32)> = None;
+
         let bubble_label = get_bubble_window_label(account_index);
-        let bubble_win = app.get_webview_window(&bubble_label);
+        let webview_bubble = app.get_webview_window(&bubble_label);
 
-        if let Some(bubble_window) = bubble_win {
-            if let Ok(Some(monitor)) = bubble_window.current_monitor() {
-                let screen = ScreenMetrics::from_monitor(&monitor);
-                let scale = screen.scale_factor;
-                let config = crate::movement::get_bubble_physics_config(app);
-
-                let chat_w = (config.chat_width * scale).round() as i32;
-                let chat_h = (config.chat_height * scale).round() as i32;
-                let bubble_w = (config.size * scale).round() as i32;
-                let gap = (config.chat_gap * scale).round() as i32;
-                let margin = (config.margin * scale).round() as i32;
-                let taskbar_margin = (config.taskbar_margin * scale).round() as i32;
-
-                let _ = chat_window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-                    width: chat_w as u32,
-                    height: chat_h as u32,
-                }));
-
-                if let Ok(bubble_pos) = bubble_window.outer_position() {
-                    let untucked_pos = BubbleMovementEngine::calculate_hover_pos(
-                        &screen,
-                        &config,
-                        bubble_pos.x,
-                        bubble_pos.y,
-                        true,
-                    );
-                    let _ = bubble_window.set_position(tauri::Position::Physical(untucked_pos));
-
-                    let mid_x = screen.x + screen.width / 2;
-
-                    let target_x = if untucked_pos.x + bubble_w / 2 >= mid_x {
-                        untucked_pos.x - chat_w - gap
-                    } else {
-                        untucked_pos.x + bubble_w + gap
-                    };
-
-                    let min_x = screen.x + margin;
-                    let max_x = screen.x + screen.width - chat_w - margin;
-                    let final_x = target_x.clamp(min_x, max_x);
-
-                    let min_y = screen.y + margin;
-                    let max_y = screen.y + screen.height - chat_h - taskbar_margin;
-                    let final_y = untucked_pos.y.clamp(min_y, max_y);
-
-                    let _ = chat_window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-                        x: final_x,
-                        y: final_y,
-                    }));
-                }
-            }
+        // 1. Xác định tọa độ (X, Y, Width) của Bubble
+        let (bubble_x, bubble_y, bubble_w) = if let Some((bx, by, bw, _)) = native_bounds {
+            (bx, by, bw as i32)
+        } else if let Some(bw) = &webview_bubble {
+            let pos = bw.outer_position().unwrap_or_default();
+            let size = bw.outer_size().unwrap_or_default();
+            (pos.x, pos.y, size.width as i32)
         } else if let Some(cs) = app.try_state::<Arc<ChatState>>() {
-            // Hỗ trợ Docking khi sử dụng Bong bóng Native Win32 hoặc WebView đã đóng/ẩn
             if let Some(rect) = cs.get_bubble_rect(account_index) {
-                let monitor = app
-                    .get_webview_window("main")
-                    .and_then(|m| m.current_monitor().ok().flatten())
-                    .or_else(|| app.primary_monitor().ok().flatten());
-
-                if let Some(mon) = monitor {
-                    let screen = ScreenMetrics::from_monitor(&mon);
-                    let scale = screen.scale_factor;
-                    let config = crate::movement::get_bubble_physics_config(app);
-
-                    let chat_w = (config.chat_width * scale).round() as i32;
-                    let chat_h = (config.chat_height * scale).round() as i32;
-                    let bubble_w = (config.size * scale).round() as i32;
-                    let gap = (config.chat_gap * scale).round() as i32;
-                    let margin = (config.margin * scale).round() as i32;
-                    let taskbar_margin = (config.taskbar_margin * scale).round() as i32;
-
-                    let _ = chat_window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-                        width: chat_w as u32,
-                        height: chat_h as u32,
-                    }));
-
-                    let untucked_pos = BubbleMovementEngine::calculate_hover_pos(
-                        &screen,
-                        &config,
-                        rect.x,
-                        rect.y,
-                        true,
-                    );
-
-                    let mid_x = screen.x + screen.width / 2;
-
-                    let target_x = if untucked_pos.x + bubble_w / 2 >= mid_x {
-                        untucked_pos.x - chat_w - gap
-                    } else {
-                        untucked_pos.x + bubble_w + gap
-                    };
-
-                    let min_x = screen.x + margin;
-                    let max_x = screen.x + screen.width - chat_w - margin;
-                    let final_x = target_x.clamp(min_x, max_x);
-
-                    let min_y = screen.y + margin;
-                    let max_y = screen.y + screen.height - chat_h - taskbar_margin;
-                    let final_y = untucked_pos.y.clamp(min_y, max_y);
-
-                    let _ = chat_window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-                        x: final_x,
-                        y: final_y,
-                    }));
-                }
+                (rect.x, rect.y, rect.width)
+            } else {
+                (0, 0, 56)
             }
+        } else {
+            (0, 0, 56)
+        };
+
+        // 2. Xác định chính xác Monitor chứa Bubble (hỗ trợ hoàn hảo đa màn hình)
+        let monitor = app.available_monitors().ok().and_then(|monitors| {
+            monitors.into_iter().find(|m| {
+                let pos = m.position();
+                let size = m.size();
+                bubble_x >= pos.x
+                    && bubble_x < pos.x + size.width as i32
+                    && bubble_y >= pos.y
+                    && bubble_y < pos.y + size.height as i32
+            })
+        })
+        .or_else(|| chat_window.current_monitor().ok().flatten())
+        .or_else(|| app.get_webview_window("main").and_then(|m| m.current_monitor().ok().flatten()))
+        .or_else(|| app.primary_monitor().ok().flatten());
+
+        if let Some(mon) = monitor {
+            let screen = ScreenMetrics::from_monitor(&mon);
+            let scale = screen.scale_factor;
+            let config = crate::movement::get_bubble_physics_config(app);
+
+            let chat_w = (config.chat_width * scale).round() as i32;
+            let chat_h = (config.chat_height * scale).round() as i32;
+            let gap = (config.chat_gap * scale).round() as i32;
+            let margin = (config.margin * scale).round() as i32;
+            let taskbar_margin = (config.taskbar_margin * scale).round() as i32;
+
+            let _ = chat_window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+                width: chat_w as u32,
+                height: chat_h as u32,
+            }));
+
+            // Tính toán vị trí khi trượt mở ra (Untucked X)
+            let untucked_pos = BubbleMovementEngine::calculate_hover_pos(
+                &screen,
+                &config,
+                bubble_x,
+                bubble_y,
+                true,
+            );
+
+            // Nếu là Webview Bubble, cập nhật lại tọa độ untuck cho cửa sổ
+            if let Some(bw) = &webview_bubble {
+                let _ = bw.set_position(tauri::Position::Physical(untucked_pos));
+            }
+
+            // Tính toán X của khung chat: nằm bên trái nếu Bubble ở mép phải, hoặc bên phải nếu Bubble ở mép trái
+            let mid_x = screen.x + screen.width / 2;
+            let target_x = if untucked_pos.x + bubble_w / 2 >= mid_x {
+                untucked_pos.x - chat_w - gap
+            } else {
+                untucked_pos.x + bubble_w + gap
+            };
+
+            let min_x = screen.x + margin;
+            let max_x = screen.x + screen.width - chat_w - margin;
+            let final_x = target_x.clamp(min_x, max_x);
+
+            // CĂN ĐỈNH NGANG BẰNG (Top-Aligned): Đỉnh khung chat ngang bằng đỉnh Bubble
+            let bubble_top = bubble_y;
+            let min_y = screen.y + margin;
+            let max_y = (screen.y + screen.height - chat_h - taskbar_margin).max(min_y);
+            let final_y = bubble_top.clamp(min_y, max_y);
+
+            let _ = chat_window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                x: final_x,
+                y: final_y,
+            }));
         }
 
         // Đảm bảo tất cả các bubble khác đều bị thụt vào mép (tuck), không được thò ra ngoài
@@ -140,7 +124,25 @@ impl ChatService {
         account_index: u32,
     ) -> Result<(), String> {
         let idx = account_index;
-        let _ = ensure_bubble_positioned_and_visible(app, idx);
+
+        // Chỉ định vị/hiển thị lại Bubble nếu bong bóng này chưa active trên màn hình
+        let is_bubble_already_active = {
+            #[cfg(target_os = "windows")]
+            {
+                crate::windows::native_bubble::NativeBubbleManager::global().has_bubble(idx)
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                let bubble_label = get_bubble_window_label(idx);
+                app.get_webview_window(&bubble_label)
+                    .map(|w| w.is_visible().unwrap_or(false))
+                    .unwrap_or(false)
+            }
+        };
+
+        if !is_bubble_already_active {
+            let _ = ensure_bubble_positioned_and_visible(app, idx);
+        }
 
         let chat_window = get_or_create_messenger_window(app, idx, Arc::clone(state))?;
 

@@ -89,8 +89,6 @@ pub fn run() {
 
             // 2. Chặn việc đóng cửa sổ chính (Home Page) -> Ẩn về khay hệ thống, giữ chat heads chạy ngầm
             windows::main_window::setup_main_window(&app.handle());
-            #[cfg(target_os = "windows")]
-            windows::bubble::setup_bubble_window(&app.handle());
 
             // 3. Quản lý sự kiện trên cửa sổ chat Messenger (Auto-hide on blur vs Auth Mode)
             platforms::messenger::windows::setup_chat_window(&app.handle(), Arc::clone(&chat_state_clone));

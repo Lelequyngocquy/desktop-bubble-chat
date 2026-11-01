@@ -9,9 +9,9 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v3.4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-> Lightweight, high-performance floating Messenger chat heads for Windows Desktop with multi-account isolation, physics-driven edge docking, and zero-click interactions.
+> Extensible, high-performance floating chat heads for Windows Desktop featuring pluggable multi-platform messaging, hardware-accelerated Win32 + Skia vector avatars, physics-driven edge docking, and zero-click interactions.
 
-**DesktopBubbleChat** brings the fluid, non-intrusive mobile chat head experience back to Windows 10 and 11. Built with **Tauri v2**, **React 19**, **TypeScript**, and a native **Rust (Win32)** core, DesktopBubbleChat runs up to 5 concurrent Facebook Messenger accounts within isolated WebView2 profiles while maintaining a minimal memory and CPU footprint.
+**DesktopBubbleChat** re-imagines desktop instant messaging by bringing the fluid, non-intrusive mobile chat head experience to Windows 10 and 11 across multiple messaging networks. Built with **Tauri v2**, **React 19**, **TypeScript**, and a native **Rust (Win32 + Skia)** core, DesktopBubbleChat decouples physical windowing, motion physics, and vector rendering from individual platform adapters. It allows running concurrent isolated accounts within dedicated Microsoft WebView2 sandboxes while maintaining an ultra-lightweight footprint (~16 KB RAM per idle floating head).
 
 ---
 
@@ -19,8 +19,12 @@
 
 - [Security](#security)
 - [Background](#background)
+- [Multi-Platform Vision & Roadmap](#multi-platform-vision--roadmap)
 - [Features](#features)
 - [Architecture & Technical Design](#architecture--technical-design)
+  - [System Architecture](#system-architecture)
+  - [Pluggable Platform Adapter Pattern](#pluggable-platform-adapter-pattern)
+  - [Key Technical Concepts](#key-technical-concepts)
 - [Project Structure](#project-structure)
 - [Install](#install)
   - [Prerequisites](#prerequisites)
@@ -35,9 +39,10 @@
   - [Asset & Logo Pipeline](#asset--logo-pipeline)
   - [Global Shortcuts & Tray Controls](#global-shortcuts--tray-controls)
 - [API](#api)
-  - [Tauri IPC Commands](#tauri-ipc-commands)
+  - [Core Bubble & Positioning Commands](#core-bubble--positioning-commands)
+  - [Core System & Utility Commands](#core-system--utility-commands)
+  - [Platform Adapter Commands (Messenger)](#platform-adapter-commands-messenger)
   - [IPC Events](#ipc-events)
-- [Testing & Automation](#testing--automation)
 - [Troubleshooting & FAQ](#troubleshooting--faq)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
@@ -47,16 +52,16 @@
 
 ## Security
 
-DesktopBubbleChat is designed with a strict **local-first security model**:
+DesktopBubbleChat is architected with a strict **local-first security model**:
 
 1. **Zero External Telemetry & Zero Cloud Intermediary**:
-   All communication occurs directly between your local Microsoft WebView2 instance and official Meta Facebook Messenger endpoints (`https://www.messenger.com`). No tokens, cookies, passwords, or message contents are ever sent to any third-party server or external proxy.
-2. **Multi-Account Profile Sandbox Isolation**:
-   Each Messenger account operates inside its own isolated user data directory (`com.desktopbubblechat.app/messenger_account_X`). Cookies, session tokens, indexedDB records, and cache do not leak across different accounts.
+   All messaging traffic flows directly between your local Microsoft WebView2 instance and official platform endpoints (e.g., `https://www.messenger.com`). No credentials, tokens, cookies, or chat messages are ever transmitted to any third-party server or external proxy.
+2. **Multi-Account & Multi-Platform Profile Sandbox Isolation**:
+   Every account profile operates in an isolated user data directory on disk (`com.desktopbubblechat.app/profiles/<platform>_<index>`). Cookies, session tokens, indexedDB records, and local caches never leak across accounts or platforms.
 3. **Native Tauri v2 Capabilities & Content Security Policy (CSP)**:
-   The application adheres to Tauri v2's permission isolation system ([`capabilities/default.json`](file:///D:/DesktopBubbleChat/src-tauri/capabilities/default.json)), preventing untrusted web content from executing arbitrary shell commands or accessing unauthorized file system paths.
+   The application strictly adheres to Tauri v2's capability isolation system ([`capabilities/default.json`](file:///D:/DesktopBubbleChat/src-tauri/capabilities/default.json)), preventing web content from executing arbitrary shell commands or accessing unauthorized file system paths.
 4. **Local Windows Credential Storage**:
-   Persistent session state is preserved locally on the user's encrypted Windows account profile. To revoke access, click **Disconnect Account** in the Connections tab or run `clear_account_storage`.
+   Session persistence is managed locally on the user's encrypted Windows account profile. To revoke access, disconnect the account via the Connections tab or call `clear_account_storage`.
 
 To report security vulnerabilities, please open a private GitHub Security Advisory or contact the maintainers directly.
 
@@ -64,18 +69,34 @@ To report security vulnerabilities, please open a private GitHub Security Adviso
 
 ## Background
 
-Floating chat heads were one of the most productive UI innovations for instant messaging on mobile devices. However, on desktop operating systems, users have traditionally been forced to juggle between heavy browser tabs or resource-hungry Electron wrappers that consume hundreds of megabytes of RAM per account.
+On desktop operating systems, users frequently juggle multiple chat applications across separate browser tabs or heavy Electron wrappers, each consuming hundreds of megabytes of RAM and cluttering the Windows taskbar.
 
-**DesktopBubbleChat** solves this problem by combining:
-- **Tauri v2 + Microsoft WebView2**: Reuses the operating system's native Evergreen WebView2 runtime, dropping memory consumption to ~30–50 MB per idle chat profile instead of 300–500 MB typical of Electron apps.
-- **Rust Win32 Core**: Bypasses heavy JavaScript timers for window positioning. Uses native Windows OS APIs (`GetCursorPos`, `GetAsyncKeyState`, `SetWindowPos`) to deliver instantaneous coordinate snapping, cursor tracking, and edge tucking at 60 FPS without taxing the CPU.
-- **Single Source of Truth (SSOT)**: Clean separation of concerns where Rust manages physical OS window coordinates and background daemons, while React 19 and Zustand manage UI presentation and reactive state.
+**DesktopBubbleChat** solves this fragmentation through a unified, extensible desktop chat hub:
+- **Tauri v2 + Microsoft WebView2**: Shares the operating system's native Evergreen WebView2 runtime, slashing RAM consumption to ~30–50 MB per active chat profile compared to 300–500 MB typical of standalone Electron apps.
+- **Pure Rust Win32 + Skia Rendering**: Floating heads run on a dedicated Win32 UI thread utilizing Skia hardware/CPU vector graphics directly onto layered OS windows (`UpdateLayeredWindow`), requiring only ~16 KB RAM per bubble without hosting heavy webview containers for idle avatars.
+- **Native Win32 Movement & Physics Core**: Replaces sluggish JavaScript polling with native Windows OS APIs (`GetCursorPos`, `GetAsyncKeyState`, `SetWindowPos`) for 60 FPS edge-snapping, vertical collision avoidance, and zero-click peeking.
+- **Pluggable Platform Design**: Clean architectural separation between core desktop windowing/physics and individual messaging platform adapters, enabling rapid integration of new messaging networks without modifying the core windowing engine.
+
+---
+
+## Multi-Platform Vision & Roadmap
+
+DesktopBubbleChat is designed from the ground up as a universal chat-head framework. While **Facebook Messenger** serves as the initial, fully-featured reference platform, the architecture explicitly separates platform concerns to support additional networks:
+
+| Platform | Integration Type | Multi-Account Support | Status |
+| :--- | :--- | :--- | :--- |
+| **Facebook Messenger** | Isolated WebView2 + Native Rust Daemons | Up to 5 Accounts (Profiles 01–05) | **Available** |
+| **Telegram** | Web / TDesktop Adapter | Planned Multi-Account | **Roadmap** |
+| **Zalo** | Web Wrapper + Auth Watcher | Planned Multi-Account | **Roadmap** |
+| **Discord** | Web Client / Gateway Adapter | Planned Multi-Account | **Roadmap** |
 
 ---
 
 ## Features
 
-- **Concurrent Multi-Account Support (1 to 5 Accounts)**: Manage up to 5 Facebook Messenger accounts simultaneously in isolated browser sessions without cookie collisions.
+- **Pluggable Multi-Platform Architecture**: Unified core engine separating physical window movement and rendering from individual social platform adapters.
+- **Concurrent Multi-Account Isolation**: Run up to 5 concurrent accounts per platform simultaneously in isolated browser sessions without cookie collisions.
+- **Pure Rust Win32 + Skia Vector Graphics Engine**: Dedicated lightweight native thread drawing vector platform icons and unread count badges with sub-pixel rendering at ultra-low RAM footprint (~16 KB memory per bubble).
 - **Physics-Based Edge Snapping & Tucking**: Drag bubbles freely anywhere on your screen. Releasing a bubble smoothly snaps it to the nearest display edge (left or right) and tucks 75% of the bubble off-screen during idle to preserve desktop workspace.
 - **Multi-Bubble Vertical Collision Resolver**: Proprietary collision engine ensures that multiple chat heads docked at the same edge never overlap or obscure each other.
 - **Zero-Click Hover Interaction**:
@@ -85,22 +106,25 @@ Floating chat heads were one of the most productive UI innovations for instant m
 - **Native Pop Sound & Windows Toast Notifications**: Rust native audio playback via Win32 `MessageBeep`/`PlaySoundW` and Windows 10/11 native toast notifications with sender names and snippet previews.
 - **Modern Fluent UI & Dark/Light Theming**: Clean, responsive dashboard designed with Tailwind CSS, supporting custom title bars, account badges, metrics, and troubleshooting wizards.
 - **Global Keyboard Shortcut (`Ctrl+Shift+M`)**: Toggle the visibility of all active floating chat heads instantly from any application or game.
-- **Windows System Tray Integration**: Minimizes cleanly to the Windows taskbar tray with quick toggles, status indicators, and background persistence.
-- **Appium 2/3 & WinAppDriver E2E Test Suite**: Ready-to-run automation scripts for inspecting UI trees, checking for Windows crash dialogs, and capturing diagnostic screenshots.
+- **Windows System Tray Integration**: Minimizes cleanly to the Windows taskbar tray with quick toggles, status indicators, dynamic account menus, and background persistence.
 
 ---
 
 ## Architecture & Technical Design
 
-### High-Level System Architecture
+### System Architecture
 
 ```mermaid
 flowchart TD
     subgraph Frontend["Frontend Layer (React 19 + TypeScript + Zustand)"]
         UI["Main Dashboard Window (main)"]
-        BUB["Floating Bubble Windows (bubble-01 to 05)"]
-        STORE["Zustand SSOT Stores\n(Messenger, Conversation, Settings, Window)"]
-        HOOKS["Physics & Drag Hooks\n(useBubbleDrag, useBubbleWindow, usePointerTracker)"]
+        STORE["Zustand SSOT Stores\n(Navigation, Settings, Window, Conversations)"]
+        HOOKS["Core Physics Hooks\n(useBubbleDrag, useBubbleWindow, usePointerTracker)"]
+        
+        subgraph FE_Platforms["Frontend Platform Adapters (src/platforms/)"]
+            MESS_FE["Messenger Adapter\n(Stores, Hooks, AuthManager, Service)"]
+            PLUG_FE["Future Adapters\n(Telegram, Zalo, Discord)"]
+        end
     end
 
     subgraph IPC["Tauri v2 IPC Bridge"]
@@ -110,52 +134,70 @@ flowchart TD
 
     subgraph Backend["Backend Layer (Rust 2024 Core)"]
         STATE["ChatState (Thread-safe SSOT State)"]
-        ENGINE["BubbleMovementEngine\n(calculate_snap, calculate_edge_x)"]
-        COLLISION["CollisionResolver\n(Multi-Bubble Vertical Resolver)"]
-        HD["Hover & Autoclose Monitor (30ms Win32 Poller)"]
-        AW["Auth Watcher Daemon (URL & Session Sync)"]
-        SOUND["Native Audio (Win32 MessageBeep)"]
-        TRAY["System Tray Manager"]
+        
+        subgraph Core_Engine["Core Windowing & Physics Engine"]
+            ENGINE["BubbleMovementEngine (Snap, Edge, Tuck)"]
+            COLLISION["CollisionResolver (Multi-Bubble Vertical Stacking)"]
+            SKIA["Native Skia Bubble Engine (Dedicated Win32 Thread)"]
+            TRAY["System Tray Manager"]
+            SOUND["Native Audio (Win32 MessageBeep)"]
+        end
+
+        subgraph BE_Platforms["Backend Platform Adapters (src-tauri/src/platforms/)"]
+            MESS_BE["Messenger Platform\n(Auth Watcher, Hover Monitor, Storage, Webview)"]
+            PLUG_BE["Future Platform Adapters\n(Telegram, Zalo, Discord)"]
+        end
     end
 
     subgraph OS["Windows 10 / 11 Operating System"]
-        WIN32["Win32 User32 / Shell32 APIs\n(GetCursorPos, GetAsyncKeyState, SetWindowPos)"]
-        WV2["Microsoft Edge WebView2 Engine\n(Isolated User Data Directories: account_1..5)"]
+        WIN32["Win32 APIs (GetCursorPos, SetWindowPos, Layered Windows)"]
+        WV2["Microsoft Edge WebView2 Engine (Isolated Profiles)"]
         TOAST["Windows Action Center Toast Notifications"]
     end
 
     UI --> STORE
-    BUB --> HOOKS
+    MESS_FE --> STORE
     HOOKS --> INVOKE
     STORE --> INVOKE
+    MESS_FE --> INVOKE
     EVENTS --> STORE
-    EVENTS --> HOOKS
+    EVENTS --> MESS_FE
 
     INVOKE --> STATE
-    INVOKE --> ENGINE
-    ENGINE --> COLLISION
+    INVOKE --> Core_Engine
+    INVOKE --> BE_Platforms
 
-    HD --> WIN32
-    HD --> INVOKE
-    AW --> WV2
-    SOUND --> WIN32
+    Core_Engine --> WIN32
+    MESS_BE --> WV2
+    MESS_BE --> TOAST
+    SKIA --> WIN32
 
-    STATE --> WV2
-    STATE --> TOAST
     STATE --> TRAY
     STATE --> EVENTS
 ```
 
+### Pluggable Platform Adapter Pattern
+
+Both the Frontend and Backend isolate platform-specific code into distinct modules:
+
+| Responsibility | Frontend (`src/platforms/<platform>/`) | Backend (`src-tauri/src/platforms/<platform>/`) |
+| :--- | :--- | :--- |
+| **Account State** | Platform Zustand stores (`useMessengerStore`) | `ChatState` multi-account map |
+| **Auth Lifecycle** | Polling & timeout manager (`messengerAuthManager`) | Window watcher daemon (`auth_watcher.rs`) |
+| **UI Integration** | Account hooks (`useMessengerAccounts`) | Dedicated IPC command module (`commands/<platform>/`) |
+| **Webview Handling** | IPC calls to open/close chat webviews | Profile data sandbox & window manager (`chat_window.rs`) |
+| **DOM / Scraping** | Incoming message & thread event handlers | CSS / JS injection payloads (`messenger_inject.js`) |
+
 ### Key Technical Concepts
 
 1. **Dual Window Strategy**:
-   - **Main Dashboard Window** (`label: main`): Provides account management, connection metrics, recent conversations, preferences, and troubleshooting tools.
-   - **Chat Head Windows** (`label: bubble-01` to `bubble-05`): Frameless, transparent, `alwaysOnTop: true`, `skipTaskbar: true` lightweight native windows hosting floating avatars.
-   - **Messenger Webview Windows** (`label: chat-messenger-01` to `05`): Isolated WebView2 windows docked directly adjacent to their corresponding bubble.
+   - **Main Dashboard Window** (`label: main`): Provides multi-platform account management, connection metrics, recent conversations, preferences, and troubleshooting tools.
+   - **Native Chat Head Windows** (Pure Rust + Skia Layered Win32 HWND): Frameless, transparent, hardware-accelerated vector avatars on a dedicated OS thread.
+   - **Platform Webview Windows** (`label: chat-<platform>-<index>`): Isolated WebView2 windows docked directly adjacent to their corresponding bubble.
 2. **Exclusive Chat Rule**:
    Only one conversation window is visible at any given moment. Hovering over a second bubble immediately hides the first chat window, tucks the first bubble, and summons the second window.
 3. **Two-Phase Hide & Tuck Animation**:
-   When mouse leaves the chat window, the chat webview hides first, followed by a smooth `requestAnimationFrame` spring transition tucking the chat head back to the screen boundary, eliminating visual stutter.
+   When mouse leaves the chat window, the chat webview hides first, followed by a smooth spring transition tucking the chat head back to the screen boundary, eliminating visual stutter.
 
 ---
 
@@ -165,67 +207,47 @@ flowchart TD
 DesktopBubbleChat/
 ├── .vscode/                               # Editor configurations
 │   └── extensions.json                    # Recommended VS Code extensions (Rust, Tauri, Tailwind)
-├── dev_md/                                # Architecture & design history
-│   ├── figma_mcp.txt                      # Design tokens & Figma MCP parameters
-│   └── pj_agy_conver.md                   # Complete architectural logs & bugfix records
-├── docs/                                  # Project documentation
-│   └── APPIUM_AUTOMATION.md               # Guide for Appium 2/3 & WinAppDriver automation
 ├── public/                                # Static web assets
 │   ├── app-icon.png                       # Application brand logo (512x512)
 │   ├── favicon.ico                        # Browser and webview favicon
 │   ├── tauri.svg                          # Tauri brand logo
 │   └── vite.svg                           # Vite brand logo
 ├── scripts/                               # PowerShell automation & lifecycle scripts
-│   ├── appium-server.ps1                  # Appium & WinAppDriver background daemon manager
-│   ├── build.ps1                          # Production build & packaging pipeline (.exe / .msi)
 │   ├── check_env.ps1                      # Environment diagnostics (Node, Rust, MSVC, WebView2)
-│   ├── README.md                          # Scripts documentation and syntax guide
-│   ├── set-logo.ps1                       # Automated icon asset regeneration pipeline
 │   ├── start.ps1                          # Master launcher (dev, prod, web) with port & process clean
-│   ├── status.ps1                         # Process monitor & memory tracker for all webviews
-│   ├── stop.ps1                           # Clean termination for all application processes
-│   └── tauri.be-logs.json                 # Backend runtime debug logs
+│   └── status.ps1                         # Process monitor & memory tracker for all webviews
 ├── src/                                   # Frontend Application (React 19 + TypeScript + Tailwind)
 │   ├── assets/                            # Static frontend graphics
 │   ├── components/                        # Modular React components
-│   │   ├── bubble/                        # Floating Chat Head bubble component
-│   │   │   └── BubbleWindow.tsx           # Transparent floating avatar window
 │   │   ├── chatheads/                     # Chat Heads workspace & pinned list
 │   │   ├── common/                        # Shared UI primitives (Buttons, Cards, Avatars, Dialogs)
-│   │   ├── connections/                   # Multi-account Messenger manager & status cards
+│   │   ├── connections/                   # Multi-platform connection manager & status cards
 │   │   ├── help/                          # Troubleshooting, FAQs & quick tips
-│   │   ├── home/                          # Dashboard homepage, metrics & quick toggles
-│   │   ├── icons/                         # SVG platform icons (Messenger, Zalo, Telegram, Discord)
+│   │   ├── home/                          # Dashboard homepage, metrics & platform roadmap
+│   │   ├── icons/                         # SVG platform icons (Messenger, Telegram, Zalo, Discord)
 │   │   ├── layout/                        # Shell layout (TitleBar, Sidebar, Modal Dialogs)
 │   │   ├── notifications/                 # Notifications feed & badge clearing dialogs
 │   │   └── settings/                      # Preferences (Bubble size, autostart, hotkeys, cache)
-│   ├── config/                            # Application configuration constants & route definitions
+│   ├── config/                            # Application configuration & platform definitions
 │   ├── constants/                         # Design tokens, account badge colors & physics presets
-│   ├── hooks/                             # Custom React hooks
-│   │   ├── bubble/                        # Bubble physics & window lifecycle hooks
-│   │   │   ├── useBubbleAutoRestore.ts    # Auto-restores saved bubble coordinates on startup
-│   │   │   ├── useBubbleDrag.ts           # Drag handling & physics integration
-│   │   │   ├── useBubbleSpringAnimation.ts # Smooth spring animations for tucking and peeking
-│   │   │   ├── useBubbleWindow.ts         # Window visibility, tucking, and hover state sync
-│   │   │   ├── useDismissOpacity.ts       # Opacity fade calculation during dismiss drag
-│   │   │   └── usePointerTracker.ts       # Cursor coordinate tracking
-│   │   ├── useMessengerAccounts.ts        # Account management hook
-│   │   ├── useQuickSettings.ts            # Dynamic dashboard settings hook
-│   │   ├── useSystemUser.ts               # Windows user profile info hook
-│   │   └── useUnreadListener.ts           # Global unread badge event listener
+│   ├── hooks/                             # Custom React hooks (settings, listeners & lifecycle)
 │   ├── mocks/                             # Development mocks for offline preview
-│   ├── models/                            # Domain entities (BubbleEntity, Account)
-│   ├── services/                          # Business logic & IPC abstraction layer
-│   │   ├── messenger/                     # Messenger auth, webview lifecycle & DOM scrapers
-│   │   ├── storage/                       # Local storage & credentials manager
+│   ├── platforms/                         # Pluggable Platform Adapters (Frontend SSOT)
+│   │   ├── messenger/                     # Facebook Messenger Platform Module
+│   │   │   ├── hooks/                     # Messenger account hooks (useMessengerAccounts)
+│   │   │   ├── stores/                    # Messenger account store (useMessengerStore)
+│   │   │   ├── services/                  # Messenger IPC client, auth & storage services
+│   │   │   ├── types.ts                   # Messenger type contracts
+│   │   │   └── index.ts                   # Messenger module exports
+│   │   ├── types.ts                       # Common platform adapter contracts (IPlatformAdapter)
+│   │   └── index.ts                       # Platform registry & configuration exports
+│   ├── services/                          # Generic application services & system IPC
 │   │   ├── loggerService.ts               # Unified frontend-to-backend logger
 │   │   ├── notificationService.ts         # Windows native notification trigger
-│   │   ├── screenService.ts               # Display bounds & coordinate conversion
 │   │   ├── soundService.ts                # Audio effects service
 │   │   └── systemService.ts               # Win32 system queries & autostart toggles
-│   ├── stores/                            # Zustand reactive state stores (SSOT)
+│   ├── stores/                            # Generic application Zustand stores
 │   │   ├── conversationStore.ts           # Active conversation threads & unread state
-│   │   ├── messengerStore.ts              # Multi-account profiles & credentials
 │   │   ├── navigationStore.ts             # Active dashboard tab & view state
 │   │   ├── settingsStore.ts               # User preferences & physics settings
 │   │   ├── systemUserStore.ts             # Logged-in OS user information
@@ -235,7 +257,7 @@ DesktopBubbleChat/
 │   │   ├── conversation.ts                # Thread & message payload types
 │   │   ├── ipc.ts                         # Strongly-typed IPC command & event names
 │   │   ├── navigation.ts                  # Navigation route types
-│   │   └── platform.ts                    # Social platform metadata
+│   │   └── platform.ts                    # Social platform metadata & enums
 │   ├── App.css                            # Global styles & custom scrollbars
 │   ├── App.tsx                            # Root application router (Dashboard vs Bubble Head)
 │   ├── index.css                          # Tailwind CSS base & utilities
@@ -244,57 +266,59 @@ DesktopBubbleChat/
 ├── src-tauri/                             # Rust Backend Core & Native OS Integration
 │   ├── capabilities/                      # Tauri v2 security ACL policies
 │   │   └── default.json                   # Webview, window, shortcut & opener permissions
-│   ├── gen/                               # Tauri generated schemas
 │   ├── icons/                             # Multi-resolution icons (Windows, macOS, Android, iOS)
 │   ├── src/                               # Rust backend source code
 │   │   ├── commands/                      # Tauri IPC command handlers
-│   │   │   ├── auth.rs                    # Messenger login, auth check & logout commands
-│   │   │   ├── badge.rs                   # Unread counter & badge sync commands
-│   │   │   ├── bubble.rs                  # Chat head window toggle, snap & coordinate queries
-│   │   │   ├── chat.rs                    # Message arrival dispatch & conversation sync
-│   │   │   ├── system.rs                  # Autostart, Win32 username, tray & window controls
-│   │   │   └── mod.rs                     # Command module aggregation
-│   │   ├── movement/                      # Physics Engine & Multi-Bubble Collision Resolver
+│   │   │   ├── bubble/                    # Core: Bubble window queries, motion, lifecycle & preview
+│   │   │   ├── system/                    # Core: System info, autostart, tray status & window controls
+│   │   │   ├── messenger/                 # Platform Adapter: Messenger auth, chat & session commands
+│   │   │   │   ├── auth.rs                # Login, session verification & disconnect commands
+│   │   │   │   ├── chat.rs                # Webview open, preload, toggle & thread navigation
+│   │   │   │   └── mod.rs
+│   │   │   ├── badge.rs                   # Core: Unread counter & badge sync commands
+│   │   │   └── mod.rs                     # Command aggregation & re-exports
+│   │   ├── movement/                      # Core: Physics Engine & Multi-Bubble Collision Resolver
 │   │   │   ├── collision.rs               # AABB overlap check & vertical collision resolver
 │   │   │   ├── config.rs                  # BubblePhysicsConfig, screen metrics & snap calculations
 │   │   │   ├── engine.rs                  # Edge calculation, snap points & dismiss logic
 │   │   │   └── mod.rs                     # Movement module exports
-│   │   ├── platforms/                     # Platform integrations
-│   │   │   └── messenger/                 # Facebook Messenger integration
-│   │   │       ├── daemons/               # Win32 background daemons
-│   │   │       │   ├── auth_watcher.rs    # Real-time login URL & auth state watcher
-│   │   │       │   ├── hover_monitor.rs   # 30ms cursor poller (hover 0.1s / close 1.0s)
-│   │   │       │   └── mod.rs
-│   │   │       ├── scripts/               # Webview injection payloads
-│   │   │       │   ├── custom_messenger.css # Custom dark/light styling for Messenger webview
-│   │   │       │   └── messenger_inject.js  # DOM scraper for unread count & message arrival
+│   │   ├── platforms/                     # Pluggable Platform Adapters (Backend)
+│   │   │   └── messenger/                 # Facebook Messenger Platform Adapter
+│   │   │       ├── daemons/               # Win32 background daemons (auth watcher, hover monitor)
+│   │   │       ├── scripts/               # Webview injection payloads (custom CSS & DOM scraper)
 │   │   │       ├── services/              # Business services (auth, chat, storage)
-│   │   │       ├── windows/               # Messenger webview creation & isolated profiles
-│   │   │       ├── constants.rs           # Messenger URLs & selector constants
+│   │   │       ├── windows/               # Webview window lifecycle & isolated profile sandboxes
+│   │   │       ├── constants.rs           # URLs & selector constants
 │   │   │       ├── parser.rs              # Title & DOM parsing utilities
 │   │   │       └── verifier.rs            # Session validation utilities
-│   │   ├── utils/                         # Native OS utility helpers
+│   │   ├── tray/                          # Core: System tray management
+│   │   │   ├── dialog.rs                  # Win32 confirmation modal before exit
+│   │   │   ├── helpers.rs                 # Account query & window toggle helpers
+│   │   │   ├── menu.rs                    # Dynamic context menu builder
+│   │   │   ├── setup.rs                   # Tray initialization & event loop
+│   │   │   └── mod.rs
+│   │   ├── utils/                         # Core: Native OS utility helpers
 │   │   │   ├── native_sound.rs            # Pure native Windows sound playback (MessageBeep)
 │   │   │   ├── parser.rs                  # Data parser utilities
 │   │   │   ├── time.rs                    # Timestamp helpers
 │   │   │   └── win32.rs                   # Win32 API bindings (GetCursorPos, GetAsyncKeyState)
-│   │   ├── windows/                       # Tauri window managers
-│   │   │   ├── bubble.rs                  # Transparent floating bubble window setup & positioning
+│   │   ├── windows/                       # Core: Window managers
+│   │   │   ├── bubble/                    # Webview & Subclass bubble window manager
+│   │   │   ├── native_bubble/             # Pure Rust Win32 + Skia floating bubble engine
+│   │   │   │   ├── renderer/              # Skia GPU/CPU vector graphics renderer
+│   │   │   │   ├── window/                # Dedicated Win32 UI thread & layered window
+│   │   │   │   ├── animator.rs            # Cubic-bezier & spring physics animation
+│   │   │   │   ├── manager.rs             # Dedicated UI thread worker & event dispatcher
+│   │   │   │   └── mod.rs
 │   │   │   ├── main_window.rs             # Main dashboard window lifecycle & tray intercept
 │   │   │   └── mod.rs
 │   │   ├── lib.rs                         # Tauri application builder, plugins, shortcuts & invoke registry
 │   │   ├── main.rs                        # Desktop application executable entry point
-│   │   ├── state.rs                       # Centralized ChatState (SSOT thread-safe app state)
-│   │   └── tray.rs                        # System tray setup, context menu & click handlers
+│   │   └── state.rs                       # Centralized ChatState (SSOT thread-safe app state)
 │   ├── build.rs                           # Tauri build script
 │   ├── Cargo.lock                         # Deterministic Rust dependency lockfile
 │   ├── Cargo.toml                         # Rust package manifest & dependencies
 │   └── tauri.conf.json                    # Tauri configuration (window definitions, bundle, security)
-├── tests/                                 # Automated Testing Suite
-│   └── e2e/                               # End-to-End automation tests
-│       ├── appium-manager.js              # Automatic Appium & WinAppDriver lifecycle controller
-│       ├── bubble-controller.js           # Window handles scanner, screenshot & UI dump engine
-│       └── run-appium-check.js            # Full E2E check runner
 ├── .gitignore                             # Git ignore rules
 ├── index.html                             # HTML entry point for Vite
 ├── LICENSE                                # Open source MIT License terms
@@ -387,9 +411,9 @@ Navigate to `http://localhost:1420` in your web browser.
 To compile optimized frontend assets and generate standalone Windows executables (`.exe`) and installers (`.msi` / NSIS):
 
 ```powershell
-npm run app:build
-# or
-powershell -ExecutionPolicy Bypass -File scripts/build.ps1
+npm run tauri build
+# or via npx
+npx tauri build
 ```
 
 Generated production artifacts:
@@ -403,13 +427,14 @@ powershell -ExecutionPolicy Bypass -File scripts/start.ps1 -Mode prod
 
 ### Process Management & Stopping
 
-To cleanly terminate all running DesktopBubbleChat instances, floating chat heads, orphaned WebView2 processes, and release port 1420:
+To cleanly terminate all running DesktopBubbleChat instances and floating chat heads:
 
-```powershell
-npm run app:stop
-# or
-powershell -ExecutionPolicy Bypass -File scripts/stop.ps1
-```
+- **Via System Tray**: Right-click the **DesktopBubbleChat** tray icon in the Windows taskbar and choose **Thoát ứng dụng...**.
+- **Via Terminal**: Press `Ctrl + C` in the running dev server terminal session.
+- **Via PowerShell**:
+  ```powershell
+  Stop-Process -Name "DesktopBubbleChat" -Force -ErrorAction SilentlyContinue
+  ```
 
 ### Resource & Process Monitoring
 
@@ -423,29 +448,28 @@ powershell -ExecutionPolicy Bypass -File scripts/status.ps1 -Watch
 
 ### Asset & Logo Pipeline
 
-To update the application logo and automatically generate all multi-resolution icon formats (`.ico`, `.icns`, `.png`, Android/iOS assets):
+To update the application icon across all supported formats (`.ico`, `.png`, and mobile assets):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/set-logo.ps1 -LogoPath "path/to/your/logo.png"
+npm run tauri icon "path/to/your/app-icon.png"
 ```
 
 ### Global Shortcuts & Tray Controls
 
 - **`Ctrl + Shift + M`**: Toggle the visibility of all active floating chat heads.
-- **System Tray Icon**: Right-click the tray icon to open the context menu:
-  - **Open Dashboard**: Restores and focuses the main configuration window.
-  - **Toggle Chat Heads**: Shows or hides all active chat bubbles.
-  - **Exit Application**: Gracefully terminates the application and all child windows.
+- **System Tray Icon**: Right-click the tray icon to open the dynamic context menu:
+  - **Mở / Đóng Trang chủ**: Toggles the main dashboard configuration window.
+  - **Bật / Ẩn tất cả bong bóng**: Master toggle for all active floating chat heads.
+  - **Individual Account Toggles**: Toggle individual accounts with active checkmark indicators.
+  - **Thoát ứng dụng...**: Displays a Win32 confirmation dialog before clean application shutdown.
 
 ---
 
 ## API
 
-### Tauri IPC Commands
+All commands are strongly typed in [`src/types/ipc.ts`](file:///D:/DesktopBubbleChat/src/types/ipc.ts) and modularized in [`src-tauri/src/commands/`](file:///D:/DesktopBubbleChat/src-tauri/src/commands/).
 
-All commands are strongly typed in [`src/types/ipc.ts`](file:///D:/DesktopBubbleChat/src/types/ipc.ts) and implemented in [`src-tauri/src/commands/`](file:///D:/DesktopBubbleChat/src-tauri/src/commands/).
-
-#### Bubble & Positioning Commands
+### Core Bubble & Positioning Commands
 
 | Command | Arguments | Return Type | Description |
 | :--- | :--- | :--- | :--- |
@@ -453,26 +477,12 @@ All commands are strongly typed in [`src/types/ipc.ts`](file:///D:/DesktopBubble
 | `toggle_all_bubbles`| `visible?: boolean`, `extraIdx?: number` | `void` | Batch toggle all active chat heads. |
 | `snap_bubble` | `accountIndex?: number` | `SnapResult` | Triggers physics calculation and snaps bubble to nearest edge. |
 | `get_bubble_position` | `accountIndex?: number` | `PhysicalPosition` | Retrieves the current screen coordinates of a specific bubble. |
-| `get_all_bubble_positions` | *none* | `Vec<BubblePositionDto>` | Returns coordinate and visibility data for all 5 bubbles. |
+| `get_all_bubble_positions` | *none* | `Vec<BubblePositionDto>` | Returns coordinate and visibility data for all bubbles. |
 | `get_bubble_snap_coords` | `accountIndex: number`, `currentX: number`, `currentY: number` | `SnapCoordsDto` | Calculates target snap coordinates without moving the window. |
 | `get_bubble_hover_coords` | `accountIndex: number`, `isHovered: boolean` | `PhysicalPosition` | Calculates peek (hovered) or tucked coordinates. |
 | `set_bubble_config` | `config: BubblePhysicsConfig` | `void` | Updates runtime physics constants (size, gap, tuck ratio). |
 
-#### Messenger & Chat Commands
-
-| Command | Arguments | Return Type | Description |
-| :--- | :--- | :--- | :--- |
-| `open_messenger_auth` | `accountIndex?: number` | `void` | Opens an independent popup window for user authentication. |
-| `check_messenger_auth` | `accountIndex?: number` | `AuthStatusDto` | Queries current session validity and logged-in account name. |
-| `disconnect_messenger` | `accountIndex?: number` | `void` | Logs out the specified account and clears session state. |
-| `open_chat` | `accountIndex?: number` | `void` | Opens the Messenger chat window next to the active bubble. |
-| `preload_chat` | `accountIndex?: number` | `void` | Silently warms up the WebView2 instance in the background. |
-| `toggle_chat` | `accountIndex?: number` | `void` | Toggles the visibility of the Messenger conversation window. |
-| `report_new_message` | `senderName: string`, `body?: string`, `accountIndex?: number` | `void` | Dispatches message arrival event, plays pop sound, and triggers toast. |
-| `sync_recent_conversations` | `conversations: IncomingMessageDto[]`, `accountIndex?: number` | `void` | Ingests recent conversation threads scraped from the webview. |
-| `clear_account_storage` | `accountIndex?: number` | `void` | Deletes the WebView2 user data folder for a specific account. |
-
-#### System & Utility Commands
+### Core System & Utility Commands
 
 | Command | Arguments | Return Type | Description |
 | :--- | :--- | :--- | :--- |
@@ -482,6 +492,21 @@ All commands are strongly typed in [`src/types/ipc.ts`](file:///D:/DesktopBubble
 | `minimize_main_window`| *none* | `void` | Minimizes the main dashboard window to the taskbar. |
 | `hide_main_window` | *none* | `void` | Hides the main dashboard to the system tray. |
 | `exit_app` | *none* | `void` | Performs clean termination of all threads, daemons, and windows. |
+
+### Platform Adapter Commands (Messenger)
+
+| Command | Arguments | Return Type | Description |
+| :--- | :--- | :--- | :--- |
+| `open_messenger_auth` | `accountIndex?: number` | `void` | Opens an independent popup window for user authentication. |
+| `check_messenger_auth` | `accountIndex?: number` | `AuthStatusDto` | Queries current session validity and logged-in account name. |
+| `disconnect_messenger` | `accountIndex?: number` | `void` | Logs out the specified account and clears session state. |
+| `open_chat` | `accountIndex?: number` | `void` | Opens the platform chat window next to the active bubble. |
+| `preload_chat` | `accountIndex?: number` | `void` | Silently warms up the WebView2 instance in the background. |
+| `toggle_chat` | `accountIndex?: number` | `void` | Toggles the visibility of the conversation window. |
+| `open_thread` | `threadId: string`, `accountIndex?: number` | `void` | Opens a specific conversation thread directly. |
+| `report_new_message` | `senderName: string`, `body?: string`, `accountIndex?: number` | `void` | Dispatches message arrival event, plays pop sound, and triggers toast. |
+| `sync_recent_conversations` | `conversations: IncomingMessageDto[]`, `accountIndex?: number` | `void` | Ingests recent conversation threads scraped from the webview. |
+| `clear_account_storage` | `accountIndex?: number` | `void` | Deletes the WebView2 user data folder for a specific account. |
 
 ### IPC Events
 
@@ -496,61 +521,18 @@ All commands are strongly typed in [`src/types/ipc.ts`](file:///D:/DesktopBubble
 
 ---
 
-## Testing & Automation
-
-DesktopBubbleChat includes full end-to-end (E2E) automation support powered by **Appium 2/3**, **Appium Windows Driver**, and **Microsoft WinAppDriver**.
-
-### Automation Architecture
-
-```text
-tests/e2e/
-├── appium-manager.js     # Automatic lifecycle controller: detects and launches Appium server
-├── bubble-controller.js  # Low-level automation controller (HWND scanner, screenshot engine, UI dumper)
-└── run-appium-check.js   # Main E2E health check runner
-```
-
-### Running Automated UI Diagnostics
-
-1. **Verify Appium Server status**:
-   ```powershell
-   npm run appium:status
-   ```
-
-2. **Start the Appium Server in the background**:
-   ```powershell
-   npm run appium:start
-   ```
-
-3. **Execute the automated E2E health check**:
-   ```powershell
-   npm run test:e2e
-   # or
-   npm run appium:check
-   ```
-
-The test runner will:
-- Automatically connect to the Windows desktop session.
-- Scan for active `DesktopBubbleChat` main and floating bubble windows.
-- Check for Windows crash dialogs (`WerFault.exe`) or error popups.
-- Capture diagnostic screenshots into `logs/screenshots/`.
-- Dump the full Windows UI Automation accessibility tree to `logs/main_window_ui_tree.xml`.
-
-4. **Stop the Appium Server**:
-   ```powershell
-   npm run appium:stop
-   ```
-
----
-
 ## Troubleshooting & FAQ
 
 ### 1. Port 1420 is already in use
 - **Cause**: A previous Vite or Tauri dev server did not exit cleanly.
-- **Solution**: Run `npm run app:stop` or `powershell scripts/stop.ps1`. The script detects the process listening on port 1420 and safely terminates it.
+- **Solution**: Terminate existing processes using `Stop-Process -Name "DesktopBubbleChat" -Force -ErrorAction SilentlyContinue` or close the previous terminal. Running `scripts/start.ps1` also automatically checks and frees port 1420 before launching.
 
 ### 2. File lock error on `msedgewebview2.exe` during build
 - **Cause**: An orphaned WebView2 background process still holds a lock on the `EBWebView` cache directory.
-- **Solution**: Run `npm run app:stop`. The script automatically searches for and terminates all orphaned WebView2 processes associated with `com.desktopbubblechat.app`.
+- **Solution**: Exit the application via the System Tray -> **Thoát ứng dụng...**, or kill any lingering WebView2 processes in PowerShell:
+  ```powershell
+  Get-Process msedgewebview2 -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*com.desktopbubblechat.app*" } | Stop-Process -Force
+  ```
 
 ### 3. Rust build fails with `link.exe not found`
 - **Cause**: The Microsoft Visual C++ MSVC linker is missing from your system PATH.

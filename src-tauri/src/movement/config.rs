@@ -56,7 +56,7 @@ impl Default for BubblePhysicsConfig {
             margin: 12.0,
             taskbar_margin: 60.0,
             dismiss_margin: 80.0,
-            chat_width: 460.0,
+            chat_width: 404.0,
             chat_height: 620.0,
             chat_gap: 8.0,
         }

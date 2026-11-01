@@ -124,10 +124,6 @@ pub fn get_or_create_bubble_window(
 
     #[cfg(target_os = "windows")]
     {
-        let win_clone = window.clone();
-        let _ = window.run_on_main_thread(move || {
-            super::subclass::setup_bubble_subclass(&win_clone);
-        });
         let config = crate::movement::get_bubble_physics_config(app);
         resize_bubble_window(&window, config.size);
     }

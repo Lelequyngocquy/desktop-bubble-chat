@@ -78,6 +78,24 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
 ) -> Result<BubbleRect, String> {
     #[cfg(target_os = "windows")]
     {
+        // 0. BẢO VỆ VỊ TRÍ HIỆN HỮU: Nếu Native Bubble của tài khoản đã tồn tại trên màn hình,
+        // bảo toàn tuyệt đối tọa độ hiện tại (kể cả sau khi kéo thả), không tính lại stacked pos!
+        if crate::windows::native_bubble::NativeBubbleManager::global().has_bubble(account_index) {
+            if let Some((x, y, w, h)) = crate::windows::native_bubble::NativeBubbleManager::global().get_bounds(account_index) {
+                let rect = BubbleRect {
+                    account_index,
+                    x,
+                    y,
+                    width: w as i32,
+                    height: h as i32,
+                };
+                if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
+                    chat_state.set_bubble_rect(account_index, rect);
+                }
+                return Ok(rect);
+            }
+        }
+
         let config = crate::movement::get_bubble_physics_config(app);
         let monitor = app
             .get_webview_window("main")
