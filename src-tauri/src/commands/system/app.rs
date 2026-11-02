@@ -141,13 +141,26 @@ pub fn open_external_url(url: String) -> Result<(), String> {
     Err("Invalid URL scheme".into())
 }
 
-/// Command cầu nối chuyển log từ Frontend React thẳng vào Terminal Backend
+/// Command cầu nối chuyển log từ Frontend React / Injected Script thẳng vào Terminal Backend và file logs/messenger_inject.log
 #[tauri::command]
-pub fn log_frontend(level: String, message: String) {
-    let tag = match level.to_lowercase().as_str() {
+pub fn log_frontend(level: Option<String>, message: String) {
+    let lvl = level.as_deref().unwrap_or("info");
+    let tag = match lvl.to_lowercase().as_str() {
         "error" => "\x1b[31m[FE - ERROR]\x1b[0m",
         "warn" => "\x1b[33m[FE - WARN]\x1b[0m",
+        "debug" => "\x1b[35m[FE - DEBUG]\x1b[0m",
         _ => "\x1b[36m[FE - INFO]\x1b[0m",
     };
     println!("{} {}", tag, message);
+
+    // Ghi đồng thời ra file logs/messenger_inject.log để dễ dàng kiểm tra
+    let log_file = std::path::Path::new("logs").join("messenger_inject.log");
+    if let Some(parent) = log_file.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    use std::io::Write;
+    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_file) {
+        let now = crate::utils::time::now_millis();
+        let _ = writeln!(file, "[{}] [{}] {}", now, lvl.to_uppercase(), message);
+    }
 }
