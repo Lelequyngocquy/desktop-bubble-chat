@@ -1,5 +1,5 @@
 // ============================================================================
-// MODULE 09: RESPONSIVE STYLING & COMPACT UI
+// MODULE 05: RESPONSIVE STYLING & COMPACT UI
 // ============================================================================
 // Nhiệm vụ:
 // 1. Nhúng CSS tinh chỉnh giao diện Messenger phù hợp với kích thước cửa sổ popup (404x620).

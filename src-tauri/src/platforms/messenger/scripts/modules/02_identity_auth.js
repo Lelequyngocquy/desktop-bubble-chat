@@ -1,5 +1,5 @@
 // ============================================================================
-// MODULE 04: IDENTITY RECOGNITION & AUTHENTICATION ENGINE
+// MODULE 02: IDENTITY RECOGNITION & AUTHENTICATION ENGINE
 // ============================================================================
 // Nhiệm vụ:
 // 1. Nhận diện danh tính người dùng Facebook (UID) thông qua cookie c_user và Meta Client Runtime.

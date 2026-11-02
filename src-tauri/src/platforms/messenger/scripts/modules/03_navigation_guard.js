@@ -1,5 +1,5 @@
 // ============================================================================
-// MODULE 05: NAVIGATION GUARD & EXTERNAL LINK INTERCEPTOR
+// MODULE 03: NAVIGATION GUARD & EXTERNAL LINK INTERCEPTOR
 // ============================================================================
 // Nhiệm vụ:
 // 1. Bảo vệ điều hướng: Luôn giữ Webview ở trang messenger.com, ngăn văng về facebook.com khi đã đăng nhập.

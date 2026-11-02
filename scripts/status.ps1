@@ -118,11 +118,25 @@ function Show-StatusSnapshot {
 
     $nowStr = Get-Date -Format "HH:mm:ss dd/MM/yyyy"
 
-    Write-Host "================================================================================" -ForegroundColor Cyan
-    Write-Host "   DESKTOPBUBBLECHAT - BAO CAO TAI NGUYEN HE THONG [$nowStr]   " -ForegroundColor Cyan
-    Write-Host "================================================================================" -ForegroundColor Cyan
+    Write-Host "==================" -ForegroundColor Cyan
+    Write-Host "   BAO CAO TAI NGUYEN HE THONG [$nowStr]   " -ForegroundColor Cyan
+    Write-Host "==================" -ForegroundColor Cyan
 
-    Write-Host ""
+ 
+
+
+    Write-Host " [DANH SACH CHI TIET TUNG TIEN TRINH]" -ForegroundColor Yellow
+
+    $sorted = $procList | Sort-Object WorkingSetMB -Descending
+
+    $formatTable = $sorted | Select-Object `
+        @{Name="PID"; Expression={$_.PID}}, `
+        @{Name="Vai tro / Phan loai"; Expression={$_.Category}}, `
+        @{Name="Profile"; Expression={$_.Profile}}, `
+        @{Name="RAM (MB)"; Expression={"{0:N2}" -f [double]$_.WorkingSetMB}}, `
+        @{Name="CPU (s)"; Expression={"{0:N2}" -f [double]$_.CPU_Sec}}
+
+    $formatTable | Format-Table -AutoSize | Out-String | Write-Host -ForegroundColor White
     Write-Host " [TONG QUAN TAI NGUYEN]" -ForegroundColor Yellow
     Write-Host "   * Tong RAM chiem dung : " -NoNewline
     Write-Host "$totalRAM_MB MB (~$totalRAM_GB GB)" -ForegroundColor Green
@@ -137,25 +151,7 @@ function Show-StatusSnapshot {
     Write-Host ("   - WebView2 Broker Processes: " + ("{0:N2} MB" -f $brokerRAM)) -ForegroundColor Gray
     Write-Host ("   - Utility Services (Net/Aud): " + ("{0:N2} MB" -f $utilityRAM)) -ForegroundColor DarkYellow
     Write-Host ""
-
-    Write-Host " [DANH SACH CHI TIET TUNG TIEN TRINH]" -ForegroundColor Yellow
-
-    $sorted = $procList | Sort-Object WorkingSetMB -Descending
-
-    $formatTable = $sorted | Select-Object `
-        @{Name="PID"; Expression={$_.PID}}, `
-        @{Name="Vai tro / Phan loai"; Expression={$_.Category}}, `
-        @{Name="Profile"; Expression={$_.Profile}}, `
-        @{Name="RAM (MB)"; Expression={"{0:N2}" -f [double]$_.WorkingSetMB}}, `
-        @{Name="CPU (s)"; Expression={"{0:N2}" -f [double]$_.CPU_Sec}}
-
-    $formatTable | Format-Table -AutoSize | Out-String | Write-Host -ForegroundColor White
-
-    Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Gray
-    Write-Host "[GHI CHU] Khi dong goi ban Release (DesktopBubbleChat.exe), toan bo tien trinh" -ForegroundColor Gray
-    Write-Host "          tren se duoc Task Manager Windows tu dong gom vao 1 dong kem Logo." -ForegroundColor Gray
-    Write-Host ""
-
+     Write-Host "------------------------" -ForegroundColor Cyan
     return $true
 }
 

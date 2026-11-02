@@ -1,5 +1,5 @@
 // ============================================================================
-// MODULE 08: OFFLINE RESILIENCE & AUTO-RECONNECT
+// MODULE 04: OFFLINE RESILIENCE & AUTO-RECONNECT
 // ============================================================================
 // Nhiệm vụ:
 // 1. Lắng nghe trạng thái kết nối mạng của hệ thống (online / offline).
@@ -32,7 +32,7 @@ function setupOfflineHandler() {
   }
 
   function removeOfflineBanner() {
-    logDebug("OFFLINE-EVENT", "Kết nối Internet đã phục hồi! Đang gỡ banner và reload trang...", null, "info");
+    logDebug("OFFLINE-EVENT", "Kết nối Internet đã phục hồi! Đang gỡ banner...", null, "info");
     const el = document.getElementById("dbc-offline-banner");
     if (el) el.remove();
   }
