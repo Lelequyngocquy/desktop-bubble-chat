@@ -53,14 +53,19 @@ export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
       content={
         <div className="space-y-4 text-[13px] text-[#4A5568]">
           <p className="m-0 leading-relaxed">
-            Bạn có muốn tiếp tục chạy ứng dụng dưới khay hệ thống (System Tray) để nhận thông báo và duy trì bong bóng nổi không?
+            Bạn có muốn tiếp tục chạy ứng dụng dưới khay hệ thống (System Tray)
+            để nhận thông báo và duy trì bong bóng nổi không?
           </p>
 
           {/* Card giải thích Chạy ngầm */}
           <div className="flex items-start gap-3 p-3 bg-[#F0F4FF] border border-[#D0E0FF] rounded-[8px] text-[#1E3A8A]">
             <MessageSquare className="w-4 h-4 mt-0.5 shrink-0 text-[#0866FF]" />
             <div className="text-[12px] leading-relaxed">
-              <span className="font-semibold">Chạy trong khay hệ thống:</span> Cửa sổ giao diện chính sẽ đóng lại, ứng dụng tiếp tục chạy ngầm ở góc màn hình. Bong bóng chat nổi và chuông thông báo vẫn hoạt động bình thường.
+              <span className="font-semibold">Chạy trong khay hệ thống:</span>{" "}
+              Cửa sổ giao diện chính sẽ đóng lại, ứng dụng tiếp tục chạy ngầm ở
+              góc màn hình. Bong bóng chat nổi và chuông thông báo vẫn hoạt động
+              bình thường. Điều này sẽ giúp tiết kiệm tài nguyên hệ thống và
+              tránh làm gián đoạn công việc của bạn.
             </div>
           </div>
 

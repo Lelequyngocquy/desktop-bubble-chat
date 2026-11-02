@@ -9,7 +9,10 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { useNavigationStore } from "../../stores/navigationStore";
-import { useMessengerStore, selectConnectedAccounts } from "../../platforms/messenger";
+import {
+  useMessengerStore,
+  selectConnectedAccounts,
+} from "../../platforms/messenger";
 import { useConversationStore } from "../../stores/conversationStore";
 import { useSystemUserStore } from "../../stores/systemUserStore";
 import { NavTab, NavigationItemConfig } from "../../types";
@@ -24,14 +27,15 @@ export const Sidebar: React.FC = () => {
   const systemUser = useSystemUserStore((s) => s.systemUser);
   const systemUserInitials = useSystemUserStore((s) => s.systemUserInitials);
 
-  const navIconMap: Record<NavigationItemConfig["iconName"], React.ReactNode> = {
-    Home: <Home className="w-[18px] h-[18px]" />,
-    Unplug: <Unplug className="w-[18px] h-[18px]" />,
-    MessageSquare: <MessageSquare className="w-[18px] h-[18px]" />,
-    Bell: <Bell className="w-[18px] h-[18px]" />,
-    Settings2: <Settings2 className="w-[18px] h-[18px]" />,
-    HelpCircle: <HelpCircle className="w-[18px] h-[18px]" />,
-  };
+  const navIconMap: Record<NavigationItemConfig["iconName"], React.ReactNode> =
+    {
+      Home: <Home className="w-[18px] h-[18px]" />,
+      Unplug: <Unplug className="w-[18px] h-[18px]" />,
+      MessageSquare: <MessageSquare className="w-[18px] h-[18px]" />,
+      Bell: <Bell className="w-[18px] h-[18px]" />,
+      Settings2: <Settings2 className="w-[18px] h-[18px]" />,
+      HelpCircle: <HelpCircle className="w-[18px] h-[18px]" />,
+    };
 
   const getBadgeForTab = (id: NavTab): number | string | undefined => {
     switch (id) {
@@ -51,7 +55,11 @@ export const Sidebar: React.FC = () => {
     badge: getBadgeForTab(item.id),
   }));
 
-  const secondaryNavItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
+  const secondaryNavItems: Array<{
+    id: NavTab;
+    label: string;
+    icon: React.ReactNode;
+  }> = [
     {
       id: "settings",
       label: "Cài đặt",
@@ -159,7 +167,7 @@ export const Sidebar: React.FC = () => {
             </span>
           </div>
           <p className="text-[11px] text-[#6B7483] leading-snug m-0">
-            Đóng cửa sổ vẫn giữ chat heads hoạt động.
+            Đóng cửa sổ vẫn sẽ giữ ứng dụng hoạt động.
           </p>
         </div>
 
