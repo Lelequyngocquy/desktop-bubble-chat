@@ -118,6 +118,21 @@ pub fn set_bubble_config(
         }
     }
 
+    if let Some(s) = size {
+        let size_str = if s <= 48.0 {
+            "sm".to_string()
+        } else if s >= 64.0 {
+            "lg".to_string()
+        } else {
+            "md".to_string()
+        };
+        if let Some(chat_state) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
+            chat_state.update_user_config(&app, |c| {
+                c.bubble_size = size_str;
+            });
+        }
+    }
+
     let config = get_bubble_physics_config(&app);
     for idx in 1..=5 {
         let label = get_bubble_window_label(idx);
@@ -141,6 +156,13 @@ pub fn set_bubble_config(
         for idx in 1..=5 {
             if crate::windows::native_bubble::has_native_bubble(idx) {
                 crate::windows::native_bubble::set_native_bubble_size(idx, bubble_size_px);
+                if let Some(chat_state) = app.try_state::<Arc<ChatState>>() {
+                    if let Some(mut rect) = chat_state.get_bubble_rect(idx) {
+                        rect.width = bubble_size_px as i32;
+                        rect.height = bubble_size_px as i32;
+                        chat_state.set_bubble_rect(idx, rect);
+                    }
+                }
                 let _ = snap_bubble(app.clone(), Some(idx));
             }
         }

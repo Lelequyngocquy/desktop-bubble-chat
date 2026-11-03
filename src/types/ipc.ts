@@ -14,6 +14,8 @@ export const IPC_COMMANDS = {
   SET_ALWAYS_ON_TOP: "set_always_on_top",
   UPDATE_TRAY_MENU_STATUS: "update_tray_menu_status",
   LOG_FRONTEND: "log_frontend",
+  GET_USER_SETTINGS: "get_user_settings",
+  SAVE_USER_SETTINGS: "save_user_settings",
 
   // Badge Commands
   SET_BADGE_COUNT: "set_badge_count",

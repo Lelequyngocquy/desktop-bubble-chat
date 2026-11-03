@@ -38,6 +38,7 @@ pub struct ChatState {
     pub unread_counts: Mutex<HashMap<u32, u32>>,
     pub recent_messages: Mutex<Vec<IncomingMessage>>,
     pub muted_accounts: Mutex<HashSet<u32>>,
+    pub user_config: Mutex<crate::utils::user_cache::AppUserConfig>,
 }
 
 impl Default for ChatState {
@@ -62,6 +63,7 @@ impl Default for ChatState {
             unread_counts: Mutex::new(HashMap::new()),
             recent_messages: Mutex::new(Vec::new()),
             muted_accounts: Mutex::new(HashSet::new()),
+            user_config: Mutex::new(crate::utils::user_cache::AppUserConfig::default()),
         }
     }
 }
@@ -267,6 +269,40 @@ impl ChatState {
             set.contains(&account_index)
         } else {
             false
+        }
+    }
+
+    /// Khởi tạo cấu hình người dùng từ đĩa lúc app khởi động
+    pub fn init_user_config(&self, config: crate::utils::user_cache::AppUserConfig) {
+        if let Ok(mut lock) = self.user_config.lock() {
+            *lock = config;
+        }
+    }
+
+    /// Đọc bản snapshot cấu hình người dùng hiện tại
+    pub fn get_user_config(&self) -> crate::utils::user_cache::AppUserConfig {
+        self.user_config
+            .lock()
+            .map(|g| g.clone())
+            .unwrap_or_default()
+    }
+
+    /// Ghi đè toàn bộ cấu hình người dùng và lưu ngay vào đĩa
+    pub fn set_user_config(&self, app: &tauri::AppHandle, config: crate::utils::user_cache::AppUserConfig) {
+        if let Ok(mut lock) = self.user_config.lock() {
+            *lock = config.clone();
+            crate::utils::user_cache::save_user_cache(app, &config);
+        }
+    }
+
+    /// Cập nhật một phần cấu hình người dùng thông qua closure và lưu ngay vào đĩa
+    pub fn update_user_config<F>(&self, app: &tauri::AppHandle, updater: F)
+    where
+        F: FnOnce(&mut crate::utils::user_cache::AppUserConfig),
+    {
+        if let Ok(mut lock) = self.user_config.lock() {
+            updater(&mut lock);
+            crate::utils::user_cache::save_user_cache(app, &lock);
         }
     }
 

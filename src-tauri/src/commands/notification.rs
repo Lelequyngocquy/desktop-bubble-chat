@@ -84,7 +84,7 @@ pub fn report_incoming_notification(
             )
         };
         println!("\x1b[32m{}\x1b[0m", log_msg);
-        crate::commands::system::app::log_frontend(Some("info".into()), log_msg);
+        crate::commands::system::app::log_frontend(app.clone(), Some("info".into()), log_msg);
     }
 
     Ok(())

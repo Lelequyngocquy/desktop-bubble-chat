@@ -110,12 +110,27 @@ pub async fn toggle_bubble(
 
     if visible {
         match resume_account_bubble_and_chat(&app, idx, None) {
-            Ok(_) => println!("[toggle_bubble] Account {} bubble resumed successfully", idx),
+            Ok(_) => {
+                println!("[toggle_bubble] Account {} bubble resumed successfully", idx);
+                if let Some(s) = app.try_state::<Arc<ChatState>>() {
+                    s.update_user_config(&app, |c| {
+                        if !c.active_bubble_accounts.contains(&idx) {
+                            c.active_bubble_accounts.push(idx);
+                            c.active_bubble_accounts.sort();
+                        }
+                    });
+                }
+            }
             Err(e) => eprintln!("[toggle_bubble ERROR] Failed to resume bubble for account {}: {}", idx, e),
         }
     } else {
         suspend_account_bubble_and_chat(&app, idx);
         println!("[toggle_bubble] Account {} bubble suspended successfully", idx);
+        if let Some(s) = app.try_state::<Arc<ChatState>>() {
+            s.update_user_config(&app, |c| {
+                c.active_bubble_accounts.retain(|&x| x != idx);
+            });
+        }
     }
 
     drop(guard);
@@ -174,10 +189,24 @@ pub async fn toggle_all_bubbles_impl(
                 tokio::time::sleep(std::time::Duration::from_millis(70)).await;
             }
         }
+
+        if let Some(s) = app.try_state::<Arc<ChatState>>() {
+            s.update_user_config(app, |c| {
+                for &idx in &targets {
+                    if !c.active_bubble_accounts.contains(&idx) {
+                        c.active_bubble_accounts.push(idx);
+                    }
+                }
+                c.active_bubble_accounts.sort();
+            });
+        }
     } else {
         // Ghi nhớ danh sách các Bubble đang mở trước khi ẩn
         if let Some(chat_state) = app.try_state::<Arc<ChatState>>() {
             chat_state.save_previously_visible_bubbles(visible_indices);
+            chat_state.update_user_config(app, |c| {
+                c.active_bubble_accounts.clear();
+            });
         }
 
         for idx in 1..=5 {

@@ -184,6 +184,17 @@ pub fn set_account_muted(
 ) -> Result<(), String> {
     let idx = account_index.unwrap_or(1);
     state.set_account_muted(idx, muted);
+    state.update_user_config(&app, |c| {
+        if muted {
+            if !c.muted_accounts.contains(&idx) {
+                c.muted_accounts.push(idx);
+                c.muted_accounts.sort();
+            }
+        } else {
+            c.muted_accounts.retain(|&x| x != idx);
+        }
+        c.is_notifications_enabled = c.muted_accounts.len() < 5;
+    });
     let label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
 
     println!(

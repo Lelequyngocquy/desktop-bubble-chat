@@ -34,8 +34,8 @@ export const accountStorageService = {
               avatarText: formatMessengerAvatarText(a.index),
               color: getAccountThemeColor(a.index).hex,
               isAuthenticating: false, // Invariant: Never persist in-flight authentication state
-              // Khởi động app với switch TẮT và bubble ẩn cho tới khi Messenger tải xong & ổn định
-              isBubbleVisible: false,
+              // Khởi động app với trạng thái bong bóng người dùng đã thiết lập trước đó
+              isBubbleVisible: shouldRestore,
               shouldRestoreBubble: shouldRestore,
               soundEnabled: typeof a.soundEnabled === "boolean" ? a.soundEnabled : true,
               hideMessageContent: typeof a.hideMessageContent === "boolean" ? a.hideMessageContent : false,

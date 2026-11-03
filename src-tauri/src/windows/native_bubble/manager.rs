@@ -147,6 +147,7 @@ impl NativeBubbleManager {
                                     NativeBubbleAction::Show { account_index, x, y, size, app } => {
                                         if let Some(win) = bubbles.get_mut(&account_index) {
                                             win.set_position(x, y);
+                                            win.resize(size);
                                             win.show();
                                         } else {
                                             match NativeBubbleWindow::new(Some(app), account_index, x, y, size) {
