@@ -85,7 +85,7 @@ export function useAutoUpdater() {
 
         if (update) {
           console.log(
-            `[AutoUpdater] Tìm thấy phiên bản mới: ${update.version} (Hiện tại: ${update.currentVersion})`
+            `[AutoUpdater] Tìm thấy phiên bản mới: ${update.version} (Hiện tại: ${update.currentVersion})`,
           );
           setUpdateAvailable({
             availableVersion: update.version,
@@ -99,18 +99,32 @@ export function useAutoUpdater() {
         }
       } catch (err) {
         console.error("[AutoUpdater] Lỗi khi kiểm tra cập nhật:", err);
-        const message =
+        let message =
           err instanceof Error
             ? err.message
             : typeof err === "string"
-            ? err
-            : "Không thể kết nối đến máy chủ cập nhật.";
+              ? err
+              : "Không thể kết nối đến máy chủ cập nhật.";
+
+        if (
+          message.includes("Could not fetch a valid release JSON") ||
+          message.includes("404")
+        ) {
+          message = "Chưa có bản phát hành mới!";
+        } else if (
+          message.toLowerCase().includes("network") ||
+          message.toLowerCase().includes("failed to fetch")
+        ) {
+          message =
+            "Lỗi kết nối mạng: Không thể truy cập máy chủ GitHub Releases.";
+        }
+
         if (!isSilent) {
           setError(message);
         }
       }
     },
-    [setError, setLastCheckedTime, setStatus, setUpToDate, setUpdateAvailable]
+    [setError, setLastCheckedTime, setStatus, setUpToDate, setUpdateAvailable],
   );
 
   // 3. Tự động kiểm tra khi khởi động (Silent check 1 lần)
@@ -227,9 +241,7 @@ export function useAutoUpdater() {
     } catch (err) {
       console.error("[AutoUpdater] Lỗi khi cài đặt bản cập nhật:", err);
       const msg =
-        err instanceof Error
-          ? err.message
-          : "Cài đặt bản cập nhật thất bại.";
+        err instanceof Error ? err.message : "Cài đặt bản cập nhật thất bại.";
       setError(msg);
     }
   }, [activeUpdate, setError, setStatus]);
@@ -252,7 +264,10 @@ export function useAutoUpdater() {
     errorMessage,
     lastCheckedTime,
     autoCheckOnStartup,
-    hasUpdate: status === "available" || status === "downloading" || status === "downloaded",
+    hasUpdate:
+      status === "available" ||
+      status === "downloading" ||
+      status === "downloaded",
     checkForUpdates,
     startDownload,
     cancelDownload,

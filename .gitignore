@@ -42,7 +42,6 @@ scripts/*
 !scripts/start.ps1
 !scripts/check_env.ps1
 !scripts/status.ps1
-!scripts/versioning.ps1
 tests/
 docs/
 
