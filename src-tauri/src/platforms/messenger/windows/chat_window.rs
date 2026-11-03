@@ -165,6 +165,7 @@ pub fn get_or_create_messenger_window(
 
         // 1. Ghi log trực tiếp từ Rust Core
         crate::commands::system::app::log_frontend(
+            win.app_handle().clone(),
             Some("info".into()),
             format!("[M{:02}:TITLE-CHANGE] document.title = '{}'", account_index, title),
         );
@@ -202,7 +203,7 @@ pub fn get_or_create_messenger_window(
                         account_tag, account_index, time_str
                     );
                     println!("\x1b[32m{}\x1b[0m", log_msg);
-                    crate::commands::system::app::log_frontend(Some("info".into()), log_msg);
+                    crate::commands::system::app::log_frontend(win.app_handle().clone(), Some("info".into()), log_msg);
 
                     // Đồng bộ event sang Frontend Dashboard (Giai đoạn 4)
                     let _ = win.app_handle().emit("new-message-received", serde_json::json!({
