@@ -35,7 +35,7 @@ dev_md/
 !**/readme.md
 !standard_mess_login.md
 !step.md
-
+!README.vi.md
 logs/
 scripts/*
 !scripts/start.ps1
