@@ -36,11 +36,13 @@ dev_md/
 !standard_mess_login.md
 !step.md
 !README.vi.md 
+!RELEASE.md
 logs/
 scripts/*
 !scripts/start.ps1
 !scripts/check_env.ps1
 !scripts/status.ps1
+!scripts/versioning.ps1
 tests/
 docs/
 

@@ -10,7 +10,7 @@ import { SettingsWorkspace } from "./components/settings";
 import { HelpWorkspace } from "./components/help";
 import { BubbleSpawnIndicator } from "./components/common/BubbleSpawnIndicator";
 import { DashboardLoadingOverlay } from "./components/common/DashboardLoadingOverlay";
-import { useBubbleAutoRestore, useDashboardBootstrap } from "./hooks";
+import { useBubbleAutoRestore, useDashboardBootstrap, useAutoUpdater } from "./hooks";
 import { useUnreadListener } from "./hooks/useUnreadListener";
 import { useSystemUser } from "./hooks/useSystemUser";
 import { useNavigationStore } from "./stores/navigationStore";
@@ -23,6 +23,7 @@ export const App: React.FC = () => {
   useUnreadListener();
   useSystemUser();
   useBubbleAutoRestore();
+  useAutoUpdater();
 
   return (
     <div className="flex flex-col h-screen w-screen bg-[#EEF2F9] overflow-hidden text-[#202733] select-none font-sans border border-[#E2E7EF] shadow-window">

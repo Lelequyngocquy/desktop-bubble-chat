@@ -238,10 +238,15 @@ export const Sidebar: React.FC = () => {
         {/* App Version */}
         <div
           onClick={() => setActiveTab("updates")}
-          className="pt-2 pl-[42px] text-caption text-content-muted hover:text-primary cursor-pointer transition-colors"
+          className="pt-2 pl-[42px] text-caption text-content-muted hover:text-primary cursor-pointer transition-colors flex items-center gap-1.5"
           title="Bấm để mở trang cập nhật ứng dụng"
         >
-          Phiên bản {currentVersion} · Windows 11
+          <span>Phiên bản v{currentVersion} · Windows 11</span>
+          {hasUpdate && (
+            <span className="px-1.5 py-0.5 bg-primary text-white text-[10px] font-bold rounded-pill animate-pulse leading-none shadow-xs">
+              MỚI
+            </span>
+          )}
         </div>
       </div>
     </aside>
