@@ -1,0 +1,48 @@
+name: "Release & Publish DesktopBubbleChat"
+
+on:
+  push:
+    tags:
+      - "v*" # Triggered automatically on version tags (e.g., v0.1.1, v0.2.0)
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
+
+jobs:
+  publish-tauri:
+    name: "Build & Release Windows App"
+    permissions:
+      contents: write # Required permission to create releases and upload binary assets + latest.json
+    runs-on: windows-latest
+
+    steps:
+      - name: "1. Checkout repository"
+        uses: actions/checkout@v4
+
+      - name: "2. Setup Node.js environment"
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: "3. Install Rust stable toolchain"
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: "4. Enable Rust cache to optimize build times"
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: "5. Install frontend dependencies"
+        run: npm ci
+
+      - name: "6. Build, Sign with Minisign & Publish to GitHub Releases"
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: v__VERSION__ # Automatically resolved from tauri.conf.json
+          releaseName: "DesktopBubbleChat v__VERSION__"
+          releaseBody: "Latest release of DesktopBubbleChat. Download assets below or wait for in-app auto-update."
+          releaseDraft: false
+          prerelease: false

@@ -73,6 +73,19 @@ pub fn exit_app(app: AppHandle) {
     app.exit(0);
 }
 
+/// Command khởi động lại ứng dụng (dùng khi cập nhật phiên bản mới hoặc reset app)
+#[tauri::command]
+pub fn restart_app(app: AppHandle) {
+    if let Some(state) = app.try_state::<Arc<crate::state::ChatState>>() {
+        state.is_explicit_exit.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+    // Đóng tất cả webview windows để WebView2 giải phóng window class "Chrome_WidgetWin_0" trước khi restart
+    for (_, window) in app.webview_windows() {
+        let _ = window.close();
+    }
+    app.request_restart();
+}
+
 /// Command điều khiển chế độ Luôn nổi trên cùng (Always on Top) dành riêng cho các Bong bóng nổi
 #[tauri::command]
 pub fn set_always_on_top(app: AppHandle, enabled: bool) -> Result<(), String> {

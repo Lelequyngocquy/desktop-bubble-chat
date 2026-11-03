@@ -22,6 +22,7 @@ pub fn run() {
         .manage(movement::BubbleConfigState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(move |app_handle, shortcut, event| {
@@ -81,6 +82,7 @@ pub fn run() {
             commands::get_user_settings,
             commands::save_user_settings,
             commands::exit_app,
+            commands::restart_app,
             commands::set_always_on_top,
             commands::log_frontend,
             commands::toggle_native_bubble_preview,

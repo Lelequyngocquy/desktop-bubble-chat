@@ -35,7 +35,7 @@ dev_md/
 !**/readme.md
 !standard_mess_login.md
 !step.md
-!README.vi.md
+!README.vi.md 
 logs/
 scripts/*
 !scripts/start.ps1
@@ -43,3 +43,7 @@ scripts/*
 !scripts/status.ps1
 tests/
 docs/
+
+# Signing keys
+*.key
+*.key.pub

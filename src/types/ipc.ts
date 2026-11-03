@@ -11,6 +11,7 @@ export const IPC_COMMANDS = {
   IS_AUTOSTART_ENABLED: "is_autostart_enabled",
   OPEN_EXTERNAL_URL: "open_external_url",
   EXIT_APP: "exit_app",
+  RESTART_APP: "restart_app",
   SET_ALWAYS_ON_TOP: "set_always_on_top",
   UPDATE_TRAY_MENU_STATUS: "update_tray_menu_status",
   LOG_FRONTEND: "log_frontend",

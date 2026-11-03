@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Settings2,
   HelpCircle,
+  ArrowUpCircle,
 } from "lucide-react";
 import { useNavigationStore } from "../../stores/navigationStore";
 import {
@@ -15,6 +16,7 @@ import {
 } from "../../platforms/messenger";
 import { useConversationStore } from "../../stores/conversationStore";
 import { useSystemUserStore } from "../../stores/systemUserStore";
+import { useUpdateStore } from "../../stores/updateStore";
 import { NavTab, NavigationItemConfig } from "../../types";
 import { NAVIGATION_ITEMS } from "../../config";
 import { AvatarCircle } from "../common";
@@ -26,6 +28,13 @@ export const Sidebar: React.FC = () => {
   const connectedAccounts = useMessengerStore(selectConnectedAccounts);
   const systemUser = useSystemUserStore((s) => s.systemUser);
   const systemUserInitials = useSystemUserStore((s) => s.systemUserInitials);
+  const updateStatus = useUpdateStore((s) => s.status);
+  const currentVersion = useUpdateStore((s) => s.currentVersion);
+
+  const hasUpdate =
+    updateStatus === "available" ||
+    updateStatus === "downloading" ||
+    updateStatus === "downloaded";
 
   const navIconMap: Record<NavigationItemConfig["iconName"], React.ReactNode> =
     {
@@ -33,6 +42,7 @@ export const Sidebar: React.FC = () => {
       Unplug: <Unplug className="w-[18px] h-[18px]" />,
       MessageSquare: <MessageSquare className="w-[18px] h-[18px]" />,
       Bell: <Bell className="w-[18px] h-[18px]" />,
+      ArrowUpCircle: <ArrowUpCircle className="w-[18px] h-[18px]" />,
       Settings2: <Settings2 className="w-[18px] h-[18px]" />,
       HelpCircle: <HelpCircle className="w-[18px] h-[18px]" />,
     };
@@ -59,6 +69,7 @@ export const Sidebar: React.FC = () => {
     id: NavTab;
     label: string;
     icon: React.ReactNode;
+    badge?: React.ReactNode;
   }> = [
     {
       id: "settings",
@@ -69,6 +80,14 @@ export const Sidebar: React.FC = () => {
       id: "help",
       label: "Trợ giúp & phản hồi",
       icon: <HelpCircle className="w-[18px] h-[18px]" />,
+    },
+    {
+      id: "updates",
+      label: "Cập nhật",
+      icon: <ArrowUpCircle className="w-[18px] h-[18px]" />,
+      badge: hasUpdate ? (
+        <span className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-xs" />
+      ) : undefined,
     },
   ];
 
@@ -208,14 +227,21 @@ export const Sidebar: React.FC = () => {
                     {item.label}
                   </span>
                 </div>
+
+                {/* Badge if present */}
+                {item.badge}
               </button>
             );
           })}
         </div>
 
         {/* App Version */}
-        <div className="pt-2 pl-[42px] text-caption text-content-muted">
-          Phiên bản 1.0.0 · Windows 11
+        <div
+          onClick={() => setActiveTab("updates")}
+          className="pt-2 pl-[42px] text-caption text-content-muted hover:text-primary cursor-pointer transition-colors"
+          title="Bấm để mở trang cập nhật ứng dụng"
+        >
+          Phiên bản {currentVersion} · Windows 11
         </div>
       </div>
     </aside>

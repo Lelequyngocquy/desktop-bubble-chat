@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { useNavigationStore } from "../../stores/navigationStore";
+import { useUpdateStore } from "../../stores/updateStore";
 import { useQuickSettings } from "../../hooks/useQuickSettings";
 import { messengerService } from "../../platforms/messenger";
 import { TabHeader } from "../common";
@@ -25,6 +27,14 @@ export const SettingsWorkspace: React.FC = () => {
 
   const isGlobalShortcutEnabled = useSettingsStore((s) => s.isGlobalShortcutEnabled);
   const toggleGlobalShortcut = useSettingsStore((s) => s.toggleGlobalShortcut);
+  const setActiveTab = useNavigationStore((s) => s.setActiveTab);
+  const currentVersion = useUpdateStore((s) => s.currentVersion);
+  const hasUpdate = useUpdateStore(
+    (s) =>
+      s.status === "available" ||
+      s.status === "downloading" ||
+      s.status === "downloaded"
+  );
 
   const [clearStatus, setClearStatus] = useState<string | null>(null);
   const [isConfirmClearCacheOpen, setIsConfirmClearCacheOpen] = useState(false);
@@ -49,10 +59,20 @@ export const SettingsWorkspace: React.FC = () => {
         title="Cài đặt"
         description="Tùy biến cấu hình hệ thống, kích thước bong bóng nổi, phím tắt và bộ nhớ đệm."
         rightSlot={
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-background-surface border border-border rounded-pill text-small shadow-xs">
-            <span className="w-2 h-2 rounded-pill bg-status-success" />
-            <span className="text-content-primary font-medium">Phiên bản v0.1.0</span>
-          </div>
+          <button
+            onClick={() => setActiveTab("updates")}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-background-surface hover:bg-white border border-border rounded-pill text-small shadow-xs transition-colors cursor-pointer"
+            title="Nhấn để mở trang Cập nhật ứng dụng"
+          >
+            <span
+              className={`w-2 h-2 rounded-pill ${
+                hasUpdate ? "bg-primary animate-pulse" : "bg-status-success"
+              }`}
+            />
+            <span className="text-content-primary font-medium">
+              Phiên bản v{currentVersion}
+            </span>
+          </button>
         }
       />
 

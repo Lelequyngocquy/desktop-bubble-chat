@@ -123,4 +123,15 @@ export const systemService = {
       console.warn("[SystemService] Failed to exit application:", err);
     }
   },
+
+  /**
+   * Restarts the desktop application.
+   */
+  async restartApp(): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.RESTART_APP);
+    } catch (err) {
+      console.warn("[SystemService] Failed to restart application:", err);
+    }
+  },
 };
