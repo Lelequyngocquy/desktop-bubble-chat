@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Settings2,
   HelpCircle,
-  ArrowUpCircle,
 } from "lucide-react";
 import { useNavigationStore } from "../../stores/navigationStore";
 import {
@@ -42,7 +41,6 @@ export const Sidebar: React.FC = () => {
       Unplug: <Unplug className="w-[18px] h-[18px]" />,
       MessageSquare: <MessageSquare className="w-[18px] h-[18px]" />,
       Bell: <Bell className="w-[18px] h-[18px]" />,
-      ArrowUpCircle: <ArrowUpCircle className="w-[18px] h-[18px]" />,
       Settings2: <Settings2 className="w-[18px] h-[18px]" />,
       HelpCircle: <HelpCircle className="w-[18px] h-[18px]" />,
     };
@@ -75,19 +73,14 @@ export const Sidebar: React.FC = () => {
       id: "settings",
       label: "Cài đặt",
       icon: <Settings2 className="w-[18px] h-[18px]" />,
+      badge: hasUpdate ? (
+        <span className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-xs" />
+      ) : undefined,
     },
     {
       id: "help",
       label: "Trợ giúp & phản hồi",
       icon: <HelpCircle className="w-[18px] h-[18px]" />,
-    },
-    {
-      id: "updates",
-      label: "Cập nhật",
-      icon: <ArrowUpCircle className="w-[18px] h-[18px]" />,
-      badge: hasUpdate ? (
-        <span className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-xs" />
-      ) : undefined,
     },
   ];
 
@@ -237,11 +230,11 @@ export const Sidebar: React.FC = () => {
 
         {/* App Version */}
         <div
-          onClick={() => setActiveTab("updates")}
-          className="pt-2 pl-[42px] text-caption text-content-muted hover:text-primary cursor-pointer transition-colors flex items-center gap-1.5"
-          title="Bấm để mở trang cập nhật ứng dụng"
+          onClick={() => setActiveTab("settings")}
+          className="pt-2 pl-[32px] text-caption text-content-muted hover:text-primary cursor-pointer transition-colors flex items-center gap-1.5"
+          title="Bấm để mở Cài đặt & Cập nhật ứng dụng"
         >
-          <span>Phiên bản v{currentVersion} · Windows 11</span>
+          <span>DesktopBubbleChat v{currentVersion}</span>
           {hasUpdate && (
             <span className="px-1.5 py-0.5 bg-primary text-white text-[10px] font-bold rounded-pill animate-pulse leading-none shadow-xs">
               MỚI

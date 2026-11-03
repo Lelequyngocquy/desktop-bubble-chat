@@ -22,8 +22,8 @@ export const DataCacheSection: React.FC<DataCacheSectionProps> = ({
             Xóa bộ nhớ đệm WebView2
           </span>
           <span className="text-caption text-content-secondary">
-            Giải phóng dung lượng ổ đĩa và làm mới hoàn toàn session nếu gặp
-            lỗi hiển thị
+            Giải phóng dung lượng ổ đĩa và làm mới hoàn toàn session nếu gặp lỗi
+            hiển thị
           </span>
         </div>
         <button
@@ -49,11 +49,6 @@ export const DataCacheSection: React.FC<DataCacheSectionProps> = ({
             </>
           )}
         </button>
-      </div>
-
-      <div className="pt-2 border-t border-border/50 flex items-center justify-between text-caption text-content-muted">
-        <span>DesktopBubbleChat v0.1.0 (Windows 11 / WebView2)</span>
-        <span>Build Clean Architecture</span>
       </div>
     </CommonLargeCard>
   );
