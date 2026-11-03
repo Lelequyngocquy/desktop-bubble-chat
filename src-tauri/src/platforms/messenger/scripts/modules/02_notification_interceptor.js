@@ -1,31 +1,66 @@
 // ============================================================================
-// MODULE 02: NOTIFICATION & AUDIO HOOK (PHASE 1)
+// MODULE 02: NOTIFICATION & AUDIO HOOK (PHASE 2)
 // ============================================================================
-// Nhiệm vụ (Giai đoạn 1):
+// Nhiệm vụ (Giai đoạn 2):
 // 1. Mock W3C Notification API & ServiceWorker showNotification.
 // 2. Ép quyền thông báo luôn là 'granted'.
-// 3. Khi phát hiện thông báo mới: Gửi cờ báo hiệu về Backend Rust qua IPC report_incoming_notification.
-// 4. Tuyệt đối không can thiệp DOM hay cào nội dung tin nhắn.
+// 3. Khi phát hiện thông báo mới: Bóc tách payload đầy đủ { senderName, body, avatarUrl, threadId, timestamp }.
+// 4. Áp dụng bộ đệm khử trùng lặp trượt (Sliding Window 3000ms).
+// 5. Gửi thông tin về Backend Rust qua IPC report_incoming_notification (Zero-DOM).
 
 (function setupNotificationInterceptor() {
-  logDebug("NOTIF-INIT", "Đang cài đặt HTML5 Notification Hooks (Giai đoạn 1)...");
+  logDebug("NOTIF-INIT", "Đang cài đặt HTML5 Notification Hooks (Giai đoạn 2)...");
 
-  let lastNotificationTime = 0;
-  const NOTIF_THROTTLE_MS = 1500;
+  // Bộ đệm khử trùng lặp trượt (Sliding Window 3000ms)
+  const DEDUPE_WINDOW_MS = 3000;
+  const recentSignatures = new Map(); // signature -> timestamp
 
-  function dispatchNotificationAlert() {
+  function isDuplicate(signature, now) {
+    // Dọn dẹp các mốc cũ hơn 3000ms
+    for (const [key, time] of recentSignatures.entries()) {
+      if (now - time > DEDUPE_WINDOW_MS) {
+        recentSignatures.delete(key);
+      }
+    }
+    if (recentSignatures.has(signature)) {
+      return true;
+    }
+    recentSignatures.set(signature, now);
+    return false;
+  }
+
+  function dispatchNotificationAlert(title, options) {
     const now = Date.now();
-    if (now - lastNotificationTime < NOTIF_THROTTLE_MS) {
-      logDebug("NOTIF-THROTTLE", "Bỏ qua thông báo trùng lặp trong 1500ms");
+    options = options || {};
+
+    const rawTitle = typeof title === "string" ? title.trim() : "";
+    const rawBody = typeof options.body === "string" ? options.body.trim() : "";
+    const rawIcon = typeof options.icon === "string" ? options.icon : "";
+    const rawTag = typeof options.tag === "string" ? options.tag : "";
+
+    // Chữ ký định danh cho tin nhắn: title|body|tag
+    const signature = `${rawTitle}|${rawBody}|${rawTag}`;
+
+    if (isDuplicate(signature, now)) {
+      logDebug("NOTIF-DEDUPE", `Bỏ qua thông báo trùng lặp trong 3000ms: '${rawTitle}'`);
       return;
     }
-    lastNotificationTime = now;
 
     const accountIdx = window.__ACCOUNT_INDEX__ || 1;
-    logDebug("NOTIF-ALERT", `>>> BẮT ĐƯỢC THÔNG BÁO MỚI CHO M${accountIdx.toString().padStart(2, "0")}! Đang gửi IPC...`, null, "info");
+    logDebug(
+      "NOTIF-ALERT",
+      `>>> BẮT ĐƯỢC THÔNG BÁO MỚI CHO M${accountIdx.toString().padStart(2, "0")}! Người gửi: '${rawTitle}', Nội dung: '${rawBody}'`,
+      null,
+      "info"
+    );
 
     invokeTauri("report_incoming_notification", {
       accountIndex: accountIdx,
+      senderName: rawTitle,
+      body: rawBody,
+      avatarUrl: rawIcon,
+      threadId: rawTag,
+      timestamp: now,
     }).then(() => {
       logDebug("NOTIF-IPC", `✓ report_incoming_notification gửi thành công`);
     }).catch((err) => {
@@ -83,7 +118,7 @@
   // 4. Silent Proxy cho window.Notification constructor
   try {
     function MockNotification(title, options) {
-      dispatchNotificationAlert();
+      dispatchNotificationAlert(title, options);
 
       this.title = title || "";
       this.body = (options && options.body) || "";
@@ -131,7 +166,7 @@
     ) {
       ServiceWorkerRegistration.prototype.showNotification = function (title, options) {
         logDebug("NOTIF-SW", `Bắt được ServiceWorker showNotification: '${title}'`, null, "info");
-        dispatchNotificationAlert();
+        dispatchNotificationAlert(title, options);
         return Promise.resolve();
       };
       logDebug("NOTIF-INIT", "✓ ServiceWorker showNotification Hook đã kích hoạt");

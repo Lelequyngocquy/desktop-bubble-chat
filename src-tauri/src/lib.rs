@@ -61,6 +61,7 @@ pub fn run() {
             commands::clear_account_storage,
             commands::report_auth_status,
             commands::report_incoming_notification,
+            commands::get_recent_messages,
             commands::report_new_message,
             commands::sync_recent_conversations,
             commands::update_unread_badge,
