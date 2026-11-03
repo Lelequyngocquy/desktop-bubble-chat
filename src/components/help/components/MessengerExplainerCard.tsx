@@ -36,8 +36,9 @@ export const MessengerExplainerCard: React.FC = () => {
               3. Chuyển đổi nhanh 1-Click
             </span>
             <span>
-              Nhấn trực tiếp vào bong bóng chat hoặc nút Mở chat để gọi ngay
-              khung hội thoại của tài khoản tương ứng.
+              Trỏ con trỏ chuột trực tiếp vào bong bóng chat hoặc nút Mở chat
+              (trang Kết nối) để gọi ngay khung hội thoại của tài khoản tương
+              ứng.
             </span>
           </div>
         </div>
