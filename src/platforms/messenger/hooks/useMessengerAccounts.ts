@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useMessengerStore, selectIsMessengerConnected } from "../stores/messengerStore";
+import { useWindowStore } from "../../../stores/windowStore";
 import { messengerService, messengerAuthManager } from "../services";
 import { feLog } from "../../../services/loggerService";
 import { MessengerAccount } from "../types";
@@ -32,6 +33,8 @@ export function useMessengerAccounts() {
       if (account.isConnected) {
         try {
           feLog.info(`[useMessengerAccounts] Đang mở khung chat cho tài khoản ${account.index}...`);
+          useMessengerStore.getState().setAccountBubbleVisibility(account.index, true);
+          useWindowStore.getState().setOpenChatAccountIndex(account.index);
           await messengerService.openChat(account.index);
         } catch (err) {
           feLog.error(`[useMessengerAccounts] Failed to open chat window:`, err);

@@ -7,7 +7,7 @@ use crate::platforms::messenger::windows::{
     get_messenger_window_label, get_or_create_messenger_window, hide_all_other_messenger_windows,
 };
 use crate::state::ChatState;
-use crate::windows::bubble::{ensure_bubble_positioned_and_visible, get_bubble_window_label, tuck_bubble};
+use crate::windows::bubble::{get_bubble_window_label, tuck_bubble};
 
 pub struct ChatService;
 
@@ -79,9 +79,11 @@ impl ChatService {
                 true,
             );
 
-            // Nếu là Webview Bubble, cập nhật lại tọa độ untuck cho cửa sổ
+            // Nếu là Webview Bubble, cập nhật lại tọa độ untuck cho cửa sổ. Nếu là Native Bubble thì gọi untuck native
             if let Some(bw) = &webview_bubble {
                 let _ = bw.set_position(tauri::Position::Physical(untucked_pos));
+            } else {
+                crate::windows::native_bubble::untuck_native_bubble(app, account_index);
             }
 
             // Tính toán X của khung chat: nằm bên trái nếu Bubble ở mép phải, hoặc bên phải nếu Bubble ở mép trái
@@ -139,12 +141,17 @@ impl ChatService {
             }
         };
 
-        if !is_bubble_already_active {
-            let _ = ensure_bubble_positioned_and_visible(app, idx);
-        }
-
-        if state.is_account_suspended(idx) {
-            return Ok(());
+        // Nếu tài khoản đang ở trạng thái ngủ đông (suspended) hoặc Bubble chưa hiển thị trên màn hình:
+        // Đánh thức tài khoản dậy (resume): gỡ suspended, kích hoạt Native Bubble, cập nhật user config & tray menu
+        if state.is_account_suspended(idx) || !is_bubble_already_active {
+            let _ = crate::commands::bubble::lifecycle::resume_account_bubble_and_chat(app, idx, None);
+            state.update_user_config(app, |c| {
+                if !c.active_bubble_accounts.contains(&idx) {
+                    c.active_bubble_accounts.push(idx);
+                    c.active_bubble_accounts.sort();
+                }
+            });
+            let _ = crate::tray::update_tray_menu(app);
         }
 
         let chat_window = get_or_create_messenger_window(app, idx, Arc::clone(state))?;

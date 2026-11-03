@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Users, Trash2 } from "lucide-react";
+import { Users, Trash2, Moon } from "lucide-react";
 import {
   MAX_MESSENGER_ACCOUNTS,
   MessengerAccount,
@@ -28,6 +28,17 @@ export const MessengerAccountList: React.FC = () => {
 
   const [accountToRemove, setAccountToRemove] =
     useState<MessengerAccount | null>(null);
+  const [accountToWake, setAccountToWake] =
+    useState<MessengerAccount | null>(null);
+
+  const handleOpenAccount = (account: MessengerAccount) => {
+    // Nếu tài khoản đã kết nối nhưng đang ngủ đông (bong bóng không hiển thị)
+    if (account.isConnected && !account.isBubbleVisible) {
+      setAccountToWake(account);
+      return;
+    }
+    openAccount(account);
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -54,7 +65,7 @@ export const MessengerAccountList: React.FC = () => {
             <MessengerAccountRow
               key={account.id}
               account={account}
-              onOpen={openAccount}
+              onOpen={handleOpenAccount}
               onRefresh={refreshAccount}
               onRemove={(acc) => setAccountToRemove(acc)}
               onCancelAuth={cancelAuth}
@@ -118,6 +129,56 @@ export const MessengerAccountList: React.FC = () => {
               const target = accountToRemove;
               setAccountToRemove(null);
               await removeAccount(target);
+            }
+          },
+        }}
+      />
+
+      {/* Dialog xác nhận cho phép hoạt động khi tài khoản đang ngủ đông */}
+      <CommonDialog
+        isOpen={Boolean(accountToWake)}
+        onClose={() => setAccountToWake(null)}
+        eyebrow="TRẠNG THÁI TÀI KHOẢN"
+        titleIcon={<Moon className="w-5 h-5 text-[#0866FF]" />}
+        title={`Kích hoạt ${accountToWake?.name || "tài khoản"}?`}
+        content={`Tài khoản ${accountToWake?.name} hiện đang ở trạng thái ngủ đông (0 MB RAM). Bạn có muốn cho phép tài khoản hoạt động để bật lại bong bóng nổi và mở khung chat Messenger không?`}
+        widget={
+          accountToWake && (
+            <div className="p-3 bg-[#F8FAFD] rounded-[8px] border border-[#E2E7EF] flex flex-col gap-1.5 text-[12px] text-[#6B7483]">
+              <div className="flex items-center gap-2 font-medium text-[#202733]">
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{
+                    backgroundColor: getAccountThemeColor(accountToWake.index)
+                      .hex,
+                  }}
+                />
+                <span>
+                  {accountToWake.name} (Vị trí Messenger{" "}
+                  {accountToWake.index < 10
+                    ? `0${accountToWake.index}`
+                    : accountToWake.index}
+                  )
+                </span>
+              </div>
+              <span className="text-[11.5px]">
+                Khi cho phép hoạt động, bong bóng nổi sẽ xuất hiện trên màn hình và nạp phiên làm việc WebView2 để nhận tin nhắn.
+              </span>
+            </div>
+          )
+        }
+        backButton={{
+          label: "Tiếp tục ngủ đông",
+          onClick: () => setAccountToWake(null),
+        }}
+        rightButton={{
+          label: "Cho phép hoạt động",
+          variant: "primary",
+          onClick: async () => {
+            if (accountToWake) {
+              const target = accountToWake;
+              setAccountToWake(null);
+              await openAccount(target);
             }
           },
         }}
