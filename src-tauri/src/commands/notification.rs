@@ -1,17 +1,18 @@
 use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 
 use crate::state::{ChatState, IncomingMessage};
 
-/// Command nhận thông báo mới từ HTML5 Notification Hook (Giai đoạn 1 & 2)
+/// Command nhận thông báo mới từ HTML5 Notification Hook (Giai đoạn 1 & 2 & 4)
 /// Nhiệm vụ:
 /// 1. Bóc tách payload { senderName, body, avatarUrl, threadId, timestamp }
 /// 2. Lưu trữ vào ChatState.recent_messages (tối đa 20 tin, khử trùng lặp 3000ms)
 /// 3. Cập nhật huy hiệu số đỏ Native Bubble Win32
-/// 4. In log chuẩn ra terminal và ghi file log: [M02:MSG] Từ: 'Nguyễn Văn A' | Lúc: 18:45:10 | Nội dung: 'Chào bạn nhé!'
+/// 4. Phát event đồng bộ sang Dashboard Frontend (badge-updated & new-message-received)
+/// 5. In log chuẩn ra terminal và ghi file log: [M02:MSG] Từ: 'Nguyễn Văn A' | Lúc: 18:45:10 | Nội dung: 'Chào bạn nhé!'
 #[tauri::command]
 pub fn report_incoming_notification(
-    _app: AppHandle,
+    app: AppHandle,
     state: State<'_, Arc<ChatState>>,
     account_index: Option<u32>,
     sender_name: Option<String>,
@@ -27,8 +28,13 @@ pub fn report_incoming_notification(
     let t_id = thread_id.unwrap_or_default().trim().to_string();
     let ts = timestamp.unwrap_or_else(crate::utils::time::now_millis);
 
-    let display_sender = if s_name.is_empty() {
-        format!("M{:02}", idx)
+    let is_generic_sender = s_name.is_empty()
+        || s_name.starts_with("M0")
+        || s_name.starts_with("M1")
+        || s_name == "M";
+
+    let display_sender = if is_generic_sender {
+        format!("Có tin nhắn mới đến Messenger {:02}", idx)
     } else {
         s_name.clone()
     };
@@ -37,8 +43,8 @@ pub fn report_incoming_notification(
         account_index: idx,
         sender_name: display_sender.clone(),
         body: b_text.clone(),
-        avatar_url: a_url,
-        thread_id: t_id,
+        avatar_url: a_url.clone(),
+        thread_id: t_id.clone(),
         timestamp: ts,
     };
 
@@ -49,13 +55,34 @@ pub fn report_incoming_notification(
     let new_count = state.increment_unread_count(idx);
     crate::windows::native_bubble::set_native_bubble_unread_count(idx, new_count);
 
-    // 3. In log chuẩn ra terminal và ghi file log theo tiêu chuẩn Phase 2
+    // 3. Đồng bộ event sang Frontend Dashboard (Giai đoạn 4)
+    let _ = app.emit("badge-updated", serde_json::json!({
+        "accountIndex": idx,
+        "count": new_count
+    }));
+
     if is_new {
+        let _ = app.emit("new-message-received", serde_json::json!({
+            "accountIndex": idx,
+            "senderName": display_sender,
+            "body": b_text,
+            "avatarUrl": a_url,
+            "threadId": t_id,
+            "timestamp": ts,
+        }));
+
         let time_str = crate::utils::time::format_current_time();
-        let log_msg = format!(
-            "[M{:02}:MSG] Từ: '{}' | Lúc: {} | Nội dung: '{}'",
-            idx, display_sender, time_str, b_text
-        );
+        let log_msg = if is_generic_sender {
+            format!(
+                "[M{:02}:MSG] Có tin nhắn mới đến Messenger {:02} | Lúc: {}",
+                idx, idx, time_str
+            )
+        } else {
+            format!(
+                "[M{:02}:MSG] Từ: '{}' | Lúc: {} | Nội dung: '{}'",
+                idx, display_sender, time_str, b_text
+            )
+        };
         println!("\x1b[32m{}\x1b[0m", log_msg);
         crate::commands::system::app::log_frontend(Some("info".into()), log_msg);
     }

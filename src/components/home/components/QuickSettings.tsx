@@ -21,6 +21,7 @@ export const QuickSettings: React.FC = () => {
     bubbleDescription,
     isAlwaysOnTop,
     isNotificationsEnabled,
+    notificationsDescription,
     isAutoStart,
     isConnected,
     warningMessage,
@@ -68,9 +69,11 @@ export const QuickSettings: React.FC = () => {
     const description =
       item.id === "bubble"
         ? bubbleDescription
-        : isAvailable
-          ? item.descriptionActive
-          : item.descriptionInactive;
+        : item.id === "notifications"
+          ? notificationsDescription
+          : isAvailable
+            ? item.descriptionActive
+            : item.descriptionInactive;
 
     return {
       id: item.id,

@@ -1,7 +1,7 @@
 import React from "react";
-import { Users, X, Pin } from "lucide-react";
+import { X, Pin } from "lucide-react";
 import { Conversation } from "../../../types/conversation";
-import { AvatarCircle } from "../../common";
+import { getAccountThemeColor } from "../../../constants/accountColors";
 
 interface ActiveChatHeadItemProps {
   item: Conversation;
@@ -16,40 +16,19 @@ export const ActiveChatHeadItem: React.FC<ActiveChatHeadItemProps> = ({
   onTogglePin,
   onRemove,
 }) => {
+  const color = getAccountThemeColor(item.accountIndex || 1);
+
   return (
     <div
       onClick={() => onOpen(item)}
-      className="h-[52px] flex items-center gap-2.5 py-1 px-2 -mx-2 rounded-lg hover:bg-[#F8FAFC] cursor-pointer group transition-colors"
+      className="h-[52px] flex items-center gap-3 py-1 px-2 -mx-2 rounded-lg hover:bg-[#F8FAFC] cursor-pointer group transition-colors"
     >
-      {item.avatarUrl ? (
-        <div className="w-[34px] h-[34px] rounded-full overflow-hidden border border-[#E2E8F0] shrink-0">
-          <img
-            src={item.avatarUrl}
-            alt={item.name}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLElement).style.display = "none";
-            }}
-          />
-        </div>
-      ) : (
-        <AvatarCircle
-          size={34}
-          icon={
-            item.isGroup ? (
-              <Users className="w-4 h-4 text-[#7762AC]" />
-            ) : undefined
-          }
-          text={
-            !item.isGroup
-              ? item.avatarText || item.name.slice(0, 2).toUpperCase()
-              : undefined
-          }
-          bg={item.isGroup ? "#F2EEFF" : "#EAF2FF"}
-          textColor={item.isGroup ? "#7762AC" : "#0759DB"}
-          border={!item.isGroup}
-        />
-      )}
+      {/* Hủy bỏ avatar: thay bằng chấm tròn chỉ báo màu tài khoản Messenger */}
+      <span
+        className="w-2.5 h-2.5 rounded-full shrink-0 ml-1"
+        style={{ backgroundColor: color.hex }}
+        title={`Messenger ${item.accountIndex || 1}`}
+      />
 
       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5">

@@ -37,6 +37,8 @@ export const accountStorageService = {
               // Khởi động app với switch TẮT và bubble ẩn cho tới khi Messenger tải xong & ổn định
               isBubbleVisible: false,
               shouldRestoreBubble: shouldRestore,
+              soundEnabled: typeof a.soundEnabled === "boolean" ? a.soundEnabled : true,
+              hideMessageContent: typeof a.hideMessageContent === "boolean" ? a.hideMessageContent : false,
             };
           });
         }

@@ -37,6 +37,7 @@ pub struct ChatState {
     pub active_bubble_rects: Mutex<HashMap<u32, crate::movement::BubbleRect>>,
     pub unread_counts: Mutex<HashMap<u32, u32>>,
     pub recent_messages: Mutex<Vec<IncomingMessage>>,
+    pub muted_accounts: Mutex<HashSet<u32>>,
 }
 
 impl Default for ChatState {
@@ -60,6 +61,7 @@ impl Default for ChatState {
             active_bubble_rects: Mutex::new(HashMap::new()),
             unread_counts: Mutex::new(HashMap::new()),
             recent_messages: Mutex::new(Vec::new()),
+            muted_accounts: Mutex::new(HashSet::new()),
         }
     }
 }
@@ -247,6 +249,24 @@ impl ChatState {
     pub fn clear_unread_count(&self, account_index: u32) {
         if let Ok(mut map) = self.unread_counts.lock() {
             map.insert(account_index, 0);
+        }
+    }
+
+    pub fn set_account_muted(&self, account_index: u32, muted: bool) {
+        if let Ok(mut set) = self.muted_accounts.lock() {
+            if muted {
+                set.insert(account_index);
+            } else {
+                set.remove(&account_index);
+            }
+        }
+    }
+
+    pub fn is_account_muted(&self, account_index: u32) -> bool {
+        if let Ok(set) = self.muted_accounts.lock() {
+            set.contains(&account_index)
+        } else {
+            false
         }
     }
 

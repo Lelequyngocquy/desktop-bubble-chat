@@ -149,19 +149,6 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
           </CommonButton>
         )}
 
-        {/* Nút Làm mới phiên */}
-        {/* {account.isConnected && (
-          <button
-            type="button"
-            title="Làm mới phiên tài khoản này"
-            onClick={() => onRefresh(account)}
-            disabled={isRefreshing}
-            className="p-2 rounded-[6px] text-[#6B7483] hover:text-[#0866FF] hover:bg-white border border-transparent hover:border-[#E2E7EF] transition-all disabled:opacity-50 cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-          </button>
-        )} */}
-
         {/* Nút Gỡ bỏ tài khoản */}
         <button
           type="button"

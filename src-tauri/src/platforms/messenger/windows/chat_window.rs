@@ -4,7 +4,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use super::theme::{apply_window_theme_color, get_account_theme};
 use crate::platforms::messenger::constants::{MESSENGER_BASE_URL, MESSENGER_INJECT_SCRIPT};
-use crate::platforms::messenger::parser::{parse_sender_from_title, parse_unread_from_title};
+use crate::platforms::messenger::parser::parse_unread_from_title;
 use crate::platforms::messenger::services::ChatService;
 use crate::state::ChatState;
 use crate::utils::time::now_millis;
@@ -181,31 +181,43 @@ pub fn get_or_create_messenger_window(
 
             // 4. Nếu có tin nhắn mới tăng lên (count > prev)
             if count > prev && count > 0 {
-                // Giai đoạn 2: Bọc lót trích xuất thông tin người gửi nếu Notification API không kích hoạt
-                if let Some(sender) = parse_sender_from_title(&title) {
-                    let ts = now_millis();
-                    let msg = crate::state::IncomingMessage {
-                        account_index,
-                        sender_name: sender.clone(),
-                        body: "Tin nhắn mới".to_string(),
-                        avatar_url: String::new(),
-                        thread_id: String::new(),
-                        timestamp: ts,
-                    };
-                    if state_title.add_recent_message(msg) {
-                        let time_str = crate::utils::time::format_current_time();
-                        let log_msg = format!(
-                            "[M{:02}:MSG] Từ: '{}' | Lúc: {} | Nội dung: 'Tin nhắn mới'",
-                            account_index, sender, time_str
-                        );
-                        println!("\x1b[32m{}\x1b[0m", log_msg);
-                        crate::commands::system::app::log_frontend(Some("info".into()), log_msg);
-                    }
+                // Phương án A: Định danh trung thực (Honest Attribution)
+                // Tuyệt đối không lấy tên trong document.title vì khi đang mở chat A, tiêu đề bị "dính" tên người A
+                // dẫn đến khi người B/C/D nhắn thì hệ thống báo nhầm là A gửi.
+                let display_title = format!("Có tin nhắn mới đến Messenger {:02}", account_index);
+                let account_tag = format!("M{:02}", account_index);
+                let ts = now_millis();
+                let msg = crate::state::IncomingMessage {
+                    account_index,
+                    sender_name: display_title.clone(),
+                    body: "Tin nhắn mới".to_string(),
+                    avatar_url: String::new(),
+                    thread_id: String::new(),
+                    timestamp: ts,
+                };
+                if state_title.add_recent_message(msg) {
+                    let time_str = crate::utils::time::format_current_time();
+                    let log_msg = format!(
+                        "[{}:MSG] Có tin nhắn mới đến Messenger {:02} | Lúc: {}",
+                        account_tag, account_index, time_str
+                    );
+                    println!("\x1b[32m{}\x1b[0m", log_msg);
+                    crate::commands::system::app::log_frontend(Some("info".into()), log_msg);
+
+                    // Đồng bộ event sang Frontend Dashboard (Giai đoạn 4)
+                    let _ = win.app_handle().emit("new-message-received", serde_json::json!({
+                        "accountIndex": account_index,
+                        "senderName": display_title,
+                        "body": "Tin nhắn mới",
+                        "avatarUrl": "",
+                        "threadId": "",
+                        "timestamp": ts,
+                    }));
                 }
             }
 
-            // 5. Đồng bộ event sang hệ thống
-            let _ = win.emit("badge-updated", serde_json::json!({
+            // 5. Đồng bộ event sang hệ thống (toàn cục qua AppHandle để Dashboard nhận được)
+            let _ = win.app_handle().emit("badge-updated", serde_json::json!({
                 "accountIndex": account_index,
                 "count": count
             }));
@@ -221,9 +233,28 @@ pub fn get_or_create_messenger_window(
     match builder.build() {
         Ok(window) => {
             println!("\x1b[32m[BE - Window] Build thành công cửa sổ Webview: {}\x1b[0m", label);
-            setup_window_events(app, &window, chat_state);
+            setup_window_events(app, &window, chat_state.clone());
             #[cfg(target_os = "windows")]
             apply_window_theme_color(&window, theme.hex, theme.border_hex);
+
+            if chat_state.is_account_muted(account_index) {
+                #[cfg(target_os = "windows")]
+                {
+                    let _ = window.with_webview(move |webview| {
+                        unsafe {
+                            use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2_8;
+                            use windows_core::Interface;
+                            let controller = webview.controller();
+                            if let Ok(core_webview) = controller.CoreWebView2() {
+                                if let Ok(webview_8) = core_webview.cast::<ICoreWebView2_8>() {
+                                    let _ = webview_8.SetIsMuted(true);
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
             Ok(window)
         }
         Err(err) => {

@@ -42,5 +42,4 @@ scripts/*
 !scripts/check_env.ps1
 !scripts/status.ps1
 tests/
-
-CLAUDE.md
+docs/
