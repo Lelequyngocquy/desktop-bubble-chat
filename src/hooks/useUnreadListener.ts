@@ -65,6 +65,9 @@ export const useUnreadListener = () => {
         systemService.updateTrayMenu(initialHasConnected);
 
         currentAccounts.forEach((acc) => {
+          if (acc.soundEnabled === false) {
+            messengerService.setAccountMuted(acc.index, true).catch(() => {});
+          }
           messengerService
             .checkAuth(acc.index)
             .then((res) => {
@@ -78,6 +81,31 @@ export const useUnreadListener = () => {
             })
             .catch(() => {});
         });
+
+        // 1.1. Fetch SSOT unread counts & recent incoming messages from Backend Rust (Giai đoạn 4)
+        messengerService
+          .getAllUnreadCounts()
+          .then((counts) => {
+            if (counts && typeof counts === "object") {
+              Object.entries(counts).forEach(([idxStr, cnt]) => {
+                const idx = parseInt(idxStr, 10);
+                if (!isNaN(idx)) {
+                  useMessengerStore.getState().setAccountUnreadCount(idx, cnt);
+                  prevUnreadMap.current.set(idx, cnt);
+                }
+              });
+            }
+          })
+          .catch(() => {});
+
+        messengerService
+          .getRecentMessages()
+          .then((messages) => {
+            if (messages && messages.length > 0) {
+              useConversationStore.getState().syncRecentIncomingMessages(messages);
+            }
+          })
+          .catch(() => {});
 
         // 2. Unread Badge Count event (Scoped theo accountIndex)
         unlistenBadge = await listen<number | BadgeUpdatedPayload>(IPC_EVENTS.BADGE_UPDATED, (event) => {

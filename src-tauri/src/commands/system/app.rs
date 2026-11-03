@@ -47,6 +47,23 @@ pub fn update_tray_menu_status(
     crate::tray::update_tray_menu(&app).map_err(|e| e.to_string())
 }
 
+/// Command lấy snapshot cấu hình người dùng từ cache
+#[tauri::command]
+pub fn get_user_settings(state: tauri::State<'_, Arc<crate::state::ChatState>>) -> Result<crate::utils::user_cache::AppUserConfig, String> {
+    Ok(state.get_user_config())
+}
+
+/// Command lưu cấu hình người dùng vào cache
+#[tauri::command]
+pub fn save_user_settings(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<crate::state::ChatState>>,
+    settings: crate::utils::user_cache::AppUserConfig,
+) -> Result<(), String> {
+    state.set_user_config(&app, settings);
+    Ok(())
+}
+
 /// Command thoát ứng dụng hoàn toàn
 #[tauri::command]
 pub fn exit_app(app: AppHandle) {
@@ -64,6 +81,9 @@ pub fn set_always_on_top(app: AppHandle, enabled: bool) -> Result<(), String> {
     // 1. Lưu trạng thái vào ChatState để các Bubble khởi tạo / hiển thị sau này tuân thủ
     if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
         chat_state.is_always_on_top.store(enabled, Ordering::SeqCst);
+        chat_state.update_user_config(&app, |c| {
+            c.is_always_on_top = enabled;
+        });
     }
 
     // 2. Dashboard chính tuyệt đối KHÔNG ghim Always-on-top (luôn là cửa sổ tiêu chuẩn của OS)
@@ -141,13 +161,27 @@ pub fn open_external_url(url: String) -> Result<(), String> {
     Err("Invalid URL scheme".into())
 }
 
-/// Command cầu nối chuyển log từ Frontend React thẳng vào Terminal Backend
+/// Command cầu nối chuyển log từ Frontend React / Injected Script thẳng vào Terminal Backend và file logs/messenger_inject.log
 #[tauri::command]
-pub fn log_frontend(level: String, message: String) {
-    let tag = match level.to_lowercase().as_str() {
+pub fn log_frontend(app: AppHandle, level: Option<String>, message: String) {
+    let lvl = level.as_deref().unwrap_or("info");
+    let tag = match lvl.to_lowercase().as_str() {
         "error" => "\x1b[31m[FE - ERROR]\x1b[0m",
         "warn" => "\x1b[33m[FE - WARN]\x1b[0m",
+        "debug" => "\x1b[35m[FE - DEBUG]\x1b[0m",
         _ => "\x1b[36m[FE - INFO]\x1b[0m",
     };
     println!("{} {}", tag, message);
+
+    // Ghi an toàn vào AppData để tránh lỗi quyền khi cài đặt trong C:\Program Files
+    if let Ok(data_dir) = app.path().app_data_dir() {
+        let log_dir = data_dir.join("logs");
+        let _ = std::fs::create_dir_all(&log_dir);
+        let log_file = log_dir.join("messenger_inject.log");
+        use std::io::Write;
+        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_file) {
+            let now = crate::utils::time::now_millis();
+            let _ = writeln!(file, "[{}] [{}] {}", now, lvl.to_uppercase(), message);
+        }
+    }
 }

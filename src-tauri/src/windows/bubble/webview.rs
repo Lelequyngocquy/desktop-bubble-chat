@@ -104,13 +104,15 @@ pub fn get_or_create_bubble_window(
         .map(|s| s.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst))
         .unwrap_or(true);
 
+    let config = crate::movement::get_bubble_physics_config(app);
+
     let window = tauri::WebviewWindowBuilder::new(
         app,
         &label,
         tauri::WebviewUrl::App("index.html".into()),
     )
     .title(format!("DesktopBubbleChat - Bubble {:02}", account_index))
-    .inner_size(64.0, 64.0)
+    .inner_size(config.size, config.size)
     .min_inner_size(1.0, 1.0)
     .resizable(false)
     .decorations(false)

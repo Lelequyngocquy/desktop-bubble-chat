@@ -60,10 +60,15 @@ pub fn run() {
             commands::close_messenger_window,
             commands::clear_account_storage,
             commands::report_auth_status,
+            commands::report_incoming_notification,
+            commands::get_recent_messages,
             commands::report_new_message,
             commands::sync_recent_conversations,
+            commands::set_account_muted,
             commands::update_unread_badge,
             commands::set_badge_count,
+            commands::get_unread_count,
+            commands::get_all_unread_counts,
             commands::toggle_autostart,
             commands::is_autostart_enabled,
             commands::get_system_username,
@@ -73,6 +78,8 @@ pub fn run() {
             commands::hide_main_window,
             commands::show_main_window,
             commands::update_tray_menu_status,
+            commands::get_user_settings,
+            commands::save_user_settings,
             commands::exit_app,
             commands::set_always_on_top,
             commands::log_frontend,
@@ -83,29 +90,76 @@ pub fn run() {
             commands::untuck_native_bubble_preview
         ])
         .setup(move |app| {
-            // 1. Cấu hình System Tray Menu & Icon
+            // 1. Cấu hình System Tray Menu & Icon (cần &mut app)
             if let Err(err) = tray::setup_system_tray(app) {
                 eprintln!("[Tray Error] Failed to setup system tray: {}", err);
             }
 
-            // 2. Chặn việc đóng cửa sổ chính (Home Page) -> Ẩn về khay hệ thống, giữ chat heads chạy ngầm
-            windows::main_window::setup_main_window(&app.handle());
+            let handle = app.handle().clone();
+            let initial_config = utils::load_user_cache(&handle);
+            chat_state_clone.init_user_config(initial_config.clone());
 
-            // 3. Quản lý sự kiện trên cửa sổ chat Messenger (Auto-hide on blur vs Auth Mode)
-            platforms::messenger::windows::setup_chat_window(&app.handle(), Arc::clone(&chat_state_clone));
+            // 2. Đồng bộ kích thước Bong bóng từ Cache vào BubbleConfigState TRƯỚC KHI spawn bất kỳ bubble nào
+            let target_bubble_size = initial_config.bubble_size_px();
+            if let Some(state) = app.try_state::<movement::BubbleConfigState>() {
+                if let Ok(mut guard) = state.0.write() {
+                    guard.size = target_bubble_size;
+                }
+            }
 
-            // 4. Luồng giám sát trạng thái đăng nhập và URL của Messenger theo thời gian thực
-            platforms::messenger::daemons::start_auth_watcher(app.handle().clone(), Arc::clone(&chat_state_clone));
+            // 3. Áp dụng các cài đặt muted vào chat_state
+            for &idx in &initial_config.muted_accounts {
+                chat_state_clone.set_account_muted(idx, true);
+            }
 
-            // 5. Luồng giám sát toàn cục: Hover 0.1s trên Bubble để mở Chat, rời khỏi thì tự động đóng
-            platforms::messenger::daemons::start_hover_and_autoclose_monitor(app.handle().clone(), Arc::clone(&chat_state_clone));
+            // 4. Áp dụng Always-on-top
+            chat_state_clone.is_always_on_top.store(initial_config.is_always_on_top, Ordering::SeqCst);
+            #[cfg(target_os = "windows")]
+            crate::windows::native_bubble::set_native_bubble_always_on_top(initial_config.is_always_on_top);
 
-            // 6. Phím tắt toàn cục (Global Shortcut: Ctrl+Shift+M)
+            // 5. Khôi phục các Bong bóng người dùng đã cấu hình bật (KHÔNG tắt bubble một cách mặc định!)
+            println!("[Startup] Khôi phục các Bong bóng đang bật từ cache: {:?}", initial_config.active_bubble_accounts);
+            let mut committed_rects: Vec<movement::BubbleRect> = Vec::new();
+            for &idx in &initial_config.active_bubble_accounts {
+                match commands::bubble::resume_account_bubble_and_chat(&handle, idx, Some(&committed_rects)) {
+                    Ok(rect) => {
+                        println!("[Startup] Đã khôi phục thành công Bong bóng {:02} tại ({}, {})", idx, rect.x, rect.y);
+                        committed_rects.push(rect);
+                    }
+                    Err(err) => {
+                        eprintln!("[Startup ERROR] Khôi phục bubble {} thất bại: {}", idx, err);
+                    }
+                }
+            }
+
+            // 5. Cấu hình và điều khiển cửa sổ chính (Home Dashboard)
+            windows::main_window::setup_main_window(&handle);
+            if initial_config.is_dashboard_open {
+                println!("[Startup] Dashboard được cấu hình BẬT -> Hiển thị Dashboard");
+                let _ = windows::main_window::get_or_create_main_window(&handle);
+            } else {
+                println!("[Startup] Dashboard được cấu hình TẮT -> Giữ Dashboard ở chế độ ngủ đông (0 MB RAM)");
+                windows::main_window::destroy_or_hibernate_main_window(&handle);
+            }
+
+            // 6. Quản lý sự kiện trên cửa sổ chat Messenger (Auto-hide on blur vs Auth Mode)
+            platforms::messenger::windows::setup_chat_window(&handle, Arc::clone(&chat_state_clone));
+
+            // 7. Luồng giám sát trạng thái đăng nhập và URL của Messenger theo thời gian thực
+            platforms::messenger::daemons::start_auth_watcher(handle.clone(), Arc::clone(&chat_state_clone));
+
+            // 8. Luồng giám sát toàn cục: Hover 0.1s trên Bubble để mở Chat, rời khỏi thì tự động đóng
+            platforms::messenger::daemons::start_hover_and_autoclose_monitor(handle.clone(), Arc::clone(&chat_state_clone));
+
+            // 9. Phím tắt toàn cục (Global Shortcut: Ctrl+Shift+M)
             if let Ok(shortcut) = "Ctrl+Shift+M".parse::<Shortcut>() {
                 if let Err(err) = app.global_shortcut().register(shortcut) {
                     eprintln!("[Global Shortcut] Failed to register Ctrl+Shift+M: {}", err);
                 }
             }
+
+            // 10. Cập nhật menu System Tray khớp 1:1 với config vừa nạp
+            let _ = tray::update_tray_menu(&handle);
 
             Ok(())
         })

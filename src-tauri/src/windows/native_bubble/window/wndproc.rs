@@ -63,8 +63,8 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                             state.account_index,
                             new_x,
                             new_y,
-                            state.width,
-                            state.height,
+                            state.bubble_size,
+                            state.bubble_size,
                         );
 
                         // Hiệu ứng làm mờ khi kéo sát đáy màn hình (Bottom Dismiss Opacity)
@@ -97,8 +97,8 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                             SetWindowPos(
                                 hwnd,
                                 std::ptr::null_mut(),
-                                new_x,
-                                new_y,
+                                new_x - BUBBLE_CANVAS_PAD_X,
+                                new_y - BUBBLE_CANVAS_PAD_Y,
                                 0,
                                 0,
                                 SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
@@ -202,7 +202,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
 
                             (snap.target_x, snap.target_y, snap.should_dismiss)
                         } else {
-                            let target_x = if state.x < 960 { 0 } else { 1920 - state.width as i32 };
+                            let target_x = if state.x < 960 { 0 } else { 1920 - state.bubble_size as i32 };
                             (target_x, state.y, false)
                         };
 
@@ -243,22 +243,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
             0
         }
         WM_TIMER => {
-            if wparam == TIMER_ID_PULSE {
-                if let Some(state) = unsafe { state_ptr.as_mut() } {
-                    state.pulse_frame += 1;
-                    let total_frames = 12;
-                    if state.pulse_frame >= total_frames {
-                        unsafe { KillTimer(hwnd, TIMER_ID_PULSE); }
-                        state.has_pulse = false;
-                        state.pulse_progress = 0.0;
-                        state.pulse_frame = 0;
-                    } else {
-                        state.has_pulse = true;
-                        state.pulse_progress = state.pulse_frame as f32 / total_frames as f32;
-                    }
-                    state.update_layered_buffer();
-                }
-            } else if wparam == TIMER_ID_SPRING {
+            if wparam == TIMER_ID_SPRING {
                 if let Some(state) = unsafe { state_ptr.as_mut() } {
                     if let Some((cur_x, cur_y, is_finished)) = state.anim_state.step() {
                         state.x = cur_x;
@@ -268,16 +253,16 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                             state.account_index,
                             cur_x,
                             cur_y,
-                            state.width,
-                            state.height,
+                            state.bubble_size,
+                            state.bubble_size,
                         );
 
                         unsafe {
                             SetWindowPos(
                                 hwnd,
                                 std::ptr::null_mut(),
-                                cur_x,
-                                cur_y,
+                                cur_x - BUBBLE_CANVAS_PAD_X,
+                                cur_y - BUBBLE_CANVAS_PAD_Y,
                                 0,
                                 0,
                                 SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
@@ -286,6 +271,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
 
                         if is_finished {
                             unsafe { KillTimer(hwnd, TIMER_ID_SPRING); }
+                            state.update_layered_buffer();
                             if let Some(app) = &state.app_handle {
                                 if let Some(cs) = app.try_state::<Arc<ChatState>>() {
                                     cs.set_bubble_rect(
@@ -294,8 +280,8 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                                             account_index: state.account_index,
                                             x: cur_x,
                                             y: cur_y,
-                                            width: state.width as i32,
-                                            height: state.height as i32,
+                                            width: state.bubble_size as i32,
+                                            height: state.bubble_size as i32,
                                         },
                                     );
                                 }
@@ -328,7 +314,6 @@ pub unsafe extern "system" fn native_bubble_wndproc(
         }
         WM_NCDESTROY => {
             unsafe {
-                KillTimer(hwnd, TIMER_ID_PULSE);
                 KillTimer(hwnd, TIMER_ID_SPRING);
                 KillTimer(hwnd, TIMER_ID_HOVER_LEAVE);
                 let ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut BubbleWindowState;

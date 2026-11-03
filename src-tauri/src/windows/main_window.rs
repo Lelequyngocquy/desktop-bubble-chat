@@ -37,6 +37,10 @@ fn is_window_valid(_window: &WebviewWindow) -> bool {
 
 /// Tiêu hủy hoặc ngủ đông cửa sổ chính (Home Dashboard) để đưa RAM UI về 0 MB
 pub fn destroy_or_hibernate_main_window(app: &AppHandle) {
+    if let Some(state) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
+        state.update_user_config(app, |c| c.is_dashboard_open = false);
+    }
+
     if let Some(main_window) = app.get_webview_window("main") {
         println!("\x1b[35m[MainWindow] Kích hoạt Dynamic Destruction: Đóng và tiêu hủy cửa sổ chính về 0 MB RAM...\x1b[0m");
         let _ = main_window.hide();
@@ -60,6 +64,10 @@ pub fn setup_main_window_events(main_window: &WebviewWindow, app: &AppHandle) {
 
 /// Khởi tạo hoặc lấy lại cửa sổ chính (Home Dashboard)
 pub fn get_or_create_main_window(app: &AppHandle) -> Result<WebviewWindow, String> {
+    if let Some(state) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
+        state.update_user_config(app, |c| c.is_dashboard_open = true);
+    }
+
     // 1. Kiểm tra cửa sổ đã tồn tại và HWND còn sống hay không
     if let Some(existing) = app.get_webview_window("main") {
         if is_window_valid(&existing) {

@@ -11,7 +11,7 @@ pub fn build_tray_menu(app_handle: &AppHandle) -> Result<Menu<tauri::Wry>, Box<d
 
     let is_open = is_main_window_open(app_handle);
     let home_title = if is_open {
-        "Đóng Trang chủ"
+        "Ẩn Trang chủ"
     } else {
         "Mở Trang chủ"
     };

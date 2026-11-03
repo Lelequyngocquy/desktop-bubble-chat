@@ -1,7 +1,7 @@
 import React from "react";
-import { Pin, Trash2, Users } from "lucide-react";
+import { Pin, Trash2 } from "lucide-react";
 import { Conversation } from "../../../types/conversation";
-import { AvatarCircle } from "../../common";
+import { getAccountThemeColor } from "../../../constants/accountColors";
 
 interface RecentChatItemProps {
   item: Conversation;
@@ -18,27 +18,20 @@ export const RecentChatItem: React.FC<RecentChatItemProps> = ({
   onPin,
   onRemove,
 }) => {
+  const color = getAccountThemeColor(item.accountIndex || 1);
+
   return (
     <div className="py-3 flex items-center justify-between gap-3 hover:bg-[#F8FAFC] px-2 rounded-lg transition-colors">
       <div
         onClick={() => onOpenThread(item)}
         className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
       >
-        {item.avatarUrl ? (
-          <img
-            src={item.avatarUrl}
-            alt={item.name}
-            className="w-9 h-9 rounded-full object-cover shrink-0 border border-[#CBD5E1]"
-          />
-        ) : (
-          <AvatarCircle
-            size={36}
-            icon={item.isGroup ? <Users className="w-4 h-4 text-[#7762AC]" /> : undefined}
-            text={!item.isGroup ? item.avatarText || item.name.slice(0, 2).toUpperCase() : undefined}
-            bg={item.isGroup ? "#F2EEFF" : "#EAF2FF"}
-            textColor={item.isGroup ? "#7762AC" : "#0759DB"}
-          />
-        )}
+        {/* Hủy bỏ avatar: thay bằng chấm tròn chỉ báo màu tài khoản Messenger */}
+        <span
+          className="w-2.5 h-2.5 rounded-full shrink-0"
+          style={{ backgroundColor: color.hex }}
+          title={`Messenger ${item.accountIndex || 1}`}
+        />
         <div className="min-w-0 flex flex-col">
           <span className="text-[13px] font-medium text-[#1E293B] truncate">
             {item.name}

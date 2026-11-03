@@ -2,7 +2,6 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::movement::{BubbleMovementEngine, ScreenMetrics};
-use crate::platforms::messenger::parser::parse_unread_from_title;
 use crate::platforms::messenger::constants::MESSENGER_INJECT_SCRIPT;
 use crate::platforms::messenger::windows::{
     get_messenger_window_label, get_or_create_messenger_window, hide_all_other_messenger_windows,
@@ -175,13 +174,13 @@ impl ChatService {
         Self::dock_chat_window(app, &chat_window, idx);
         let _ = chat_window.eval(MESSENGER_INJECT_SCRIPT);
 
-        if let Ok(title) = chat_window.title() {
-            let count = parse_unread_from_title(&title);
-            let _ = app.emit("badge-updated", serde_json::json!({
-                "accountIndex": idx,
-                "count": count
-            }));
-        }
+        // Reset badge và số đếm unread khi người dùng mở khung chat để đọc
+        state.clear_unread_count(idx);
+        crate::windows::native_bubble::set_native_bubble_unread_count(idx, 0);
+        let _ = app.emit("badge-updated", serde_json::json!({
+            "accountIndex": idx,
+            "count": 0
+        }));
 
         println!("[BE - Chat] Mở khung chat Messenger {:02} docked cạnh Bubble (Hover 0.1s)", idx);
         chat_window.show().map_err(|e| e.to_string())?;

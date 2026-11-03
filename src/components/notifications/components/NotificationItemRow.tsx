@@ -1,7 +1,6 @@
 import React from "react";
 import { Trash2, ArrowUpRight } from "lucide-react";
 import { Conversation } from "../../../types/conversation";
-import { AvatarCircle } from "../../common";
 import { getAccountThemeColor } from "../../../constants/accountColors";
 
 interface NotificationItemRowProps {
@@ -27,29 +26,13 @@ export const NotificationItemRow: React.FC<NotificationItemRowProps> = ({
           : "hover:bg-[#F8FAFC]"
       }`}
     >
-      <div className="flex items-center gap-3.5 min-w-0 flex-1">
-        {/* Avatar */}
-        <div className="relative shrink-0">
-          {item.avatarUrl ? (
-            <img
-              src={item.avatarUrl}
-              alt={item.name}
-              className="w-10 h-10 rounded-full object-cover border border-[#CBD5E1]"
-            />
-          ) : (
-            <AvatarCircle
-              size={40}
-              text={item.avatarText || item.name.slice(0, 2).toUpperCase()}
-              bg={isUnread ? "#DBEAFE" : "#F1F5F9"}
-              textColor={isUnread ? "#1D4ED8" : "#475569"}
-            />
-          )}
-          <span
-            className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white"
-            style={{ backgroundColor: color.hex }}
-            title={`Tài khoản: Messenger ${item.accountIndex || 1}`}
-          />
-        </div>
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        {/* Hủy bỏ avatar: thay bằng chấm tròn chỉ báo màu tài khoản Messenger */}
+        <span
+          className="w-2.5 h-2.5 rounded-full shrink-0"
+          style={{ backgroundColor: color.hex }}
+          title={`Messenger ${item.accountIndex || 1}`}
+        />
 
         {/* Content */}
         <div className="flex-1 min-w-0 flex flex-col gap-0.5">
@@ -60,12 +43,6 @@ export const NotificationItemRow: React.FC<NotificationItemRowProps> = ({
               }`}
             >
               {item.name}
-            </span>
-            <span
-              className="text-[10px] px-1.5 py-0.2 rounded text-white font-medium"
-              style={{ backgroundColor: color.hex }}
-            >
-              M{item.accountIndex || 1}
             </span>
           </div>
           <p

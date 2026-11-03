@@ -69,6 +69,26 @@ export function useDashboardBootstrap() {
           feLog.warn("[useDashboardBootstrap] Không thể kiểm tra autostart:", err);
         }
 
+        // 2b. Đồng bộ cấu hình người dùng (Bubble Size, Always on Top) từ Backend SSOT Cache
+        try {
+          const userSettings = await systemService.getUserSettings();
+          if (userSettings) {
+            if (
+              userSettings.bubble_size &&
+              (userSettings.bubble_size === "sm" ||
+                userSettings.bubble_size === "md" ||
+                userSettings.bubble_size === "lg")
+            ) {
+              useSettingsStore.getState().setBubbleSize(userSettings.bubble_size);
+            }
+            if (typeof userSettings.is_always_on_top === "boolean") {
+              useSettingsStore.getState().setAlwaysOnTop(userSettings.is_always_on_top);
+            }
+          }
+        } catch (err) {
+          feLog.warn("[useDashboardBootstrap] Không thể đồng bộ user settings từ cache:", err);
+        }
+
         // 3. Đồng bộ trạng thái tài khoản Messenger
         setDashboardStatus("rehydrating", "Đang đồng bộ kết nối tài khoản...");
         try {

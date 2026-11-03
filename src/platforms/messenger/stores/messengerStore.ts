@@ -10,6 +10,8 @@ import {
 } from "../types";
 import { accountStorageService } from "../services/accountStorageService";
 import { messengerAuthManager } from "../services/messengerAuthManager";
+import { messengerService } from "../services/messengerService";
+import { useSettingsStore } from "../../../stores/settingsStore";
 
 export interface MessengerState {
   // --- SSOT Data ---
@@ -35,6 +37,11 @@ export interface MessengerState {
   triggerAccountPulse: (accountIndex: number) => void;
   clearAccountPulse: (accountIndex: number) => void;
   setAccountLatestAvatar: (accountIndex: number, avatarUrl?: string) => void;
+
+  // --- Per-Account Preferences (Giai đoạn 4) ---
+  toggleAccountSound: (accountIndex: number) => void;
+  setAllAccountsSound: (enabled: boolean) => void;
+  toggleAccountPrivacy: (accountIndex: number) => void;
 }
 
 const initialAccounts = accountStorageService.load();
@@ -227,6 +234,43 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
     );
     set({ accounts: updated });
   },
+
+  toggleAccountSound: (accountIndex) => {
+    const current = get().accounts;
+    const target = current.find((a) => a.index === accountIndex);
+    const nextVal = !(target?.soundEnabled ?? true);
+    const updated = current.map((a) =>
+      a.index === accountIndex ? { ...a, soundEnabled: nextVal } : a
+    );
+    accountStorageService.save(updated);
+    set({ accounts: updated });
+    messengerService.setAccountMuted(accountIndex, !nextVal).catch(() => {});
+    const anySound = updated.some((a) => a.soundEnabled ?? true);
+    useSettingsStore.getState().setNotificationsEnabled(anySound);
+  },
+
+  setAllAccountsSound: (enabled) => {
+    const current = get().accounts;
+    const updated = current.map((a) => ({
+      ...a,
+      soundEnabled: enabled,
+    }));
+    accountStorageService.save(updated);
+    set({ accounts: updated });
+    updated.forEach((a) => {
+      messengerService.setAccountMuted(a.index, !enabled).catch(() => {});
+    });
+    useSettingsStore.getState().setNotificationsEnabled(enabled);
+  },
+
+  toggleAccountPrivacy: (accountIndex) => {
+    const current = get().accounts;
+    const updated = current.map((a) =>
+      a.index === accountIndex ? { ...a, hideMessageContent: !(a.hideMessageContent ?? false) } : a
+    );
+    accountStorageService.save(updated);
+    set({ accounts: updated });
+  },
 }));
 
 // --- Pure Selectors (Computed from SSOT, guaranteed consistency) ---
@@ -277,4 +321,27 @@ export const selectAreAnyBubblesVisible = (state: MessengerState): boolean =>
 export const selectIsAccountBubbleVisible = (state: MessengerState, accountIndex: number): boolean => {
   const acc = state.accounts.find((a) => a.index === accountIndex);
   return acc ? acc.isConnected && acc.isBubbleVisible : false;
+};
+
+// --- Sound SSOT Selectors ---
+export const selectAreAnySoundsEnabled = (state: MessengerState): boolean => {
+  const connected = state.accounts.filter((a) => a.isConnected);
+  if (connected.length > 0) {
+    return connected.some((a) => a.soundEnabled ?? true);
+  }
+  return state.accounts.some((a) => a.soundEnabled ?? true);
+};
+
+export const selectAreAllSoundsEnabled = (state: MessengerState): boolean => {
+  const connected = state.accounts.filter((a) => a.isConnected);
+  if (connected.length > 0) {
+    return connected.every((a) => a.soundEnabled ?? true);
+  }
+  return state.accounts.every((a) => a.soundEnabled ?? true);
+};
+
+export const selectSoundEnabledCount = (state: MessengerState): number => {
+  const connected = state.accounts.filter((a) => a.isConnected);
+  const target = connected.length > 0 ? connected : state.accounts;
+  return target.filter((a) => a.soundEnabled ?? true).length;
 };

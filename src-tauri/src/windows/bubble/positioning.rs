@@ -78,24 +78,6 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
 ) -> Result<BubbleRect, String> {
     #[cfg(target_os = "windows")]
     {
-        // 0. BẢO VỆ VỊ TRÍ HIỆN HỮU: Nếu Native Bubble của tài khoản đã tồn tại trên màn hình,
-        // bảo toàn tuyệt đối tọa độ hiện tại (kể cả sau khi kéo thả), không tính lại stacked pos!
-        if crate::windows::native_bubble::NativeBubbleManager::global().has_bubble(account_index) {
-            if let Some((x, y, w, h)) = crate::windows::native_bubble::NativeBubbleManager::global().get_bounds(account_index) {
-                let rect = BubbleRect {
-                    account_index,
-                    x,
-                    y,
-                    width: w as i32,
-                    height: h as i32,
-                };
-                if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
-                    chat_state.set_bubble_rect(account_index, rect);
-                }
-                return Ok(rect);
-            }
-        }
-
         let config = crate::movement::get_bubble_physics_config(app);
         let monitor = app
             .get_webview_window("main")
@@ -111,6 +93,27 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
         if let Some(mon) = monitor {
             let screen = ScreenMetrics::from_monitor(&mon);
             let bubble_w = (config.size * screen.scale_factor) as i32;
+
+            // 0. BẢO VỆ VỊ TRÍ HIỆN HỮU: Nếu Native Bubble của tài khoản đã tồn tại trên màn hình,
+            // bảo toàn tuyệt đối tọa độ hiện tại (kể cả sau khi kéo thả), nhưng đồng bộ kích thước chuẩn
+            if crate::windows::native_bubble::NativeBubbleManager::global().has_bubble(account_index) {
+                if let Some((x, y, w, _h)) = crate::windows::native_bubble::NativeBubbleManager::global().get_bounds(account_index) {
+                    if w != bubble_w as u32 {
+                        crate::windows::native_bubble::set_native_bubble_size(account_index, bubble_w as u32);
+                    }
+                    let rect = BubbleRect {
+                        account_index,
+                        x,
+                        y,
+                        width: bubble_w,
+                        height: bubble_w,
+                    };
+                    if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
+                        chat_state.set_bubble_rect(account_index, rect);
+                    }
+                    return Ok(rect);
+                }
+            }
 
             let mut other_bubbles = get_active_bubble_rects(app, None);
             for obs in extra_obstacles {

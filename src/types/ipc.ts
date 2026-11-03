@@ -14,10 +14,14 @@ export const IPC_COMMANDS = {
   SET_ALWAYS_ON_TOP: "set_always_on_top",
   UPDATE_TRAY_MENU_STATUS: "update_tray_menu_status",
   LOG_FRONTEND: "log_frontend",
+  GET_USER_SETTINGS: "get_user_settings",
+  SAVE_USER_SETTINGS: "save_user_settings",
 
   // Badge Commands
   SET_BADGE_COUNT: "set_badge_count",
   UPDATE_UNREAD_BADGE: "update_unread_badge",
+  GET_UNREAD_COUNT: "get_unread_count",
+  GET_ALL_UNREAD_COUNTS: "get_all_unread_counts",
 
   // Bubble Window & Positioning Commands
   TOGGLE_BUBBLE: "toggle_bubble",
@@ -45,6 +49,8 @@ export const IPC_COMMANDS = {
   REPORT_AUTH_STATUS: "report_auth_status",
   REPORT_NEW_MESSAGE: "report_new_message",
   SYNC_RECENT_CONVERSATIONS: "sync_recent_conversations",
+  GET_RECENT_MESSAGES: "get_recent_messages",
+  SET_ACCOUNT_MUTED: "set_account_muted",
 } as const;
 
 export type IpcCommand = (typeof IPC_COMMANDS)[keyof typeof IPC_COMMANDS];

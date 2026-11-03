@@ -6,6 +6,9 @@ import {
   selectAreAnyBubblesVisible,
   selectAreAllBubblesVisible,
   selectVisibleBubbleCount,
+  selectAreAnySoundsEnabled,
+  selectAreAllSoundsEnabled,
+  selectSoundEnabledCount,
   messengerService,
 } from "../platforms/messenger";
 import { systemService } from "../services/systemService";
@@ -14,8 +17,7 @@ import { notificationService } from "../services/notificationService";
 export function useQuickSettings() {
   const isAlwaysOnTop = useSettingsStore((s) => s.isAlwaysOnTop);
   const toggleAlwaysOnTop = useSettingsStore((s) => s.toggleAlwaysOnTop);
-  const isNotificationsEnabled = useSettingsStore((s) => s.isNotificationsEnabled);
-  const toggleNotifications = useSettingsStore((s) => s.toggleNotifications);
+  const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled);
   const isAutoStart = useSettingsStore((s) => s.isAutoStart);
   const setAutoStart = useSettingsStore((s) => s.setAutoStart);
   const toggleAutoStart = useSettingsStore((s) => s.toggleAutoStart);
@@ -31,15 +33,22 @@ export function useQuickSettings() {
   const visibleBubbleCount = useMessengerStore(selectVisibleBubbleCount);
   const setAllBubblesVisibility = useMessengerStore((s) => s.setAllBubblesVisibility);
 
+  // SSOT: Trạng thái Âm thanh thông báo được dẫn xuất trực tiếp từ Domain Accounts (Giai đoạn 4)
+  const areAnySoundsEnabled = useMessengerStore(selectAreAnySoundsEnabled);
+  const areAllSoundsEnabled = useMessengerStore(selectAreAllSoundsEnabled);
+  const soundEnabledCount = useMessengerStore(selectSoundEnabledCount);
+  const setAllAccountsSound = useMessengerStore((s) => s.setAllAccountsSound);
+
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
 
-  // Sync real Windows Registry autostart setting, Always-on-top, and Bubble size on mount
+  // Sync real Windows Registry autostart setting, Always-on-top, Bubble size, and Sound state on mount
   useEffect(() => {
     systemService.isAutostartEnabled().then((enabled) => {
       setAutoStart(enabled);
     });
     systemService.setAlwaysOnTop(isAlwaysOnTop);
     systemService.setBubbleConfig(BUBBLE_SIZE_PIXELS[bubbleSize]);
+    setNotificationsEnabled(areAnySoundsEnabled);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -77,13 +86,16 @@ export function useQuickSettings() {
     await systemService.setAlwaysOnTop(nextVal);
   }, [isAlwaysOnTop, toggleAlwaysOnTop]);
 
+  // Master Toggle: Bật/Tắt toàn bộ âm thanh thông báo của các tài khoản (SSOT)
   const handleToggleNotifications = useCallback(async () => {
-    const nextVal = !isNotificationsEnabled;
-    toggleNotifications();
+    // Nếu đang có bất kỳ tài khoản nào bật âm thanh -> Tắt tất cả. Ngược lại -> Bật tất cả
+    const nextVal = !areAnySoundsEnabled;
+    setAllAccountsSound(nextVal);
+    setNotificationsEnabled(nextVal);
     if (nextVal) {
       await notificationService.requestPermission();
     }
-  }, [isNotificationsEnabled, toggleNotifications]);
+  }, [areAnySoundsEnabled, setAllAccountsSound, setNotificationsEnabled]);
 
   const handleToggleAutoStart = useCallback(async () => {
     const nextVal = !isAutoStart;
@@ -97,13 +109,23 @@ export function useQuickSettings() {
       ? `${visibleBubbleCount}/${connectedAccounts.length} bong bóng đang hiển thị`
       : "Đang ẩn tất cả bong bóng nổi";
 
+  const notificationsDescription = !isConnected
+    ? (areAnySoundsEnabled ? "Đang bật âm thanh thông báo" : "Đang tắt âm thanh thông báo")
+    : areAnySoundsEnabled
+      ? `${soundEnabledCount}/${connectedAccounts.length} tài khoản đang bật âm thanh`
+      : "Đang tắt âm thanh tất cả tài khoản";
+
   return {
     isBubbleEnabled: areAnyBubblesVisible,
     areAllBubblesVisible,
     visibleBubbleCount,
     bubbleDescription,
     isAlwaysOnTop,
-    isNotificationsEnabled,
+    isNotificationsEnabled: areAnySoundsEnabled,
+    areAnySoundsEnabled,
+    areAllSoundsEnabled,
+    soundEnabledCount,
+    notificationsDescription,
     isAutoStart,
     bubbleSize,
     isConnected,

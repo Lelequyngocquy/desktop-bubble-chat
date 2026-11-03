@@ -94,6 +94,26 @@ export const systemService = {
   },
 
   /**
+   * Gets persisted user settings snapshot from Backend cache.
+   */
+  async getUserSettings(): Promise<{
+    is_dashboard_open: boolean;
+    active_bubble_accounts: number[];
+    is_notifications_enabled: boolean;
+    muted_accounts: number[];
+    bubble_size: "sm" | "md" | "lg";
+    is_always_on_top: boolean;
+    is_auto_start: boolean;
+  } | null> {
+    try {
+      return await invoke(IPC_COMMANDS.GET_USER_SETTINGS);
+    } catch (err) {
+      console.warn("[SystemService] Failed to get user settings:", err);
+      return null;
+    }
+  },
+
+  /**
    * Completely terminates the desktop application.
    */
   async exitApp(): Promise<void> {

@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { MessengerAuthStatus } from "../types";
-import { IPC_COMMANDS } from "../../../types/ipc";
+import { IPC_COMMANDS, IncomingMessagePayload } from "../../../types/ipc";
 import { systemService } from "../../../services/systemService";
 
 /**
@@ -99,6 +99,43 @@ export const messengerService = {
       return await invoke<number[]>(IPC_COMMANDS.GET_ACTIVE_BUBBLE_ACCOUNTS);
     } catch {
       return [];
+    }
+  },
+
+  /**
+   * Truy vấn danh sách tin nhắn gần nhất từ bộ nhớ Backend Rust ChatState (Giai đoạn 4).
+   */
+  async getRecentMessages(accountIndex?: number): Promise<IncomingMessagePayload[]> {
+    try {
+      return await invoke<IncomingMessagePayload[]>(IPC_COMMANDS.GET_RECENT_MESSAGES, {
+        accountIndex,
+      });
+    } catch (err) {
+      console.warn("[MessengerService] Failed to get recent messages:", err);
+      return [];
+    }
+  },
+
+  /**
+   * Truy vấn toàn bộ số unread hiện tại của tất cả tài khoản từ SSOT Backend (Giai đoạn 4).
+   */
+  async getAllUnreadCounts(): Promise<Record<number, number>> {
+    try {
+      return await invoke<Record<number, number>>(IPC_COMMANDS.GET_ALL_UNREAD_COUNTS);
+    } catch (err) {
+      console.warn("[MessengerService] Failed to get all unread counts:", err);
+      return {};
+    }
+  },
+
+  /**
+   * Bật/tắt âm thanh tab webview của tài khoản Messenger (Mute/Unmute tab).
+   */
+  async setAccountMuted(accountIndex: number, muted: boolean): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.SET_ACCOUNT_MUTED, { accountIndex, muted });
+    } catch (err) {
+      console.warn(`[MessengerService] Failed to set account ${accountIndex} muted = ${muted}:`, err);
     }
   },
 

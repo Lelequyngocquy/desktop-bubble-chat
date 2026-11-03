@@ -32,6 +32,8 @@ export interface MessengerAccount {
   lastSynced?: string;
   latestSenderAvatar?: string;
   hasNewMessagePulse?: boolean;
+  soundEnabled?: boolean;
+  hideMessageContent?: boolean;
 }
 
 export function formatMessengerName(index: number): string {
@@ -55,5 +57,7 @@ export function createMessengerAccount(index: number): MessengerAccount {
     lifecycleState: "cold",
     unreadCount: 0,
     lastSynced: "Chưa kết nối",
+    soundEnabled: true,
+    hideMessageContent: false,
   };
 }

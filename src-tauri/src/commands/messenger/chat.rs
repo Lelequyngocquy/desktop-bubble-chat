@@ -173,3 +173,72 @@ pub async fn preload_chat(
     let _ = crate::platforms::messenger::windows::get_or_create_messenger_window(&app, idx, Arc::clone(&state))?;
     Ok(())
 }
+
+/// Command bật/tắt âm thanh tab webview của tài khoản Messenger (Mute/Unmute tab)
+#[tauri::command]
+pub fn set_account_muted(
+    app: AppHandle,
+    state: State<'_, Arc<ChatState>>,
+    account_index: Option<u32>,
+    muted: bool,
+) -> Result<(), String> {
+    let idx = account_index.unwrap_or(1);
+    state.set_account_muted(idx, muted);
+    state.update_user_config(&app, |c| {
+        if muted {
+            if !c.muted_accounts.contains(&idx) {
+                c.muted_accounts.push(idx);
+                c.muted_accounts.sort();
+            }
+        } else {
+            c.muted_accounts.retain(|&x| x != idx);
+        }
+        c.is_notifications_enabled = c.muted_accounts.len() < 5;
+    });
+    let label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
+
+    println!(
+        "\x1b[34m[BE - Audio] {} âm thanh tab Messenger {:02}\x1b[0m",
+        if muted { "Tắt (Muted)" } else { "Bật (Unmuted)" },
+        idx
+    );
+
+    if let Some(win) = app.get_webview_window(&label) {
+        #[cfg(target_os = "windows")]
+        {
+            let _ = win.with_webview(move |webview| {
+                unsafe {
+                    use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2_8;
+                    use windows_core::Interface;
+                    let controller = webview.controller();
+                    if let Ok(core_webview) = controller.CoreWebView2() {
+                        if let Ok(webview_8) = core_webview.cast::<ICoreWebView2_8>() {
+                            let _ = webview_8.SetIsMuted(muted);
+                        }
+                    }
+                }
+            });
+
+            // Đồng thời eval script tắt Audio elements trong DOM
+            let js = format!(
+                r#"
+                (function() {{
+                    window.__isMuted = {muted};
+                    document.querySelectorAll('audio, video').forEach(function(el) {{
+                        el.muted = {muted};
+                    }});
+                }})();
+                "#
+            );
+            let _ = win.eval(&js);
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            let js = format!("document.querySelectorAll('audio, video').forEach(el => el.muted = {});", muted);
+            let _ = win.eval(&js);
+        }
+    }
+
+    Ok(())
+}

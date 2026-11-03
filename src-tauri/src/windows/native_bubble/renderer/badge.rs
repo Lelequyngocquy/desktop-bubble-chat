@@ -1,21 +1,5 @@
 use tiny_skia::*;
 
-/// Vẽ hình con nhộng bo tròn (Pill / Capsule) cho Unread Badge nhiều chữ số
-pub fn push_capsule(pb: &mut PathBuilder, left: f32, top: f32, w: f32, h: f32) {
-    let right = left + w;
-    let bottom = top + h;
-    let r = h / 2.0;
-
-    pb.move_to(left + r, top);
-    pb.line_to(right - r, top);
-    pb.quad_to(right, top, right, top + r);
-    pb.quad_to(right, bottom, right - r, bottom);
-    pb.line_to(left + r, bottom);
-    pb.quad_to(left, bottom, left, top + r);
-    pb.quad_to(left, top, left + r, top);
-    pb.close();
-}
-
 /// Vẽ các ký tự số (0-9) và dấu '+' dưới dạng Vector Path siêu nhẹ, độ phân giải cao
 pub fn draw_glyph(pb: &mut PathBuilder, ch: char, x: f32, y: f32, w: f32, h: f32) {
     let x0 = x;
@@ -108,20 +92,20 @@ pub fn draw_glyph(pb: &mut PathBuilder, ch: char, x: f32, y: f32, w: f32, h: f32
     }
 }
 
-/// Vẽ huy hiệu đếm tin nhắn chưa đọc (Unread Badge & Text)
+/// Vẽ huy hiệu đếm tin nhắn chưa đọc có hình tròn nhọn (pointed circle / teardrop pin) trỏ về phía Bong bóng:
+/// - Khi Bubble ở mép trái màn hình (is_left_edge = true): Badge nằm ở phía BÊN PHẢI Bong bóng để không bị che khi tuck, mũi nhọn trỏ về bên trái (tâm bubble).
+/// - Khi Bubble ở mép phải màn hình (is_left_edge = false): Badge nằm ở phía BÊN TRÁI Bong bóng để không bị che khi tuck, mũi nhọn trỏ về bên phải (tâm bubble).
 pub fn draw_unread_badge(
     pixmap: &mut Pixmap,
     cx: f32,
     cy: f32,
     radius: f32,
     unread_count: u32,
+    is_left_edge: bool,
 ) {
     if unread_count == 0 {
         return;
     }
-
-    let badge_cx = cx + radius * 0.65;
-    let badge_cy = cy - radius * 0.65;
 
     let mut badge_paint = Paint::default();
     badge_paint.set_color_rgba8(232, 17, 35, 255); // #E81123 Đỏ Windows Notification
@@ -135,42 +119,143 @@ pub fn draw_unread_badge(
     text_paint.set_color_rgba8(255, 255, 255, 255);
     text_paint.anti_alias = true;
 
+    // 3 phân cấp kích thước huy hiệu thích ứng linh hoạt theo 3 cỡ Bong bóng (sm: 48px, md: 56px, lg: 64px+)
+    let is_small = radius <= 21.5;
+    let is_large = radius > 25.5;
+
+    let border_width = if is_small { 1.3 } else if is_large { 1.6 } else { 1.5 };
+    let text_stroke_width = if is_small { 1.2 } else if is_large { 1.4 } else { 1.3 };
+
     let mut stroke_border = Stroke::default();
-    stroke_border.width = 1.5;
+    stroke_border.width = border_width;
+    stroke_border.line_join = LineJoin::Round;
 
     let mut stroke_text = Stroke::default();
-    stroke_text.width = 1.25;
+    stroke_text.width = text_stroke_width;
     stroke_text.line_cap = LineCap::Round;
     stroke_text.line_join = LineJoin::Round;
 
+    let gap_from_bubble = 3.0f32;
+
     if unread_count <= 9 {
-        // Huy hiệu hình tròn cho 1 chữ số (1-9)
-        let badge_r = 7.5;
+        // ------------------------------------------------------------------------
+        // 1. Huy hiệu hình tròn nhọn (Pointed Circle Pin) cho 1 chữ số (1-9)
+        // ------------------------------------------------------------------------
+        let (badge_r, tail_len, gw, gh) = if is_small {
+            (6.8f32, 5.0f32, 3.8f32, 6.4f32)
+        } else if is_large {
+            (8.8f32, 5.8f32, 4.8f32, 8.0f32)
+        } else {
+            // Medium (md: 56px mặc định)
+            (7.8f32, 5.4f32, 4.4f32, 7.2f32)
+        };
+
+        // Đặt badge hoàn toàn bên ngoài thân Bong bóng (không đè lên thân bubble)
+        let dist_x = radius + gap_from_bubble + badge_r;
+        let bcx = if is_left_edge { cx + dist_x } else { cx - dist_x };
+        let bcy = cy - radius * 0.35;
+
+        // Vector và góc hướng từ tâm badge về tâm Bong bóng (cx, cy)
+        let dir_x = cx - bcx;
+        let dir_y = cy - bcy;
+        let angle = dir_y.atan2(dir_x);
+
+        // Đỉnh mũi nhọn trỏ ra ngoài vòng tròn hướng về tâm Bong bóng
+        let tip_x = bcx + (badge_r + tail_len) * angle.cos();
+        let tip_y = bcy + (badge_r + tail_len) * angle.sin();
+
+        // Hai điểm chân của mũi nhọn nằm trên viền hình tròn
+        let delta = 36.0f32.to_radians();
+        let p1_x = bcx + badge_r * (angle - delta).cos();
+        let p1_y = bcy + badge_r * (angle - delta).sin();
+        let p2_x = bcx + badge_r * (angle + delta).cos();
+        let p2_y = bcy + badge_r * (angle + delta).sin();
+
+        // Xây dựng đường bao khép kín liền mạch duy nhất (Single Continuous Polygon)
         let mut pb = PathBuilder::new();
-        pb.push_circle(badge_cx, badge_cy, badge_r);
+        pb.move_to(p2_x, p2_y);
+
+        // Vẽ cung tròn từ p2 quanh thân hình tròn tới p1 (chiếm ~288 độ)
+        let span = 2.0 * std::f32::consts::PI - 2.0 * delta;
+        let steps = 16;
+        for i in 1..steps {
+            let a = (angle + delta) + span * (i as f32 / steps as f32);
+            pb.line_to(bcx + badge_r * a.cos(), bcy + badge_r * a.sin());
+        }
+        pb.line_to(p1_x, p1_y);
+
+        // Kéo ra mũi nhọn trỏ vào bubble rồi khép về p2
+        pb.line_to(tip_x, tip_y);
+        pb.line_to(p2_x, p2_y);
+        pb.close();
+
         if let Some(path) = pb.finish() {
             pixmap.fill_path(&path, &badge_paint, FillRule::Winding, Transform::identity(), None);
             pixmap.stroke_path(&path, &badge_border_paint, &stroke_border, Transform::identity(), None);
         }
 
-        // Vẽ chữ số ở tâm
+        // Vẽ chữ số chính xác ở tâm hình tròn
         let ch = char::from_digit(unread_count, 10).unwrap_or('1');
-        let gw = 4.0;
-        let gh = 7.0;
         let mut pb_text = PathBuilder::new();
-        draw_glyph(&mut pb_text, ch, badge_cx - gw / 2.0, badge_cy - gh / 2.0, gw, gh);
+        draw_glyph(&mut pb_text, ch, bcx - gw / 2.0, bcy - gh / 2.0, gw, gh);
         if let Some(text_path) = pb_text.finish() {
             pixmap.stroke_path(&text_path, &text_paint, &stroke_text, Transform::identity(), None);
         }
     } else if unread_count <= 99 {
-        // Huy hiệu hình con nhộng bo tròn (Pill / Capsule) cho 2 chữ số (10-99)
-        let pill_w = 19.0;
-        let pill_h = 15.0;
-        let left = badge_cx - pill_w / 2.0;
-        let top = badge_cy - pill_h / 2.0;
+        // ------------------------------------------------------------------------
+        // 2. Huy hiệu hình con nhộng nhọn (Pointed Capsule) cho 2 chữ số (10-99)
+        // ------------------------------------------------------------------------
+        let (pill_w, pill_h, tail_dx, tail_dy, gw, gh, gap) = if is_small {
+            (17.0f32, 13.0f32, 2.8f32, 3.2f32, 3.4f32, 5.8f32, 0.8f32)
+        } else if is_large {
+            (22.0f32, 17.0f32, 3.6f32, 4.0f32, 4.2f32, 7.8f32, 1.2f32)
+        } else {
+            // Medium (md: 56px mặc định)
+            (19.5f32, 15.0f32, 3.2f32, 3.6f32, 3.8f32, 6.8f32, 1.0f32)
+        };
+        let r = pill_h / 2.0;
+
+        // Đặt capsule hoàn toàn bên ngoài thân Bong bóng
+        let dist_x = radius + gap_from_bubble + pill_w / 2.0;
+        let bcx = if is_left_edge { cx + dist_x } else { cx - dist_x };
+        let bcy = cy - radius * 0.35;
+
+        let left = bcx - pill_w / 2.0;
+        let right = bcx + pill_w / 2.0;
+        let top = bcy - pill_h / 2.0;
+        let bottom = bcy + pill_h / 2.0;
 
         let mut pb = PathBuilder::new();
-        push_capsule(&mut pb, left, top, pill_w, pill_h);
+        if is_left_edge {
+            // Mũi nhọn ở góc dưới bên trái trỏ qua khe hở về phía bubble
+            let tip_x = left - tail_dx;
+            let tip_y = bottom + tail_dy;
+
+            pb.move_to(left + r, top);
+            pb.line_to(right - r, top);
+            pb.quad_to(right, top, right, top + r);
+            pb.quad_to(right, bottom, right - r, bottom);
+            pb.line_to(left + r + 2.0, bottom);
+            pb.line_to(tip_x, tip_y);
+            pb.line_to(left, top + r + 1.2);
+            pb.quad_to(left, top, left + r, top);
+            pb.close();
+        } else {
+            // Mũi nhọn ở góc dưới bên phải trỏ qua khe hở về phía bubble
+            let tip_x = right + tail_dx;
+            let tip_y = bottom + tail_dy;
+
+            pb.move_to(left + r, top);
+            pb.line_to(right - r, top);
+            pb.quad_to(right, top, right, top + r + 1.2);
+            pb.line_to(tip_x, tip_y);
+            pb.line_to(right - r - 2.0, bottom);
+            pb.line_to(left + r, bottom);
+            pb.quad_to(left, bottom, left, top + r);
+            pb.quad_to(left, top, left + r, top);
+            pb.close();
+        }
+
         if let Some(path) = pb.finish() {
             pixmap.fill_path(&path, &badge_paint, FillRule::Winding, Transform::identity(), None);
             pixmap.stroke_path(&path, &badge_border_paint, &stroke_border, Transform::identity(), None);
@@ -179,11 +264,8 @@ pub fn draw_unread_badge(
         // Vẽ 2 chữ số
         let d1 = char::from_digit(unread_count / 10, 10).unwrap_or('1');
         let d2 = char::from_digit(unread_count % 10, 10).unwrap_or('0');
-        let gw = 3.6;
-        let gh = 6.5;
-        let gap = 1.0;
-        let start_x = badge_cx - (gw * 2.0 + gap) / 2.0;
-        let start_y = badge_cy - gh / 2.0;
+        let start_x = bcx - (gw * 2.0 + gap) / 2.0;
+        let start_y = bcy - gh / 2.0;
 
         let mut pb_text = PathBuilder::new();
         draw_glyph(&mut pb_text, d1, start_x, start_y, gw, gh);
@@ -192,14 +274,58 @@ pub fn draw_unread_badge(
             pixmap.stroke_path(&text_path, &text_paint, &stroke_text, Transform::identity(), None);
         }
     } else {
-        // Huy hiệu hình con nhộng rộng hơn cho số lượng lớn ("99+")
-        let pill_w = 23.0;
-        let pill_h = 15.0;
-        let left = badge_cx - pill_w / 2.0;
-        let top = badge_cy - pill_h / 2.0;
+        // ------------------------------------------------------------------------
+        // 3. Huy hiệu hình con nhộng nhọn cho số lượng lớn ("99+")
+        // ------------------------------------------------------------------------
+        let (pill_w, pill_h, tail_dx, tail_dy, gw, gh, gap) = if is_small {
+            (21.0f32, 13.0f32, 2.8f32, 3.2f32, 3.0f32, 5.2f32, 0.6f32)
+        } else if is_large {
+            (27.0f32, 17.0f32, 3.6f32, 4.0f32, 3.8f32, 7.0f32, 1.0f32)
+        } else {
+            // Medium (md: 56px mặc định)
+            (24.0f32, 15.0f32, 3.2f32, 3.6f32, 3.4f32, 6.0f32, 0.8f32)
+        };
+        let r = pill_h / 2.0;
+
+        // Đặt capsule hoàn toàn bên ngoài thân Bong bóng
+        let dist_x = radius + gap_from_bubble + pill_w / 2.0;
+        let bcx = if is_left_edge { cx + dist_x } else { cx - dist_x };
+        let bcy = cy - radius * 0.35;
+
+        let left = bcx - pill_w / 2.0;
+        let right = bcx + pill_w / 2.0;
+        let top = bcy - pill_h / 2.0;
+        let bottom = bcy + pill_h / 2.0;
 
         let mut pb = PathBuilder::new();
-        push_capsule(&mut pb, left, top, pill_w, pill_h);
+        if is_left_edge {
+            let tip_x = left - tail_dx;
+            let tip_y = bottom + tail_dy;
+
+            pb.move_to(left + r, top);
+            pb.line_to(right - r, top);
+            pb.quad_to(right, top, right, top + r);
+            pb.quad_to(right, bottom, right - r, bottom);
+            pb.line_to(left + r + 2.0, bottom);
+            pb.line_to(tip_x, tip_y);
+            pb.line_to(left, top + r + 1.2);
+            pb.quad_to(left, top, left + r, top);
+            pb.close();
+        } else {
+            let tip_x = right + tail_dx;
+            let tip_y = bottom + tail_dy;
+
+            pb.move_to(left + r, top);
+            pb.line_to(right - r, top);
+            pb.quad_to(right, top, right, top + r + 1.2);
+            pb.line_to(tip_x, tip_y);
+            pb.line_to(right - r - 2.0, bottom);
+            pb.line_to(left + r, bottom);
+            pb.quad_to(left, bottom, left, top + r);
+            pb.quad_to(left, top, left + r, top);
+            pb.close();
+        }
+
         if let Some(path) = pb.finish() {
             pixmap.fill_path(&path, &badge_paint, FillRule::Winding, Transform::identity(), None);
             pixmap.stroke_path(&path, &badge_border_paint, &stroke_border, Transform::identity(), None);
@@ -207,11 +333,8 @@ pub fn draw_unread_badge(
 
         // Vẽ 3 ký tự '9', '9', '+'
         let chars = ['9', '9', '+'];
-        let gw = 3.2;
-        let gh = 5.8;
-        let gap = 0.8;
-        let start_x = badge_cx - (gw * 3.0 + gap * 2.0) / 2.0;
-        let start_y = badge_cy - gh / 2.0;
+        let start_x = bcx - (gw * 3.0 + gap * 2.0) / 2.0;
+        let start_y = bcy - gh / 2.0;
 
         let mut pb_text = PathBuilder::new();
         for (i, &ch) in chars.iter().enumerate() {
@@ -219,8 +342,10 @@ pub fn draw_unread_badge(
             draw_glyph(&mut pb_text, ch, gx, start_y, gw, gh);
         }
         if let Some(text_path) = pb_text.finish() {
-            stroke_text.width = 1.15;
-            pixmap.stroke_path(&text_path, &text_paint, &stroke_text, Transform::identity(), None);
+            let text_stroke_w = if is_small { 1.15 } else if is_large { 1.35 } else { 1.25 };
+            let mut st = stroke_text.clone();
+            st.width = text_stroke_w;
+            pixmap.stroke_path(&text_path, &text_paint, &st, Transform::identity(), None);
         }
     }
 }
