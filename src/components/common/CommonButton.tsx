@@ -27,23 +27,23 @@ export const CommonButton: React.FC<CommonButtonProps> = ({
 }) => {
   // Kích thước chiều cao và khoảng cách lề
   const sizeClasses = {
-    sm: "h-8 px-3 text-[12px] gap-1.5",
-    md: "h-9 px-[14px] text-[13px] gap-1.5",
-    lg: "h-10 px-5 text-[14px] gap-2",
+    sm: "h-8 px-3 text-small gap-1.5",
+    md: "h-9 px-3.5 text-body gap-1.5",
+    lg: "h-10 px-5 text-nav gap-2",
   }[size];
 
   // Màu sắc theo biến thể
   const variantClasses = {
     primary:
-      "bg-[#0866FF] hover:bg-[#0759DB] active:bg-[#064ec0] text-white shadow-xs border-transparent",
+      "bg-primary hover:bg-primary-foreground active:bg-primary-foreground/90 text-content-inverse shadow-xs border-transparent",
     secondary:
-      "bg-[#EEF2F9] hover:bg-[#E2E7EF] active:bg-[#D4DCED] text-[#202733] border-transparent",
+      "bg-background-app hover:bg-border active:bg-border/80 text-content-primary border-transparent",
     outline:
-      "bg-white hover:bg-[#F8FAFD] active:bg-[#EEF2F9] text-[#202733] border border-[#E2E7EF]",
+      "bg-background-surface hover:bg-background-subtle active:bg-background-app text-content-primary border border-border",
     ghost:
-      "bg-transparent hover:bg-white/50 active:bg-white/80 text-[#202733] border-transparent",
+      "bg-transparent hover:bg-white/50 active:bg-white/80 text-content-primary border-transparent",
     danger:
-      "bg-[#E81123] hover:bg-[#BF0F1D] text-white border-transparent",
+      "bg-status-error hover:bg-status-error/90 active:bg-status-error/80 text-content-inverse border-transparent",
   }[variant];
 
   return (
@@ -52,7 +52,7 @@ export const CommonButton: React.FC<CommonButtonProps> = ({
       title={title}
       disabled={disabled}
       onClick={onClick}
-      className={`rounded-[6px] font-medium inline-flex items-center justify-center transition-colors select-none shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${sizeClasses} ${variantClasses} ${className}`}
+      className={`rounded-control font-medium inline-flex items-center justify-center transition-colors select-none shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${sizeClasses} ${variantClasses} ${className}`}
     >
       {iconLeading && <span className="shrink-0 flex items-center">{iconLeading}</span>}
       {children && <span>{children}</span>}
@@ -60,3 +60,5 @@ export const CommonButton: React.FC<CommonButtonProps> = ({
     </button>
   );
 };
+
+export default CommonButton;

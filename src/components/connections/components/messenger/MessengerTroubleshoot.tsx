@@ -9,13 +9,13 @@ export const MessengerTroubleshoot: React.FC = () => {
 
   return (
     <CommonLargeCard
-      icon={<HelpCircle className="w-4 h-4 text-[#0866FF]" />}
+      icon={<HelpCircle className="w-4 h-4 text-primary" />}
       title="Gặp vấn đề kết nối Messenger?"
       linkTitle={
         <button
           type="button"
           onClick={() => setActiveTab("help")}
-          className="flex items-center gap-1 text-[12px] font-medium text-[#0759DB] hover:underline cursor-pointer"
+          className="flex items-center gap-1 text-small font-medium text-primary-foreground hover:underline cursor-pointer"
         >
           <span>Trợ giúp & phản hồi</span>
           <ArrowRight className="w-3.5 h-3.5" />
@@ -26,14 +26,14 @@ export const MessengerTroubleshoot: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {TROUBLESHOOT_STEPS.map((step) => (
           <div key={step.num} className="flex items-start gap-2.5">
-            <div className="w-5 h-5 rounded-full bg-[#EEF2F9] text-[#6B7483] font-semibold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+            <div className="w-5 h-5 rounded-pill bg-background-app text-content-secondary font-semibold text-caption flex items-center justify-center shrink-0 mt-0.5">
               {step.num}
             </div>
             <div className="flex flex-col">
-              <span className="text-[13px] font-medium text-[#202733]">
+              <span className="text-body font-medium text-content-primary">
                 {step.title}
               </span>
-              <span className="text-[11px] text-[#6B7483] leading-relaxed">
+              <span className="text-caption text-content-secondary leading-relaxed">
                 {step.desc}
               </span>
             </div>
@@ -43,3 +43,5 @@ export const MessengerTroubleshoot: React.FC = () => {
     </CommonLargeCard>
   );
 };
+
+export default MessengerTroubleshoot;

@@ -12,7 +12,7 @@ export interface CommonLargeCardProps {
   /** Nội dung con bên dưới header (có thể dùng children hoặc childWidget) */
   children?: ReactNode;
   childWidget?: ReactNode;
-  /** Class tùy biến cho khung ngoài (ví dụ: w-full xl:w-[380px] shrink-0) */
+  /** Class tùy biến cho khung ngoài (ví dụ: w-full xl:w-side-col shrink-0) */
   className?: string;
 }
 
@@ -29,14 +29,14 @@ export const CommonLargeCard: React.FC<CommonLargeCardProps> = ({
 
   return (
     <div
-      className={`bg-white border border-[#E2E7EF] rounded-[12px] shadow-card p-5 flex flex-col gap-4 ${className}`}
+      className={`bg-background-surface border border-border rounded-card shadow-card p-5 flex flex-col gap-4 ${className}`}
     >
       {/* Header luôn cố định có đường viền gạch chân border-b */}
-      <div className="flex items-center justify-between pb-2 border-b border-[#E2E7EF]/60">
+      <div className="flex items-center justify-between pb-2 border-b border-border/60">
         {/* Khối bên trái: Icon + Tiêu đề */}
         <div className="flex items-center gap-2">
           {icon && <div className="shrink-0 flex items-center">{icon}</div>}
-          <h2 className="text-[15px] md:text-[16px] font-semibold text-[#1E293B] m-0">
+          <h2 className="text-body-lg md:text-heading-sm font-semibold text-content-primary m-0">
             {title}
           </h2>
         </div>
@@ -46,7 +46,7 @@ export const CommonLargeCard: React.FC<CommonLargeCardProps> = ({
           <div className="flex items-center gap-3">
             {subTitle &&
               (typeof subTitle === "string" ? (
-                <span className="text-[11px] text-[#64748B]">{subTitle}</span>
+                <span className="text-caption text-content-secondary">{subTitle}</span>
               ) : (
                 subTitle
               ))}

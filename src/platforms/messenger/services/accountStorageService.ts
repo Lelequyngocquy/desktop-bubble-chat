@@ -4,7 +4,7 @@ import {
   formatMessengerName,
   formatMessengerAvatarText,
 } from "../types";
-import { getAccountThemeColor } from "../../../constants/accountColors";
+import { getAccountThemeColor } from "../../../constants/design";
 
 const STORAGE_KEY = "desktop_bubble_chat_messenger_accounts";
 

@@ -1,7 +1,7 @@
 import React from "react";
 import { X, Pin } from "lucide-react";
 import { Conversation } from "../../../types/conversation";
-import { getAccountThemeColor } from "../../../constants/accountColors";
+import { getAccountThemeColor } from "../../../constants/design";
 
 interface ActiveChatHeadItemProps {
   item: Conversation;
@@ -21,36 +21,36 @@ export const ActiveChatHeadItem: React.FC<ActiveChatHeadItemProps> = ({
   return (
     <div
       onClick={() => onOpen(item)}
-      className="h-[52px] flex items-center gap-3 py-1 px-2 -mx-2 rounded-lg hover:bg-[#F8FAFC] cursor-pointer group transition-colors"
+      className="h-[52px] flex items-center gap-3 py-1 px-2 -mx-2 rounded-panel hover:bg-background-subtle cursor-pointer group transition-colors"
     >
       {/* Hủy bỏ avatar: thay bằng chấm tròn chỉ báo màu tài khoản Messenger */}
       <span
-        className="w-2.5 h-2.5 rounded-full shrink-0 ml-1"
+        className="w-2.5 h-2.5 rounded-pill shrink-0 ml-1"
         style={{ backgroundColor: color.hex }}
         title={`Messenger ${item.accountIndex || 1}`}
       />
 
       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5">
-          <span className="text-[12.5px] font-semibold text-[#202733] truncate">
+          <span className="text-small font-semibold text-content-primary truncate">
             {item.name}
           </span>
           {item.isPinned && (
-            <Pin className="w-3 h-3 text-[#0866FF] fill-current shrink-0 -rotate-45" />
+            <Pin className="w-3 h-3 text-primary fill-current shrink-0 -rotate-45" />
           )}
           {item.unreadCount > 0 && (
-            <span className="h-[16px] min-w-[16px] px-1 rounded-full bg-[#0866FF] text-white text-[9.5px] font-bold flex items-center justify-center shrink-0 leading-none">
+            <span className="h-4 min-w-4 px-1 rounded-pill bg-primary text-content-inverse text-badge font-bold flex items-center justify-center shrink-0 leading-none">
               {item.unreadCount}
             </span>
           )}
         </div>
-        <p className="text-[11px] text-[#6B7483] truncate m-0 leading-tight">
+        <p className="text-caption text-content-secondary truncate m-0 leading-tight">
           {item.lastMessage}
         </p>
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
-        <span className="text-[10.5px] text-[#929AA7] mr-0.5">
+        <span className="text-caption text-content-muted mr-0.5">
           {item.timestamp}
         </span>
 
@@ -61,10 +61,10 @@ export const ActiveChatHeadItem: React.FC<ActiveChatHeadItemProps> = ({
             onTogglePin(item.id);
           }}
           title={item.isPinned ? "Bỏ ghim" : "Ghim lên đầu (tối đa 6)"}
-          className={`w-6 h-6 flex items-center justify-center rounded-[4px] transition-all cursor-pointer ${
+          className={`w-6 h-6 flex items-center justify-center rounded-xs transition-all cursor-pointer ${
             item.isPinned
-              ? "text-[#0866FF] hover:bg-[#EAF2FF]"
-              : "opacity-0 group-hover:opacity-100 text-[#6B7483] hover:text-[#0866FF] hover:bg-[#F1F5F9]"
+              ? "text-primary hover:bg-primary-subtle"
+              : "opacity-0 group-hover:opacity-100 text-content-secondary hover:text-primary hover:bg-background-app"
           }`}
         >
           <Pin
@@ -79,7 +79,7 @@ export const ActiveChatHeadItem: React.FC<ActiveChatHeadItemProps> = ({
             onRemove(item.id);
           }}
           title="Ẩn chat head"
-          className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-[#6B7483] hover:text-[#E81123] hover:bg-[#FEECEE] rounded-[4px] transition-all cursor-pointer"
+          className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-content-secondary hover:text-status-error hover:bg-status-errorBg rounded-xs transition-all cursor-pointer"
         >
           <X className="w-3.5 h-3.5" />
         </button>
@@ -87,3 +87,5 @@ export const ActiveChatHeadItem: React.FC<ActiveChatHeadItemProps> = ({
     </div>
   );
 };
+
+export default ActiveChatHeadItem;

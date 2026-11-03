@@ -42,16 +42,16 @@ export const SettingsWorkspace: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-[#F4F7FC] overflow-hidden select-none">
+    <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden select-none">
       {/* 1. Header cố định chung */}
       <TabHeader
         eyebrow="TÙY CHỈNH HỆ THỐNG"
         title="Cài đặt"
         description="Tùy biến cấu hình hệ thống, kích thước bong bóng nổi, phím tắt và bộ nhớ đệm."
         rightSlot={
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#E2E7EF] rounded-full text-[12px] shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-[#10B981]" />
-            <span className="text-[#202733] font-medium">Phiên bản v0.1.0</span>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-background-surface border border-border rounded-pill text-small shadow-xs">
+            <span className="w-2 h-2 rounded-pill bg-status-success" />
+            <span className="text-content-primary font-medium">Phiên bản v0.1.0</span>
           </div>
         }
       />

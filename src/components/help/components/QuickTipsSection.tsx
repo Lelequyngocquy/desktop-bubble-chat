@@ -6,7 +6,7 @@ import { CommonLargeCard } from "../../common/index";
 export const QuickTipsSection: React.FC = () => {
   return (
     <CommonLargeCard
-      icon={<Sparkles className="w-4 h-4 text-[#0866FF]" />}
+      icon={<Sparkles className="w-4 h-4 text-primary" />}
       title="Mẹo sử dụng nhanh"
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -26,3 +26,5 @@ export const QuickTipsSection: React.FC = () => {
     </CommonLargeCard>
   );
 };
+
+export default QuickTipsSection;

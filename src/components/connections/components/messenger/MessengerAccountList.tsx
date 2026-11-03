@@ -5,7 +5,7 @@ import {
   MessengerAccount,
 } from "../../../../types/account";
 import { useMessengerAccounts } from "../../../../platforms/messenger";
-import { getAccountThemeColor } from "../../../../constants/accountColors";
+import { getAccountThemeColor } from "../../../../constants/design";
 import { CommonDialog } from "../../../common";
 import { MessengerAccountRow } from "./MessengerAccountRow";
 import { AddAccountButton } from "./AddAccountButton";
@@ -44,15 +44,15 @@ export const MessengerAccountList: React.FC = () => {
     <div className="flex flex-col gap-3">
       {/* Empty State */}
       {accounts.length === 0 ? (
-        <div className="p-6 rounded-[10px] bg-[#F8FAFD] border border-[#E2E7EF] flex flex-col items-center justify-center text-center gap-2.5">
-          <div className="w-10 h-10 rounded-full bg-[#EAF2FF] flex items-center justify-center text-[#0866FF]">
+        <div className="p-6 rounded-card-sm bg-background-subtle border border-border flex flex-col items-center justify-center text-center gap-2.5">
+          <div className="w-avatar-lg h-avatar-lg rounded-pill bg-primary-subtle flex items-center justify-center text-primary">
             <Users className="w-5 h-5" />
           </div>
           <div className="flex flex-col gap-0.5">
-            <span className="text-[14px] font-semibold text-[#202733]">
+            <span className="text-nav font-semibold text-content-primary">
               Chưa có tài khoản Messenger nào
             </span>
-            <span className="text-[12px] text-[#6B7483] max-w-[340px]">
+            <span className="text-small text-content-secondary max-w-[340px]">
               Bấm dấu cộng bên dưới để thêm tài khoản đầu tiên (hỗ trợ tối đa 5
               tài khoản độc lập).
             </span>
@@ -87,15 +87,15 @@ export const MessengerAccountList: React.FC = () => {
         isOpen={Boolean(accountToRemove)}
         onClose={() => setAccountToRemove(null)}
         eyebrow="QUẢN LÝ TÀI KHOẢN"
-        titleIcon={<Trash2 className="w-5 h-5 text-[#DC2626]" />}
+        titleIcon={<Trash2 className="w-5 h-5 text-status-error" />}
         title={`Gỡ bỏ ${accountToRemove?.name || "tài khoản"}`}
         content={`Bạn có chắc chắn muốn gỡ bỏ tài khoản ${accountToRemove?.name}? Thao tác này sẽ đóng phiên làm việc, xóa dữ liệu đệm cục bộ và tắt bong bóng nổi tương ứng.`}
         widget={
           accountToRemove && (
-            <div className="p-3 bg-[#F8FAFD] rounded-[8px] border border-[#E2E7EF] flex flex-col gap-1.5 text-[12px] text-[#6B7483]">
-              <div className="flex items-center gap-2 font-medium text-[#202733]">
+            <div className="p-3 bg-background-subtle rounded-panel border border-border flex flex-col gap-1.5 text-small text-content-secondary">
+              <div className="flex items-center gap-2 font-medium text-content-primary">
                 <span
-                  className="w-2.5 h-2.5 rounded-full"
+                  className="w-2.5 h-2.5 rounded-pill"
                   style={{
                     backgroundColor: getAccountThemeColor(accountToRemove.index)
                       .hex,
@@ -109,7 +109,7 @@ export const MessengerAccountList: React.FC = () => {
                   )
                 </span>
               </div>
-              <span className="text-[11.5px]">
+              <span className="text-caption">
                 {accountToRemove.isConnected
                   ? "Tài khoản hiện đang kết nối. Gỡ bỏ sẽ hủy phiên đăng nhập này."
                   : "Tài khoản chưa đăng nhập. Bạn có thể thêm lại bất cứ lúc nào."}
@@ -139,15 +139,15 @@ export const MessengerAccountList: React.FC = () => {
         isOpen={Boolean(accountToWake)}
         onClose={() => setAccountToWake(null)}
         eyebrow="TRẠNG THÁI TÀI KHOẢN"
-        titleIcon={<Moon className="w-5 h-5 text-[#0866FF]" />}
+        titleIcon={<Moon className="w-5 h-5 text-primary" />}
         title={`Kích hoạt ${accountToWake?.name || "tài khoản"}?`}
         content={`Tài khoản ${accountToWake?.name} hiện đang ở trạng thái ngủ đông (0 MB RAM). Bạn có muốn cho phép tài khoản hoạt động để bật lại bong bóng nổi và mở khung chat Messenger không?`}
         widget={
           accountToWake && (
-            <div className="p-3 bg-[#F8FAFD] rounded-[8px] border border-[#E2E7EF] flex flex-col gap-1.5 text-[12px] text-[#6B7483]">
-              <div className="flex items-center gap-2 font-medium text-[#202733]">
+            <div className="p-3 bg-background-subtle rounded-panel border border-border flex flex-col gap-1.5 text-small text-content-secondary">
+              <div className="flex items-center gap-2 font-medium text-content-primary">
                 <span
-                  className="w-2.5 h-2.5 rounded-full"
+                  className="w-2.5 h-2.5 rounded-pill"
                   style={{
                     backgroundColor: getAccountThemeColor(accountToWake.index)
                       .hex,
@@ -161,7 +161,7 @@ export const MessengerAccountList: React.FC = () => {
                   )
                 </span>
               </div>
-              <span className="text-[11.5px]">
+              <span className="text-caption">
                 Khi cho phép hoạt động, bong bóng nổi sẽ xuất hiện trên màn hình và nạp phiên làm việc WebView2 để nhận tin nhắn.
               </span>
             </div>
@@ -186,3 +186,5 @@ export const MessengerAccountList: React.FC = () => {
     </div>
   );
 };
+
+export default MessengerAccountList;

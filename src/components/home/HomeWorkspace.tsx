@@ -14,16 +14,16 @@ export const HomeWorkspace: React.FC = () => {
   const systemUser = useSystemUserStore((s) => s.systemUser);
 
   return (
-    <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-[#F4F7FC] overflow-hidden">
+    <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden">
       {/* 1. Header cố định chung */}
       <TabHeader
         eyebrow="KHÔNG GIAN CỦA BẠN"
         title={`Chào ${systemUser},`}
         description="Mọi kết nối ở đây. Mọi cuộc trò chuyện luôn trong tầm tay."
         rightSlot={
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-[#E2E7EF] rounded-full shadow-xs">
-            <MonitorCheck className="w-3.5 h-3.5 text-[#25805C]" />
-            <span className="text-[12px] text-[#202733] font-medium">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-background-surface border border-border rounded-pill shadow-xs">
+            <MonitorCheck className="w-3.5 h-3.5 text-status-success" />
+            <span className="text-small text-content-primary font-medium">
               Sẵn sàng trên desktop
             </span>
           </div>
@@ -36,7 +36,7 @@ export const HomeWorkspace: React.FC = () => {
         <MessengerConnectionCard />
 
         {/* Khối 2 cột: Chat heads & Thiết lập nhanh (cố định chiều cao, chat heads cho phép cuộn) */}
-        <div className="shrink-0 flex flex-col lg:flex-row items-stretch gap-6 h-auto lg:h-[380px]">
+        <div className="shrink-0 flex flex-col lg:flex-row items-stretch gap-6 h-auto lg:h-side-col">
           <ActiveChatHeads />
           <QuickSettings />
         </div>
@@ -50,3 +50,5 @@ export const HomeWorkspace: React.FC = () => {
     </div>
   );
 };
+
+export default HomeWorkspace;

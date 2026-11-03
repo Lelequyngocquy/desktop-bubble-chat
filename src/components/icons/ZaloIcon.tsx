@@ -5,6 +5,6 @@ interface IconProps {
   size?: number;
 }
 
-export const ZaloIcon: React.FC<IconProps> = ({ className = "text-[13px] font-bold" }) => {
+export const ZaloIcon: React.FC<IconProps> = ({ className = "text-body font-bold" }) => {
   return <span className={className}>Zalo</span>;
 };

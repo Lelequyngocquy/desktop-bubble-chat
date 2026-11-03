@@ -20,8 +20,8 @@ export const AddAccountButton: React.FC<AddAccountButtonProps> = ({
 
   if (isMaxReached) {
     return (
-      <div className="w-full py-3 px-4 rounded-[10px] bg-[#F8FAFD] border border-[#E2E7EF] flex items-center justify-center gap-2 text-[12px] font-medium text-[#6B7483] select-none">
-        <ShieldAlert className="w-4 h-4 text-[#D97706]" />
+      <div className="w-full py-3 px-4 rounded-card-sm bg-background-subtle border border-border flex items-center justify-center gap-2 text-small font-medium text-content-secondary select-none">
+        <ShieldAlert className="w-4 h-4 text-status-warning" />
         <span>Đã đạt giới hạn tối đa {maxCount} tài khoản Messenger ({count}/{maxCount})</span>
       </div>
     );
@@ -31,15 +31,17 @@ export const AddAccountButton: React.FC<AddAccountButtonProps> = ({
     <button
       type="button"
       onClick={onAdd}
-      className="w-full py-3 px-4 rounded-[10px] border-2 border-dashed border-[#CBD5E1] hover:border-[#0866FF] bg-white hover:bg-[#F0F7FF] text-[#0866FF] flex items-center justify-center gap-2 text-[13px] font-semibold transition-all cursor-pointer shadow-xs active:scale-[0.99] group"
+      className="w-full py-3 px-4 rounded-card-sm border-2 border-dashed border-border hover:border-primary bg-background-surface hover:bg-primary-subtle text-primary flex items-center justify-center gap-2 text-body font-semibold transition-all cursor-pointer shadow-xs active:scale-[0.99] group"
     >
-      <div className="w-5 h-5 rounded-full bg-[#EAF2FF] group-hover:bg-[#0866FF] flex items-center justify-center transition-colors">
-        <Plus className="w-3.5 h-3.5 text-[#0866FF] group-hover:text-white transition-colors" />
+      <div className="w-5 h-5 rounded-pill bg-primary-subtle group-hover:bg-primary flex items-center justify-center transition-colors">
+        <Plus className="w-3.5 h-3.5 text-primary group-hover:text-content-inverse transition-colors" />
       </div>
       <span>Thêm tài khoản Messenger</span>
-      <span className="text-[11px] font-normal px-2 py-0.5 rounded-full bg-[#EAF2FF] text-[#0866FF]">
+      <span className="text-caption font-normal px-2 py-0.5 rounded-pill bg-primary-subtle text-primary">
         {count}/{maxCount}
       </span>
     </button>
   );
 };
+
+export default AddAccountButton;

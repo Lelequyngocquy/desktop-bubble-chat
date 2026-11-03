@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { MessengerAccount } from "../../../../types/account";
 import { AvatarCircle, CommonButton, CommonBadge } from "../../../common";
-import { getAccountThemeColor } from "../../../../constants/accountColors";
+import { getAccountThemeColor, Color, Dimen } from "../../../../constants/design";
 
 interface MessengerAccountRowProps {
   account: MessengerAccount;
@@ -30,29 +30,27 @@ interface MessengerAccountRowProps {
 export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
   account,
   onOpen,
-  // onRefresh,
   onRemove,
   onCancelAuth,
-  // isRefreshing = false,
 }) => {
   const themeColor = getAccountThemeColor(account.index);
 
   return (
-    <div className="flex items-center justify-between p-3.5 bg-[#F8FAFD] hover:bg-[#F3F7FD] rounded-[10px] border border-[#E2E7EF]/80 transition-all gap-4 flex-wrap sm:flex-nowrap">
+    <div className="flex items-center justify-between p-3.5 bg-background-subtle hover:bg-background-workspace rounded-card-sm border border-border/80 transition-all gap-4 flex-wrap sm:flex-nowrap">
       {/* Thông tin tài khoản */}
       <div className="flex items-center gap-3 min-w-0">
         {/* Avatar hiển thị màu sắc đại diện riêng biệt theo số thứ tự tài khoản */}
         <AvatarCircle
-          size={38}
+          size={Dimen.layout.avatarMd}
           text={account.avatarText}
           bg={themeColor.hex}
-          textColor="#FFFFFF"
-          className="font-bold text-[13px] shadow-xs shrink-0 ring-2 ring-white"
+          textColor={Color.text.inverse}
+          className="font-bold text-body shadow-xs shrink-0 ring-2 ring-white"
         />
 
         <div className="flex flex-col gap-0.5 overflow-hidden">
           <div className="flex items-center gap-2">
-            <span className="text-[14px] font-semibold text-[#202733] truncate">
+            <span className="text-nav font-semibold text-content-primary truncate">
               {account.name}
             </span>
 
@@ -83,19 +81,19 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
                 )}
               </div>
             ) : account.isAuthenticating ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#EFF6FF] text-[#0866FF] text-[10.5px] font-medium rounded-full shrink-0">
-                <RefreshCw className="w-3 h-3 animate-spin text-[#0866FF]" />
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary-subtle text-primary text-caption font-medium rounded-pill shrink-0">
+                <RefreshCw className="w-3 h-3 animate-spin text-primary" />
                 Đang chờ đăng nhập...
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#FFF3E8] text-[#D97706] text-[10.5px] font-medium rounded-full shrink-0">
-                <AlertCircle className="w-3 h-3 text-[#D97706]" />
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-status-warningBg text-status-warning text-caption font-medium rounded-pill shrink-0">
+                <AlertCircle className="w-3 h-3 text-status-warning" />
                 Chưa kết nối
               </span>
             )}
           </div>
 
-          <span className="text-[11.5px] text-[#6B7483] truncate">
+          <span className="text-caption text-content-secondary truncate">
             {account.isConnected
               ? `Phiên hoạt động độc lập • ${account.lastSynced || "Đồng bộ vừa xong"}`
               : account.isAuthenticating
@@ -114,7 +112,7 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
               variant="secondary"
               size="sm"
               iconTrailing={
-                <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#0866FF]" />
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
               }
               onClick={() => onOpen(account)}
               title="Bấm để đưa cửa sổ đăng nhập lên phía trước"
@@ -126,7 +124,7 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
                 type="button"
                 title="Hủy chờ đăng nhập"
                 onClick={() => onCancelAuth(account)}
-                className="p-2 rounded-[6px] text-[#6B7483] hover:text-[#DC2626] hover:bg-[#FEE2E2]/40 border border-[#E2E7EF] transition-all cursor-pointer"
+                className="p-2 rounded-control text-content-secondary hover:text-status-error hover:bg-status-errorBg border border-border transition-all cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -140,7 +138,7 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
               account.isConnected ? (
                 <ArrowUpRight className="w-3.5 h-3.5" />
               ) : (
-                <LogIn className="w-3.5 h-3.5 text-[#0866FF]" />
+                <LogIn className="w-3.5 h-3.5 text-primary" />
               )
             }
             onClick={() => onOpen(account)}
@@ -154,7 +152,7 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
           type="button"
           title={`Gỡ bỏ ${account.name}`}
           onClick={() => onRemove(account)}
-          className="p-2 rounded-[6px] text-[#94A3B8] hover:text-[#DC2626] hover:bg-[#FEE2E2]/40 border border-transparent hover:border-[#FECACA] transition-all cursor-pointer"
+          className="p-2 rounded-control text-content-muted hover:text-status-error hover:bg-status-errorBg border border-transparent hover:border-status-errorBorder transition-all cursor-pointer"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -162,3 +160,5 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
     </div>
   );
 };
+
+export default MessengerAccountRow;

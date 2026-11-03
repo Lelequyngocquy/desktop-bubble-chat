@@ -14,25 +14,27 @@ export const TipCard: React.FC<TipCardProps> = ({
   description,
 }) => {
   return (
-    <div className="p-4 rounded-xl border border-[#E2E7EF] bg-[#F8FAFC] flex items-start gap-3">
-      <div className="w-9 h-9 rounded-lg bg-[#EAF2FF] text-[#0759DB] flex items-center justify-center shrink-0">
+    <div className="p-4 rounded-card border border-border bg-background-subtle flex items-start gap-3">
+      <div className="w-avatar-md h-avatar-md rounded-panel bg-primary-subtle text-primary-foreground flex items-center justify-center shrink-0">
         {icon}
       </div>
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
-          <span className="text-[13px] font-semibold text-[#1E293B]">
+          <span className="text-body font-semibold text-content-primary">
             {title}
           </span>
           {badge && (
-            <span className="px-1.5 py-0.5 bg-white border border-[#CBD5E1] rounded text-[10px] font-mono text-[#334155] font-semibold">
+            <span className="px-1.5 py-0.5 bg-background-surface border border-border rounded-xs text-badge font-mono text-content-primary font-semibold">
               {badge}
             </span>
           )}
         </div>
-        <span className="text-[11px] text-[#64748B] leading-relaxed">
+        <span className="text-caption text-content-secondary leading-relaxed">
           {description}
         </span>
       </div>
     </div>
   );
 };
+
+export default TipCard;

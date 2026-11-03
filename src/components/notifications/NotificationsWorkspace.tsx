@@ -31,7 +31,7 @@ export const NotificationsWorkspace: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-[#F4F7FC] overflow-hidden select-none">
+    <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden select-none">
       {/* 1. Header cố định chung */}
       <TabHeader
         eyebrow="TRUNG TÂM HOẠT ĐỘNG"
@@ -65,3 +65,5 @@ export const NotificationsWorkspace: React.FC = () => {
     </div>
   );
 };
+
+export default NotificationsWorkspace;

@@ -1,4 +1,5 @@
 import React from "react";
+import { Color, Dimen } from "../../constants/design";
 
 export interface AvatarCircleProps {
   src?: string;
@@ -15,9 +16,9 @@ export const AvatarCircle: React.FC<AvatarCircleProps> = ({
   src,
   text,
   icon,
-  size = 40,
-  bg = "#EAF2FF",
-  textColor = "#0759DB",
+  size = Dimen.layout.avatarLg,
+  bg = Color.primary.subtle,
+  textColor = Color.primary.foreground,
   border = true,
   className = "",
 }) => {
@@ -44,7 +45,7 @@ export const AvatarCircle: React.FC<AvatarCircleProps> = ({
         color: isTextHex ? textColor : undefined,
         border: borderStyle,
       }}
-      className={`rounded-full flex items-center justify-center font-semibold shrink-0 overflow-hidden select-none ${
+      className={`rounded-pill flex items-center justify-center font-semibold shrink-0 overflow-hidden select-none ${
         !isBgHex ? bg : ""
       } ${!isTextHex ? textColor : ""} ${className}`}
     >

@@ -27,14 +27,14 @@ export const ChatHeadsWorkspace: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-[#F4F7FC] overflow-hidden select-none">
+    <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden select-none">
       {/* 1. Header cố định chung */}
       <TabHeader
         eyebrow="CUỘC TRÒ CHUYỆN NỔI"
         title="Quản lý Chat Heads"
         description="Cấu hình các cuộc trò chuyện nổi ưu tiên và bong bóng chat trên màn hình desktop."
         rightSlot={
-          <span className="px-3 py-1.5 bg-white border border-[#E2E7EF] rounded-full text-[12px] font-semibold text-[#0759DB] shadow-xs">
+          <span className="px-3 py-1.5 bg-background-surface border border-border rounded-pill text-small font-semibold text-primary-foreground shadow-xs">
             {pinnedList.length}/6 đã ghim
           </span>
         }
@@ -61,3 +61,5 @@ export const ChatHeadsWorkspace: React.FC = () => {
     </div>
   );
 };
+
+export default ChatHeadsWorkspace;

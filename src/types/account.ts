@@ -1,4 +1,4 @@
-import { getAccountThemeColor } from "../constants/accountColors";
+import { getAccountThemeColor } from "../constants/design";
 
 export interface ConnectedAccount {
   name: string;

@@ -18,18 +18,18 @@ export const ConnectionsWorkspace: React.FC = () => {
   const connectedCount = accounts.filter((a) => a.isConnected).length;
 
   return (
-    <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-[#F4F7FC] overflow-hidden select-none">
+    <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden select-none">
       {/* 1. Header cố định chung */}
       <TabHeader
         eyebrow="QUẢN LÝ KẾT NỐI"
         title="Kết nối"
         description="Quản lý tài khoản, phiên đăng nhập và trạng thái đồng bộ của bạn."
         rightSlot={
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#E2E7EF] rounded-full text-[12px] shadow-xs">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-background-surface border border-border rounded-pill text-small shadow-xs">
             {isMessengerConnected ? (
               <>
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#25805C]" />
-                <span className="text-[#202733] font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5 text-status-success" />
+                <span className="text-content-primary font-medium">
                   {connectedCount > 1
                     ? `${connectedCount} tài khoản đã liên kết`
                     : "1 tài khoản đã liên kết"}
@@ -37,8 +37,8 @@ export const ConnectionsWorkspace: React.FC = () => {
               </>
             ) : (
               <>
-                <AlertCircle className="w-3.5 h-3.5 text-[#D97706]" />
-                <span className="text-[#6B7483] font-medium">
+                <AlertCircle className="w-3.5 h-3.5 text-status-warning" />
+                <span className="text-content-secondary font-medium">
                   Chưa có kết nối
                 </span>
               </>
@@ -66,3 +66,5 @@ export const ConnectionsWorkspace: React.FC = () => {
     </div>
   );
 };
+
+export default ConnectionsWorkspace;

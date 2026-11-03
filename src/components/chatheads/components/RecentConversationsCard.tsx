@@ -27,14 +27,14 @@ export const RecentConversationsCard: React.FC<
 }) => {
   return (
     <CommonLargeCard
-      icon={<MessageSquare className="w-4 h-4 text-[#0866FF] fill-current" />}
+      icon={<MessageSquare className="w-4 h-4 text-primary fill-current" />}
       title={`Hội thoại gần đây (${recentList.length})`}
       linkTitle={
         !isMessengerConnected ? (
           <button
             type="button"
             onClick={onConnectMessenger}
-            className="text-[12px] font-medium text-[#0759DB] hover:underline cursor-pointer"
+            className="text-small font-medium text-primary-foreground hover:underline cursor-pointer"
           >
             Kết nối Messenger để đồng bộ
           </button>
@@ -42,11 +42,11 @@ export const RecentConversationsCard: React.FC<
       }
     >
       {recentList.length === 0 ? (
-        <div className="py-8 text-center text-[#64748B] text-[12px]">
+        <div className="py-8 text-center text-content-secondary text-small">
           Chưa có hội thoại nào gần đây.
         </div>
       ) : (
-        <div className="divide-y divide-[#E2E7EF]">
+        <div className="divide-y divide-border">
           {recentList.map((item) => (
             <RecentChatItem
               key={item.id}
@@ -62,3 +62,5 @@ export const RecentConversationsCard: React.FC<
     </CommonLargeCard>
   );
 };
+
+export default RecentConversationsCard;

@@ -13,15 +13,15 @@ export const TabHeader: React.FC<TabHeaderProps> = ({
   rightSlot,
 }) => {
   return (
-    <header className="shrink-0 bg-[#F4F7FC] px-8 pt-5 pb-4 border-b border-[#E2E7EF] flex items-center justify-between gap-4 select-none">
+    <header className="shrink-0 bg-background-workspace px-8 pt-5 pb-4 border-b border-border flex items-center justify-between gap-4 select-none">
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-3">
-          <h1 className="text-[22px] font-bold text-[#202733] tracking-tight leading-tight m-0 ">
+          <h1 className="text-platform font-bold text-content-primary tracking-tight leading-tight m-0">
             {title}
           </h1>
         </div>
         {description && (
-          <p className="text-[13px] text-[#6B7483] m-0 leading-normal">
+          <p className="text-body text-content-secondary m-0 leading-normal">
             {description}
           </p>
         )}
@@ -33,3 +33,5 @@ export const TabHeader: React.FC<TabHeaderProps> = ({
     </header>
   );
 };
+
+export default TabHeader;

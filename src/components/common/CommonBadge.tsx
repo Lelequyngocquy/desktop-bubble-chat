@@ -13,24 +13,24 @@ const VARIANT_STYLES: Record<
   { container: string; iconColor?: string }
 > = {
   success: {
-    container: "bg-[#E9F5EF] text-[#25805C]",
-    iconColor: "text-[#25805C]",
+    container: "bg-status-successBg text-status-success",
+    iconColor: "text-status-success",
   },
   primary: {
-    container: "bg-[#EFF6FF] text-[#0866FF]",
-    iconColor: "text-[#0866FF]",
+    container: "bg-primary-subtle text-primary",
+    iconColor: "text-primary",
   },
   secondary: {
-    container: "bg-[#F1F5F9] text-[#64748B]",
-    iconColor: "text-[#64748B]",
+    container: "bg-background-app text-content-secondary",
+    iconColor: "text-content-secondary",
   },
   warning: {
-    container: "bg-[#FFF7ED] text-[#EA580C]",
-    iconColor: "text-[#EA580C]",
+    container: "bg-status-warningBg text-status-warning",
+    iconColor: "text-status-warning",
   },
   danger: {
-    container: "bg-[#FEF2F2] text-[#DC2626]",
-    iconColor: "text-[#DC2626]",
+    container: "bg-status-errorBg text-status-error",
+    iconColor: "text-status-error",
   },
 };
 
@@ -41,7 +41,7 @@ export interface CommonBadgeProps {
   icon?: ReactNode;
   /**
    * Chọn theo preset (`success` | `primary` | `secondary` | `warning` | `danger`)
-   * hoặc tự truyền chuỗi class CSS tùy biến (ví dụ: "bg-[#EAF2FF] text-[#0866FF]")
+   * hoặc tự truyền chuỗi class CSS tùy biến
    */
   color?: BadgeVariant | string;
   /** Tooltip khi hover (tùy chọn) */
@@ -66,7 +66,7 @@ export const CommonBadge: React.FC<CommonBadgeProps> = ({
   return (
     <span
       title={title}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10.5px] font-medium rounded-full shrink-0 ${colorClasses} ${className}`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 text-caption font-medium rounded-pill shrink-0 ${colorClasses} ${className}`}
     >
       {icon && (
         <span className="shrink-0 flex items-center [&>svg]:w-3 [&>svg]:h-3">
@@ -77,3 +77,5 @@ export const CommonBadge: React.FC<CommonBadgeProps> = ({
     </span>
   );
 };
+
+export default CommonBadge;

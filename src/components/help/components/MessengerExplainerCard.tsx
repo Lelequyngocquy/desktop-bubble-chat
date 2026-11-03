@@ -5,14 +5,14 @@ import { CommonLargeCard } from "../../common/index";
 export const MessengerExplainerCard: React.FC = () => {
   return (
     <CommonLargeCard
-      icon={<PanelsTopLeft className="w-4 h-4 text-[#0866FF]" />}
+      icon={<PanelsTopLeft className="w-4 h-4 text-primary" />}
       title="Cơ chế Multi-Account"
-      className="w-full   shrink-0 p-6 justify-between gap-5 select-none"
+      className="w-full shrink-0 p-6 justify-between gap-5 select-none"
     >
       <div className="flex flex-col gap-4">
-        <div className="space-y-3 text-[12px] text-[#475467] leading-relaxed">
-          <div className="p-3 bg-[#F8FAFD] rounded-[8px] border border-[#E2E7EF]/80 flex flex-col gap-1">
-            <span className="font-semibold text-[#202733]">
+        <div className="space-y-3 text-small text-content-secondary leading-relaxed">
+          <div className="p-3 bg-background-subtle rounded-panel border border-border/80 flex flex-col gap-1">
+            <span className="font-semibold text-content-primary">
               1. Độc lập hoàn toàn
             </span>
             <span>
@@ -22,8 +22,8 @@ export const MessengerExplainerCard: React.FC = () => {
             </span>
           </div>
 
-          <div className="p-3 bg-[#F8FAFD] rounded-[8px] border border-[#E2E7EF]/80 flex flex-col gap-1">
-            <span className="font-semibold text-[#202733]">
+          <div className="p-3 bg-background-subtle rounded-panel border border-border/80 flex flex-col gap-1">
+            <span className="font-semibold text-content-primary">
               2. Đa màu sắc nhận diện
             </span>
             <span>
@@ -31,8 +31,8 @@ export const MessengerExplainerCard: React.FC = () => {
             </span>
           </div>
 
-          <div className="p-3 bg-[#F8FAFD] rounded-[8px] border border-[#E2E7EF]/80 flex flex-col gap-1">
-            <span className="font-semibold text-[#202733]">
+          <div className="p-3 bg-background-subtle rounded-panel border border-border/80 flex flex-col gap-1">
+            <span className="font-semibold text-content-primary">
               3. Chuyển đổi nhanh 1-Click
             </span>
             <span>
@@ -44,8 +44,8 @@ export const MessengerExplainerCard: React.FC = () => {
         </div>
       </div>
 
-      <div className="p-3 bg-[#EEF2F9]/50 rounded-[8px] flex items-start gap-2 text-[11px] text-[#6B7483]">
-        <Info className="w-3.5 h-3.5 shrink-0 text-[#0866FF] mt-0.5" />
+      <div className="p-3 bg-background-app/50 rounded-panel flex items-start gap-2 text-caption text-content-secondary">
+        <Info className="w-3.5 h-3.5 shrink-0 text-primary mt-0.5" />
         <span>
           Bạn có thể thay đổi kích thước bong bóng hoặc cài đặt phím tắt toàn
           cục trong tab Cài đặt.
@@ -54,3 +54,5 @@ export const MessengerExplainerCard: React.FC = () => {
     </CommonLargeCard>
   );
 };
+
+export default MessengerExplainerCard;

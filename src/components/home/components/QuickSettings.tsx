@@ -33,11 +33,11 @@ export const QuickSettings: React.FC = () => {
 
   const iconMap: Record<QuickSettingItem["iconName"], React.ReactNode> = {
     MessageSquare: (
-      <MessageSquare className="w-[18px] h-[18px] text-[#6B7483]" />
+      <MessageSquare className="w-[18px] h-[18px] text-content-secondary" />
     ),
-    Pin: <Pin className="w-[18px] h-[18px] text-[#6B7483]" />,
-    Bell: <Bell className="w-[18px] h-[18px] text-[#6B7483]" />,
-    Power: <Power className="w-[18px] h-[18px] text-[#6B7483]" />,
+    Pin: <Pin className="w-[18px] h-[18px] text-content-secondary" />,
+    Bell: <Bell className="w-[18px] h-[18px] text-content-secondary" />,
+    Power: <Power className="w-[18px] h-[18px] text-content-secondary" />,
   };
 
   const actionMap: Record<
@@ -91,20 +91,20 @@ export const QuickSettings: React.FC = () => {
 
   return (
     <CommonWidget
-      className="w-full lg:w-[432px] shrink-0 h-[380px] lg:h-full"
+      className="w-full lg:w-[432px] shrink-0 h-side-col lg:h-full"
       title="Thiết lập nhanh"
       headerAction={
-        <SlidersHorizontal className="w-[18px] h-[18px] text-[#6B7483]" />
+        <SlidersHorizontal className="w-[18px] h-[18px] text-content-secondary" />
       }
       banner={
         warningMessage ? (
           <div
             onClick={() => setActiveTab("connections")}
-            className="p-2 bg-[#FFF3E8] border border-[#FCD34D] rounded-[6px] flex items-center gap-2 text-[#D97706] text-[11px] cursor-pointer hover:bg-[#FEEBC8] transition-colors"
+            className="p-2 bg-status-warningBg border border-status-warningBorder rounded-control flex items-center gap-2 text-status-warning text-caption cursor-pointer hover:bg-status-warningBg/80 transition-colors"
           >
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
             <span className="flex-1 font-medium">{warningMessage}</span>
-            <span className="text-[10px] underline font-semibold">
+            <span className="text-badge underline font-semibold">
               Kết nối ngay
             </span>
           </div>
@@ -112,7 +112,7 @@ export const QuickSettings: React.FC = () => {
       }
       bodyClassName="py-1 flex flex-col justify-between"
       footerLeft={
-        <span className="text-[11px] text-[#6B7483]">
+        <span className="text-caption text-content-secondary">
           {activeCount}/{settings.length} tính năng đang bật
         </span>
       }
@@ -120,7 +120,7 @@ export const QuickSettings: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab("settings")}
-          className="flex items-center gap-1.5 text-[12px] font-medium text-[#0759DB] hover:text-[#0866FF] transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 text-small font-medium text-primary-foreground hover:text-primary transition-colors cursor-pointer"
         >
           <span>Tất cả cài đặt</span>
           <ArrowRight className="w-3.5 h-3.5" />
@@ -141,3 +141,5 @@ export const QuickSettings: React.FC = () => {
     </CommonWidget>
   );
 };
+
+export default QuickSettings;

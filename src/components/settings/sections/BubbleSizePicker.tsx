@@ -35,7 +35,7 @@ export const BubbleSizePicker: React.FC<BubbleSizePickerProps> = ({
   onSelectSize,
 }) => {
   return (
-    <div className="grid grid-cols-3 gap-3 max-w-[580px]">
+    <div className="grid grid-cols-3 gap-3 max-w-dialog-lg">
       {BUBBLE_SIZE_OPTIONS.map((item) => {
         const isSelected = currentSize === item.id;
         return (
@@ -43,14 +43,14 @@ export const BubbleSizePicker: React.FC<BubbleSizePickerProps> = ({
             key={item.id}
             type="button"
             onClick={() => onSelectSize(item.id)}
-            className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center gap-1 transition-all cursor-pointer ${
+            className={`p-3 rounded-card border flex flex-col items-center justify-center text-center gap-1 transition-all cursor-pointer ${
               isSelected
-                ? "border-[#0866FF] bg-[#EAF2FF] text-[#0759DB] font-semibold shadow-xs"
-                : "border-[#E2E7EF] bg-white text-[#475569] hover:border-[#CBD5E1]"
+                ? "border-primary bg-primary-subtle text-primary-foreground font-semibold shadow-xs"
+                : "border-border bg-background-surface text-content-secondary hover:border-border-strong"
             }`}
           >
-            <span className="text-[13px]">{item.label}</span>
-            <span className="text-[10px] text-[#64748B] leading-tight">
+            <span className="text-body">{item.label}</span>
+            <span className="text-badge text-content-secondary leading-tight">
               {item.desc}
             </span>
           </button>

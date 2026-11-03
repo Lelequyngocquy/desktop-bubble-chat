@@ -42,21 +42,21 @@ export const DashboardLoadingOverlay: React.FC = () => {
 
   return (
     <div
-      className={`absolute inset-0 z-50 flex items-center justify-center bg-[#EEF2F9]/85 backdrop-blur-[3px] select-none transition-opacity duration-300 ease-out ${
+      className={`absolute inset-0 z-50 flex items-center justify-center bg-background-app/85 backdrop-blur-xs select-none transition-opacity duration-300 ease-out ${
         isDashboardReady ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
       }`}
       aria-live="polite"
       aria-busy={!isDashboardReady}
     >
-      <div className="bg-white/95 border border-[#E2E7EF] shadow-window rounded-2xl px-6 py-4 flex items-center gap-4 max-w-sm">
+      <div className="bg-background-surface/95 border border-border shadow-window rounded-modal px-6 py-4 flex items-center gap-4 max-w-sm">
         <div className="relative flex items-center justify-center">
-          <Loader2 className="w-6 h-6 animate-spin text-[#0A78FF]" />
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
         <div className="flex flex-col min-w-0">
-          <span className="text-sm font-semibold text-[#202733] truncate">
+          <span className="text-nav font-semibold text-content-primary truncate">
             {statusMessage || "Đang khởi tạo không gian làm việc..."}
           </span>
-          <span className="text-xs text-[#6B7A90] mt-0.5">
+          <span className="text-small text-content-secondary mt-0.5">
             Đang ổn định hệ sinh thái & kết nối
           </span>
         </div>

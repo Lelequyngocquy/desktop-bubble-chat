@@ -26,14 +26,14 @@ export const QuickSettingRow: React.FC<QuickSettingRowProps> = ({
         }`}
       >
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 flex items-center justify-center shrink-0">
+          <div className="w-avatar-sm h-avatar-sm flex items-center justify-center shrink-0">
             {icon}
           </div>
           <div className="flex flex-col gap-0.5">
-            <span className="text-[13px] font-medium text-[#202733] leading-tight">
+            <span className="text-body font-medium text-content-primary leading-tight">
               {label}
             </span>
-            <span className="text-[11px] text-[#6B7483] leading-tight">
+            <span className="text-caption text-content-secondary leading-tight">
               {description}
             </span>
           </div>
@@ -49,3 +49,5 @@ export const QuickSettingRow: React.FC<QuickSettingRowProps> = ({
     </div>
   );
 };
+
+export default QuickSettingRow;

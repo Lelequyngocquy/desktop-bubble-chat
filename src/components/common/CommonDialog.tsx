@@ -71,10 +71,10 @@ export interface CommonDialogProps {
 }
 
 const DIALOG_SIZE_MAP: Record<DialogSize, string> = {
-  sm: "max-w-[380px]",
-  md: "max-w-[460px]",
-  lg: "max-w-[560px]",
-  xl: "max-w-[680px]",
+  sm: "w-dialog-sm max-w-[90vw]",
+  md: "w-dialog-md max-w-[90vw]",
+  lg: "w-dialog-lg max-w-[90vw]",
+  xl: "w-dialog-xl max-w-[90vw]",
 };
 
 /**
@@ -175,28 +175,28 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
       role="dialog"
       aria-modal="true"
       onClick={handleBackdropClick}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#202733]/45 backdrop-blur-xs animate-in fade-in duration-150 select-none"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-content-primary/45 backdrop-blur-xs animate-in fade-in duration-150 select-none"
     >
       {/* Modal Dialog Card Container */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-full ${DIALOG_SIZE_MAP[size]} bg-white border border-[#E2E7EF] rounded-[12px] shadow-window flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-150 ${className}`}
+        className={`${DIALOG_SIZE_MAP[size]} bg-background-surface border border-border rounded-modal shadow-window flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-150 ${className}`}
       >
         {/* 1. Header */}
-        <div className="px-6 pt-5 pb-4 border-b border-[#E2E7EF]/70 flex items-start justify-between gap-4 shrink-0 bg-white">
+        <div className="px-6 pt-5 pb-4 border-b border-border/70 flex items-start justify-between gap-4 shrink-0 bg-background-surface">
           <div className="flex flex-col gap-1 min-w-0">
             {eyebrow && (
-              <span className="text-[11px] font-semibold text-[#6B7483] uppercase tracking-wider leading-none">
+              <span className="text-caption font-semibold text-content-secondary uppercase tracking-wider leading-none">
                 {eyebrow}
               </span>
             )}
             <div className="flex items-center gap-2.5">
               {titleIcon && (
-                <span className="shrink-0 flex items-center text-[#0866FF]">
+                <span className="shrink-0 flex items-center text-primary">
                   {titleIcon}
                 </span>
               )}
-              <h2 className="text-[17px] font-semibold text-[#202733] tracking-tight leading-snug m-0 truncate">
+              <h2 className="text-section font-semibold text-content-primary tracking-tight leading-snug m-0 truncate">
                 {title}
               </h2>
             </div>
@@ -208,7 +208,7 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
               onClick={onClose}
               title="Đóng (Esc)"
               aria-label="Đóng"
-              className="w-7 h-7 -mr-1.5 -mt-1 rounded-[6px] flex items-center justify-center text-[#6B7483] hover:text-[#202733] hover:bg-[#EEF2F9] active:bg-[#E2E7EF] transition-colors cursor-pointer shrink-0"
+              className="w-7 h-7 -mr-1.5 -mt-1 rounded-control flex items-center justify-center text-content-secondary hover:text-content-primary hover:bg-background-app active:bg-border transition-colors cursor-pointer shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
@@ -220,7 +220,7 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
           className={`px-6 py-5 overflow-y-auto flex-1 flex flex-col gap-4.5 custom-scrollbar ${bodyClassName}`}
         >
           {content && (
-            <div className="text-[13px] text-[#6B7483] leading-relaxed">
+            <div className="text-body text-content-secondary leading-relaxed">
               {typeof content === "string" ? (
                 <p className="m-0">{content}</p>
               ) : (
@@ -237,7 +237,7 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
         {/* 3. Footer (BackButton & RightButton) */}
         {hasFooter && (
           <div
-            className={`px-6 py-3.5 bg-[#F8FAFD] border-t border-[#E2E7EF] flex items-center gap-3 shrink-0 ${
+            className={`px-6 py-3.5 bg-background-subtle border-t border-border flex items-center gap-3 shrink-0 ${
               footerLayout === "end" ? "justify-end" : "justify-between"
             }`}
           >

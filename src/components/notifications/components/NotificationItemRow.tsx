@@ -1,7 +1,7 @@
 import React from "react";
 import { Trash2, ArrowUpRight } from "lucide-react";
 import { Conversation } from "../../../types/conversation";
-import { getAccountThemeColor } from "../../../constants/accountColors";
+import { getAccountThemeColor } from "../../../constants/design";
 
 interface NotificationItemRowProps {
   item: Conversation;
@@ -20,16 +20,16 @@ export const NotificationItemRow: React.FC<NotificationItemRowProps> = ({
   return (
     <div
       onClick={() => onOpenNotification(item)}
-      className={`py-3.5 px-3 flex items-center justify-between gap-3.5 rounded-xl transition-all cursor-pointer ${
+      className={`py-3.5 px-3 flex items-center justify-between gap-3.5 rounded-card transition-all cursor-pointer ${
         isUnread
-          ? "bg-[#F0F7FF] hover:bg-[#E5F0FF]"
-          : "hover:bg-[#F8FAFC]"
+          ? "bg-primary-subtle hover:bg-primary-subtle/80"
+          : "hover:bg-background-subtle"
       }`}
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         {/* Hủy bỏ avatar: thay bằng chấm tròn chỉ báo màu tài khoản Messenger */}
         <span
-          className="w-2.5 h-2.5 rounded-full shrink-0"
+          className="w-2.5 h-2.5 rounded-pill shrink-0"
           style={{ backgroundColor: color.hex }}
           title={`Messenger ${item.accountIndex || 1}`}
         />
@@ -38,16 +38,16 @@ export const NotificationItemRow: React.FC<NotificationItemRowProps> = ({
         <div className="flex-1 min-w-0 flex flex-col gap-0.5">
           <div className="flex items-center gap-2">
             <span
-              className={`text-[13px] truncate ${
-                isUnread ? "font-bold text-[#0F172A]" : "font-medium text-[#334155]"
+              className={`text-body truncate ${
+                isUnread ? "font-bold text-content-primary" : "font-medium text-content-primary"
               }`}
             >
               {item.name}
             </span>
           </div>
           <p
-            className={`text-[12px] truncate m-0 ${
-              isUnread ? "text-[#1E293B] font-medium" : "text-[#64748B]"
+            className={`text-small truncate m-0 ${
+              isUnread ? "text-content-primary font-medium" : "text-content-secondary"
             }`}
           >
             {item.lastMessage}
@@ -56,7 +56,7 @@ export const NotificationItemRow: React.FC<NotificationItemRowProps> = ({
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        <span className="text-[11px] text-[#94A3B8]">{item.timestamp}</span>
+        <span className="text-caption text-content-muted">{item.timestamp}</span>
         <button
           type="button"
           onClick={(e) => {
@@ -64,12 +64,14 @@ export const NotificationItemRow: React.FC<NotificationItemRowProps> = ({
             onRemove(item.id);
           }}
           title="Xóa thông báo"
-          className="w-7 h-7 flex items-center justify-center rounded-md text-[#94A3B8] hover:text-[#DC2626] hover:bg-[#FEECEE] transition-colors cursor-pointer"
+          className="w-7 h-7 flex items-center justify-center rounded-control text-content-muted hover:text-status-error hover:bg-status-errorBg transition-colors cursor-pointer"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
-        <ArrowUpRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#0866FF]" />
+        <ArrowUpRight className="w-4 h-4 text-content-muted group-hover:text-primary" />
       </div>
     </div>
   );
 };
+
+export default NotificationItemRow;

@@ -13,15 +13,15 @@ export const DataCacheSection: React.FC<DataCacheSectionProps> = ({
 }) => {
   return (
     <CommonLargeCard
-      icon={<HardDrive className="w-4 h-4 text-[#0866FF]" />}
+      icon={<HardDrive className="w-4 h-4 text-primary" />}
       title="Dữ liệu & Bộ nhớ đệm"
     >
       <div className="flex items-center justify-between gap-4 py-1">
         <div className="flex flex-col gap-0.5">
-          <span className="text-[13px] font-medium text-[#1E293B]">
+          <span className="text-body font-medium text-content-primary">
             Xóa bộ nhớ đệm WebView2
           </span>
-          <span className="text-[11px] text-[#64748B]">
+          <span className="text-caption text-content-secondary">
             Giải phóng dung lượng ổ đĩa và làm mới hoàn toàn session nếu gặp
             lỗi hiển thị
           </span>
@@ -30,7 +30,7 @@ export const DataCacheSection: React.FC<DataCacheSectionProps> = ({
           type="button"
           onClick={onOpenClearDialog}
           disabled={clearStatus === "clearing"}
-          className="px-3.5 py-1.5 border border-[#E2E7EF] rounded-lg text-[12px] font-medium text-[#DC2626] hover:bg-[#FEECEE] flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+          className="px-3.5 py-1.5 border border-border rounded-panel text-small font-medium text-status-error hover:bg-status-errorBg flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
         >
           {clearStatus === "clearing" ? (
             <>
@@ -39,8 +39,8 @@ export const DataCacheSection: React.FC<DataCacheSectionProps> = ({
             </>
           ) : clearStatus === "success" ? (
             <>
-              <Check className="w-3.5 h-3.5 text-green-600" />
-              <span className="text-green-600">Đã xóa thành công!</span>
+              <Check className="w-3.5 h-3.5 text-status-success" />
+              <span className="text-status-success">Đã xóa thành công!</span>
             </>
           ) : (
             <>
@@ -51,7 +51,7 @@ export const DataCacheSection: React.FC<DataCacheSectionProps> = ({
         </button>
       </div>
 
-      <div className="pt-2 border-t border-[#E2E7EF]/50 flex items-center justify-between text-[11px] text-[#94A3B8]">
+      <div className="pt-2 border-t border-border/50 flex items-center justify-between text-caption text-content-muted">
         <span>DesktopBubbleChat v0.1.0 (Windows 11 / WebView2)</span>
         <span>Build Clean Architecture</span>
       </div>

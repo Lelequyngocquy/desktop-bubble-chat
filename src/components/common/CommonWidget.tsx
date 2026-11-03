@@ -37,17 +37,17 @@ export const CommonWidget: React.FC<CommonWidgetProps> = ({
 }) => {
   return (
     <div
-      className={`bg-white border border-[#E2E7EF] rounded-[12px] shadow-card flex flex-col justify-between min-w-0 select-none ${className}`}
+      className={`bg-background-surface border border-border rounded-card shadow-card flex flex-col justify-between min-w-0 select-none ${className}`}
     >
       {/* 1. Header */}
-      <div className="p-[20px_22px_12px] flex flex-col gap-1.5 border-b border-[#E2E7EF]/50 shrink-0">
+      <div className="p-[20px_22px_12px] flex flex-col gap-1.5 border-b border-border/50 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h2 className="text-[17px] font-semibold text-[#202733] m-0">
+            <h2 className="text-section font-semibold text-content-primary m-0">
               {title}
             </h2>
             {typeof badgeCount === "number" && (
-              <span className="px-[7px] py-[1px] bg-[#EAF2FF] text-[#0759DB] text-[11px] font-semibold rounded-[6px]">
+              <span className="px-[7px] py-[1px] bg-primary-subtle text-primary-foreground text-caption font-semibold rounded-control">
                 {badgeCount}
               </span>
             )}
@@ -59,7 +59,7 @@ export const CommonWidget: React.FC<CommonWidgetProps> = ({
         </div>
 
         {description && (
-          <p className="text-[12px] text-[#6B7483] m-0 leading-normal">
+          <p className="text-small text-content-secondary m-0 leading-normal">
             {description}
           </p>
         )}
@@ -75,7 +75,7 @@ export const CommonWidget: React.FC<CommonWidgetProps> = ({
 
       {/* 3. Footer */}
       {(footerLeft || footerRight) && (
-        <div className="h-12 px-[22px] border-t border-[#E2E7EF]/50 flex items-center justify-between shrink-0">
+        <div className="h-12 px-[22px] border-t border-border/50 flex items-center justify-between shrink-0">
           <div>{footerLeft}</div>
           <div>{footerRight}</div>
         </div>
@@ -83,3 +83,5 @@ export const CommonWidget: React.FC<CommonWidgetProps> = ({
     </div>
   );
 };
+
+export default CommonWidget;

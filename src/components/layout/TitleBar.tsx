@@ -104,7 +104,7 @@ export const TitleBar: React.FC = () => {
       <header
         data-tauri-drag-region
         onDoubleClick={handleToggleMaximize}
-        className="h-[48px] w-full flex items-center justify-between pl-5 pr-0 bg-[#EEF2F9] border-b border-[#E2E7EF] select-none z-50 shrink-0"
+        className="h-titlebar w-full flex items-center justify-between pl-5 pr-0 bg-background-app border-b border-border select-none z-50 shrink-0"
       >
         {/* Application Identity (Figma Node #3:1147) */}
         <div
@@ -114,9 +114,9 @@ export const TitleBar: React.FC = () => {
           <img
             src="/app-icon.png"
             alt="DesktopBubbleChat Logo"
-            className="w-[22px] h-[22px] object-contain rounded-[6px] shadow-xs select-none pointer-events-none"
+            className="w-[22px] h-[22px] object-contain rounded-control shadow-xs select-none pointer-events-none"
           />
-          <span className="text-[12px] font-medium text-[#202733] tracking-tight">
+          <span className="text-small font-medium text-content-primary tracking-tight">
             DesktopBubbleChat - Bong Bóng Trò Chuyện
           </span>
         </div>
@@ -130,7 +130,7 @@ export const TitleBar: React.FC = () => {
           <button
             onClick={handleMinimize}
             title="Thu nhỏ xuống Taskbar"
-            className="w-[46px] h-full flex items-center justify-center text-[#6B7483] hover:text-[#202733] hover:bg-white/60 active:bg-white/90 transition-colors cursor-pointer"
+            className="w-[46px] h-full flex items-center justify-center text-content-secondary hover:text-content-primary hover:bg-white/60 active:bg-white/90 transition-colors cursor-pointer"
           >
             <Minus className="w-[14px] h-[14px]" />
           </button>
@@ -139,7 +139,7 @@ export const TitleBar: React.FC = () => {
           <button
             onClick={handleToggleMaximize}
             title={isMaximized ? "Khôi phục kích thước" : "Phóng to toàn màn hình"}
-            className="w-[46px] h-full flex items-center justify-center text-[#6B7483] hover:text-[#202733] hover:bg-white/60 active:bg-white/90 transition-colors cursor-pointer"
+            className="w-[46px] h-full flex items-center justify-center text-content-secondary hover:text-content-primary hover:bg-white/60 active:bg-white/90 transition-colors cursor-pointer"
           >
             {isMaximized ? (
               <Copy className="w-[12px] h-[12px] rotate-180" />
@@ -152,7 +152,7 @@ export const TitleBar: React.FC = () => {
           <button
             onClick={handleCloseClick}
             title="Đóng"
-            className="w-[46px] h-full flex items-center justify-center text-[#6B7483] hover:text-white hover:bg-[#E81123] active:bg-[#BF0F1D] transition-colors cursor-pointer"
+            className="w-[46px] h-full flex items-center justify-center text-content-secondary hover:text-content-inverse hover:bg-status-error active:bg-status-error/90 transition-colors cursor-pointer"
           >
             <X className="w-[15px] h-[15px]" />
           </button>
@@ -169,3 +169,5 @@ export const TitleBar: React.FC = () => {
     </>
   );
 };
+
+export default TitleBar;

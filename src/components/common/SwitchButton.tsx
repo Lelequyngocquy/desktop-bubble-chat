@@ -36,17 +36,19 @@ export const SwitchButton: React.FC<SwitchButtonProps> = ({
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => !disabled && onChange?.(!checked)}
-      className={`rounded-full p-[2px] transition-colors relative shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${trackSize} ${
+      className={`rounded-pill p-[2px] transition-colors relative shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${trackSize} ${
         checked
-          ? "bg-[#0866FF]"
-          : "bg-transparent border border-[#929AA7]"
+          ? "bg-primary"
+          : "bg-transparent border border-border-strong"
       } ${className}`}
     >
       <div
-        className={`rounded-full transition-transform ${thumbSize} ${translateClass} ${
-          checked ? "bg-white" : "bg-[#6B7483]"
+        className={`rounded-pill transition-transform ${thumbSize} ${translateClass} ${
+          checked ? "bg-content-inverse" : "bg-content-secondary"
         }`}
       />
     </button>
   );
 };
+
+export default SwitchButton;

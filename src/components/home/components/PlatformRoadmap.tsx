@@ -8,10 +8,10 @@ export const PlatformRoadmap: React.FC = () => {
     <div className="shrink-0 flex flex-col gap-3.5 select-none">
       {/* Section Heading */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-        <h2 className="text-[17px] font-semibold text-[#202733] m-0">
+        <h2 className="text-section font-semibold text-content-primary m-0">
           Sắp có thêm nhiều kết nối
         </h2>
-        <span className="text-[12px] text-[#6B7483]">
+        <span className="text-small text-content-secondary">
           Phiên bản đầu hiện chỉ hỗ trợ Messenger
         </span>
       </div>
@@ -21,18 +21,16 @@ export const PlatformRoadmap: React.FC = () => {
         {UPCOMING_PLATFORMS.map((p) => (
           <div
             key={p.id}
-            className="h-[86px] p-4 bg-white/65 hover:bg-white/80 border border-[#E2E7EF] rounded-[8px] flex items-center gap-3 transition-colors shadow-2xs backdrop-blur-xs"
+            className="h-[86px] p-4 bg-background-surface/65 hover:bg-background-surface/80 border border-border rounded-panel flex items-center gap-3 transition-colors shadow-2xs backdrop-blur-xs"
           >
             {/* Platform Icon container */}
             <AvatarSquareRounded
               size={38}
-              radius={8}
-              bg="#EEF2F9"
               icon={
                 <PlatformIcon
                   platformId={p.id}
                   size={20}
-                  className="text-[#202733]"
+                  className="text-content-primary"
                 />
               }
             />
@@ -40,7 +38,7 @@ export const PlatformRoadmap: React.FC = () => {
             {/* Platform Information */}
             <div className="flex flex-col gap-1 flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[14px] font-medium text-[#202733] truncate">
+                <span className="text-nav font-medium text-content-primary truncate">
                   {p.name}
                 </span>
                 <CommonBadge
@@ -48,7 +46,7 @@ export const PlatformRoadmap: React.FC = () => {
                   status={p.upcomingBadgeText || "Sắp ra mắt"}
                 />
               </div>
-              <span className="text-[11px] text-[#6B7483] truncate">
+              <span className="text-caption text-content-secondary truncate">
                 {p.description}
               </span>
             </div>
@@ -58,3 +56,5 @@ export const PlatformRoadmap: React.FC = () => {
     </div>
   );
 };
+
+export default PlatformRoadmap;

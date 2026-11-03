@@ -17,12 +17,12 @@ export const PinnedChatHeadsCard: React.FC<PinnedChatHeadsCardProps> = ({
 }) => {
   return (
     <CommonLargeCard
-      icon={<Pin className="w-4 h-4 text-[#0866FF] fill-current -rotate-45" />}
+      icon={<Pin className="w-4 h-4 text-primary fill-current -rotate-45" />}
       title={`Cuộc trò chuyện đã ghim (${pinnedList.length}/6)`}
       subTitle="Luôn hiển thị đầu tiên"
     >
       {pinnedList.length === 0 ? (
-        <div className="py-8 text-center text-[#64748B] text-[12px]">
+        <div className="py-8 text-center text-content-secondary text-small">
           Chưa có cuộc trò chuyện nào được ghim. Nhấn vào biểu tượng ghim ở danh
           sách bên dưới để cố định tối đa 6 người liên lạc.
         </div>
@@ -41,3 +41,5 @@ export const PinnedChatHeadsCard: React.FC<PinnedChatHeadsCardProps> = ({
     </CommonLargeCard>
   );
 };
+
+export default PinnedChatHeadsCard;

@@ -1,4 +1,5 @@
 import React from "react";
+import { Color, Dimen } from "../../constants/design";
 
 export interface AvatarSquareRoundedProps {
   size?: number; // Kích thước pixel cạnh vuông (mặc định 38px)
@@ -15,9 +16,9 @@ export interface AvatarSquareRoundedProps {
 
 export const AvatarSquareRounded: React.FC<AvatarSquareRoundedProps> = ({
   size = 38,
-  radius = 8,
-  bg = "#EEF2F9",
-  textColor = "#202733",
+  radius = Dimen.borderRadius.panel,
+  bg = Color.background.app,
+  textColor = Color.text.primary,
   icon,
   src,
   text,
@@ -30,7 +31,7 @@ export const AvatarSquareRounded: React.FC<AvatarSquareRoundedProps> = ({
     typeof border === "string"
       ? border
       : border
-      ? "1px solid #E2E7EF"
+      ? `1px solid ${Color.border.default}`
       : "none";
 
   const isBgHex = bg.startsWith("#") || bg.startsWith("rgb");
@@ -59,7 +60,7 @@ export const AvatarSquareRounded: React.FC<AvatarSquareRoundedProps> = ({
       ) : icon ? (
         icon
       ) : (
-        <span className="font-bold text-[13px]">{text}</span>
+        <span className="font-bold text-body">{text}</span>
       )}
     </div>
   );

@@ -15,11 +15,11 @@ export const BubbleCustomizationSection: React.FC<BubbleCustomizationSectionProp
 }) => {
   return (
     <CommonLargeCard
-      icon={<CircleDot className="w-4 h-4 text-[#0866FF]" />}
+      icon={<CircleDot className="w-4 h-4 text-primary" />}
       title="Tùy biến Bong bóng nổi"
     >
       <div className="flex flex-col gap-2">
-        <span className="text-[13px] font-medium text-[#1E293B]">
+        <span className="text-body font-medium text-content-primary">
           Kích thước hiển thị
         </span>
         <BubbleSizePicker

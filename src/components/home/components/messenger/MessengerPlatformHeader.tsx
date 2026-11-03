@@ -28,7 +28,7 @@ export const MessengerPlatformHeader: React.FC<
       <div className="flex items-center gap-[14px]">
         <AvatarSquareRounded
           size={52}
-          radius={14.5}
+          radius={14}
           bg={messengerConfig.brandColor}
           shadow
           icon={
@@ -42,7 +42,7 @@ export const MessengerPlatformHeader: React.FC<
 
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
-            <span className="text-[22px] font-semibold text-[#202733] leading-none">
+            <span className="text-platform font-semibold text-content-primary leading-none">
               {messengerConfig.name}
             </span>
 
@@ -50,7 +50,7 @@ export const MessengerPlatformHeader: React.FC<
               <CommonBadge
                 color="success"
                 icon={
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#25805C]" />
+                  <span className="w-1.5 h-1.5 rounded-pill bg-status-success" />
                 }
                 status={
                   totalConnected === 1
@@ -62,13 +62,13 @@ export const MessengerPlatformHeader: React.FC<
               <CommonBadge
                 color="warning"
                 icon={
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#D97706]" />
+                  <span className="w-1.5 h-1.5 rounded-pill bg-status-warning" />
                 }
                 status="Chưa kết nối"
               />
             )}
           </div>
-          <span className="text-[13px] text-[#6B7483]">
+          <span className="text-body text-content-secondary">
             {messengerConfig.tagline}
           </span>
         </div>
@@ -80,7 +80,7 @@ export const MessengerPlatformHeader: React.FC<
           variant="outline"
           size="sm"
           onClick={onManage}
-          iconLeading={<Settings className="w-3.5 h-3.5 text-[#6B7483]" />}
+          iconLeading={<Settings className="w-3.5 h-3.5 text-content-secondary" />}
         >
           Quản lý
         </CommonButton>
@@ -88,3 +88,5 @@ export const MessengerPlatformHeader: React.FC<
     </div>
   );
 };
+
+export default MessengerPlatformHeader;

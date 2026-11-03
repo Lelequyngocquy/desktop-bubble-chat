@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { getCurrentWindow, currentMonitor } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
-import { getAccountThemeColor, AccountThemeColor } from "../../constants/accountColors";
+import { getAccountThemeColor, AccountThemeColor } from "../../constants/design";
 import { IPC_EVENTS, BubbleSpawnedPayload } from "../../types/ipc";
 
 interface ActiveIndicator {

@@ -3,6 +3,7 @@ import { Volume2, VolumeX } from "lucide-react";
 import { MessengerAccount } from "../../../../types/account";
 import { AvatarCircle, SwitchButton } from "../../../common";
 import { useMessengerStore } from "../../../../platforms/messenger";
+import { Color, Dimen } from "../../../../constants/design";
 
 interface ConnectedAccountRowProps {
   account: MessengerAccount;
@@ -18,32 +19,32 @@ export const ConnectedAccountRow: React.FC<ConnectedAccountRowProps> = ({
   const isSoundOn = account.soundEnabled ?? true;
 
   return (
-    <div className="flex items-center justify-between p-3 bg-[#F8FAFD] hover:bg-[#F3F7FD] rounded-[10px] border border-[#E2E7EF]/80 transition-all gap-3 flex-wrap sm:flex-nowrap">
+    <div className="flex items-center justify-between p-3 bg-background-subtle hover:bg-background-workspace rounded-card-sm border border-border/80 transition-all gap-3 flex-wrap sm:flex-nowrap">
       {/* Left: Avatar & Info */}
       <div className="flex items-center gap-3 min-w-0">
         <div className="relative shrink-0">
           <AvatarCircle
-            size={36}
+            size={Dimen.layout.avatarMd}
             text={account.avatarText}
             bg={account.color}
-            textColor="#FFFFFF"
-            className="font-bold text-[12px] shadow-xs ring-2 ring-white"
+            textColor={Color.text.inverse}
+            className="font-bold text-small shadow-xs ring-2 ring-white"
           />
-          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#10B981] ring-2 ring-white" />
+          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-pill bg-status-success ring-2 ring-white" />
         </div>
 
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[13px] font-semibold text-[#202733] truncate leading-tight">
+            <span className="text-body font-semibold text-content-primary truncate leading-tight">
               {account.name}
             </span>
             {account.unreadCount > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full bg-[#E81123] text-white text-[10px] font-bold shrink-0 leading-none">
+              <span className="px-1.5 py-0.5 rounded-pill bg-status-error text-content-inverse text-badge font-bold shrink-0 leading-none">
                 {account.unreadCount > 99 ? "99+" : account.unreadCount}
               </span>
             )}
           </div>
-          <span className="text-[11px] text-[#6B7483] truncate leading-tight mt-0.5">
+          <span className="text-caption text-content-secondary truncate leading-tight mt-0.5">
             {account.isBubbleVisible
               ? "Bong bóng đang bật"
               : "Ngủ đông (0% RAM)"}{" "}
@@ -59,10 +60,10 @@ export const ConnectedAccountRow: React.FC<ConnectedAccountRowProps> = ({
           type="button"
           onClick={() => toggleAccountSound(account.index)}
           title={isSoundOn ? "Đang bật âm thanh tab" : "Đã tắt âm thanh tab"}
-          className={`p-1.5 rounded-[6px] border transition-all cursor-pointer ${
+          className={`p-1.5 rounded-control border transition-all cursor-pointer ${
             isSoundOn
-              ? "text-[#6B7483] hover:text-[#0866FF] hover:bg-white border-transparent hover:border-[#E2E7EF]"
-              : "text-[#DC2626] bg-[#FEF2F2] border-[#FECACA]"
+              ? "text-content-secondary hover:text-primary hover:bg-background-surface border-transparent hover:border-border"
+              : "text-status-error bg-status-errorBg border-status-errorBorder"
           }`}
         >
           {isSoundOn ? (
@@ -72,8 +73,8 @@ export const ConnectedAccountRow: React.FC<ConnectedAccountRowProps> = ({
           )}
         </button>
 
-        <div className="flex items-center gap-1.5 pl-1.5 border-l border-[#E2E7EF]">
-          <span className="text-[11px] text-[#6B7483] hidden md:inline">
+        <div className="flex items-center gap-1.5 pl-1.5 border-l border-border">
+          <span className="text-caption text-content-secondary hidden md:inline">
             Bong bóng
           </span>
           <SwitchButton
@@ -86,3 +87,5 @@ export const ConnectedAccountRow: React.FC<ConnectedAccountRowProps> = ({
     </div>
   );
 };
+
+export default ConnectedAccountRow;
