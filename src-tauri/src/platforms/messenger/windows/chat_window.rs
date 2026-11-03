@@ -4,6 +4,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use super::theme::{apply_window_theme_color, get_account_theme};
 use crate::platforms::messenger::constants::{MESSENGER_BASE_URL, MESSENGER_INJECT_SCRIPT};
+use crate::platforms::messenger::parser::parse_unread_from_title;
 use crate::platforms::messenger::services::ChatService;
 use crate::state::ChatState;
 use crate::utils::time::now_millis;
@@ -139,6 +140,7 @@ pub fn get_or_create_messenger_window(
 
     println!("[BE - Window] Đang build WebviewWindow mới cho '{}'...", label);
     let state_page_load = Arc::clone(&chat_state);
+    let state_title = Arc::clone(&chat_state);
     let builder = tauri::WebviewWindowBuilder::new(
         app,
         &label,
@@ -157,6 +159,38 @@ pub fn get_or_create_messenger_window(
     .skip_taskbar(true)
     .shadow(true)
     .visible(false)
+    .on_document_title_changed(move |win, title| {
+        println!("\x1b[35m[BE - Webview Title M{:02}]\x1b[0m {}", account_index, title);
+        let _ = win.set_title(&title);
+
+        // 1. Ghi log trực tiếp từ Rust Core
+        crate::commands::system::app::log_frontend(
+            Some("info".into()),
+            format!("[M{:02}:TITLE-CHANGE] document.title = '{}'", account_index, title),
+        );
+
+        // 2. Bóc tách số lượng tin nhắn chưa đọc từ tiêu đề
+        let count = parse_unread_from_title(&title);
+        let prev = state_title.get_unread_count(account_index);
+
+        if count != prev {
+            state_title.set_unread_count(account_index, count);
+
+            // 3. Cập nhật trực tiếp số unread lên Bong bóng Win32 Native
+            crate::windows::native_bubble::set_native_bubble_unread_count(account_index, count);
+
+            // 4. Nếu có tin nhắn mới tăng lên (count > prev): nảy sóng Pulse Wave (không phát thêm âm thanh vì Messenger đã có âm mặc định)
+            if count > prev && count > 0 {
+                crate::windows::native_bubble::trigger_native_bubble_pulse(account_index);
+            }
+
+            // 5. Đồng bộ event sang hệ thống
+            let _ = win.emit("badge-updated", serde_json::json!({
+                "accountIndex": account_index,
+                "count": count
+            }));
+        }
+    })
     .on_page_load(move |_win, payload| {
         if let tauri::webview::PageLoadEvent::Finished = payload.event() {
             state_page_load.set_chat_ready(account_index, true);

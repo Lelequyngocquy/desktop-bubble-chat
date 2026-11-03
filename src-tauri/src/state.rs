@@ -23,6 +23,7 @@ pub struct ChatState {
     pub ready_accounts: Mutex<HashSet<u32>>,
     pub is_explicit_exit: AtomicBool,
     pub active_bubble_rects: Mutex<HashMap<u32, crate::movement::BubbleRect>>,
+    pub unread_counts: Mutex<HashMap<u32, u32>>,
 }
 
 impl Default for ChatState {
@@ -44,6 +45,7 @@ impl Default for ChatState {
             ready_accounts: Mutex::new(HashSet::new()),
             is_explicit_exit: AtomicBool::new(false),
             active_bubble_rects: Mutex::new(HashMap::new()),
+            unread_counts: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -203,5 +205,34 @@ impl ChatState {
             return map.get(&account_index).copied();
         }
         None
+    }
+
+    pub fn increment_unread_count(&self, account_index: u32) -> u32 {
+        if let Ok(mut map) = self.unread_counts.lock() {
+            let entry = map.entry(account_index).or_insert(0);
+            *entry = entry.saturating_add(1);
+            *entry
+        } else {
+            1
+        }
+    }
+
+    pub fn set_unread_count(&self, account_index: u32, count: u32) {
+        if let Ok(mut map) = self.unread_counts.lock() {
+            map.insert(account_index, count);
+        }
+    }
+
+    pub fn get_unread_count(&self, account_index: u32) -> u32 {
+        if let Ok(map) = self.unread_counts.lock() {
+            return *map.get(&account_index).unwrap_or(&0);
+        }
+        0
+    }
+
+    pub fn clear_unread_count(&self, account_index: u32) {
+        if let Ok(mut map) = self.unread_counts.lock() {
+            map.insert(account_index, 0);
+        }
     }
 }

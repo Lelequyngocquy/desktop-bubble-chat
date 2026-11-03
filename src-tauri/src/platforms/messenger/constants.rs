@@ -3,15 +3,17 @@ pub const MESSENGER_INJECT_SCRIPT: &str = concat!(
     "  const TARGET_MESSENGER_URL = \"https://www.messenger.com/\";\n\n",
     include_str!("scripts/modules/01_ipc_bridge.js"),
     "\n\n",
-    include_str!("scripts/modules/02_identity_auth.js"),
+    include_str!("scripts/modules/02_notification_interceptor.js"),
     "\n\n",
-    include_str!("scripts/modules/03_navigation_guard.js"),
+    include_str!("scripts/modules/03_identity_auth.js"),
     "\n\n",
-    include_str!("scripts/modules/04_offline_handler.js"),
+    include_str!("scripts/modules/04_navigation_guard.js"),
     "\n\n",
-    include_str!("scripts/modules/05_styles.js"),
+    include_str!("scripts/modules/05_offline_handler.js"),
     "\n\n",
-    include_str!("scripts/modules/06_lifecycle.js"),
+    include_str!("scripts/modules/06_styles.js"),
+    "\n\n",
+    include_str!("scripts/modules/07_lifecycle.js"),
     "\n})();\n"
 );
 pub const MESSENGER_LOGIN_URL: &str = "https://www.messenger.com/";

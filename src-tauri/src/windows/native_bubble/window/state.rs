@@ -10,6 +10,7 @@ use crate::windows::native_bubble::renderer::{render_bubble_bgra, BubbleRenderOp
 pub struct BubbleWindowState {
     pub hwnd: *mut std::ffi::c_void,
     pub account_index: u32,
+    pub bubble_size: u32,
     pub width: u32,
     pub height: u32,
     pub x: i32,
@@ -23,9 +24,6 @@ pub struct BubbleWindowState {
 
     // Trạng thái hiển thị
     pub is_hovered: bool,
-    pub has_pulse: bool,
-    pub pulse_progress: f32,
-    pub pulse_frame: u32,
     pub unread_count: u32,
     pub drag_alpha: u8,
 
@@ -45,17 +43,20 @@ pub struct BubbleWindowState {
 impl BubbleWindowState {
     /// Thay đổi kích thước bộ đệm GDI DIBSection và cập nhật cửa sổ
     pub fn resize(&mut self, new_size: u32) {
-        if self.width == new_size && self.height == new_size {
+        if self.bubble_size == new_size {
             return;
         }
-        self.width = new_size;
-        self.height = new_size;
+        self.bubble_size = new_size;
+        let canvas_w = new_size + 2 * (BUBBLE_CANVAS_PAD_X as u32);
+        let canvas_h = new_size + 2 * (BUBBLE_CANVAS_PAD_Y as u32);
+        self.width = canvas_w;
+        self.height = canvas_h;
 
         unsafe {
             let mut bmi: BITMAPINFO = std::mem::zeroed();
             bmi.bmi_header.bi_size = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
-            bmi.bmi_header.bi_width = new_size as i32;
-            bmi.bmi_header.bi_height = -(new_size as i32);
+            bmi.bmi_header.bi_width = canvas_w as i32;
+            bmi.bmi_header.bi_height = -(canvas_h as i32);
             bmi.bmi_header.bi_planes = 1;
             bmi.bmi_header.bi_bit_count = 32;
             bmi.bmi_header.bi_compression = BI_RGB;
@@ -81,25 +82,43 @@ impl BubbleWindowState {
             SetWindowPos(
                 self.hwnd,
                 std::ptr::null_mut(),
-                0,
-                0,
-                new_size as i32,
-                new_size as i32,
-                SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE,
+                self.x - BUBBLE_CANVAS_PAD_X,
+                self.y - BUBBLE_CANVAS_PAD_Y,
+                canvas_w as i32,
+                canvas_h as i32,
+                SWP_NOZORDER | SWP_NOACTIVATE,
             );
         }
 
         self.update_layered_buffer();
     }
 
+    /// Xác định xem Bubble đang nằm ở nửa bên trái hay bên phải màn hình để định hướng mũi nhọn badge
+    pub fn is_at_left_edge(&self) -> bool {
+        if let Some(app) = &self.app_handle {
+            let monitor = app
+                .get_webview_window("main")
+                .and_then(|m| m.current_monitor().ok().flatten())
+                .or_else(|| app.primary_monitor().ok().flatten());
+
+            if let Some(mon) = monitor {
+                let screen_cx = mon.position().x + (mon.size().width as i32 / 2);
+                let bubble_cx = self.x + (self.bubble_size as i32 / 2);
+                return bubble_cx < screen_cx;
+            }
+        }
+        self.x + (self.bubble_size as i32 / 2) < 960
+    }
+
     /// Cập nhật và vẽ lại nội dung Bong bóng qua UpdateLayeredWindow
     pub fn update_layered_buffer(&mut self) {
         let opts = BubbleRenderOptions {
-            size: self.width,
+            canvas_width: self.width,
+            canvas_height: self.height,
+            bubble_size: self.bubble_size,
             account_index: self.account_index,
             is_hovered: self.is_hovered,
-            has_pulse: self.has_pulse,
-            pulse_progress: self.pulse_progress,
+            is_left_edge: self.is_at_left_edge(),
             unread_count: self.unread_count,
         };
 
@@ -109,7 +128,10 @@ impl BubbleWindowState {
                 if bgra.len() == bytes_to_copy && !self.p_bits.is_null() {
                     std::ptr::copy_nonoverlapping(bgra.as_ptr(), self.p_bits, bytes_to_copy);
 
-                    let pt_dst = POINT { x: self.x, y: self.y };
+                    let pt_dst = POINT {
+                        x: self.x - BUBBLE_CANVAS_PAD_X,
+                        y: self.y - BUBBLE_CANVAS_PAD_Y,
+                    };
                     let size = SIZE {
                         cx: self.width as i32,
                         cy: self.height as i32,

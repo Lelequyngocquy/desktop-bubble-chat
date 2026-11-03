@@ -41,6 +41,7 @@ pub fn ensure_window_class_registered() {
 pub struct NativeBubbleWindow {
     pub hwnd: *mut std::ffi::c_void,
     pub account_index: u32,
+    pub bubble_size: u32,
     pub width: u32,
     pub height: u32,
 }
@@ -70,6 +71,11 @@ impl NativeBubbleWindow {
             .map(|s| s.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst))
             .unwrap_or(true);
 
+        let canvas_w = size + 2 * (BUBBLE_CANVAS_PAD_X as u32);
+        let canvas_h = size + 2 * (BUBBLE_CANVAS_PAD_Y as u32);
+        let win_x = x - BUBBLE_CANVAS_PAD_X;
+        let win_y = y - BUBBLE_CANVAS_PAD_Y;
+
         unsafe {
             let hinstance = GetModuleHandleW(std::ptr::null());
             let topmost_flag = if is_on_top { WS_EX_TOPMOST } else { 0 };
@@ -79,10 +85,10 @@ impl NativeBubbleWindow {
                 class_name_u16.as_ptr(),
                 title_u16.as_ptr(),
                 WS_POPUP,
-                x,
-                y,
-                size as i32,
-                size as i32,
+                win_x,
+                win_y,
+                canvas_w as i32,
+                canvas_h as i32,
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
                 hinstance,
@@ -99,8 +105,8 @@ impl NativeBubbleWindow {
 
             let mut bmi: BITMAPINFO = std::mem::zeroed();
             bmi.bmi_header.bi_size = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
-            bmi.bmi_header.bi_width = size as i32;
-            bmi.bmi_header.bi_height = -(size as i32); // Top-down DIB buffer
+            bmi.bmi_header.bi_width = canvas_w as i32;
+            bmi.bmi_header.bi_height = -(canvas_h as i32); // Top-down DIB buffer
             bmi.bmi_header.bi_planes = 1;
             bmi.bmi_header.bi_bit_count = 32;
             bmi.bmi_header.bi_compression = BI_RGB;
@@ -126,8 +132,9 @@ impl NativeBubbleWindow {
             let state = Box::new(BubbleWindowState {
                 hwnd,
                 account_index,
-                width: size,
-                height: size,
+                bubble_size: size,
+                width: canvas_w,
+                height: canvas_h,
                 x,
                 y,
                 is_dragging: false,
@@ -135,9 +142,6 @@ impl NativeBubbleWindow {
                 drag_start_cursor: POINT { x: 0, y: 0 },
                 drag_start_win: POINT { x: 0, y: 0 },
                 is_hovered: false,
-                has_pulse: false,
-                pulse_progress: 0.0,
-                pulse_frame: 0,
                 unread_count: 0,
                 drag_alpha: 255,
                 anim_state: crate::windows::native_bubble::animator::SpringAnimationState::default(),
@@ -153,8 +157,9 @@ impl NativeBubbleWindow {
             let win = Self {
                 hwnd,
                 account_index,
-                width: size,
-                height: size,
+                bubble_size: size,
+                width: canvas_w,
+                height: canvas_h,
             };
 
             win.update();
@@ -179,12 +184,13 @@ impl NativeBubbleWindow {
             if let Some(state) = ptr.as_mut() {
                 state.x = x;
                 state.y = y;
+                state.update_layered_buffer();
             }
             SetWindowPos(
                 self.hwnd,
                 std::ptr::null_mut(),
-                x,
-                y,
+                x - BUBBLE_CANVAS_PAD_X,
+                y - BUBBLE_CANVAS_PAD_Y,
                 0,
                 0,
                 SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
@@ -214,8 +220,9 @@ impl NativeBubbleWindow {
 
     /// Thay đổi kích thước cửa sổ Native Bubble và cập nhật bộ đệm Skia
     pub fn resize(&mut self, new_size: u32) {
-        self.width = new_size;
-        self.height = new_size;
+        self.bubble_size = new_size;
+        self.width = new_size + 2 * (BUBBLE_CANVAS_PAD_X as u32);
+        self.height = new_size + 2 * (BUBBLE_CANVAS_PAD_Y as u32);
         unsafe {
             let ptr = GetWindowLongPtrW(self.hwnd, GWLP_USERDATA) as *mut BubbleWindowState;
             if let Some(state) = ptr.as_mut() {
@@ -256,18 +263,9 @@ impl NativeBubbleWindow {
         }
     }
 
-    /// Kích hoạt hoạt ảnh sóng lan tỏa (Pulse Wave) 12 frame mượt mà
+    /// Kích hoạt hoạt ảnh sóng lan tỏa (Pulse Wave) - Đã được gỡ bỏ hoàn toàn để tối ưu hiệu năng
     pub fn trigger_pulse(&self) {
-        unsafe {
-            let ptr = GetWindowLongPtrW(self.hwnd, GWLP_USERDATA) as *mut BubbleWindowState;
-            if let Some(state) = ptr.as_mut() {
-                state.has_pulse = true;
-                state.pulse_frame = 0;
-                state.pulse_progress = 0.0;
-                state.update_layered_buffer();
-                SetTimer(self.hwnd, TIMER_ID_PULSE, 28, None);
-            }
-        }
+        // No-op: Đã loại bỏ hoàn toàn pulse animation để giảm tải tối đa GPU/CPU/Timer
     }
 
     /// Kích hoạt hoạt ảnh lò xo (Spring Animation 60 FPS) trượt mượt mà tới tọa độ đích
@@ -289,10 +287,10 @@ impl NativeBubbleWindow {
         unsafe {
             let ptr = GetWindowLongPtrW(self.hwnd, GWLP_USERDATA) as *mut BubbleWindowState;
             if let Some(state) = ptr.as_ref() {
-                return (state.x, state.y, state.width, state.height);
+                return (state.x, state.y, state.bubble_size, state.bubble_size);
             }
         }
-        (0, 0, self.width, self.height)
+        (0, 0, self.bubble_size, self.bubble_size)
     }
 }
 

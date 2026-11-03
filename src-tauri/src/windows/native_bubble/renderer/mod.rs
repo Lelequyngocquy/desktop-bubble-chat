@@ -10,22 +10,27 @@ use tiny_skia::*;
 
 #[derive(Debug, Clone)]
 pub struct BubbleRenderOptions {
-    pub size: u32,
+    pub canvas_width: u32,
+    pub canvas_height: u32,
+    pub bubble_size: u32,
     pub account_index: u32,
     pub is_hovered: bool,
-    pub has_pulse: bool,
-    pub pulse_progress: f32, // Tỉ lệ hoạt ảnh sóng lan tỏa [0.0, 1.0]
+    pub is_left_edge: bool,
     pub unread_count: u32,
 }
 
 impl Default for BubbleRenderOptions {
     fn default() -> Self {
+        let bubble_size = 56;
+        let canvas_width = bubble_size + 2 * (crate::windows::native_bubble::window::BUBBLE_CANVAS_PAD_X as u32);
+        let canvas_height = bubble_size + 2 * (crate::windows::native_bubble::window::BUBBLE_CANVAS_PAD_Y as u32);
         Self {
-            size: 64,
+            canvas_width,
+            canvas_height,
+            bubble_size,
             account_index: 1,
             is_hovered: false,
-            has_pulse: false,
-            pulse_progress: 0.0,
+            is_left_edge: true,
             unread_count: 0,
         }
     }
@@ -46,15 +51,15 @@ pub fn rgba_to_bgra(rgba: &[u8]) -> Vec<u8> {
 
 /// Vẽ Bong bóng nổi bằng tiny-skia và xuất ra buffer 32-bit BGRA tương thích 100% với Win32 UpdateLayeredWindow
 pub fn render_bubble_bgra(opts: &BubbleRenderOptions) -> Option<Vec<u8>> {
-    let w = opts.size;
-    let h = opts.size;
+    let w = opts.canvas_width;
+    let h = opts.canvas_height;
     let mut pixmap = Pixmap::new(w, h)?;
     pixmap.fill(Color::TRANSPARENT);
 
     let cx = w as f32 / 2.0;
     let cy = h as f32 / 2.0;
-    // Bán kính bóng bóng, chừa 4px cho hiệu ứng shadow và viền
-    let base_radius = (w as f32 / 2.0) - 4.5;
+    // Bán kính thân bong bóng theo kích thước bubble_size logic (chừa 4.5px viền và shadow)
+    let base_radius = (opts.bubble_size as f32 / 2.0) - 4.5;
     let radius = if opts.is_hovered {
         base_radius + 0.5
     } else {
@@ -82,34 +87,7 @@ pub fn render_bubble_bgra(opts: &BubbleRenderOptions) -> Option<Vec<u8>> {
         }
     }
 
-    // 2. Vẽ viền sóng lan tỏa Pulse (khi có tin nhắn mới)
-    if opts.has_pulse {
-        let progress = opts.pulse_progress.clamp(0.0, 1.0);
-        let pulse_r = radius + 0.5 + progress * 3.5;
-        let alpha = ((1.0 - progress) * 175.0) as u8;
-
-        if alpha > 0 {
-            let mut pulse_paint = Paint::default();
-            pulse_paint.set_color_rgba8(theme.primary.0, theme.primary.1, theme.primary.2, alpha);
-            pulse_paint.anti_alias = true;
-
-            let mut pb = PathBuilder::new();
-            pb.push_circle(cx, cy, pulse_r);
-            if let Some(pulse_path) = pb.finish() {
-                let mut stroke = Stroke::default();
-                stroke.width = (2.2 - progress * 1.0).max(0.8);
-                pixmap.stroke_path(
-                    &pulse_path,
-                    &pulse_paint,
-                    &stroke,
-                    Transform::identity(),
-                    None,
-                );
-            }
-        }
-    }
-
-    // 3. Vẽ thân chính Bong bóng (Linear Gradient từ trên xuống)
+    // 2. Vẽ thân chính Bong bóng (Linear Gradient từ trên xuống)
     {
         let start = Point::from_xy(cx, cy - radius);
         let end = Point::from_xy(cx, cy + radius);
@@ -158,11 +136,11 @@ pub fn render_bubble_bgra(opts: &BubbleRenderOptions) -> Option<Vec<u8>> {
         }
     }
 
-    // 4. Vẽ biểu tượng Vector Messenger chuẩn SVG màu trắng ở chính giữa (theo MessengerIcon.tsx)
+    // 3. Vẽ biểu tượng Vector Messenger chuẩn SVG màu trắng ở chính giữa (theo MessengerIcon.tsx)
     draw_messenger_icon(&mut pixmap, cx, cy, radius);
 
-    // 5. Vẽ huy hiệu đếm chưa đọc (Unread Badge & Text) nếu > 0
-    draw_unread_badge(&mut pixmap, cx, cy, radius, opts.unread_count);
+    // 4. Vẽ huy hiệu đếm chưa đọc nhọn trỏ vào Bubble (Pointed Circle Pin) nếu > 0
+    draw_unread_badge(&mut pixmap, cx, cy, radius, opts.unread_count, opts.is_left_edge);
 
     Some(rgba_to_bgra(pixmap.data()))
 }
@@ -174,84 +152,105 @@ mod tests {
     #[test]
     fn test_render_bubble_dimensions_and_transparency() {
         let opts = BubbleRenderOptions {
-            size: 64,
+            canvas_width: 124,
+            canvas_height: 88,
+            bubble_size: 64,
             account_index: 1,
             is_hovered: false,
-            has_pulse: false,
-            pulse_progress: 0.0,
+            is_left_edge: true,
             unread_count: 3,
         };
 
         let bgra = render_bubble_bgra(&opts).expect("render_bubble_bgra failed");
-        assert_eq!(bgra.len(), 64 * 64 * 4, "Buffer size must match 64x64x4 bytes (16 KB)");
+        assert_eq!(bgra.len(), 124 * 88 * 4, "Buffer size must match 124x88x4 bytes");
 
         // 1. Góc trên bên trái (0, 0) phải hoàn toàn trong suốt (Alpha = 0)
         let top_left_alpha = bgra[3];
         assert_eq!(top_left_alpha, 0, "Corner (0, 0) must be 100% transparent alpha");
 
-        // 2. Điểm chính giữa tâm (32, 32) phải đặc (Alpha > 200)
-        let center_idx = (32 * 64 + 32) * 4;
+        // 2. Điểm chính giữa tâm (62, 44) phải đặc (Alpha > 200)
+        let center_idx = (44 * 124 + 62) * 4;
         let center_alpha = bgra[center_idx + 3];
-        assert!(center_alpha > 200, "Center (32, 32) must be solid alpha, got {}", center_alpha);
+        assert!(center_alpha > 200, "Center (62, 44) must be solid alpha, got {}", center_alpha);
     }
 
     #[test]
     fn test_render_bubble_unread_badge_single_digit() {
         let opts = BubbleRenderOptions {
-            size: 64,
+            canvas_width: 124,
+            canvas_height: 88,
+            bubble_size: 64,
             account_index: 2,
             is_hovered: false,
-            has_pulse: false,
-            pulse_progress: 0.0,
+            is_left_edge: true,
             unread_count: 5,
         };
 
         let bgra = render_bubble_bgra(&opts).expect("render_bubble_bgra failed for single digit");
-        assert_eq!(bgra.len(), 64 * 64 * 4);
+        assert_eq!(bgra.len(), 124 * 88 * 4);
     }
 
     #[test]
     fn test_render_bubble_unread_badge_double_digit() {
         let opts = BubbleRenderOptions {
-            size: 64,
+            canvas_width: 124,
+            canvas_height: 88,
+            bubble_size: 64,
             account_index: 3,
             is_hovered: false,
-            has_pulse: false,
-            pulse_progress: 0.0,
+            is_left_edge: false,
             unread_count: 24,
         };
 
         let bgra = render_bubble_bgra(&opts).expect("render_bubble_bgra failed for double digit");
-        assert_eq!(bgra.len(), 64 * 64 * 4);
+        assert_eq!(bgra.len(), 124 * 88 * 4);
     }
 
     #[test]
     fn test_render_bubble_unread_badge_overflow() {
         let opts = BubbleRenderOptions {
-            size: 64,
+            canvas_width: 124,
+            canvas_height: 88,
+            bubble_size: 64,
             account_index: 4,
             is_hovered: false,
-            has_pulse: false,
-            pulse_progress: 0.0,
+            is_left_edge: false,
             unread_count: 120,
         };
 
         let bgra = render_bubble_bgra(&opts).expect("render_bubble_bgra failed for overflow 99+");
-        assert_eq!(bgra.len(), 64 * 64 * 4);
+        assert_eq!(bgra.len(), 124 * 88 * 4);
     }
 
     #[test]
-    fn test_render_bubble_pulse_wave() {
-        let opts = BubbleRenderOptions {
-            size: 64,
+    fn test_render_bubble_pointed_badge_left_and_right_edge() {
+        // Kiểm tra vẽ badge nhọn khi ở mép trái (badge nằm bên phải)
+        let opts_left = BubbleRenderOptions {
+            canvas_width: 124,
+            canvas_height: 88,
+            bubble_size: 64,
             account_index: 1,
             is_hovered: false,
-            has_pulse: true,
-            pulse_progress: 0.5,
-            unread_count: 0,
+            is_left_edge: true,
+            unread_count: 9,
         };
+        let bgra_left = render_bubble_bgra(&opts_left).expect("render_bubble_bgra failed for left edge");
+        assert_eq!(bgra_left.len(), 124 * 88 * 4);
 
-        let bgra = render_bubble_bgra(&opts).expect("render_bubble_bgra failed for pulse wave");
-        assert_eq!(bgra.len(), 64 * 64 * 4);
+        // Kiểm tra vẽ badge nhọn khi ở mép phải (badge nằm bên trái)
+        let opts_right = BubbleRenderOptions {
+            canvas_width: 124,
+            canvas_height: 88,
+            bubble_size: 64,
+            account_index: 1,
+            is_hovered: false,
+            is_left_edge: false,
+            unread_count: 9,
+        };
+        let bgra_right = render_bubble_bgra(&opts_right).expect("render_bubble_bgra failed for right edge");
+        assert_eq!(bgra_right.len(), 124 * 88 * 4);
+
+        // Hai ảnh BGRA phải khác nhau do badge nằm ở hai bên đối nghịch
+        assert_ne!(bgra_left, bgra_right, "Left-edge badge and Right-edge badge must render at different positions");
     }
 }
