@@ -1,6 +1,6 @@
 # DesktopBubbleChat
 
-[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(x64)-0078D6?style=flat-square&logo=windows)](https://www.microsoft.com/windows)
+[![Platform](<https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(x64)-0078D6?style=flat-square&logo=windows>)](https://www.microsoft.com/windows)
 [![Tauri v2](https://img.shields.io/badge/Tauri-v2.0-24C8DB?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app/)
 [![React 19](https://img.shields.io/badge/React-19.1-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -16,6 +16,8 @@
 **DesktopBubbleChat** brings the fluid, non-intrusive mobile chat head experience to Windows 10 and 11 across multiple messaging networks. Built with **Tauri v2**, **React 19**, **TypeScript**, and a native **Rust (Win32 + Skia)** core, it decouples windowing, physics, and rendering from platform adapters. It runs concurrent isolated profiles inside dedicated Microsoft WebView2 sandboxes while keeping a smooth, responsive desktop experience.
 
 ### Table of Contents
+
+- [Demo](#demo)
 - [Key Features](#key-features)
 - [Architecture Overview](#architecture-overview)
 - [Roadmap](#roadmap)
@@ -28,6 +30,10 @@
 - [License](#license)
 
 ---
+
+## Demo
+
+![Demo](assets/gif/preview.gif)
 
 ### Key Features
 
@@ -112,24 +118,26 @@ DesktopBubbleChat/
 │   └── tauri.conf.json         # Tauri v2 configuration
 └── package.json
 ```
+
 </details>
 
 ---
 
 ### Roadmap
 
-| Platform | Integration Type | Multi-Account Support | Status |
-| :--- | :--- | :--- | :--- |
+| Platform               | Integration Type                   | Multi-Account Support             | Status        |
+| :--------------------- | :--------------------------------- | :-------------------------------- | :------------ |
 | **Facebook Messenger** | Isolated WebView2 + Native Daemons | Up to 5 Accounts (Profiles 01–05) | **Available** |
-| **Telegram** | Web / TDesktop Adapter | Planned Multi-Account | **Roadmap** |
-| **Zalo** | Web Wrapper + Auth Watcher | Planned Multi-Account | **Roadmap** |
-| **Discord** | Web Client / Gateway Adapter | Planned Multi-Account | **Roadmap** |
+| **Telegram**           | Web / TDesktop Adapter             | Planned Multi-Account             | **Roadmap**   |
+| **Zalo**               | Web Wrapper + Auth Watcher         | Planned Multi-Account             | **Roadmap**   |
+| **Discord**            | Web Client / Gateway Adapter       | Planned Multi-Account             | **Roadmap**   |
 
 ---
 
 ### Getting Started
 
 #### Prerequisites
+
 - **Windows 10 (1903+) or Windows 11 (64-bit)**
 - **Node.js**: `>= 18.0.0`
 - **Rust & Cargo**: Stable (1.80+ with `x86_64-pc-windows-msvc`)
@@ -139,22 +147,26 @@ DesktopBubbleChat/
 #### Installation & Setup
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/Lelequyngocquy/desktop-bubble-chat.git
    cd desktop-bubble-chat
    ```
 
 2. **Install dependencies**:
+
    ```bash
    npm install
    ```
 
 3. **Verify your build environment**:
+
    ```powershell
    npm run app:check
    ```
 
 4. **Run in development mode**:
+
    ```powershell
    npm run app:start
    ```

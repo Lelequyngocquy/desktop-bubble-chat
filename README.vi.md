@@ -1,6 +1,6 @@
 # DesktopBubbleChat
 
-[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(x64)-0078D6?style=flat-square&logo=windows)](https://www.microsoft.com/windows)
+[![Platform](<https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(x64)-0078D6?style=flat-square&logo=windows>)](https://www.microsoft.com/windows)
 [![Tauri v2](https://img.shields.io/badge/Tauri-v2.0-24C8DB?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app/)
 [![React 19](https://img.shields.io/badge/React-19.1-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -16,6 +16,8 @@
 **DesktopBubbleChat** mang trải nghiệm bong bóng chat (Chat Heads) mượt mà, tiện lợi từ thiết bị di động lên hệ điều hành Windows 10 và 11. Được xây dựng trên nền tảng **Tauri v2**, **React 19**, **TypeScript** và lõi native **Rust (Win32 + Skia)**, ứng dụng tách biệt hoàn toàn giữa engine vật lý hiển thị và adapter của từng nền tảng nhắn tin. Dự án cho phép chạy đồng thời nhiều tài khoản độc lập trong các sandbox WebView2 riêng biệt, mang lại trải nghiệm tương tác trực quan và mượt mà trên desktop.
 
 ### Mục lục
+
+- [Minh họa](#minh-họa)
 - [Tính năng nổi bật](#tính-năng-nổi-bật)
 - [Tổng quan kiến trúc](#tổng-quan-kiến-trúc)
 - [Lộ trình phát triển](#lộ-trình-phát-triển)
@@ -26,6 +28,10 @@
 - [Đóng góp & Giấy phép](#đóng-góp--giấy-phép)
 
 ---
+
+## Minh họa
+
+![Minh họa](assets/gif/preview.gif)
 
 ### Tính năng nổi bật
 
@@ -45,6 +51,7 @@
 ### Tổng quan kiến trúc
 
 Ứng dụng kết hợp giữa frontend dashboard hiện đại và engine native hiệu năng cao:
+
 - **Giao diện Dashboard (React 19 + Tailwind)**: Quản lý kết nối tài khoản, cấu hình vật lý bong bóng, theo dõi chỉ số.
 - **Chat Head Windows (Rust + Skia + Win32)**: Các cửa sổ nổi không viền, trong suốt, vẽ vector trực tiếp qua API Win32 Layered Window.
 - **Chat Window (Microsoft Edge WebView2)**: Mỗi tài khoản mở trong một sandbox dữ liệu riêng biệt (`profiles/<platform>_<index>`).
@@ -53,18 +60,19 @@
 
 ### Lộ trình phát triển
 
-| Nền tảng | Hình thức tích hợp | Đa tài khoản | Trạng thái |
-| :--- | :--- | :--- | :--- |
-| **Facebook Messenger** | WebView2 độc lập + Rust Daemon | Tối đa 5 tài khoản (Profile 01–05) | **Khả dụng** |
-| **Telegram** | Web / TDesktop Adapter | Hỗ trợ nhiều tài khoản (Dự kiến) | **Kế hoạch** |
-| **Zalo** | Web Wrapper + Trình theo dõi Auth | Hỗ trợ nhiều tài khoản (Dự kiến) | **Kế hoạch** |
-| **Discord** | Web Client / Gateway Adapter | Hỗ trợ nhiều tài khoản (Dự kiến) | **Kế hoạch** |
+| Nền tảng               | Hình thức tích hợp                | Đa tài khoản                       | Trạng thái   |
+| :--------------------- | :-------------------------------- | :--------------------------------- | :----------- |
+| **Facebook Messenger** | WebView2 độc lập + Rust Daemon    | Tối đa 5 tài khoản (Profile 01–05) | **Khả dụng** |
+| **Telegram**           | Web / TDesktop Adapter            | Hỗ trợ nhiều tài khoản (Dự kiến)   | **Kế hoạch** |
+| **Zalo**               | Web Wrapper + Trình theo dõi Auth | Hỗ trợ nhiều tài khoản (Dự kiến)   | **Kế hoạch** |
+| **Discord**            | Web Client / Gateway Adapter      | Hỗ trợ nhiều tài khoản (Dự kiến)   | **Kế hoạch** |
 
 ---
 
 ### Cài đặt & Khởi chạy
 
 #### Yêu cầu môi trường
+
 - **Hệ điều hành**: Windows 10 (1903+) hoặc Windows 11 (64-bit)
 - **Node.js**: `>= 18.0.0`
 - **Rust & Cargo**: Bản Stable (1.80+ với target `x86_64-pc-windows-msvc`)
@@ -74,22 +82,26 @@
 #### Các bước cài đặt
 
 1. **Clone mã nguồn**:
+
    ```bash
    git clone https://github.com/Lelequyngocquy/desktop-bubble-chat.git
    cd desktop-bubble-chat
    ```
 
 2. **Cài đặt dependencies**:
+
    ```bash
    npm install
    ```
 
 3. **Kiểm tra tương thích môi trường**:
+
    ```powershell
    npm run app:check
    ```
 
 4. **Chạy ở chế độ Development**:
+
    ```powershell
    npm run app:start
    ```
