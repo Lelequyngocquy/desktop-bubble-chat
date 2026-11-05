@@ -74,6 +74,7 @@ pub fn run() {
             commands::is_autostart_enabled,
             commands::get_system_username,
             commands::open_external_url,
+            commands::open_profiles_folder,
             commands::minimize_main_window,
             commands::toggle_maximize_main_window,
             commands::hide_main_window,
@@ -89,7 +90,9 @@ pub fn run() {
             commands::trigger_native_bubble_pulse_preview,
             commands::set_native_bubble_badge_preview,
             commands::tuck_native_bubble_preview,
-            commands::untuck_native_bubble_preview
+            commands::untuck_native_bubble_preview,
+            commands::get_performance_snapshot,
+            commands::trim_system_memory
         ])
         .setup(move |app| {
             // 1. Cấu hình System Tray Menu & Icon (cần &mut app)

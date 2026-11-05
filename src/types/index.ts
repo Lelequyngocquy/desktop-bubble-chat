@@ -3,3 +3,4 @@ export * from "./account";
 export * from "./conversation";
 export * from "./navigation";
 export * from "./ipc";
+export * from "./performance";

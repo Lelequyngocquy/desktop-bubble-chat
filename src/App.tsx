@@ -5,6 +5,7 @@ import { HomeWorkspace } from "./components/home";
 import { ConnectionsWorkspace } from "./components/connections";
 import { ChatHeadsWorkspace } from "./components/chatheads";
 import { NotificationsWorkspace } from "./components/notifications";
+import { PerformanceWorkspace } from "./components/performance";
 import { SettingsWorkspace } from "./components/settings";
 import { HelpWorkspace } from "./components/help";
 import { BubbleSpawnIndicator } from "./components/common/BubbleSpawnIndicator";
@@ -38,6 +39,8 @@ export const App: React.FC = () => {
           <ChatHeadsWorkspace />
         ) : activeTab === "notifications" ? (
           <NotificationsWorkspace />
+        ) : activeTab === "performance" ? (
+          <PerformanceWorkspace />
         ) : activeTab === "settings" ? (
           <SettingsWorkspace />
         ) : activeTab === "help" ? (

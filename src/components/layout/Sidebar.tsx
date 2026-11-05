@@ -4,6 +4,7 @@ import {
   Unplug,
   MessageSquare,
   Bell,
+  Activity,
   CheckCircle2,
   Settings2,
   HelpCircle,
@@ -41,6 +42,7 @@ export const Sidebar: React.FC = () => {
       Unplug: <Unplug className="w-[18px] h-[18px]" />,
       MessageSquare: <MessageSquare className="w-[18px] h-[18px]" />,
       Bell: <Bell className="w-[18px] h-[18px]" />,
+      Activity: <Activity className="w-[18px] h-[18px]" />,
       Settings2: <Settings2 className="w-[18px] h-[18px]" />,
       HelpCircle: <HelpCircle className="w-[18px] h-[18px]" />,
     };

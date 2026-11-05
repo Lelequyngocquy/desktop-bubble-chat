@@ -10,6 +10,7 @@ export const IPC_COMMANDS = {
   TOGGLE_AUTOSTART: "toggle_autostart",
   IS_AUTOSTART_ENABLED: "is_autostart_enabled",
   OPEN_EXTERNAL_URL: "open_external_url",
+  OPEN_PROFILES_FOLDER: "open_profiles_folder",
   EXIT_APP: "exit_app",
   RESTART_APP: "restart_app",
   SET_ALWAYS_ON_TOP: "set_always_on_top",
@@ -17,6 +18,10 @@ export const IPC_COMMANDS = {
   LOG_FRONTEND: "log_frontend",
   GET_USER_SETTINGS: "get_user_settings",
   SAVE_USER_SETTINGS: "save_user_settings",
+
+  // Performance Commands
+  GET_PERFORMANCE_SNAPSHOT: "get_performance_snapshot",
+  TRIM_SYSTEM_MEMORY: "trim_system_memory",
 
   // Badge Commands
   SET_BADGE_COUNT: "set_badge_count",

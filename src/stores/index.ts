@@ -5,3 +5,4 @@ export * from "./conversationStore";
 export * from "./systemUserStore";
 export * from "./appLifecycleStore";
 export * from "./updateStore";
+export * from "./performanceStore";

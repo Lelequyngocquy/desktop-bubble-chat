@@ -5,4 +5,5 @@ export const NAVIGATION_ITEMS: NavigationItemConfig[] = [
   { id: "connections", label: "Kết nối", iconName: "Unplug" },
   { id: "chat-heads", label: "Tin nhắn mới", iconName: "MessageSquare" },
   { id: "notifications", label: "Thông báo", iconName: "Bell" },
+  { id: "performance", label: "Hiệu năng", iconName: "Activity" },
 ];
