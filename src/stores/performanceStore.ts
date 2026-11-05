@@ -11,8 +11,6 @@ interface PerformanceState {
   error: string | null;
   isPolling: boolean;
   pollingIntervalMs: number;
-
-  // Actions
   fetchSnapshot: () => Promise<void>;
   startPolling: () => void;
   stopPolling: () => void;
@@ -36,12 +34,11 @@ export const usePerformanceStore = create<PerformanceState>((set, get) => ({
       if (!get().snapshot) {
         set({ isLoading: true });
       }
-
       const data = await systemService.getPerformanceSnapshot();
       if (data) {
         set({ snapshot: data, error: null, isLoading: false });
       } else {
-        set({ error: "Không thể lấy dữ liệu hiệu năng từ hệ thống", isLoading: false });
+        set({ error: "Failed to get system performance data", isLoading: false });
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -53,13 +50,8 @@ export const usePerformanceStore = create<PerformanceState>((set, get) => ({
     if (pollingTimer !== null) {
       return;
     }
-
     set({ isPolling: true });
-
-    // Quét ngay lập tức lần đầu tiên
     get().fetchSnapshot();
-
-    // Thiết lập timer định kỳ
     const interval = get().pollingIntervalMs;
     pollingTimer = setInterval(() => {
       get().fetchSnapshot();
@@ -79,13 +71,11 @@ export const usePerformanceStore = create<PerformanceState>((set, get) => ({
       set({ isTrimming: true });
       const freedMb = await systemService.trimSystemMemory();
       set({ lastTrimmedMb: freedMb, isTrimming: false });
-
-      // Cập nhật lại snapshot sau khi trim RAM
       await get().fetchSnapshot();
       return freedMb;
     } catch (err) {
       set({ isTrimming: false });
-      console.error("[PerformanceStore] Lỗi dọn dẹp RAM:", err);
+      console.error("[PerformanceStore] Failed to trim memory:", err);
       return 0;
     }
   },
@@ -100,13 +90,12 @@ export const usePerformanceStore = create<PerformanceState>((set, get) => ({
 }));
 
 /**
- * Hook tự động bật Adaptive Polling khi component (Tab Hiệu năng) mount
- * và tự động tắt hoàn toàn timer khi unmount để đạt 0% chi phí nền.
+ * Hook to automatically enable adaptive polling when mounted
+ * and clean up when unmounted.
  */
 export function usePerformanceAutoPoll() {
   const startPolling = usePerformanceStore((s) => s.startPolling);
   const stopPolling = usePerformanceStore((s) => s.stopPolling);
-
   useEffect(() => {
     startPolling();
     return () => {

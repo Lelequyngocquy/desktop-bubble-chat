@@ -1,4 +1,4 @@
-/// Trích xuất số unread từ tiêu đề cửa sổ Messenger (ví dụ: "(3) Messenger", "(99+) Messenger")
+/// Extracts unread count from window title (e.g. "(3) Messenger", "(99+) Messenger")
 pub fn parse_unread_from_title(title: &str) -> u32 {
     let clean_title = title.replace("[AUTH_OK]", "").replace("[AUTH_LOGIN]", "");
     if let (Some(start), Some(end)) = (clean_title.find('('), clean_title.find(')')) {
@@ -11,7 +11,7 @@ pub fn parse_unread_from_title(title: &str) -> u32 {
     0
 }
 
-/// Trích xuất tên người gửi từ tiêu đề cửa sổ Messenger nếu có (ví dụ: "(1) Nguyễn Văn A", "(1) Nguyễn Văn A | Messenger")
+/// Extracts sender name from window title if present (e.g. "(1) Alice | Messenger")
 pub fn parse_sender_from_title(title: &str) -> Option<String> {
     let clean_title = title.replace("[AUTH_OK]", "").replace("[AUTH_LOGIN]", "");
     if let (Some(start), Some(end)) = (clean_title.find('('), clean_title.find(')')) {
@@ -50,16 +50,16 @@ mod tests {
     #[test]
     fn test_parse_sender_from_title() {
         assert_eq!(
-            parse_sender_from_title("(1) Nguyễn Văn A | Messenger"),
-            Some("Nguyễn Văn A".to_string())
+            parse_sender_from_title("(1) Alice | Messenger"),
+            Some("Alice".to_string())
         );
         assert_eq!(
             parse_sender_from_title("(2) John Doe - Messenger"),
             Some("John Doe".to_string())
         );
         assert_eq!(
-            parse_sender_from_title("(1) Bạn B đã gửi một tin nhắn."),
-            Some("Bạn B".to_string())
+            parse_sender_from_title("(1) Bob sent a message."),
+            Some("Bob".to_string())
         );
         assert_eq!(parse_sender_from_title("(3) Messenger"), None);
         assert_eq!(parse_sender_from_title("Messenger"), None);

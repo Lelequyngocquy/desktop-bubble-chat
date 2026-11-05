@@ -1,5 +1,6 @@
 import React, { Component, ReactNode, ErrorInfo } from "react";
 import ReactDOM from "react-dom/client";
+import "./i18n";
 import App from "./App";
 import { feLog } from "./services/loggerService";
 import "./index.css";
@@ -46,9 +47,9 @@ class RootErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState
             <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl font-bold">
               !
             </div>
-            <h2 className="text-lg font-semibold text-[#202733]">Đã xảy ra sự cố giao diện</h2>
+            <h2 className="text-lg font-semibold text-[#202733]">UI Error Occurred</h2>
             <p className="text-sm text-red-600 font-mono break-words text-left bg-red-50 p-3 rounded border border-red-200">
-              {this.state.error?.message || "Lỗi không xác định khi tải giao diện."}
+              {this.state.error?.message || "Unknown error occurred while loading UI."}
             </p>
             {this.state.componentStack && (
               <pre className="text-xs text-[#6B7483] font-mono text-left bg-gray-50 p-3 rounded border border-gray-200 max-h-48 overflow-auto select-text">
@@ -60,14 +61,13 @@ class RootErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState
                 onClick={this.handleReload}
                 className="px-4 py-2 bg-[#0866FF] hover:bg-[#0759DB] text-white rounded-lg text-sm font-medium transition-colors"
               >
-                Tải lại ứng dụng
+                Reload Application
               </button>
             </div>
           </div>
         </div>
       );
     }
-
     return this.props.children;
   }
 }

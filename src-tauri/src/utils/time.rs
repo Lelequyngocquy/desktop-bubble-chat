@@ -1,6 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Lấy mốc thời gian hiện tại theo mili-giây (UNIX timestamp)
+/// Current timestamp in milliseconds (UNIX epoch)
 pub fn now_millis() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -27,7 +27,7 @@ unsafe extern "system" {
     fn GetLocalTime(lpSystemTime: *mut SYSTEMTIME);
 }
 
-/// Định dạng thời gian hiện tại thành chuỗi HH:MM:SS theo giờ địa phương
+/// Formats current local time as HH:MM:SS
 pub fn format_current_time() -> String {
     #[cfg(target_os = "windows")]
     unsafe {

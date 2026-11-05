@@ -6,7 +6,7 @@ use crate::utils::performance::{
     collect_performance_snapshot, trim_all_app_processes_memory, SystemPerformanceSnapshot,
 };
 
-/// IPC Command: Lấy snapshot tài nguyên thời gian thực của toàn bộ cây tiến trình DesktopBubbleChat
+/// IPC Command: Retrieves real-time performance snapshot of the process tree
 #[tauri::command]
 pub fn get_performance_snapshot(
     app: AppHandle,
@@ -15,7 +15,7 @@ pub fn get_performance_snapshot(
     Ok(collect_performance_snapshot(&app, &state))
 }
 
-/// IPC Command: Dọn dẹp bộ nhớ đệm (Working Set) của toàn bộ tiến trình ứng dụng
+/// IPC Command: Trims working set memory of all application processes
 #[tauri::command]
 pub fn trim_system_memory(app: AppHandle) -> Result<f64, String> {
     Ok(trim_all_app_processes_memory(&app))

@@ -1,21 +1,13 @@
-/// Hiển thị hộp thoại Win32 xác nhận trước khi thoát để chống bấm nhầm
+/// Displays Win32 confirmation dialog before quitting to prevent accidental exits.
 #[cfg(target_os = "windows")]
-pub fn confirm_exit_dialog() -> bool {
+pub fn confirm_exit_dialog(locale: &str) -> bool {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
-
-    let text_wide: Vec<u16> = OsStr::new(
-        "Bạn có chắc chắn muốn thoát hoàn toàn DesktopBubbleChat không?\n\n• Toàn bộ các Bong bóng nổi sẽ đóng lại.\n• Các cửa sổ chat Messenger sẽ ngừng hoạt động."
-    )
-    .encode_wide()
-    .chain(std::iter::once(0))
-    .collect();
-
-    let title_wide: Vec<u16> = OsStr::new("Xác nhận thoát DesktopBubbleChat")
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-
+    let tray_i18n = crate::utils::i18n::get_tray_locale(locale);
+    let title = &tray_i18n.confirm_exit_title;
+    let text = &tray_i18n.confirm_exit_text;
+    let text_wide: Vec<u16> = OsStr::new(text).encode_wide().chain(std::iter::once(0)).collect();
+    let title_wide: Vec<u16> = OsStr::new(title).encode_wide().chain(std::iter::once(0)).collect();
     #[link(name = "user32")]
     unsafe extern "system" {
         fn MessageBoxW(
@@ -25,13 +17,11 @@ pub fn confirm_exit_dialog() -> bool {
             uType: u32,
         ) -> i32;
     }
-
     const MB_YESNO: u32 = 0x00000004;
     const MB_ICONQUESTION: u32 = 0x00000020;
-    const MB_DEFBUTTON2: u32 = 0x00000100; // Mặc định chọn nút "Không" (No) để chống bấm nhầm
-    const MB_SYSTEMMODAL: u32 = 0x00001000; // Đưa hộp thoại lên trên cùng màn hình
+    const MB_DEFBUTTON2: u32 = 0x00000100;
+    const MB_SYSTEMMODAL: u32 = 0x00001000;
     const IDYES: i32 = 6;
-
     let result = unsafe {
         MessageBoxW(
             std::ptr::null_mut(),
@@ -40,11 +30,10 @@ pub fn confirm_exit_dialog() -> bool {
             MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2 | MB_SYSTEMMODAL,
         )
     };
-
     result == IDYES
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn confirm_exit_dialog() -> bool {
+pub fn confirm_exit_dialog(_locale: &str) -> bool {
     true
 }

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Power } from "lucide-react";
 import { SwitchButton, CommonLargeCard } from "../../common";
 
@@ -19,19 +20,20 @@ export const SystemStartupSection: React.FC<SystemStartupSectionProps> = ({
   onToggleAlwaysOnTop,
   onToggleNotifications,
 }) => {
+  const { t } = useTranslation(["settings"]);
   return (
     <CommonLargeCard
       icon={<Power className="w-4 h-4 text-primary" />}
-      title="Hệ thống & Khởi động"
+      title={t("settings:startup.title")}
     >
       <div className="flex flex-col divide-y divide-border">
         <div className="py-3 flex items-center justify-between gap-4">
           <div className="flex flex-col gap-0.5">
             <span className="text-body font-medium text-content-primary">
-              Khởi động cùng Windows
+              {t("settings:startup.autostart")}
             </span>
             <span className="text-caption text-content-secondary">
-              Tự động bật DesktopBubbleChat khi bạn đăng nhập vào máy tính
+              {t("settings:startup.autostart_desc")}
             </span>
           </div>
           <SwitchButton
@@ -43,11 +45,10 @@ export const SystemStartupSection: React.FC<SystemStartupSectionProps> = ({
         <div className="py-3 flex items-center justify-between gap-4">
           <div className="flex flex-col gap-0.5">
             <span className="text-body font-medium text-content-primary">
-              Bong bóng nổi trên cùng
+              {t("settings:startup.always_on_top")}
             </span>
             <span className="text-caption text-content-secondary">
-              Khi tắt, các ứng dụng khác có thể che phủ bong bóng nhưng vẫn
-              mở khung trò chuyện nếu di chuột đúng vị trí
+              {t("settings:startup.always_on_top_desc")}
             </span>
           </div>
           <SwitchButton
@@ -59,11 +60,10 @@ export const SystemStartupSection: React.FC<SystemStartupSectionProps> = ({
         <div className="py-3 flex items-center justify-between gap-4">
           <div className="flex flex-col gap-0.5">
             <span className="text-body font-medium text-content-primary">
-              Thông báo desktop & Âm thanh
+              {t("settings:startup.notifications")}
             </span>
             <span className="text-caption text-content-secondary">
-              Phát âm thanh bong bóng nhẹ và hiển thị thông báo toast khi có
-              tin nhắn mới
+              {t("settings:startup.notifications_desc")}
             </span>
           </div>
           <SwitchButton

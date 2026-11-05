@@ -4,7 +4,7 @@ use tauri::{AppHandle, State};
 use crate::platforms::messenger::services::AuthService;
 use crate::state::ChatState;
 
-/// Command mở cửa sổ popup đăng nhập Messenger độc lập cho tài khoản chỉ định
+/// Command to open independent Messenger auth popup for specified account
 #[tauri::command]
 pub async fn open_messenger_auth(
     app: AppHandle,
@@ -15,7 +15,7 @@ pub async fn open_messenger_auth(
     AuthService::open_auth(&app, &state, idx).await
 }
 
-/// Command kiểm tra trạng thái đăng nhập thực tế của tài khoản Messenger
+/// Command to check real-time auth status for Messenger account
 #[tauri::command]
 pub fn check_messenger_auth(
     app: AppHandle,
@@ -26,7 +26,7 @@ pub fn check_messenger_auth(
     AuthService::check_auth(&app, &state, idx)
 }
 
-/// Command nhận báo cáo trạng thái xác thực từ webview và đồng bộ sang UI
+/// Command to receive auth status report from webview and sync to UI
 #[tauri::command]
 pub fn report_auth_status(
     app: AppHandle,
@@ -39,7 +39,7 @@ pub fn report_auth_status(
     AuthService::report_status(&app, &state, connected, name, idx)
 }
 
-/// Command ngắt kết nối Messenger, điều hướng về login và ẩn cửa sổ
+/// Command to disconnect Messenger, navigate to login, and hide window
 #[tauri::command]
 pub fn disconnect_messenger(
     app: AppHandle,

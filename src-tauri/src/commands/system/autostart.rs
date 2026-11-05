@@ -27,14 +27,11 @@ struct USER_INFO_10 {
 fn get_windows_display_name(username: &str) -> Option<String> {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
-
     let username_wide: Vec<u16> = OsStr::new(username)
         .encode_wide()
         .chain(std::iter::once(0))
         .collect();
-
     let mut buf_ptr: *mut u8 = std::ptr::null_mut();
-
     unsafe {
         let status = NetUserGetInfo(
             std::ptr::null(),
@@ -42,7 +39,6 @@ fn get_windows_display_name(username: &str) -> Option<String> {
             10,
             &mut buf_ptr,
         );
-
         if status == 0 && !buf_ptr.is_null() {
             let info = &*(buf_ptr as *const USER_INFO_10);
             let full_name = if !info.usri10_full_name.is_null() {
@@ -55,23 +51,19 @@ fn get_windows_display_name(username: &str) -> Option<String> {
             } else {
                 String::new()
             };
-
             NetApiBufferFree(buf_ptr);
-
             if !full_name.is_empty() {
                 return Some(full_name);
             }
         }
     }
-
     None
 }
 
-/// Command lấy tên tài khoản Windows (ưu tiên Win32 Full Name, fallback về username hệ thống)
+/// Retrieves Windows account display name (prioritizes Win32 Full Name, fallbacks to system username)
 #[tauri::command]
 pub fn get_system_username() -> String {
     let raw_username = std::env::var("USERNAME").or_else(|_| std::env::var("USER"));
-
     if let Ok(username) = raw_username {
         let trimmed = username.trim();
         if !trimmed.is_empty() {
@@ -81,8 +73,6 @@ pub fn get_system_username() -> String {
                     return display_name;
                 }
             }
-
-            // Fallback về username nếu không có Full Name (viết hoa chữ cái đầu nếu cần)
             let mut chars = trimmed.chars();
             if let Some(first) = chars.next() {
                 return first.to_uppercase().collect::<String>() + chars.as_str();
@@ -90,18 +80,16 @@ pub fn get_system_username() -> String {
             return trimmed.to_string();
         }
     }
-
-    "Người dùng".to_string()
+    "User".to_string()
 }
 
-/// Command bật/tắt khởi động cùng Windows
+/// Toggles autostart with Windows in registry
 #[tauri::command]
 pub fn toggle_autostart(enabled: bool) -> Result<bool, String> {
     #[cfg(target_os = "windows")]
     {
         let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
         let exe_path = current_exe.to_string_lossy().to_string();
-
         if enabled {
             let _ = std::process::Command::new("reg")
                 .args(&[
@@ -115,7 +103,7 @@ pub fn toggle_autostart(enabled: bool) -> Result<bool, String> {
                     &format!("\"{}\"", exe_path),
                     "/f",
                 ])
-                .creation_flags(0x08000000) // CREATE_NO_WINDOW
+                .creation_flags(0x08000000)
                 .output();
         } else {
             let _ = std::process::Command::new("reg")
@@ -133,7 +121,7 @@ pub fn toggle_autostart(enabled: bool) -> Result<bool, String> {
     Ok(enabled)
 }
 
-/// Command kiểm tra xem app đã bật khởi động cùng Windows chưa
+/// Checks if autostart with Windows is enabled
 #[tauri::command]
 pub fn is_autostart_enabled() -> bool {
     #[cfg(target_os = "windows")]
@@ -147,7 +135,6 @@ pub fn is_autostart_enabled() -> bool {
             ])
             .creation_flags(0x08000000)
             .output();
-
         if let Ok(out) = output {
             return out.status.success();
         }

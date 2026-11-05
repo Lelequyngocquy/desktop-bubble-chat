@@ -21,7 +21,7 @@ pub struct BubblePositionDto {
     pub is_visible: bool,
 }
 
-/// RAII Guard bảo đảm khóa transition_lock luôn luôn được giải phóng khi kết thúc tác vụ
+/// RAII Guard ensuring transition_lock is released upon completion
 pub struct TransitionLockGuard {
     pub state: Option<Arc<ChatState>>,
     pub account_index: u32,

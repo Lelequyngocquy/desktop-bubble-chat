@@ -7,7 +7,7 @@ use super::types::*;
 use crate::movement::{BubbleMovementEngine, ScreenMetrics};
 use crate::state::ChatState;
 
-/// Window Procedure xử lý toàn bộ thông điệp Win32 của Native Bubble
+/// Window Procedure handling Win32 messages for native bubbles.
 pub unsafe extern "system" fn native_bubble_wndproc(
     hwnd: *mut std::ffi::c_void,
     msg: u32,
@@ -15,7 +15,6 @@ pub unsafe extern "system" fn native_bubble_wndproc(
     lparam: isize,
 ) -> isize {
     let state_ptr = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut BubbleWindowState };
-
     match msg {
         WM_SETCURSOR => {
             unsafe {
@@ -44,21 +43,17 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                 if state.is_dragging {
                     let mut cur_pt = POINT { x: 0, y: 0 };
                     unsafe { GetCursorPos(&mut cur_pt); }
-
                     let dx = cur_pt.x - state.drag_start_cursor.x;
                     let dy = cur_pt.y - state.drag_start_cursor.y;
-
-                    // Ngưỡng phát hiện kéo thả > 4px (16px bình phương) chuẩn mốc usePointerTracker
+                    // Drag threshold > 4px (16 sq px)
                     if dx * dx + dy * dy >= 16 {
                         state.has_dragged = true;
                     }
-
                     if state.has_dragged {
                         let new_x = state.drag_start_win.x + dx;
                         let new_y = state.drag_start_win.y + dy;
                         state.x = new_x;
                         state.y = new_y;
-
                         crate::windows::native_bubble::manager::update_cached_bubble_bounds(
                             state.account_index,
                             new_x,
@@ -66,21 +61,18 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                             state.bubble_size,
                             state.bubble_size,
                         );
-
-                        // Hiệu ứng làm mờ khi kéo sát đáy màn hình (Bottom Dismiss Opacity)
+                        // Bottom dismiss fade opacity
                         if let Some(app) = &state.app_handle {
                             let monitor = app
                                 .get_webview_window("main")
                                 .and_then(|m| m.current_monitor().ok().flatten())
                                 .or_else(|| app.primary_monitor().ok().flatten());
-
                             if let Some(mon) = monitor {
                                 let screen = ScreenMetrics::from_monitor(&mon);
                                 let bottom_edge = screen.y + screen.height;
                                 let dist = bottom_edge - new_y;
                                 let start_fade_dist = (340.0 * screen.scale_factor) as i32;
                                 let max_fade_dist = (140.0 * screen.scale_factor) as i32;
-
                                 let alpha = if dist >= start_fade_dist {
                                     255
                                 } else if dist <= max_fade_dist {
@@ -92,7 +84,6 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                                 state.set_layered_alpha(alpha);
                             }
                         }
-
                         unsafe {
                             SetWindowPos(
                                 hwnd,
@@ -106,7 +97,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                         }
                     }
                 } else if !state.is_hovered {
-                    // Xử lý sự kiện di chuột vào (Mouse Enter): Trượt ra mép (Untuck)
+                    // Mouse enter: untuck
                     state.is_hovered = true;
                     unsafe {
                         KillTimer(hwnd, TIMER_ID_HOVER_LEAVE);
@@ -130,7 +121,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                     state.is_hovered = false;
                     state.update_layered_buffer();
                     unsafe {
-                        // Debounce / Hysteresis 80ms chống rung chuột giống master
+                        // 80ms debounce for mouse leave jitter
                         SetTimer(hwnd, TIMER_ID_HOVER_LEAVE, 80, None);
                     }
                 }
@@ -151,18 +142,15 @@ pub unsafe extern "system" fn native_bubble_wndproc(
             if let Some(state) = unsafe { state_ptr.as_mut() } {
                 if state.is_dragging {
                     state.is_dragging = false;
-
                     if state.has_dragged {
-                        // Khôi phục độ mờ đầy đủ
+                        // Restore full opacity
                         state.set_layered_alpha(255);
-
-                        // Kéo thả hoàn tất -> Kích hoạt động cơ vật lý BubbleMovementEngine để hít mép (Snap to Edge)
+                        // Drag finished -> trigger snap to edge
                         let (target_x, target_y, should_dismiss) = if let Some(app) = &state.app_handle {
                             let monitor = app
                                 .get_webview_window("main")
                                 .and_then(|m| m.current_monitor().ok().flatten())
                                 .or_else(|| app.primary_monitor().ok().flatten());
-
                             let screen = monitor
                                 .map(|m| ScreenMetrics::from_monitor(&m))
                                 .unwrap_or(ScreenMetrics {
@@ -172,10 +160,8 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                                     height: 1080,
                                     scale_factor: 1.0,
                                 });
-
                             let config = crate::movement::get_bubble_physics_config(app);
                             let all_bubbles = crate::windows::bubble::get_active_bubble_rects(app, None);
-
                             let snap = BubbleMovementEngine::calculate_snap(
                                 &screen,
                                 &config,
@@ -183,29 +169,26 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                                 state.account_index,
                                 &all_bubbles,
                             );
-
                             if !snap.should_dismiss {
                                 let bubble_w = (config.size * screen.scale_factor) as i32;
                                 if let Some(cs) = app.try_state::<Arc<ChatState>>() {
                                     cs.set_bubble_rect(
                                         state.account_index,
                                         crate::movement::BubbleRect {
-                                            account_index: state.account_index,
-                                            x: snap.target_x,
-                                            y: snap.target_y,
-                                            width: bubble_w,
-                                            height: bubble_w,
+                                             account_index: state.account_index,
+                                             x: snap.target_x,
+                                             y: snap.target_y,
+                                             width: bubble_w,
+                                             height: bubble_w,
                                         },
                                     );
                                 }
                             }
-
                             (snap.target_x, snap.target_y, snap.should_dismiss)
                         } else {
                             let target_x = if state.x < 960 { 0 } else { 1920 - state.bubble_size as i32 };
                             (target_x, state.y, false)
                         };
-
                         if should_dismiss {
                             unsafe { ShowWindow(hwnd, SW_HIDE); }
                             if let Some(app) = &state.app_handle {
@@ -216,14 +199,14 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                                 });
                             }
                         } else {
-                            // Trượt mượt mà (Spring Glide 160ms) vào mép hít với đường cong Ease-out Cubic
+                            // Spring glide (160ms) to snapped edge
                             state.anim_state.start(state.x, state.y, target_x, target_y, 160);
                             unsafe {
                                 SetTimer(hwnd, TIMER_ID_SPRING, 16, None);
                             }
                         }
                     } else {
-                        // Thao tác Click chuột (Click to Open/Toggle Chat)
+                        // Click action (toggle chat)
                         if let Some(app) = &state.app_handle {
                             let app_clone = app.clone();
                             let idx = state.account_index;
@@ -248,7 +231,6 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                     if let Some((cur_x, cur_y, is_finished)) = state.anim_state.step() {
                         state.x = cur_x;
                         state.y = cur_y;
-
                         crate::windows::native_bubble::manager::update_cached_bubble_bounds(
                             state.account_index,
                             cur_x,
@@ -256,7 +238,6 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                             state.bubble_size,
                             state.bubble_size,
                         );
-
                         unsafe {
                             SetWindowPos(
                                 hwnd,
@@ -268,7 +249,6 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                                 SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
                             );
                         }
-
                         if is_finished {
                             unsafe { KillTimer(hwnd, TIMER_ID_SPRING); }
                             state.update_layered_buffer();
@@ -303,7 +283,6 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                         } else {
                             false
                         };
-
                         if !is_chat_open {
                             state.tuck();
                         }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tauri::{AppHandle, Manager};
 
-/// Command thu nhỏ cửa sổ Dashboard chính xuống Taskbar
+/// Minimizes main dashboard window to taskbar
 #[tauri::command]
 pub fn minimize_main_window(app: AppHandle) {
     if let Some(main_win) = app.get_webview_window("main") {
@@ -9,7 +9,7 @@ pub fn minimize_main_window(app: AppHandle) {
     }
 }
 
-/// Command phóng to / khôi phục kích thước cửa sổ Dashboard chính
+/// Toggles maximize/unmaximize on main dashboard window
 #[tauri::command]
 pub fn toggle_maximize_main_window(app: AppHandle) -> Result<bool, String> {
     if let Some(main_win) = app.get_webview_window("main") {
@@ -26,19 +26,19 @@ pub fn toggle_maximize_main_window(app: AppHandle) -> Result<bool, String> {
     }
 }
 
-/// Command ẩn cửa sổ Dashboard chính về khay hệ thống (System Tray) - Kích hoạt Dynamic Destruction (0 MB UI RAM)
+/// Hides main dashboard window to system tray (triggers hibernation)
 #[tauri::command]
 pub fn hide_main_window(app: AppHandle) {
     crate::windows::main_window::destroy_or_hibernate_main_window(&app);
 }
 
-/// Command mở lại cửa sổ Dashboard chính (Tái sinh hoặc hiển thị lại)
+/// Shows or recreates main dashboard window
 #[tauri::command]
 pub fn show_main_window(app: AppHandle) {
     let _ = crate::windows::main_window::get_or_create_main_window(&app);
 }
 
-/// Command đồng bộ trạng thái hiển thị menu System Tray từ Frontend / Store
+/// Updates system tray menu status from frontend/store
 #[tauri::command]
 pub fn update_tray_menu_status(
     app: AppHandle,
@@ -47,13 +47,13 @@ pub fn update_tray_menu_status(
     crate::tray::update_tray_menu(&app).map_err(|e| e.to_string())
 }
 
-/// Command lấy snapshot cấu hình người dùng từ cache
+/// Returns user settings snapshot from cache
 #[tauri::command]
 pub fn get_user_settings(state: tauri::State<'_, Arc<crate::state::ChatState>>) -> Result<crate::utils::user_cache::AppUserConfig, String> {
     Ok(state.get_user_config())
 }
 
-/// Command lưu cấu hình người dùng vào cache
+/// Saves user settings to cache
 #[tauri::command]
 pub fn save_user_settings(
     app: AppHandle,
@@ -64,7 +64,21 @@ pub fn save_user_settings(
     Ok(())
 }
 
-/// Command thoát ứng dụng hoàn toàn
+/// Sets application display language, updates persistent cache, and updates system tray
+#[tauri::command]
+pub fn set_app_language(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<crate::state::ChatState>>,
+    language: String,
+) -> Result<(), String> {
+    state.update_user_config(&app, |c| {
+        c.locale = Some(language.clone());
+    });
+    let _ = crate::tray::update_tray_menu(&app);
+    Ok(())
+}
+
+/// Exits application completely
 #[tauri::command]
 pub fn exit_app(app: AppHandle) {
     if let Some(state) = app.try_state::<Arc<crate::state::ChatState>>() {
@@ -73,49 +87,39 @@ pub fn exit_app(app: AppHandle) {
     app.exit(0);
 }
 
-/// Command khởi động lại ứng dụng (dùng khi cập nhật phiên bản mới hoặc reset app)
+/// Restarts application (used for updates or resets)
 #[tauri::command]
 pub fn restart_app(app: AppHandle) {
     if let Some(state) = app.try_state::<Arc<crate::state::ChatState>>() {
         state.is_explicit_exit.store(true, std::sync::atomic::Ordering::SeqCst);
     }
-    // Đóng tất cả webview windows để WebView2 giải phóng window class "Chrome_WidgetWin_0" trước khi restart
     for (_, window) in app.webview_windows() {
         let _ = window.close();
     }
     app.request_restart();
 }
 
-/// Command điều khiển chế độ Luôn nổi trên cùng (Always on Top) dành riêng cho các Bong bóng nổi
+/// Sets always on top mode for floating bubbles
 #[tauri::command]
 pub fn set_always_on_top(app: AppHandle, enabled: bool) -> Result<(), String> {
     use std::sync::atomic::Ordering;
-
-    // 1. Lưu trạng thái vào ChatState để các Bubble khởi tạo / hiển thị sau này tuân thủ
     if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
         chat_state.is_always_on_top.store(enabled, Ordering::SeqCst);
         chat_state.update_user_config(&app, |c| {
             c.is_always_on_top = enabled;
         });
     }
-
-    // 2. Dashboard chính tuyệt đối KHÔNG ghim Always-on-top (luôn là cửa sổ tiêu chuẩn của OS)
     if let Some(main_win) = app.get_webview_window("main") {
         let _ = main_win.set_always_on_top(false);
     }
-
-    // 3. Áp dụng Always-on-top cho tất cả các Bong bóng nổi Native Win32 (SSOT)
     #[cfg(target_os = "windows")]
     crate::windows::native_bubble::set_native_bubble_always_on_top(enabled);
-
     for idx in 1..=5 {
         let bubble_label = format!("bubble-{:02}", idx);
         if let Some(w) = app.get_webview_window(&bubble_label) {
             let _ = w.set_always_on_top(enabled);
         }
     }
-
-    // 4. Khung chat Messenger đồng bộ trạng thái nổi cùng bong bóng
     for idx in 1..=5 {
         let chat_label = format!("chat-messenger-{:02}", idx);
         if let Some(w) = app.get_webview_window(&chat_label) {
@@ -128,7 +132,7 @@ pub fn set_always_on_top(app: AppHandle, enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
-/// Command mở liên kết ngoài an toàn bằng trình duyệt mặc định của hệ điều hành
+/// Opens external URL safely using default OS browser
 #[tauri::command]
 pub fn open_external_url(url: String) -> Result<(), String> {
     if url.starts_with("http://") || url.starts_with("https://") {
@@ -136,12 +140,10 @@ pub fn open_external_url(url: String) -> Result<(), String> {
         {
             use std::ffi::OsStr;
             use std::os::windows::ffi::OsStrExt;
-
             let wide: Vec<u16> = OsStr::new(&url)
                 .encode_wide()
                 .chain(std::iter::once(0))
                 .collect();
-
             #[link(name = "shell32")]
             unsafe extern "system" {
                 fn ShellExecuteW(
@@ -153,7 +155,6 @@ pub fn open_external_url(url: String) -> Result<(), String> {
                     nShowCmd: i32,
                 ) -> isize;
             }
-
             unsafe {
                 ShellExecuteW(
                     std::ptr::null_mut(),
@@ -161,7 +162,7 @@ pub fn open_external_url(url: String) -> Result<(), String> {
                     wide.as_ptr(),
                     std::ptr::null(),
                     std::ptr::null(),
-                    1, // SW_SHOWNORMAL
+                    1,
                 );
             }
             return Ok(());
@@ -174,21 +175,18 @@ pub fn open_external_url(url: String) -> Result<(), String> {
     Err("Invalid URL scheme".into())
 }
 
-/// Command mở thư mục profiles trên máy của người dùng bằng File Explorer
+/// Opens profiles directory in File Explorer
 #[tauri::command]
 pub fn open_profiles_folder(app: AppHandle) -> Result<(), String> {
     let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let profiles_dir = app_data_dir.join("profiles");
-
     if !profiles_dir.exists() {
         let _ = std::fs::create_dir_all(&profiles_dir);
     }
-
     #[cfg(target_os = "windows")]
     {
         use std::ffi::OsStr;
         use std::os::windows::ffi::OsStrExt;
-
         let path_str = profiles_dir.to_string_lossy().to_string();
         let wide: Vec<u16> = OsStr::new(&path_str)
             .encode_wide()
@@ -198,7 +196,6 @@ pub fn open_profiles_folder(app: AppHandle) -> Result<(), String> {
             .encode_wide()
             .chain(std::iter::once(0))
             .collect();
-
         #[link(name = "shell32")]
         unsafe extern "system" {
             fn ShellExecuteW(
@@ -210,7 +207,6 @@ pub fn open_profiles_folder(app: AppHandle) -> Result<(), String> {
                 nShowCmd: i32,
             ) -> isize;
         }
-
         unsafe {
             ShellExecuteW(
                 std::ptr::null_mut(),
@@ -218,19 +214,18 @@ pub fn open_profiles_folder(app: AppHandle) -> Result<(), String> {
                 wide.as_ptr(),
                 std::ptr::null(),
                 std::ptr::null(),
-                1, // SW_SHOWNORMAL
+                1,
             );
         }
         Ok(())
     }
-
     #[cfg(not(target_os = "windows"))]
     {
         Ok(())
     }
 }
 
-/// Command cầu nối chuyển log từ Frontend React / Injected Script thẳng vào Terminal Backend và file logs/messenger_inject.log
+/// Forwards log messages from Frontend / Injected scripts to terminal and log file
 #[tauri::command]
 pub fn log_frontend(app: AppHandle, level: Option<String>, message: String) {
     let lvl = level.as_deref().unwrap_or("info");
@@ -241,8 +236,6 @@ pub fn log_frontend(app: AppHandle, level: Option<String>, message: String) {
         _ => "\x1b[36m[FE - INFO]\x1b[0m",
     };
     println!("{} {}", tag, message);
-
-    // Ghi an toàn vào AppData để tránh lỗi quyền khi cài đặt trong C:\Program Files
     if let Ok(data_dir) = app.path().app_data_dir() {
         let log_dir = data_dir.join("logs");
         let _ = std::fs::create_dir_all(&log_dir);

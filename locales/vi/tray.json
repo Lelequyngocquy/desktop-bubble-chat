@@ -1,0 +1,11 @@
+{
+  "open_dashboard": "Mở Bảng Điều Khiển",
+  "close_dashboard": "Đóng Bảng Điều Khiển",
+  "toggle_all_bubbles": "Bật/Tắt Tất Cả Bong Bóng",
+  "hide_all_bubbles": "Ẩn Tất Cả Bong Bóng",
+  "show_all_bubbles": "Hiện Tất Cả Bong Bóng",
+  "account_label": "Messenger {{index}}",
+  "quit_app": "Thoát Ứng Dụng",
+  "confirm_exit_title": "Xác nhận thoát DesktopBubbleChat",
+  "confirm_exit_text": "Bạn có chắc chắn muốn thoát hoàn toàn DesktopBubbleChat không?\n\n• Toàn bộ các Bong bóng nổi sẽ đóng lại.\n• Các cửa sổ chat Messenger sẽ ngừng hoạt động."
+}

@@ -38,7 +38,6 @@ export function useAutoUpdater() {
   const lastCheckedTime = useUpdateStore((s) => s.lastCheckedTime);
   const autoCheckOnStartup = useUpdateStore((s) => s.autoCheckOnStartup);
   const activeUpdate = useUpdateStore((s) => s.activeUpdate);
-
   const setStatus = useUpdateStore((s) => s.setStatus);
   const setCurrentVersion = useUpdateStore((s) => s.setCurrentVersion);
   const setUpdateAvailable = useUpdateStore((s) => s.setUpdateAvailable);
@@ -48,30 +47,26 @@ export function useAutoUpdater() {
   const setAutoCheckOnStartup = useUpdateStore((s) => s.setAutoCheckOnStartup);
   const setLastCheckedTime = useUpdateStore((s) => s.setLastCheckedTime);
   const resetProgress = useUpdateStore((s) => s.resetProgress);
-
   const isDownloadingRef = useRef(false);
   const cancelRequestedRef = useRef(false);
 
-  // 1. Đồng bộ phiên bản ứng dụng thực tế từ Tauri App metadata
   useEffect(() => {
     getVersion()
       .then((ver) => {
         if (ver) setCurrentVersion(ver);
       })
       .catch((err) => {
-        console.warn("[AutoUpdater] Không thể lấy version:", err);
+        console.warn("[AutoUpdater] Failed to get app version:", err);
       });
   }, [setCurrentVersion]);
 
-  // 2. Hàm kiểm tra bản cập nhật
   const checkForUpdates = useCallback(
     async (isSilent = false) => {
       try {
         if (!isSilent) {
           setStatus("checking");
         }
-
-        const nowStr = new Date().toLocaleTimeString("vi-VN", {
+        const nowStr = new Date().toLocaleTimeString(undefined, {
           hour: "2-digit",
           minute: "2-digit",
           second: "2-digit",
@@ -80,13 +75,9 @@ export function useAutoUpdater() {
           year: "numeric",
         });
         setLastCheckedTime(nowStr);
-
         const update = await check();
-
         if (update) {
-          console.log(
-            `[AutoUpdater] Tìm thấy phiên bản mới: ${update.version} (Hiện tại: ${update.currentVersion})`,
-          );
+          console.log(`[AutoUpdater] Found new version: ${update.version} (Current: ${update.currentVersion})`);
           setUpdateAvailable({
             availableVersion: update.version,
             releaseDate: update.date,
@@ -94,31 +85,28 @@ export function useAutoUpdater() {
             updateInstance: update,
           });
         } else {
-          console.log("[AutoUpdater] Ứng dụng đã ở phiên bản mới nhất.");
+          console.log("[AutoUpdater] Application is up to date.");
           setUpToDate();
         }
       } catch (err) {
-        console.error("[AutoUpdater] Lỗi khi kiểm tra cập nhật:", err);
+        console.error("[AutoUpdater] Error checking for updates:", err);
         let message =
           err instanceof Error
             ? err.message
             : typeof err === "string"
               ? err
-              : "Không thể kết nối đến máy chủ cập nhật.";
-
+              : "Unable to connect to update server.";
         if (
           message.includes("Could not fetch a valid release JSON") ||
           message.includes("404")
         ) {
-          message = "Chưa có bản phát hành mới!";
+          message = "No new release available!";
         } else if (
           message.toLowerCase().includes("network") ||
           message.toLowerCase().includes("failed to fetch")
         ) {
-          message =
-            "Lỗi kết nối mạng: Không thể truy cập máy chủ GitHub Releases.";
+          message = "Network error: Unable to access GitHub Releases server.";
         }
-
         if (!isSilent) {
           setError(message);
         }
@@ -127,12 +115,10 @@ export function useAutoUpdater() {
     [setError, setLastCheckedTime, setStatus, setUpToDate, setUpdateAvailable],
   );
 
-  // 3. Tự động kiểm tra khi khởi động (Silent check 1 lần)
   const hasCheckedOnMountRef = useRef(false);
   useEffect(() => {
     if (autoCheckOnStartup && !hasCheckedOnMountRef.current) {
       hasCheckedOnMountRef.current = true;
-      // Delay nhẹ 2.5s để nhường tài nguyên cho quá trình khởi động UI
       const timer = setTimeout(() => {
         checkForUpdates(true);
       }, 2500);
@@ -140,40 +126,33 @@ export function useAutoUpdater() {
     }
   }, [autoCheckOnStartup, checkForUpdates]);
 
-  // 4. Bắt đầu tải bản cập nhật
   const startDownload = useCallback(async () => {
     if (!activeUpdate) {
-      setError("Không tìm thấy thông tin bản cập nhật.");
+      setError("No update metadata found.");
       return;
     }
-
     if (isDownloadingRef.current) return;
     isDownloadingRef.current = true;
     cancelRequestedRef.current = false;
     resetProgress();
     setStatus("downloading");
-
     let total = 0;
     let downloaded = 0;
     let lastTime = Date.now();
     let lastBytes = 0;
-
     try {
       await activeUpdate.download((event: DownloadEvent) => {
         if (cancelRequestedRef.current) {
-          throw new Error("Người dùng đã hủy quá trình tải.");
+          throw new Error("Download cancelled by user.");
         }
-
         if (event.event === "Started") {
           total = event.data.contentLength || 0;
           setProgress(0, total, 0, "0 KB/s");
         } else if (event.event === "Progress") {
           downloaded += event.data.chunkLength;
-
           const now = Date.now();
           const elapsed = (now - lastTime) / 1000;
           let speedStr: string | undefined = undefined;
-
           if (elapsed >= 0.4) {
             const bytesDiff = downloaded - lastBytes;
             const speed = bytesDiff / elapsed;
@@ -181,29 +160,27 @@ export function useAutoUpdater() {
             lastTime = now;
             lastBytes = downloaded;
           }
-
           const pct =
             total > 0
               ? Math.min(100, Math.round((downloaded / total) * 100))
               : 0;
-
           setProgress(downloaded, total, pct, speedStr);
         } else if (event.event === "Finished") {
-          setProgress(total, total, 100, "Hoàn tất");
+          setProgress(total, total, 100, "Done");
           setStatus("downloaded");
         }
       });
     } catch (err) {
       if (cancelRequestedRef.current) {
-        console.log("[AutoUpdater] Đã hủy tải bản cập nhật.");
+        console.log("[AutoUpdater] Update download cancelled.");
         setStatus("available");
         resetProgress();
       } else {
-        console.error("[AutoUpdater] Lỗi khi tải bản cập nhật:", err);
+        console.error("[AutoUpdater] Error downloading update:", err);
         const msg =
           err instanceof Error
             ? err.message
-            : "Tải bản cập nhật thất bại. Vui lòng thử lại.";
+            : "Failed to download update. Please try again.";
         setError(msg);
       }
     } finally {
@@ -212,7 +189,6 @@ export function useAutoUpdater() {
     }
   }, [activeUpdate, resetProgress, setError, setProgress, setStatus]);
 
-  // 5. Dừng / Hủy quá trình tải
   const cancelDownload = useCallback(async () => {
     cancelRequestedRef.current = true;
     isDownloadingRef.current = false;
@@ -220,33 +196,29 @@ export function useAutoUpdater() {
       try {
         await activeUpdate.close();
       } catch (e) {
-        console.warn("[AutoUpdater] Đóng update resource:", e);
+        console.warn("[AutoUpdater] Close update resource:", e);
       }
     }
     setStatus("available");
     resetProgress();
   }, [activeUpdate, resetProgress, setStatus]);
 
-  // 6. Cài đặt và kích hoạt bản mới
   const installAndRelaunch = useCallback(async () => {
     if (!activeUpdate) {
-      setError("Không có bản cập nhật nào đã tải để cài đặt.");
+      setError("No downloaded update found to install.");
       return;
     }
-
     try {
       setStatus("installing");
-      // Trên Windows, install() kích hoạt bộ cài và tự động thoát / khởi chạy lại app mới
       await activeUpdate.install({ restartAfterInstall: true });
     } catch (err) {
-      console.error("[AutoUpdater] Lỗi khi cài đặt bản cập nhật:", err);
+      console.error("[AutoUpdater] Error installing update:", err);
       const msg =
-        err instanceof Error ? err.message : "Cài đặt bản cập nhật thất bại.";
+        err instanceof Error ? err.message : "Failed to install update.";
       setError(msg);
     }
   }, [activeUpdate, setError, setStatus]);
 
-  // 7. Khởi động lại ứng dụng thủ công (Reset app)
   const restartApp = useCallback(async () => {
     await systemService.restartApp();
   }, []);

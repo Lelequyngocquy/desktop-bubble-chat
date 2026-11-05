@@ -27,7 +27,6 @@ export const SwitchButton: React.FC<SwitchButtonProps> = ({
     : checked
     ? "translate-x-[18px]"
     : "translate-x-0";
-
   return (
     <button
       type="button"

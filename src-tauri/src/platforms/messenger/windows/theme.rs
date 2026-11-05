@@ -56,17 +56,14 @@ pub fn apply_window_theme_color(window: &tauri::WebviewWindow, hex: &str, border
             cbAttribute: u32,
         ) -> i32;
     }
-
     if let Ok(hwnd) = window.hwnd() {
         let raw_hwnd = hwnd.0 as *mut std::ffi::c_void;
         let caption_color = hex_to_colorref(hex);
         let border_color = hex_to_colorref(border_hex);
-        let text_color: u32 = 0x00FFFFFF; // Màu chữ trắng
-
+        let text_color: u32 = 0x00FFFFFF;
         const DWMWA_BORDER_COLOR: u32 = 34;
         const DWMWA_CAPTION_COLOR: u32 = 35;
         const DWMWA_TEXT_COLOR: u32 = 36;
-
         unsafe {
             let _ = DwmSetWindowAttribute(
                 raw_hwnd,

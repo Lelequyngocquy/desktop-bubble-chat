@@ -1,6 +1,6 @@
 use tauri::AppHandle;
 
-/// Command kiểm thử tạo và hiển thị Bong bóng Native Rust thuần (Prototype Giai đoạn 1 & 2)
+/// Command to preview/test native Rust bubble
 #[tauri::command]
 pub fn toggle_native_bubble_preview(
     app: AppHandle,
@@ -20,7 +20,7 @@ pub fn toggle_native_bubble_preview(
     }
 }
 
-/// Command kiểm thử kích hoạt hiệu ứng sóng lan tỏa Pulse trên Bong bóng Native (Giai đoạn 3)
+/// Command to test native bubble pulse animation
 #[tauri::command]
 pub fn trigger_native_bubble_pulse_preview(
     account_index: Option<u32>,
@@ -38,7 +38,7 @@ pub fn trigger_native_bubble_pulse_preview(
     }
 }
 
-/// Command kiểm thử thiết lập huy hiệu số đếm chưa đọc trên Bong bóng Native (Giai đoạn 3)
+/// Command to test setting native bubble unread badge count
 #[tauri::command]
 pub fn set_native_bubble_badge_preview(
     account_index: Option<u32>,
@@ -57,7 +57,7 @@ pub fn set_native_bubble_badge_preview(
     }
 }
 
-/// Command kiểm thử kích hoạt hoạt ảnh lò xo thụt mép cho Bong bóng Native (Giai đoạn 4)
+/// Command to test native bubble tuck animation
 #[tauri::command]
 pub fn tuck_native_bubble_preview(
     app: AppHandle,
@@ -76,7 +76,7 @@ pub fn tuck_native_bubble_preview(
     }
 }
 
-/// Command kiểm thử kích hoạt hoạt ảnh lò xo trượt ra mép cho Bong bóng Native (Giai đoạn 4)
+/// Command to test native bubble untuck animation
 #[tauri::command]
 pub fn untuck_native_bubble_preview(
     app: AppHandle,

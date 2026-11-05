@@ -1,5 +1,6 @@
 import React from "react";
 import { MoreHorizontal, Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useConversationStore } from "../../../stores/conversationStore";
 import { useNavigationStore } from "../../../stores/navigationStore";
 import {
@@ -12,6 +13,7 @@ import { Conversation } from "../../../types/conversation";
 import { ActiveChatHeadItem } from "./ActiveChatHeadItem";
 
 export const ActiveChatHeads: React.FC = () => {
+  const { t } = useTranslation("dashboard");
   const conversations = useConversationStore((s) => s.conversations);
   const removeConversation = useConversationStore((s) => s.removeConversation);
   const togglePinConversation = useConversationStore(
@@ -22,9 +24,7 @@ export const ActiveChatHeads: React.FC = () => {
   );
   const isMessengerConnected = useMessengerStore(selectIsMessengerConnected);
   const setActiveTab = useNavigationStore((s) => s.setActiveTab);
-
   const pinnedCount = conversations.filter((c) => c.isPinned).length;
-
   const handleOpenConversation = (item: Conversation) => {
     markConversationRead(item.id);
     messengerService.openThread(
@@ -36,7 +36,7 @@ export const ActiveChatHeads: React.FC = () => {
   return (
     <CommonWidget
       className="flex-1 h-side-col lg:h-full"
-      title="Chat heads đang hoạt động"
+      title={t("chatheads.title")}
       badgeCount={conversations.length}
       headerAction={
         <button
@@ -50,8 +50,8 @@ export const ActiveChatHeads: React.FC = () => {
       footerLeft={
         <span className="text-caption text-content-secondary">
           {isMessengerConnected
-            ? `${pinnedCount}/6 cuộc trò chuyện đã ghim`
-            : "Cần kết nối Messenger"}
+            ? t("chatheads.pinned_ratio", { pinned: pinnedCount })
+            : t("chatheads.need_connect")}
         </span>
       }
       footerRight={
@@ -64,27 +64,27 @@ export const ActiveChatHeads: React.FC = () => {
           className="flex items-center gap-1.5 text-small font-medium text-primary-foreground hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>Thêm hội thoại</span>
+          <span>{t("chatheads.add_conversation")}</span>
         </button>
       }
     >
       {conversations.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-content-secondary gap-2.5 my-auto">
           <span className="text-body font-medium text-content-primary">
-            Chưa có chat head nào hoạt động
+            {t("chatheads.empty_title")}
           </span>
           <span className="text-caption text-content-secondary text-center max-w-[280px]">
             {isMessengerConnected
-              ? "Thêm cuộc trò chuyện từ Messenger để ghim bong bóng lên desktop."
-              : "Hãy kết nối tài khoản Messenger để bắt đầu sử dụng chat heads."}
+              ? t("chatheads.empty_desc_connected")
+              : t("chatheads.empty_desc_disconnected")}
           </span>
           <button
             onClick={() => setActiveTab("connections")}
             className="text-small text-primary-foreground font-medium hover:underline mt-1 cursor-pointer"
           >
             {isMessengerConnected
-              ? "+ Thêm từ Messenger"
-              : "Kết nối Messenger ngay ↗"}
+              ? t("chatheads.empty_btn_add")
+              : t("chatheads.empty_btn_connect")}
           </button>
         </div>
       ) : (

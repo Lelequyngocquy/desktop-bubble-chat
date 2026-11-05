@@ -8,6 +8,7 @@ import {
   ArrowRight,
   AlertTriangle,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useNavigationStore } from "../../../stores/navigationStore";
 import { useQuickSettings } from "../../../hooks/useQuickSettings";
 import { CommonWidget } from "../../common";
@@ -15,6 +16,7 @@ import { QUICK_SETTINGS_CONFIG, QuickSettingItem } from "../../../config";
 import { QuickSettingRow } from "./QuickSettingRow";
 
 export const QuickSettings: React.FC = () => {
+  const { t } = useTranslation("dashboard");
   const setActiveTab = useNavigationStore((s) => s.setActiveTab);
   const {
     isBubbleEnabled,
@@ -30,7 +32,6 @@ export const QuickSettings: React.FC = () => {
     handleToggleNotifications,
     handleToggleAutoStart,
   } = useQuickSettings();
-
   const iconMap: Record<QuickSettingItem["iconName"], React.ReactNode> = {
     MessageSquare: (
       <MessageSquare className="w-[18px] h-[18px] text-content-secondary" />
@@ -39,7 +40,6 @@ export const QuickSettings: React.FC = () => {
     Bell: <Bell className="w-[18px] h-[18px] text-content-secondary" />,
     Power: <Power className="w-[18px] h-[18px] text-content-secondary" />,
   };
-
   const actionMap: Record<
     string,
     { value: boolean; onChange: () => void | Promise<void>; disabled?: boolean }
@@ -62,22 +62,20 @@ export const QuickSettings: React.FC = () => {
       onChange: handleToggleAutoStart,
     },
   };
-
   const settings = QUICK_SETTINGS_CONFIG.map((item) => {
     const action = actionMap[item.id];
     const isAvailable = !item.requiresConnection || isConnected;
-    const description =
+    const description: string =
       item.id === "bubble"
         ? bubbleDescription
         : item.id === "notifications"
           ? notificationsDescription
           : isAvailable
-            ? item.descriptionActive
-            : item.descriptionInactive;
-
+            ? (t(item.descriptionActiveKey as any) as string)
+            : (t(item.descriptionInactiveKey as any) as string);
     return {
       id: item.id,
-      label: item.label,
+      label: t(item.labelKey as any) as string,
       description,
       icon: iconMap[item.iconName],
       value: action?.value ?? false,
@@ -85,14 +83,12 @@ export const QuickSettings: React.FC = () => {
       disabled: action?.disabled ?? false,
     };
   });
-
-  // Tính số lượng thiết lập đang được bật
   const activeCount = settings.filter((s) => s.value).length;
 
   return (
     <CommonWidget
       className="w-full lg:w-[432px] shrink-0 h-side-col lg:h-full"
-      title="Thiết lập nhanh"
+      title={t("quick_settings.title")}
       headerAction={
         <SlidersHorizontal className="w-[18px] h-[18px] text-content-secondary" />
       }
@@ -105,7 +101,7 @@ export const QuickSettings: React.FC = () => {
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
             <span className="flex-1 font-medium">{warningMessage}</span>
             <span className="text-badge underline font-semibold">
-              Kết nối ngay
+              {t("connect_now")}
             </span>
           </div>
         ) : undefined
@@ -113,7 +109,10 @@ export const QuickSettings: React.FC = () => {
       bodyClassName="py-1 flex flex-col justify-between"
       footerLeft={
         <span className="text-caption text-content-secondary">
-          {activeCount}/{settings.length} tính năng đang bật
+          {t("quick_settings.active_ratio", {
+            active: activeCount,
+            total: settings.length,
+          })}
         </span>
       }
       footerRight={
@@ -122,7 +121,7 @@ export const QuickSettings: React.FC = () => {
           onClick={() => setActiveTab("settings")}
           className="flex items-center gap-1.5 text-small font-medium text-primary-foreground hover:text-primary transition-colors cursor-pointer"
         >
-          <span>Tất cả cài đặt</span>
+          <span>{t("quick_settings.all_settings")}</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       }

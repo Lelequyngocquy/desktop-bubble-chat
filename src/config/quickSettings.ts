@@ -1,8 +1,8 @@
 export interface QuickSettingItem {
   id: string;
-  label: string;
-  descriptionActive: string;
-  descriptionInactive: string;
+  labelKey: string;
+  descriptionActiveKey: string;
+  descriptionInactiveKey: string;
   iconName: "MessageSquare" | "Pin" | "Bell" | "Power";
   requiresConnection: boolean;
 }
@@ -10,33 +10,33 @@ export interface QuickSettingItem {
 export const QUICK_SETTINGS_CONFIG: QuickSettingItem[] = [
   {
     id: "bubble",
-    label: "Bong bóng nổi",
-    descriptionActive: "Hiển thị chat heads trên desktop",
-    descriptionInactive: "Cần kết nối Messenger để sử dụng",
+    labelKey: "quick_settings.item_bubble_label",
+    descriptionActiveKey: "quick_settings.item_bubble_active",
+    descriptionInactiveKey: "quick_settings.item_bubble_inactive",
     iconName: "MessageSquare",
     requiresConnection: true,
   },
   {
     id: "always-on-top",
-    label: "Luôn nổi trên cùng",
-    descriptionActive: "Bong bóng nổi trên các ứng dụng khác",
-    descriptionInactive: "Bong bóng có thể bị ứng dụng khác che phủ",
+    labelKey: "quick_settings.item_always_on_top_label",
+    descriptionActiveKey: "quick_settings.item_always_on_top_active",
+    descriptionInactiveKey: "quick_settings.item_always_on_top_inactive",
     iconName: "Pin",
     requiresConnection: false,
   },
   {
     id: "notifications",
-    label: "Thông báo",
-    descriptionActive: "Nhận thông báo khi có tin nhắn mới",
-    descriptionInactive: "Nhận thông báo khi có tin nhắn mới",
+    labelKey: "quick_settings.item_notifications_label",
+    descriptionActiveKey: "quick_settings.item_notifications_active",
+    descriptionInactiveKey: "quick_settings.item_notifications_inactive",
     iconName: "Bell",
     requiresConnection: false,
   },
   {
     id: "autostart",
-    label: "Khởi động cùng Windows",
-    descriptionActive: "Sẵn sàng ngay khi bạn đăng nhập",
-    descriptionInactive: "Sẵn sàng ngay khi bạn đăng nhập",
+    labelKey: "quick_settings.item_autostart_label",
+    descriptionActiveKey: "quick_settings.item_autostart_active",
+    descriptionInactiveKey: "quick_settings.item_autostart_inactive",
     iconName: "Power",
     requiresConnection: false,
   },

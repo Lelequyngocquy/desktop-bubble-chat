@@ -4,19 +4,16 @@ use tauri::{AppHandle, Emitter, Manager, PhysicalPosition};
 use crate::movement::{BubbleMovementEngine, BubbleRect, ScreenMetrics};
 use super::webview::{get_bubble_window_label, get_or_create_bubble_window, resize_bubble_window};
 
-/// Lấy danh sách tọa độ của tất cả Bubble đang hiển thị dưới dạng BubbleRect
+/// Returns active bubble bounds as BubbleRect list
 pub fn get_active_bubble_rects(
     app: &AppHandle,
     exclude_label: Option<&str>,
 ) -> Vec<BubbleRect> {
     let mut rects = Vec::new();
-
-    // 1. Lấy danh sách rect đã commit trong ChatState (SSOT bảo vệ chống race condition)
     let state_rects: std::collections::HashMap<u32, BubbleRect> = app
         .try_state::<Arc<crate::state::ChatState>>()
         .and_then(|s| s.active_bubble_rects.lock().ok().map(|g| g.clone()))
         .unwrap_or_default();
-
     for idx in 1..=5 {
         let label = get_bubble_window_label(idx);
         if let Some(exclude) = exclude_label {
@@ -24,7 +21,6 @@ pub fn get_active_bubble_rects(
                 continue;
             }
         }
-
         #[cfg(target_os = "windows")]
         {
             if crate::windows::native_bubble::NativeBubbleManager::global().has_bubble(idx) {
@@ -40,9 +36,7 @@ pub fn get_active_bubble_rects(
                 }
             }
         }
-
         let win = app.get_webview_window(&label);
-
         if let Some(w) = win {
             let is_vis = w.is_visible().unwrap_or(false);
             if is_vis || state_rects.contains_key(&idx) {
@@ -66,11 +60,10 @@ pub fn get_active_bubble_rects(
             rects.push(*sr);
         }
     }
-
     rects
 }
 
-/// Hiển thị và định vị Bubble cho tài khoản chỉ định với cơ chế xếp chống va chạm có hỗ trợ obstacles bổ sung
+/// Positions and displays bubble for account with collision avoidance and optional extra obstacles
 pub fn ensure_bubble_positioned_and_visible_with_extra(
     app: &AppHandle,
     account_index: u32,
@@ -89,13 +82,9 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
                 }
             })
             .or_else(|| app.primary_monitor().ok().flatten());
-
         if let Some(mon) = monitor {
             let screen = ScreenMetrics::from_monitor(&mon);
             let bubble_w = (config.size * screen.scale_factor) as i32;
-
-            // 0. BẢO VỆ VỊ TRÍ HIỆN HỮU: Nếu Native Bubble của tài khoản đã tồn tại trên màn hình,
-            // bảo toàn tuyệt đối tọa độ hiện tại (kể cả sau khi kéo thả), nhưng đồng bộ kích thước chuẩn
             if crate::windows::native_bubble::NativeBubbleManager::global().has_bubble(account_index) {
                 if let Some((x, y, w, _h)) = crate::windows::native_bubble::NativeBubbleManager::global().get_bounds(account_index) {
                     if w != bubble_w as u32 {
@@ -114,18 +103,13 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
                     return Ok(rect);
                 }
             }
-
             let mut other_bubbles = get_active_bubble_rects(app, None);
             for obs in extra_obstacles {
                 if !other_bubbles.iter().any(|b| b.account_index == obs.account_index) {
                     other_bubbles.push(*obs);
                 }
             }
-
-            // 1. Tính toán vị trí xếp chồng ban đầu
             let target_pos = BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &other_bubbles);
-
-            // 2. Bật / Tạo Native Bubble thuần Rust trên Dedicated UI Thread (RAM ~16 KB)
             crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
                 crate::windows::native_bubble::NativeBubbleAction::Show {
                     account_index,
@@ -135,7 +119,6 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
                     app: app.clone(),
                 }
             );
-
             let rect = BubbleRect {
                 account_index,
                 x: target_pos.x,
@@ -143,20 +126,15 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
                 width: bubble_w,
                 height: bubble_w,
             };
-
-            // 4. Cập nhật vị trí vào SSOT ChatState ngay lập tức
             if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
                 chat_state.set_bubble_rect(account_index, rect);
             }
-
             let _ = app.emit("bubble-visibility-changed", serde_json::json!({
                 "accountIndex": account_index,
                 "visible": true,
                 "x": target_pos.x,
                 "y": target_pos.y
             }));
-
-            // 5. Tải trước (preload) cửa sổ chat Webview Messenger trong nền ngay khi Bubble hiển thị
             if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
                 crate::platforms::messenger::windows::preload_messenger_window(
                     app,
@@ -164,17 +142,13 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
                     Arc::clone(&chat_state),
                 );
             }
-
             return Ok(rect);
         }
     }
-
     let bubble_window = get_or_create_bubble_window(app, account_index)?;
     let win_label = bubble_window.label().to_string();
-
     let config = crate::movement::get_bubble_physics_config(app);
     resize_bubble_window(&bubble_window, config.size);
-
     let monitor = app
         .get_webview_window("main")
         .and_then(|m| {
@@ -186,21 +160,16 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
         })
         .or_else(|| bubble_window.current_monitor().ok().flatten())
         .or_else(|| app.primary_monitor().ok().flatten());
-
     let mut committed_pos = PhysicalPosition { x: 0, y: 0 };
     let mut bubble_w = 56;
-
     if let Some(monitor) = monitor {
         let win_pos = bubble_window.outer_position().unwrap_or_default();
         let screen = ScreenMetrics::from_monitor(&monitor);
         bubble_w = (config.size * screen.scale_factor) as i32;
-
         let is_visible = bubble_window.is_visible().unwrap_or(false);
-        // Nới lỏng khoảng kiểm tra biên an toàn (tránh việc bubble thụt mép trái hợp lệ bị coi là out of bounds)
         let is_out_of_bounds = win_pos.x < screen.x - bubble_w * 2
             || win_pos.x > screen.x + screen.width + bubble_w
             || (!is_visible && win_pos.x == 0 && win_pos.y == 0);
-
         if !is_visible || is_out_of_bounds {
             let mut other_bubbles = get_active_bubble_rects(app, Some(&win_label));
             for obs in extra_obstacles {
@@ -221,7 +190,6 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
     }
     let _ = bubble_window.show();
     let _ = bubble_window.unminimize();
-
     let rect = BubbleRect {
         account_index,
         x: committed_pos.x,
@@ -229,20 +197,15 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
         width: bubble_w,
         height: bubble_w,
     };
-
-    // Cập nhật vị trí vào SSOT ChatState ngay lập tức
     if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
         chat_state.set_bubble_rect(account_index, rect);
     }
-
     let _ = app.emit("bubble-visibility-changed", serde_json::json!({
         "accountIndex": account_index,
         "visible": true,
         "x": committed_pos.x,
         "y": committed_pos.y
     }));
-
-    // Tải trước (preload) cửa sổ chat Webview Messenger trong nền ngay khi Bubble hiển thị
     if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
         crate::platforms::messenger::windows::preload_messenger_window(
             app,
@@ -250,7 +213,6 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
             Arc::clone(&chat_state),
         );
     }
-
     Ok(BubbleRect {
         account_index,
         x: committed_pos.x,
@@ -260,24 +222,21 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
     })
 }
 
-/// Hiển thị và định vị Bubble cho tài khoản chỉ định với cơ chế xếp chống va chạm
+/// Positions and displays bubble for account with collision avoidance
 pub fn ensure_bubble_positioned_and_visible(app: &AppHandle, account_index: u32) -> Result<BubbleRect, String> {
     ensure_bubble_positioned_and_visible_with_extra(app, account_index, &[])
 }
 
-/// Tự động thụt các bong bóng nổi vào mép màn hình (tuck_ratio)
+/// Tucks floating bubbles into screen edge
 pub fn tuck_bubble(app: &AppHandle, account_index: Option<u32>) {
     let indices: Vec<u32> = match account_index {
         Some(idx) => vec![idx],
         None => (1..=5).collect(),
     };
-
     let config = crate::movement::get_bubble_physics_config(app);
-
     for idx in indices {
         let label = get_bubble_window_label(idx);
         let win = app.get_webview_window(&label);
-
         if let Some(bubble_window) = win {
             if let Ok(Some(monitor)) = bubble_window.current_monitor() {
                 let screen = ScreenMetrics::from_monitor(&monitor);

@@ -8,20 +8,16 @@ use crate::state::ChatState;
 use crate::utils::win32::{is_cursor_over_bubble, is_cursor_over_window, is_lbutton_down};
 use crate::windows::bubble::get_bubble_window_label;
 
-/// Luồng giám sát toàn cục: Hover 0.1s trên Bubble để tự động mở Chat, rời khỏi cả Chat lẫn Bubble thì tự động đóng
+/// Daemon thread: Hover 0.1s over bubble to open chat, auto-close when cursor leaves both chat and bubble
 pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatState>) {
     std::thread::spawn(move || {
         let mut current_hover_bubble: Option<u32> = None;
         let mut hover_start: Option<Instant> = None;
         let mut already_opened_for_hover = false;
         let mut outside_open_chat_start: Option<Instant> = None;
-
         loop {
             std::thread::sleep(Duration::from_millis(30));
-
             let lbutton_down = is_lbutton_down();
-
-            // 1. Tìm xem con trỏ chuột hiện tại đang nằm trên Bubble nào
             let mut detected_hover_bubble: Option<u32> = None;
             if !lbutton_down {
                 for idx in 1..=5 {
@@ -40,19 +36,15 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                     }
                 }
             }
-
-            // 2. Logic Hover 0.1s (100ms) để tự động mở Chat tương ứng (có Preload Gatekeeper)
             if let Some(hovered_idx) = detected_hover_bubble {
                 if current_hover_bubble == Some(hovered_idx) {
                     if !already_opened_for_hover {
                         if let Some(start) = hover_start {
                             if start.elapsed() >= Duration::from_millis(100) {
-                                // Kiểm tra xem Webview đã nạp ngầm xong (ready) hay chưa
                                 if chat_state.is_chat_ready(hovered_idx) {
                                     let _ = ChatService::open_chat(&app, &chat_state, hovered_idx);
                                     already_opened_for_hover = true;
                                 } else if start.elapsed() >= Duration::from_millis(400) {
-                                    // Chờ tối đa 400ms cho quá trình nạp cache đĩa khi vừa bật lại Bubble
                                     let _ = ChatService::open_chat(&app, &chat_state, hovered_idx);
                                     already_opened_for_hover = true;
                                 }
@@ -70,8 +62,6 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                 hover_start = None;
                 already_opened_for_hover = false;
             }
-
-            // 3. Logic Auto-Close khi chuột rời khỏi cả Chat lẫn Bubble tương ứng (chỉ khi không nhấn giữ chuột)
             let mut active_chat_info: Option<(u32, tauri::WebviewWindow)> = None;
             for idx in 1..=5 {
                 if chat_state.is_account_suspended(idx) {
@@ -87,7 +77,6 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                     }
                 }
             }
-
             if !lbutton_down {
                 if let Some((active_idx, chat_win)) = active_chat_info {
                     let bubble_label = get_bubble_window_label(active_idx);
@@ -96,7 +85,6 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                         .get_webview_window(&bubble_label)
                         .map(|b| is_cursor_over_bubble(&b))
                         .unwrap_or_else(|| crate::windows::native_bubble::is_cursor_over_native_bubble(active_idx));
-
                     if over_chat || over_bubble {
                         outside_open_chat_start = None;
                     } else {

@@ -12,6 +12,7 @@ import {
   Info,
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { useTranslation } from "react-i18next";
 import { ProcessMetricItem, SystemPerformanceSnapshot } from "../../types/performance";
 import { IPC_COMMANDS } from "../../types/ipc";
 
@@ -32,14 +33,12 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
   onRefresh,
   onTrimMemory,
 }) => {
+  const { t } = useTranslation("performance");
   const [actingAccountIndex, setActingAccountIndex] = useState<number | null>(null);
-
-  // Nhóm các items theo danh mục
   const hostItems: ProcessMetricItem[] = [];
   const dashboardItems: ProcessMetricItem[] = [];
   const messengerItemsMap = new Map<number, ProcessMetricItem[]>();
   const gpuUtilityItems: ProcessMetricItem[] = [];
-
   if (snapshot?.items) {
     for (const item of snapshot.items) {
       if (item.category === "host") {
@@ -55,12 +54,9 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
       }
     }
   }
-
-  // Danh sách các accountIndex đã sắp xếp
   const messengerAccounts = Array.from(messengerItemsMap.entries()).sort(
     ([a], [b]) => a - b
   );
-
   const handleFreezeAccount = async (accountIndex: number) => {
     try {
       setActingAccountIndex(accountIndex);
@@ -68,17 +64,15 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
         accountIndex,
         visible: false,
       });
-      // Đợi ngắn để tiến trình kịp terminate rồi refresh snapshot
       setTimeout(() => {
         onRefresh();
         setActingAccountIndex(null);
       }, 500);
     } catch (err) {
-      console.error("[ProcessDetailCard] Lỗi khi đóng băng tài khoản:", err);
+      console.error("[ProcessDetailCard] Error freezing account:", err);
       setActingAccountIndex(null);
     }
   };
-
   const handleWakeAccount = async (accountIndex: number) => {
     try {
       setActingAccountIndex(accountIndex);
@@ -88,7 +82,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
         setActingAccountIndex(null);
       }, 800);
     } catch (err) {
-      console.error("[ProcessDetailCard] Lỗi khi kích hoạt tài khoản:", err);
+      console.error("[ProcessDetailCard] Error waking account:", err);
       setActingAccountIndex(null);
     }
   };
@@ -100,48 +94,44 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-primary" />
           <h2 className="text-body-lg font-semibold text-content-primary m-0">
-            Chi Tiết Tiến Trình & Tài Nguyên Hệ Thống
+            {t("title")}
           </h2>
         </div>
-
         <div className="flex items-center gap-2">
-          {/* Nút Dọn dẹp RAM (Trim Working Set) */}
           <button
             onClick={onTrimMemory}
             disabled={isTrimming}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-primary border border-blue-200 rounded-control text-small font-medium transition-colors cursor-pointer disabled:opacity-60"
-            title="Đẩy bộ nhớ đệm không dùng về Pagefile. Windows sẽ tự động cấp phát lại khi cần."
+            title={t("trim_ram_tooltip")}
           >
             <Sparkles className={`w-3.5 h-3.5 ${isTrimming ? "animate-spin" : ""}`} />
-            <span>{isTrimming ? "Đang dọn dẹp..." : "Dọn dẹp RAM"}</span>
+            <span>{isTrimming ? t("trim_ram_running") : t("trim_ram_btn")}</span>
           </button>
-
-          {/* Nút Làm mới thủ công */}
           <button
             onClick={onRefresh}
             disabled={isLoading}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-background-surface hover:bg-white border border-border rounded-control text-small text-content-secondary hover:text-content-primary transition-colors cursor-pointer"
-            title="Làm mới số liệu đo lường ngay lập tức"
+            title={t("refresh_tooltip")}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-primary" : ""}`} />
-            <span>{isLoading ? "Đang quét..." : "Làm mới"}</span>
+            <span>{isLoading ? t("refresh_running") : t("refresh_btn")}</span>
           </button>
         </div>
       </div>
 
-      {/* Thông báo kết quả Trim RAM nếu có */}
+      {/* Trim RAM success notification */}
       {lastTrimmedMb !== null && lastTrimmedMb > 0 && (
         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-control text-emerald-800 text-small flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>
-            Đã thu hồi thành công <strong>{lastTrimmedMb.toFixed(1)} MB</strong> bộ nhớ đệm về hệ điều hành Windows!
+            {t("trim_success", { mb: lastTrimmedMb.toFixed(1) })}
           </span>
         </div>
       )}
 
-      {/* 2. Danh sách các nhóm tiến trình */}
+      {/* 2. Process groups */}
       <div className="flex flex-col gap-4 divide-y divide-border/60">
-        {/* Nhóm 1: Hệ thống cốt lõi (Rust Host Core) */}
+        {/* Group 1: Host Core */}
         <div className="flex flex-col gap-2 pt-1 first:pt-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -149,15 +139,14 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                 <Cpu className="w-3.5 h-3.5" />
               </div>
               <span className="text-small font-semibold text-content-primary">
-                1. Hệ Thống Cốt Lõi (Rust Host & Native Bubbles)
+                {t("host_core")}
               </span>
             </div>
             <span className="text-caption text-emerald-600 font-medium flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Hoạt động tối ưu
+              {t("optimal_status")}
             </span>
           </div>
-
           {hostItems.map((item) => (
             <div
               key={item.pid}
@@ -177,7 +166,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                     {item.workingSetMb.toFixed(1)} MB
                   </span>
                   <span className="text-caption text-content-secondary">
-                    RAM Working Set
+                    {t("ram_working_set")}
                   </span>
                 </div>
                 <div className="flex flex-col items-end w-14">
@@ -185,7 +174,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                     {item.cpuPercent.toFixed(1)}%
                   </span>
                   <span className="text-caption text-content-secondary">
-                    CPU
+                    {t("cpu")}
                   </span>
                 </div>
               </div>
@@ -193,7 +182,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
           ))}
         </div>
 
-        {/* Nhóm 2: Bảng điều khiển (Dashboard UI) */}
+        {/* Group 2: Dashboard UI */}
         <div className="flex flex-col gap-2 pt-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -201,18 +190,17 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                 <Monitor className="w-3.5 h-3.5" />
               </div>
               <span className="text-small font-semibold text-content-primary">
-                2. Bảng Điều Khiển (Dashboard WebView2 Main Window)
+                {t("dashboard_ui")}
               </span>
             </div>
             <span className="text-caption text-content-muted flex items-center gap-1">
               <Info className="w-3.5 h-3.5" />
-              Tự động ngủ đông 0 MB khi đóng về khay
+              {t("dashboard_hibernation_hint")}
             </span>
           </div>
-
           {dashboardItems.length === 0 ? (
             <div className="p-3 bg-background-app/30 border border-border/40 rounded-control text-caption text-content-muted">
-              Cửa sổ Dashboard đang ở chế độ ngủ đông (0 MB UI RAM)
+              {t("dashboard_hibernating")}
             </div>
           ) : (
             dashboardItems.map((item) => (
@@ -234,7 +222,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                       {item.workingSetMb.toFixed(1)} MB
                     </span>
                     <span className="text-caption text-content-secondary">
-                      RAM
+                      {t("ram")}
                     </span>
                   </div>
                   <div className="flex flex-col items-end w-14">
@@ -242,7 +230,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                       {item.cpuPercent.toFixed(1)}%
                     </span>
                     <span className="text-caption text-content-secondary">
-                      CPU
+                      {t("cpu")}
                     </span>
                   </div>
                 </div>
@@ -251,7 +239,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
           )}
         </div>
 
-        {/* Nhóm 3: Các tài khoản Messenger (01..05) */}
+        {/* Group 3: Messenger Accounts */}
         <div className="flex flex-col gap-2.5 pt-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -259,17 +247,16 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                 <Snowflake className="w-3.5 h-3.5" />
               </div>
               <span className="text-small font-semibold text-content-primary">
-                3. Các Tài Khoản Messenger Độc Lập
+                {t("messenger_accounts")}
               </span>
             </div>
             <span className="text-caption text-content-secondary">
-              Mỗi tài khoản là 1 phiên WebView2 cô lập hoàn toàn
+              {t("isolated_webview_hint")}
             </span>
           </div>
-
           {messengerAccounts.length === 0 ? (
             <div className="p-4 bg-background-app/30 border border-border/40 rounded-control text-center text-caption text-content-muted">
-              Chưa có tài khoản Messenger nào được liên kết
+              {t("no_accounts_linked")}
             </div>
           ) : (
             messengerAccounts.map(([accountIndex, procList]) => {
@@ -299,7 +286,6 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                       >
                         {accountIndex.toString().padStart(2, "0")}
                       </div>
-
                       <div className="flex flex-col">
                         <div className="flex items-center gap-2">
                           <span className="text-small font-semibold text-content-primary">
@@ -307,21 +293,19 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                           </span>
                           {isSuspended ? (
                             <span className="px-2 py-0.5 rounded-pill text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
-                              ❄️ Đã đóng băng
+                              {t("status_frozen")}
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 rounded-pill text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              🟢 Đang hoạt động
+                              {t("status_active")}
                             </span>
                           )}
                         </div>
                         <span className="text-caption text-content-muted">
-                          Thư mục hồ sơ: profiles/messenger_{accountIndex.toString().padStart(2, "0")}
+                          {t("profile_dir")}: profiles/messenger_{accountIndex.toString().padStart(2, "0")}
                         </span>
                       </div>
                     </div>
-
-                    {/* Chỉ số & Nút hành động */}
                     <div className="flex items-center gap-3 self-end sm:self-auto">
                       <div className="flex items-center gap-3 text-small mr-2">
                         <div className="flex flex-col items-end">
@@ -333,43 +317,39 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                             {isSuspended ? "0 MB" : `${totalAccountRam.toFixed(1)} MB`}
                           </span>
                           <span className="text-caption text-content-muted">
-                            {isSuspended ? "Tiết kiệm ~700MB" : "Tổng RAM"}
+                            {isSuspended ? t("savings_tag") : t("total_ram")}
                           </span>
                         </div>
                         <div className="flex flex-col items-end w-12">
                           <span className="font-semibold text-content-primary">
                             {isSuspended ? "0.0%" : `${totalAccountCpu.toFixed(1)}%`}
                           </span>
-                          <span className="text-caption text-content-muted">CPU</span>
+                          <span className="text-caption text-content-muted">{t("cpu")}</span>
                         </div>
                       </div>
-
-                      {/* Nút Đóng băng / Kích hoạt */}
                       {isSuspended ? (
                         <button
                           onClick={() => handleWakeAccount(accountIndex)}
                           disabled={isActing}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-control text-small font-medium shadow-xs transition-colors cursor-pointer disabled:opacity-60"
-                          title="Khởi động lại bong bóng và cửa sổ chat cho tài khoản này"
+                          title={t("wake_tooltip")}
                         >
                           <Play className={`w-3.5 h-3.5 fill-current ${isActing ? "animate-spin" : ""}`} />
-                          <span>{isActing ? "Đang mở..." : "Kích hoạt"}</span>
+                          <span>{isActing ? t("wake_running") : t("wake_account")}</span>
                         </button>
                       ) : (
                         <button
                           onClick={() => handleFreezeAccount(accountIndex)}
                           disabled={isActing}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-control text-small font-medium transition-colors cursor-pointer disabled:opacity-60"
-                          title="Hủy tiến trình WebView2 để giải phóng ngay ~700 MB RAM về máy tính"
+                          title={t("freeze_tooltip")}
                         >
                           <Snowflake className={`w-3.5 h-3.5 ${isActing ? "animate-spin" : ""}`} />
-                          <span>{isActing ? "Đang xử lý..." : "Đóng băng ngay"}</span>
+                          <span>{isActing ? t("freeze_running") : t("freeze_account")}</span>
                         </button>
                       )}
                     </div>
                   </div>
-
-                  {/* Chi tiết từng tiến trình con nếu tài khoản đang chạy */}
                   {!isSuspended && procList.length > 0 && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-border/40">
                       {procList.map((p) => (
@@ -393,7 +373,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
           )}
         </div>
 
-        {/* Nhóm 4: GPU Acceleration & Utility Brokers */}
+        {/* Group 4: GPU & Utility */}
         <div className="flex flex-col gap-2 pt-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -401,14 +381,13 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                 <HardDrive className="w-3.5 h-3.5" />
               </div>
               <span className="text-small font-semibold text-content-primary">
-                4. Dịch Vụ Nền & Tăng Tốc Phần Cứng (GPU & Utility Brokers)
+                {t("gpu_utility")}
               </span>
             </div>
             <span className="text-caption text-content-muted">
-              Tiến trình chia sẻ của WebView2 Runtime
+              {t("shared_runtime")}
             </span>
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {gpuUtilityItems.map((item) => (
               <div
@@ -426,7 +405,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                     {item.workingSetMb.toFixed(1)} MB
                   </span>
                   <span className="text-content-secondary">
-                    {item.cpuPercent.toFixed(1)}% CPU
+                    {item.cpuPercent.toFixed(1)}% {t("cpu")}
                   </span>
                 </div>
               </div>

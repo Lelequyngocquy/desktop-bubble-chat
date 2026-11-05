@@ -8,6 +8,7 @@ interface TabHeaderProps {
 }
 
 export const TabHeader: React.FC<TabHeaderProps> = ({
+  eyebrow,
   title,
   description,
   rightSlot,
@@ -15,6 +16,11 @@ export const TabHeader: React.FC<TabHeaderProps> = ({
   return (
     <header className="shrink-0 bg-background-workspace px-8 pt-5 pb-4 border-b border-border flex items-center justify-between gap-4 select-none">
       <div className="flex flex-col gap-0.5">
+        {eyebrow && (
+          <span className="text-caption font-semibold text-content-secondary uppercase tracking-wider leading-none">
+            {eyebrow}
+          </span>
+        )}
         <div className="flex items-center gap-3">
           <h1 className="text-platform font-bold text-content-primary tracking-tight leading-tight m-0">
             {title}
@@ -26,7 +32,6 @@ export const TabHeader: React.FC<TabHeaderProps> = ({
           </p>
         )}
       </div>
-
       {rightSlot && (
         <div className="shrink-0 flex items-center">{rightSlot}</div>
       )}

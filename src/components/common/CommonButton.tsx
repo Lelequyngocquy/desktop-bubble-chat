@@ -25,14 +25,11 @@ export const CommonButton: React.FC<CommonButtonProps> = ({
   type = "button",
   title,
 }) => {
-  // Kích thước chiều cao và khoảng cách lề
   const sizeClasses = {
     sm: "h-8 px-3 text-small gap-1.5",
     md: "h-9 px-3.5 text-body gap-1.5",
     lg: "h-10 px-5 text-nav gap-2",
   }[size];
-
-  // Màu sắc theo biến thể
   const variantClasses = {
     primary:
       "bg-primary hover:bg-primary-foreground active:bg-primary-foreground/90 text-content-inverse shadow-xs border-transparent",
@@ -45,7 +42,6 @@ export const CommonButton: React.FC<CommonButtonProps> = ({
     danger:
       "bg-status-error hover:bg-status-error/90 active:bg-status-error/80 text-content-inverse border-transparent",
   }[variant];
-
   return (
     <button
       type={type}

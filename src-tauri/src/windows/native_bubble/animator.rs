@@ -1,20 +1,18 @@
 use std::time::Instant;
 
-/// Đường cong chuyển động làm chậm dần ở cuối (Ease-out Cubic)
-/// Công thức: f(p) = 1 - (1 - p)^3
+/// Ease-out cubic curve: f(p) = 1 - (1 - p)^3
 pub fn ease_out_cubic(progress: f64) -> f64 {
     let p = progress.clamp(0.0, 1.0);
     1.0 - (1.0 - p).powi(3)
 }
 
-/// Đường cong chuyển động bậc 2 (Ease-out Quad) cho chuyển động snap nhẹ nhàng
-/// Công thức: f(p) = 1 - (1 - p)^2
+/// Ease-out quadratic curve: f(p) = 1 - (1 - p)^2
 pub fn ease_out_quad(progress: f64) -> f64 {
     let p = progress.clamp(0.0, 1.0);
     1.0 - (1.0 - p).powi(2)
 }
 
-/// Nội suy tọa độ 2D giữa điểm bắt đầu và đích đến theo hàm chuyển động
+/// Interpolates 2D position based on easing progress
 pub fn interpolate_position(
     start: (i32, i32),
     target: (i32, i32),
@@ -26,7 +24,7 @@ pub fn interpolate_position(
     (cur_x, cur_y)
 }
 
-/// Trạng thái hoạt ảnh lò xo nội suy tọa độ 60 FPS cho cửa sổ Bong bóng Native
+/// Spring animation state for 60 FPS interpolation
 #[derive(Debug, Clone)]
 pub struct SpringAnimationState {
     pub is_animating: bool,
@@ -53,7 +51,7 @@ impl Default for SpringAnimationState {
 }
 
 impl SpringAnimationState {
-    /// Bắt đầu một tiến trình hoạt ảnh mới tới tọa độ đích
+    /// Starts a new animation toward target coordinates
     pub fn start(&mut self, current_x: i32, current_y: i32, target_x: i32, target_y: i32, duration_ms: u64) {
         self.is_animating = true;
         self.start_x = current_x;
@@ -64,17 +62,16 @@ impl SpringAnimationState {
         self.duration_ms = duration_ms.max(40);
     }
 
-    /// Hủy hoạt ảnh ngay lập tức
+    /// Stops animation immediately
     pub fn stop(&mut self) {
         self.is_animating = false;
     }
 
-    /// Tính toán tọa độ tại thời điểm hiện tại (trả về (x, y, is_finished))
+    /// Calculates position at current time, returns (x, y, is_finished)
     pub fn step(&mut self) -> Option<(i32, i32, bool)> {
         if !self.is_animating {
             return None;
         }
-
         let elapsed = self.start_time.elapsed().as_millis() as f64;
         let progress = (elapsed / self.duration_ms as f64).clamp(0.0, 1.0);
         let (cur_x, cur_y) = interpolate_position(
@@ -82,12 +79,10 @@ impl SpringAnimationState {
             (self.target_x, self.target_y),
             progress,
         );
-
         let is_finished = progress >= 1.0;
         if is_finished {
             self.is_animating = false;
         }
-
         Some((cur_x, cur_y, is_finished))
     }
 }
@@ -101,7 +96,6 @@ mod tests {
         assert_eq!(ease_out_cubic(0.0), 0.0);
         assert_eq!(ease_out_cubic(1.0), 1.0);
         let mid = ease_out_cubic(0.5);
-        // Với ease-out cubic, tại 50% thời gian đã đi được 87.5% quãng đường
         assert!((mid - 0.875).abs() < 1e-6);
     }
 
@@ -109,11 +103,9 @@ mod tests {
     fn test_interpolate_position() {
         let start = (0, 100);
         let target = (200, 300);
-
         let (x0, y0) = interpolate_position(start, target, 0.0);
         assert_eq!(x0, 0);
         assert_eq!(y0, 100);
-
         let (x1, y1) = interpolate_position(start, target, 1.0);
         assert_eq!(x1, 200);
         assert_eq!(y1, 300);
@@ -124,17 +116,14 @@ mod tests {
         let mut anim = SpringAnimationState::default();
         assert!(!anim.is_animating);
         assert_eq!(anim.step(), None);
-
         anim.start(10, 20, 100, 200, 180);
         assert!(anim.is_animating);
-
         let step_res = anim.step();
         assert!(step_res.is_some());
         let (x, y, finished) = step_res.unwrap();
         assert!(x >= 10 && x <= 100);
         assert!(y >= 20 && y <= 200);
         assert!(!finished);
-
         anim.stop();
         assert!(!anim.is_animating);
     }

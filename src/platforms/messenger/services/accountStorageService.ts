@@ -26,15 +26,13 @@ export const accountStorageService = {
                 : typeof a.isBubbleVisible === "boolean"
                 ? a.isBubbleVisible
                 : false;
-
             return {
               ...a,
-              // Bất biến SSOT: Tên tài khoản luôn luôn là "Messenger 01", "Messenger 02",... tuyệt đối không bị ghi đè bởi chuỗi số định danh UID
+              // SSOT invariant: Canonical name format
               name: formatMessengerName(a.index),
               avatarText: formatMessengerAvatarText(a.index),
               color: getAccountThemeColor(a.index).hex,
-              isAuthenticating: false, // Invariant: Never persist in-flight authentication state
-              // Khởi động app với trạng thái bong bóng người dùng đã thiết lập trước đó
+              isAuthenticating: false,
               isBubbleVisible: shouldRestore,
               shouldRestoreBubble: shouldRestore,
               soundEnabled: typeof a.soundEnabled === "boolean" ? a.soundEnabled : true,
@@ -53,7 +51,6 @@ export const accountStorageService = {
     try {
       const sanitized = accounts.map((a) => ({
         ...a,
-        // Bảo vệ tên chuẩn mực "Messenger 01", "Messenger 02",... khi lưu trữ
         name: formatMessengerName(a.index),
         avatarText: formatMessengerAvatarText(a.index),
         isAuthenticating: false,

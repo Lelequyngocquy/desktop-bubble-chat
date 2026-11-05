@@ -21,22 +21,19 @@ import {
 } from "../types/ipc";
 
 /**
- * Global background listener synchronizing Tauri desktop IPC events with Domain Stores.
- * Mounts once on app startup and maintains event lifecycle cleanly without re-render loops.
+ * Global background listener synchronizing Tauri desktop IPC events with Domain Stores
  */
 export const useUnreadListener = () => {
   const prevUnreadMap = useRef<Map<number, number>>(new Map());
   const isInitialGracePeriod = useRef<boolean>(true);
 
   useEffect(() => {
-    // Chỉ kích hoạt bộ lắng nghe IPC toàn cục trên cửa sổ chính (main), tránh nhân bản listener trong các bubble window
     try {
       const currentWin = getCurrentWindow();
       if (currentWin && currentWin.label && currentWin.label !== "main") {
         return;
       }
     } catch {}
-
     if (
       typeof window !== "undefined" &&
       (window.location.search.includes("window=bubble") ||
@@ -44,11 +41,9 @@ export const useUnreadListener = () => {
     ) {
       return;
     }
-
     const graceTimer = setTimeout(() => {
       isInitialGracePeriod.current = false;
     }, 3500);
-
     let unlistenBadge: (() => void) | undefined;
     let unlistenAuth: (() => void) | undefined;
     let unlistenAuthClosed: (() => void) | undefined;
@@ -56,14 +51,11 @@ export const useUnreadListener = () => {
     let unlistenChat: (() => void) | undefined;
     let unlistenNewMessage: (() => void) | undefined;
     let unlistenRecent: (() => void) | undefined;
-
     const setupListeners = async () => {
       try {
-        // 1. Initial health-check: Verify and restore real authentication status for all accounts on boot
         const currentAccounts = useMessengerStore.getState().accounts;
         const initialHasConnected = currentAccounts.some((a) => a.isConnected);
         systemService.updateTrayMenu(initialHasConnected);
-
         currentAccounts.forEach((acc) => {
           if (acc.soundEnabled === false) {
             messengerService.setAccountMuted(acc.index, true).catch(() => {});
@@ -75,14 +67,12 @@ export const useUnreadListener = () => {
                 useMessengerStore.getState().updateAccount(acc.id, {
                   isConnected: true,
                   isAuthenticating: false,
-                  lastSynced: "Đồng bộ vừa xong",
+                  lastSynced: "",
                 });
               }
             })
             .catch(() => {});
         });
-
-        // 1.1. Fetch SSOT unread counts & recent incoming messages from Backend Rust (Giai đoạn 4)
         messengerService
           .getAllUnreadCounts()
           .then((counts) => {
@@ -97,7 +87,6 @@ export const useUnreadListener = () => {
             }
           })
           .catch(() => {});
-
         messengerService
           .getRecentMessages()
           .then((messages) => {
@@ -106,8 +95,6 @@ export const useUnreadListener = () => {
             }
           })
           .catch(() => {});
-
-        // 2. Unread Badge Count event (Scoped theo accountIndex)
         unlistenBadge = await listen<number | BadgeUpdatedPayload>(IPC_EVENTS.BADGE_UPDATED, (event) => {
           let idx = 1;
           let count = 0;
@@ -118,17 +105,13 @@ export const useUnreadListener = () => {
             idx = useMessengerStore.getState().activeAccountIndex;
             count = event.payload;
           }
-
           useMessengerStore.getState().setAccountUnreadCount(idx, count);
-
           const prev = prevUnreadMap.current.get(idx) ?? 0;
           if (!isInitialGracePeriod.current && count > prev) {
             useMessengerStore.getState().triggerAccountPulse(idx);
           }
           prevUnreadMap.current.set(idx, count);
         });
-
-        // 3. Messenger real-time authentication status change
         unlistenAuth = await listen<MessengerAuthStatusPayload>(
           IPC_EVENTS.MESSENGER_AUTH_STATUS,
           (event) => {
@@ -136,17 +119,14 @@ export const useUnreadListener = () => {
             const accountIdx = event.payload.accountIndex || 1;
             const accountId = `messenger-${accountIdx.toString().padStart(2, "0")}`;
             const store = useMessengerStore.getState();
-
             const existingAccount = store.accounts.find((a) => a.id === accountId);
             if (existingAccount) {
               store.updateAccount(accountId, {
                 isConnected,
                 isAuthenticating: false,
-                lastSynced: isConnected ? "Đồng bộ vừa xong" : "Chưa kết nối",
+                lastSynced: "",
               });
             }
-
-            // Chỉ tự động bật Bubble khi người dùng vừa chủ động hoàn tất đăng nhập qua Modal Auth
             if (isConnected && (existingAccount?.isAuthenticating || messengerAuthManager.hasSession(accountId))) {
               messengerAuthManager.cancelAuth(accountId);
               store.setAccountBubbleVisibility(accountIdx, true);
@@ -154,8 +134,6 @@ export const useUnreadListener = () => {
             }
           }
         );
-
-        // 4. Messenger Auth window closed by user
         unlistenAuthClosed = await listen<MessengerAuthClosedPayload>(
           IPC_EVENTS.MESSENGER_AUTH_CLOSED,
           (event) => {
@@ -170,8 +148,6 @@ export const useUnreadListener = () => {
             useMessengerStore.getState().updateAccount(accountId, { isAuthenticating: false });
           }
         );
-
-        // 5. Floating bubble visibility change (Scoped theo accountIndex - SSOT)
         unlistenBubble = await listen<boolean | BubbleVisibilityPayload>(IPC_EVENTS.BUBBLE_VISIBILITY_CHANGED, (event) => {
           if (typeof event.payload === "object" && event.payload !== null && "visible" in event.payload) {
             const { accountIndex, visible } = event.payload;
@@ -182,8 +158,6 @@ export const useUnreadListener = () => {
             useMessengerStore.getState().setAccountBubbleVisibility(activeIdx, event.payload);
           }
         });
-
-        // 6. Messenger Chat popup visibility change (Scoped theo accountIndex - SSOT)
         unlistenChat = await listen<boolean | ChatVisibilityPayload>(IPC_EVENTS.CHAT_VISIBILITY_CHANGED, (event) => {
           if (typeof event.payload === "object" && event.payload !== null && "visible" in event.payload) {
             const { accountIndex, visible } = event.payload;
@@ -201,14 +175,11 @@ export const useUnreadListener = () => {
             }
           }
         });
-
-        // 6. New Message Received event (Non-DOM real-time interception)
         unlistenNewMessage = await listen<IncomingMessagePayload>(
           IPC_EVENTS.NEW_MESSAGE_RECEIVED,
           (event) => {
             const msg = event.payload;
             if (!msg) return;
-
             useConversationStore.getState().upsertConversationFromMessage(msg);
             useMessengerStore.getState().triggerAccountPulse(msg.accountIndex);
             if (msg.avatarUrl) {
@@ -216,8 +187,6 @@ export const useUnreadListener = () => {
             }
           }
         );
-
-        // 7. Recent Conversations Synced event (Fallback extraction)
         unlistenRecent = await listen<RecentConversationsSyncedPayload>(
           IPC_EVENTS.RECENT_CONVERSATIONS_SYNCED,
           (event) => {
@@ -233,7 +202,6 @@ export const useUnreadListener = () => {
         console.warn("[useUnreadListener] Desktop IPC event listeners not available in preview:", err);
       }
     };
-
     const unsubscribeStore = useMessengerStore.subscribe((state, prevState) => {
       const wasConnected = prevState.accounts.some((a) => a.isConnected);
       const isConnected = state.accounts.some((a) => a.isConnected);
@@ -241,9 +209,7 @@ export const useUnreadListener = () => {
         systemService.updateTrayMenu(isConnected);
       }
     });
-
     setupListeners();
-
     return () => {
       clearTimeout(graceTimer);
       unsubscribeStore();
@@ -255,9 +221,8 @@ export const useUnreadListener = () => {
       if (unlistenNewMessage) unlistenNewMessage();
       if (unlistenRecent) unlistenRecent();
     };
-  }, []); // Run once on app mount
+  }, []);
 
-  // Helper for testing unread count
   const simulateUnread = async (count: number) => {
     const activeIndex = useMessengerStore.getState().activeAccountIndex;
     useMessengerStore.getState().setAccountUnreadCount(activeIndex, count);

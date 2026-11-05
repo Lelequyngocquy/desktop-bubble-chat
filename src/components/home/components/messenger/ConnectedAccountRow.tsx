@@ -1,5 +1,6 @@
 import React from "react";
 import { Volume2, VolumeX } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { MessengerAccount } from "../../../../types/account";
 import { AvatarCircle, SwitchButton } from "../../../common";
 import { useMessengerStore } from "../../../../platforms/messenger";
@@ -15,12 +16,12 @@ export const ConnectedAccountRow: React.FC<ConnectedAccountRowProps> = ({
   account,
   onToggleBubble,
 }) => {
+  const { t } = useTranslation("dashboard");
   const toggleAccountSound = useMessengerStore((s) => s.toggleAccountSound);
   const isSoundOn = account.soundEnabled ?? true;
 
   return (
     <div className="flex items-center justify-between p-3 bg-background-subtle hover:bg-background-workspace rounded-card-sm border border-border/80 transition-all gap-3 flex-wrap sm:flex-nowrap">
-      {/* Left: Avatar & Info */}
       <div className="flex items-center gap-3 min-w-0">
         <div className="relative shrink-0">
           <AvatarCircle
@@ -32,7 +33,6 @@ export const ConnectedAccountRow: React.FC<ConnectedAccountRowProps> = ({
           />
           <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-pill bg-status-success ring-2 ring-white" />
         </div>
-
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-body font-semibold text-content-primary truncate leading-tight">
@@ -46,20 +46,17 @@ export const ConnectedAccountRow: React.FC<ConnectedAccountRowProps> = ({
           </div>
           <span className="text-caption text-content-secondary truncate leading-tight mt-0.5">
             {account.isBubbleVisible
-              ? "Bong bóng đang bật"
-              : "Ngủ đông (0% RAM)"}{" "}
-            • {account.lastSynced || "Đồng bộ vừa xong"}
+              ? t("bubble_active")
+              : t("bubble_hibernating")}{" "}
+            • {account.lastSynced || t("synced_just_now")}
           </span>
         </div>
       </div>
-
-      {/* Right: Sound Toggle & Per-Bubble Toggle */}
       <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
-        {/* Nút bật/tắt âm thanh tab webview của tài khoản này */}
         <button
           type="button"
           onClick={() => toggleAccountSound(account.index)}
-          title={isSoundOn ? "Đang bật âm thanh tab" : "Đã tắt âm thanh tab"}
+          title={isSoundOn ? t("sound_on_title") : t("sound_off_title")}
           className={`p-1.5 rounded-control border transition-all cursor-pointer ${
             isSoundOn
               ? "text-content-secondary hover:text-primary hover:bg-background-surface border-transparent hover:border-border"
@@ -72,15 +69,14 @@ export const ConnectedAccountRow: React.FC<ConnectedAccountRowProps> = ({
             <VolumeX className="w-3.5 h-3.5" />
           )}
         </button>
-
         <div className="flex items-center gap-1.5 pl-1.5 border-l border-border">
           <span className="text-caption text-content-secondary hidden md:inline">
-            Bong bóng
+            {t("bubble_label")}
           </span>
           <SwitchButton
             checked={account.isBubbleVisible}
             onChange={() => onToggleBubble(account)}
-            aria-label={`Bật tắt bong bóng cho ${account.name}`}
+            aria-label={t("bubble_aria_label", { name: account.name })}
           />
         </div>
       </div>

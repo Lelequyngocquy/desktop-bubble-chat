@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import { Minus, Square, Copy, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useTranslation } from "react-i18next";
 import { CloseAppDialog } from "./dialogs/CloseAppDialog";
 
 export const TitleBar: React.FC = () => {
+  const { t } = useTranslation("common");
   const [isMaximized, setIsMaximized] = useState(false);
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
 
@@ -19,9 +21,7 @@ export const TitleBar: React.FC = () => {
             setIsMaximized(await appWindow.isMaximized());
           } catch {}
         });
-      } catch {
-        // Fallback in browser preview
-      }
+      } catch {}
     };
     checkMaximized();
     return () => {
@@ -35,9 +35,7 @@ export const TitleBar: React.FC = () => {
     } catch {
       try {
         await getCurrentWindow().minimize();
-      } catch {
-        console.log("Minimize window fallback");
-      }
+      } catch {}
     }
   };
 
@@ -49,9 +47,7 @@ export const TitleBar: React.FC = () => {
       try {
         await getCurrentWindow().toggleMaximize();
         setIsMaximized(await getCurrentWindow().isMaximized());
-      } catch {
-        console.log("Toggle maximize fallback");
-      }
+      } catch {}
     }
   };
 
@@ -73,7 +69,6 @@ export const TitleBar: React.FC = () => {
       } catch {}
       return;
     }
-
     setIsCloseDialogOpen(true);
   };
 
@@ -106,7 +101,6 @@ export const TitleBar: React.FC = () => {
         onDoubleClick={handleToggleMaximize}
         className="h-titlebar w-full flex items-center justify-between pl-5 pr-0 bg-background-app border-b border-border select-none z-50 shrink-0"
       >
-        {/* Application Identity (Figma Node #3:1147) */}
         <div
           data-tauri-drag-region
           className="flex items-center gap-[10px] cursor-default"
@@ -117,28 +111,21 @@ export const TitleBar: React.FC = () => {
             className="w-[22px] h-[22px] object-contain rounded-control shadow-xs select-none pointer-events-none"
           />
           <span className="text-small font-medium text-content-primary tracking-tight">
-            DesktopBubbleChat - Bong Bóng Trò Chuyện
+            {t("titlebar.app_title")}
           </span>
         </div>
-
-        {/* Draggable center area */}
         <div data-tauri-drag-region className="flex-1 h-full" />
-
-        {/* Windows 11 Controls: 3 Buttons (Minimize, Maximize/Restore & Close) */}
         <div className="flex items-stretch h-full">
-          {/* Minimize to Taskbar */}
           <button
             onClick={handleMinimize}
-            title="Thu nhỏ xuống Taskbar"
+            title={t("titlebar.minimize")}
             className="w-[46px] h-full flex items-center justify-center text-content-secondary hover:text-content-primary hover:bg-white/60 active:bg-white/90 transition-colors cursor-pointer"
           >
             <Minus className="w-[14px] h-[14px]" />
           </button>
-
-          {/* Fullscreen / Maximize / Restore */}
           <button
             onClick={handleToggleMaximize}
-            title={isMaximized ? "Khôi phục kích thước" : "Phóng to toàn màn hình"}
+            title={isMaximized ? t("titlebar.restore") : t("titlebar.maximize")}
             className="w-[46px] h-full flex items-center justify-center text-content-secondary hover:text-content-primary hover:bg-white/60 active:bg-white/90 transition-colors cursor-pointer"
           >
             {isMaximized ? (
@@ -147,19 +134,15 @@ export const TitleBar: React.FC = () => {
               <Square className="w-[12px] h-[12px]" />
             )}
           </button>
-
-          {/* Close / Hide Options */}
           <button
             onClick={handleCloseClick}
-            title="Đóng"
+            title={t("titlebar.close")}
             className="w-[46px] h-full flex items-center justify-center text-content-secondary hover:text-content-inverse hover:bg-status-error active:bg-status-error/90 transition-colors cursor-pointer"
           >
             <X className="w-[15px] h-[15px]" />
           </button>
         </div>
       </header>
-
-      {/* Confirmation Dialog on Close */}
       <CloseAppDialog
         isOpen={isCloseDialogOpen}
         onClose={() => setIsCloseDialogOpen(false)}

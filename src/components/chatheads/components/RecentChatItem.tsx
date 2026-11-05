@@ -1,5 +1,6 @@
 import React from "react";
 import { Pin, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Conversation } from "../../../types/conversation";
 import { getAccountThemeColor } from "../../../constants/design";
 
@@ -18,6 +19,7 @@ export const RecentChatItem: React.FC<RecentChatItemProps> = ({
   onPin,
   onRemove,
 }) => {
+  const { t } = useTranslation("dashboard");
   const color = getAccountThemeColor(item.accountIndex || 1);
 
   return (
@@ -26,7 +28,6 @@ export const RecentChatItem: React.FC<RecentChatItemProps> = ({
         onClick={() => onOpenThread(item)}
         className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
       >
-        {/* Hủy bỏ avatar: thay bằng chấm tròn chỉ báo màu tài khoản Messenger */}
         <span
           className="w-2.5 h-2.5 rounded-pill shrink-0"
           style={{ backgroundColor: color.hex }}
@@ -41,14 +42,13 @@ export const RecentChatItem: React.FC<RecentChatItemProps> = ({
           </span>
         </div>
       </div>
-
       <div className="flex items-center gap-2 shrink-0">
         <span className="text-caption text-content-muted mr-1">{item.timestamp}</span>
         <button
           type="button"
           onClick={() => onPin(item.id)}
           disabled={!canPin}
-          title={!canPin ? "Đã đạt tối đa 6 ghim" : "Ghim"}
+          title={!canPin ? t("chatheads_page.max_pinned") : t("chatheads_page.pin")}
           className="w-7 h-7 flex items-center justify-center rounded-control text-content-secondary hover:text-primary hover:bg-primary-subtle disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
           <Pin className="w-3.5 h-3.5" />
@@ -56,7 +56,7 @@ export const RecentChatItem: React.FC<RecentChatItemProps> = ({
         <button
           type="button"
           onClick={() => onRemove(item.id)}
-          title="Xóa"
+          title={t("chatheads_page.delete")}
           className="w-7 h-7 flex items-center justify-center rounded-control text-content-secondary hover:text-status-error hover:bg-status-errorBg transition-colors cursor-pointer"
         >
           <Trash2 className="w-3.5 h-3.5" />

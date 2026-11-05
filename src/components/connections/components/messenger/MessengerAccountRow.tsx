@@ -10,6 +10,7 @@ import {
   Activity,
   Moon,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { MessengerAccount } from "../../../../types/account";
 import { AvatarCircle, CommonButton, CommonBadge } from "../../../common";
 import { getAccountThemeColor, Color, Dimen } from "../../../../constants/design";
@@ -23,23 +24,18 @@ interface MessengerAccountRowProps {
   isRefreshing?: boolean;
 }
 
-/**
- * Component hiển thị thông tin 1 hàng tài khoản Messenger (Single Responsibility)
- * Màu ảnh đại diện được cấp từ bảng 5 màu đại diện riêng biệt theo số thứ tự (M1..M5).
- */
 export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
   account,
   onOpen,
   onRemove,
   onCancelAuth,
 }) => {
+  const { t } = useTranslation("dashboard");
   const themeColor = getAccountThemeColor(account.index);
 
   return (
     <div className="flex items-center justify-between p-3.5 bg-background-subtle hover:bg-background-workspace rounded-card-sm border border-border/80 transition-all gap-4 flex-wrap sm:flex-nowrap">
-      {/* Thông tin tài khoản */}
       <div className="flex items-center gap-3 min-w-0">
-        {/* Avatar hiển thị màu sắc đại diện riêng biệt theo số thứ tự tài khoản */}
         <AvatarCircle
           size={Dimen.layout.avatarMd}
           text={account.avatarText}
@@ -47,65 +43,57 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
           textColor={Color.text.inverse}
           className="font-bold text-body shadow-xs shrink-0 ring-2 ring-white"
         />
-
         <div className="flex flex-col gap-0.5 overflow-hidden">
           <div className="flex items-center gap-2">
             <span className="text-nav font-semibold text-content-primary truncate">
               {account.name}
             </span>
-
-            {/* Trạng thái kết nối của tài khoản */}
             {account.isConnected ? (
               <div className="flex items-center gap-1.5 shrink-0">
-                {/* Trường hợp: Đã kết nối */}
                 <CommonBadge
-                  status="Đã kết nối"
+                  status={t("connections_page.status_connected")}
                   icon={<CheckCircle2 />}
                   color="success"
                 />
-
-                {/* Trường hợp: Đang hoạt động / Ngủ đông */}
                 {account.isBubbleVisible ? (
                   <CommonBadge
-                    status="Đang hoạt động"
+                    status={t("connections_page.status_active")}
                     icon={<Activity />}
                     color="primary"
                   />
                 ) : (
                   <CommonBadge
-                    status="Đang ngủ đông"
+                    status={t("connections_page.status_hibernating")}
                     icon={<Moon />}
                     color="secondary"
-                    title="Tiến trình đã tắt hoàn toàn, 0 MB RAM, cache bảo toàn trên đĩa"
+                    title={t("connections_page.status_hibernating_tooltip")}
                   />
                 )}
               </div>
             ) : account.isAuthenticating ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary-subtle text-primary text-caption font-medium rounded-pill shrink-0">
                 <RefreshCw className="w-3 h-3 animate-spin text-primary" />
-                Đang chờ đăng nhập...
+                {t("connections_page.status_authenticating")}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-status-warningBg text-status-warning text-caption font-medium rounded-pill shrink-0">
                 <AlertCircle className="w-3 h-3 text-status-warning" />
-                Chưa kết nối
+                {t("connections_page.status_disconnected")}
               </span>
             )}
           </div>
-
           <span className="text-caption text-content-secondary truncate">
             {account.isConnected
-              ? `Phiên hoạt động độc lập • ${account.lastSynced || "Đồng bộ vừa xong"}`
+              ? t("connections_page.session_active_hint", {
+                  synced: account.lastSynced || t("synced_just_now"),
+                })
               : account.isAuthenticating
-                ? "Đang mở cửa sổ đăng nhập riêng biệt. Bấm nút bên cạnh để đưa cửa sổ lên trước."
-                : "Bấm 'Đăng nhập' để liên kết phiên WebView2 riêng"}
+                ? t("connections_page.auth_opening_hint")
+                : t("connections_page.login_prompt_hint")}
           </span>
         </div>
       </div>
-
-      {/* Cụm hành động cho riêng tài khoản này */}
       <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-        {/* Nút Mở Messenger / Đăng nhập / Chờ đăng nhập */}
         {account.isAuthenticating ? (
           <div className="flex items-center gap-1.5">
             <CommonButton
@@ -115,14 +103,14 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
                 <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
               }
               onClick={() => onOpen(account)}
-              title="Bấm để đưa cửa sổ đăng nhập lên phía trước"
+              title={t("connections_page.view_window_tooltip")}
             >
-              Xem cửa sổ
+              {t("connections_page.view_window_btn")}
             </CommonButton>
             {onCancelAuth && (
               <button
                 type="button"
-                title="Hủy chờ đăng nhập"
+                title={t("connections_page.cancel_auth_tooltip")}
                 onClick={() => onCancelAuth(account)}
                 className="p-2 rounded-control text-content-secondary hover:text-status-error hover:bg-status-errorBg border border-border transition-all cursor-pointer"
               >
@@ -143,14 +131,16 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
             }
             onClick={() => onOpen(account)}
           >
-            {account.isConnected ? "Mở Messenger" : "Đăng nhập"}
+            {account.isConnected
+              ? t("connections_page.open_messenger_btn")
+              : t("connections_page.login_btn")}
           </CommonButton>
         )}
-
-        {/* Nút Gỡ bỏ tài khoản */}
         <button
           type="button"
-          title={`Gỡ bỏ ${account.name}`}
+          title={t("connections_page.remove_account_tooltip", {
+            name: account.name,
+          })}
           onClick={() => onRemove(account)}
           className="p-2 rounded-control text-content-muted hover:text-status-error hover:bg-status-errorBg border border-transparent hover:border-status-errorBorder transition-all cursor-pointer"
         >

@@ -130,7 +130,7 @@ pub const TIMER_ID_HOVER_LEAVE: usize = 1003;
 pub const TME_LEAVE: u32 = 0x00000002;
 pub const CLASS_NAME: &str = "DesktopBubbleChat_NativeBubble\0";
 
-// Khoảng đệm canvas trong suốt (Transparent Canvas Padding) mở rộng cửa sổ HWND
-// Cho phép huy hiệu Unread Badge nằm hoàn toàn bên ngoài thân Bong bóng mà không bị cắt cụt
+// Transparent canvas padding extending HWND window dimensions.
+// Allows unread badge to sit outside bubble body without clipping.
 pub const BUBBLE_CANVAS_PAD_X: i32 = 30;
 pub const BUBBLE_CANVAS_PAD_Y: i32 = 12;

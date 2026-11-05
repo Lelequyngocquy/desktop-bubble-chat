@@ -6,7 +6,6 @@ export function useSystemUser() {
   const systemUser = useSystemUserStore((s) => s.systemUser);
   const systemUserInitials = useSystemUserStore((s) => s.systemUserInitials);
   const setSystemUser = useSystemUserStore((s) => s.setSystemUser);
-
   const fetchSystemUser = useCallback(async () => {
     const name = await systemService.getSystemUsername();
     setSystemUser(name);

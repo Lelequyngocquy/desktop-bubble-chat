@@ -1,5 +1,6 @@
 import React from "react";
 import { Pin } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Conversation } from "../../../types/conversation";
 import { PinnedChatItem } from "./PinnedChatItem";
 import { CommonLargeCard } from "../../common/index";
@@ -15,16 +16,17 @@ export const PinnedChatHeadsCard: React.FC<PinnedChatHeadsCardProps> = ({
   onOpenThread,
   onUnpin,
 }) => {
+  const { t } = useTranslation("dashboard");
+
   return (
     <CommonLargeCard
       icon={<Pin className="w-4 h-4 text-primary fill-current -rotate-45" />}
-      title={`Cuộc trò chuyện đã ghim (${pinnedList.length}/6)`}
-      subTitle="Luôn hiển thị đầu tiên"
+      title={t("chatheads_page.pinned_title", { count: pinnedList.length })}
+      subTitle={t("chatheads_page.pinned_subtitle")}
     >
       {pinnedList.length === 0 ? (
         <div className="py-8 text-center text-content-secondary text-small">
-          Chưa có cuộc trò chuyện nào được ghim. Nhấn vào biểu tượng ghim ở danh
-          sách bên dưới để cố định tối đa 6 người liên lạc.
+          {t("chatheads_page.pinned_empty")}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

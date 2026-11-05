@@ -11,27 +11,24 @@ use crate::utils::time::now_millis;
 use crate::utils::win32::{is_cursor_over_bubble, is_cursor_over_window};
 use crate::windows::bubble::{get_bubble_window_label, tuck_bubble};
 
-/// Trả về label định danh cửa sổ chat Messenger theo số thứ tự tài khoản (ví dụ: chat-messenger-01)
+/// Returns window label for a Messenger account index (e.g. chat-messenger-01)
 pub fn get_messenger_window_label(account_index: u32) -> String {
     format!("chat-messenger-{:02}", account_index)
 }
 
-/// Gắn các listener xử lý sự kiện Focus/Blur và chặn đóng cho cửa sổ chat
+/// Attaches focus/blur and close protection listeners to chat window
 pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, chat_state: Arc<ChatState>) {
     let chat_clone = chat_window.clone();
     let app_handle = app.clone();
     let state_clone = Arc::clone(&chat_state);
     let win_label = chat_window.label().to_string();
-
     chat_window.on_window_event(move |event| {
         let idx = win_label
             .strip_prefix("chat-messenger-")
             .and_then(|s| s.parse::<u32>().ok())
             .unwrap_or(1);
-
         match event {
             tauri::WindowEvent::Focused(false) => {
-                // Chỉ tự động ẩn khi KHÔNG ở chế độ đăng nhập (Auth Mode) của đúng cửa sổ này (SSOT)
                 if !state_clone.is_window_in_auth_mode(&win_label) {
                     let bubble_label = get_bubble_window_label(idx);
                     let over_bubble = app_handle
@@ -46,9 +43,6 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                             false
                         });
                     let over_chat = is_cursor_over_window(&chat_clone);
-
-                    // Chỉ ẩn khi người dùng thực sự di chuột / click ra ngoài
-                    // Tránh giật tắt do focus jitter khi vừa khởi tạo Webview2 hoặc khi chuyển focus nội bộ
                     if !over_bubble && !over_chat {
                         state_clone.last_blur_time.store(now_millis(), Ordering::SeqCst);
                         let _ = ChatService::hide_chat(&app_handle, idx);
@@ -56,13 +50,10 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                 }
             }
             tauri::WindowEvent::CloseRequested { api, .. } => {
-                // Nếu hệ thống đang chủ động shutdown/destroy cửa sổ để giải phóng RAM, cho phép đóng hoàn toàn
                 if state_clone.is_bypass_close_guard(&win_label) {
                     state_clone.set_bypass_close_guard(&win_label, false);
                     return;
                 }
-
-                // Chặn đóng tiến trình, ẩn cửa sổ và reset chế độ Auth cho riêng cửa sổ này
                 api.prevent_close();
                 state_clone.set_window_auth_mode(&win_label, false);
                 let _ = chat_clone.set_decorations(false);
@@ -75,16 +66,14 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
     });
 }
 
-/// Tìm hoặc khởi tạo động WebviewWindow với profile data_directory riêng biệt cho từng tài khoản
+/// Finds or creates WebviewWindow with isolated data_directory profile
 pub fn get_or_create_messenger_window(
     app: &AppHandle,
     account_index: u32,
     chat_state: Arc<ChatState>,
 ) -> Result<tauri::WebviewWindow, String> {
     let label = get_messenger_window_label(account_index);
-    println!("[BE - Window] get_or_create_messenger_window cho label='{}' (index={})", label, account_index);
-
-    // 1. Kiểm tra cửa sổ đã tồn tại theo label tuần tự và còn hợp lệ trong OS
+    println!("[BE - Window] get_or_create_messenger_window for label='{}' (index={})", label, account_index);
     if let Some(win) = app.get_webview_window(&label) {
         #[cfg(target_os = "windows")]
         {
@@ -97,48 +86,40 @@ pub fn get_or_create_messenger_window(
             } else {
                 false
             };
-
             if is_alive {
-                println!("[BE - Window] Cửa sổ '{}' đang tồn tại và hợp lệ, tái sử dụng.", label);
+                println!("[BE - Window] Window '{}' exists and is valid, reusing.", label);
                 return Ok(win);
             } else {
-                println!("[BE - Window] Cửa sổ '{}' trong manager đã bị destroy trước đó, dọn dẹp để build mới.", label);
+                println!("[BE - Window] Window '{}' was destroyed previously, cleaning to rebuild.", label);
                 let _ = win.destroy();
             }
         }
         #[cfg(not(target_os = "windows"))]
         return Ok(win);
     }
-
-    // 2. Tương thích ngược: Với tài khoản 01, nếu có sẵn cửa sổ 'chat-messenger' từ config
     if account_index == 1 {
         if let Some(win) = app.get_webview_window("chat-messenger") {
-            println!("[BE - Window] Tìm thấy cửa sổ legacy 'chat-messenger' cho tài khoản 1.");
+            println!("[BE - Window] Found legacy 'chat-messenger' window for account 1.");
             return Ok(win);
         }
     }
-
-    // 3. Khởi tạo WebView2 động với User Data Folder (data_directory) hoàn toàn riêng biệt
     let mut profile_dir = app.path().app_data_dir().map_err(|e| {
-        let msg = format!("Không lấy được app_data_dir: {}", e);
+        let msg = format!("Failed to get app_data_dir: {}", e);
         eprintln!("[BE - Window ERROR] {}", msg);
         msg
     })?;
     profile_dir.push("profiles");
     profile_dir.push(format!("messenger_{:02}", account_index));
     let _ = std::fs::create_dir_all(&profile_dir);
-    println!("[BE - Window] Thư mục profile: {:?}", profile_dir);
-
+    println!("[BE - Window] Profile directory: {:?}", profile_dir);
     let parsed_url = tauri::Url::parse(MESSENGER_BASE_URL).map_err(|e| e.to_string())?;
-
     let theme = get_account_theme(account_index);
     let init_script = format!(
         "window.__ACCOUNT_INDEX__ = {};\n{}",
         account_index,
         MESSENGER_INJECT_SCRIPT
     );
-
-    println!("[BE - Window] Đang build WebviewWindow mới cho '{}'...", label);
+    println!("[BE - Window] Building new WebviewWindow for '{}'...", label);
     let state_page_load = Arc::clone(&chat_state);
     let state_title = Arc::clone(&chat_state);
     let builder = tauri::WebviewWindowBuilder::new(
@@ -162,36 +143,24 @@ pub fn get_or_create_messenger_window(
     .on_document_title_changed(move |win, title| {
         println!("\x1b[35m[BE - Webview Title M{:02}]\x1b[0m {}", account_index, title);
         let _ = win.set_title(&title);
-
-        // 1. Ghi log trực tiếp từ Rust Core
         crate::commands::system::app::log_frontend(
             win.app_handle().clone(),
             Some("info".into()),
             format!("[M{:02}:TITLE-CHANGE] document.title = '{}'", account_index, title),
         );
-
-        // 2. Bóc tách số lượng tin nhắn chưa đọc từ tiêu đề
         let count = parse_unread_from_title(&title);
         let prev = state_title.get_unread_count(account_index);
-
         if count != prev {
             state_title.set_unread_count(account_index, count);
-
-            // 3. Cập nhật trực tiếp số unread lên Bong bóng Win32 Native
             crate::windows::native_bubble::set_native_bubble_unread_count(account_index, count);
-
-            // 4. Nếu có tin nhắn mới tăng lên (count > prev)
             if count > prev && count > 0 {
-                // Phương án A: Định danh trung thực (Honest Attribution)
-                // Tuyệt đối không lấy tên trong document.title vì khi đang mở chat A, tiêu đề bị "dính" tên người A
-                // dẫn đến khi người B/C/D nhắn thì hệ thống báo nhầm là A gửi.
-                let display_title = format!("Có tin nhắn mới đến Messenger {:02}", account_index);
+                let display_title = format!("New message for Messenger {:02}", account_index);
                 let account_tag = format!("M{:02}", account_index);
                 let ts = now_millis();
                 let msg = crate::state::IncomingMessage {
                     account_index,
                     sender_name: display_title.clone(),
-                    body: "Tin nhắn mới".to_string(),
+                    body: "New message".to_string(),
                     avatar_url: String::new(),
                     thread_id: String::new(),
                     timestamp: ts,
@@ -199,25 +168,21 @@ pub fn get_or_create_messenger_window(
                 if state_title.add_recent_message(msg) {
                     let time_str = crate::utils::time::format_current_time();
                     let log_msg = format!(
-                        "[{}:MSG] Có tin nhắn mới đến Messenger {:02} | Lúc: {}",
+                        "[{}:MSG] New message for Messenger {:02} | Time: {}",
                         account_tag, account_index, time_str
                     );
                     println!("\x1b[32m{}\x1b[0m", log_msg);
                     crate::commands::system::app::log_frontend(win.app_handle().clone(), Some("info".into()), log_msg);
-
-                    // Đồng bộ event sang Frontend Dashboard (Giai đoạn 4)
                     let _ = win.app_handle().emit("new-message-received", serde_json::json!({
                         "accountIndex": account_index,
                         "senderName": display_title,
-                        "body": "Tin nhắn mới",
+                        "body": "New message",
                         "avatarUrl": "",
                         "threadId": "",
                         "timestamp": ts,
                     }));
                 }
             }
-
-            // 5. Đồng bộ event sang hệ thống (toàn cục qua AppHandle để Dashboard nhận được)
             let _ = win.app_handle().emit("badge-updated", serde_json::json!({
                 "accountIndex": account_index,
                 "count": count
@@ -227,17 +192,15 @@ pub fn get_or_create_messenger_window(
     .on_page_load(move |_win, payload| {
         if let tauri::webview::PageLoadEvent::Finished = payload.event() {
             state_page_load.set_chat_ready(account_index, true);
-            println!("\x1b[32m[BE - Window] Webview Messenger {:02} nạp ngầm hoàn tất (Ready)!\x1b[0m", account_index);
+            println!("\x1b[32m[BE - Window] Webview Messenger {:02} preloading finished (Ready)!\x1b[0m", account_index);
         }
     });
-
     match builder.build() {
         Ok(window) => {
-            println!("\x1b[32m[BE - Window] Build thành công cửa sổ Webview: {}\x1b[0m", label);
+            println!("\x1b[32m[BE - Window] Successfully built Webview window: {}\x1b[0m", label);
             setup_window_events(app, &window, chat_state.clone());
             #[cfg(target_os = "windows")]
             apply_window_theme_color(&window, theme.hex, theme.border_hex);
-
             if chat_state.is_account_muted(account_index) {
                 #[cfg(target_os = "windows")]
                 {
@@ -255,19 +218,17 @@ pub fn get_or_create_messenger_window(
                     });
                 }
             }
-
             Ok(window)
         }
         Err(err) => {
-            let msg = format!("Builder.build() thất bại cho '{}': {:?}", label, err);
+            let msg = format!("Builder.build() failed for '{}': {:?}", label, err);
             eprintln!("\x1b[31m[BE - Window ERROR] {}\x1b[0m", msg);
             Err(msg)
         }
     }
 }
 
-/// Đảm bảo chỉ có 1 cửa sổ chat/auth Messenger được hiển thị tại một thời điểm
-/// và tất cả các bubble khác đều bị thụt vào mép (tuck)
+/// Ensures only one chat/auth window is displayed at a time and others are tucked
 pub fn hide_all_other_messenger_windows(app: &AppHandle, active_label: &str) {
     for idx in 1..=5 {
         let label = get_messenger_window_label(idx);
@@ -296,7 +257,7 @@ pub fn hide_all_other_messenger_windows(app: &AppHandle, active_label: &str) {
     }
 }
 
-/// Tải trước (preload) Webview Messenger ngầm trong nền cho tài khoản chỉ định
+/// Preloads Messenger Webview in background for specified account
 pub fn preload_messenger_window(
     app: &AppHandle,
     account_index: u32,
@@ -308,38 +269,30 @@ pub fn preload_messenger_window(
     });
 }
 
-/// Quét các profile Messenger hiện có trên đĩa và tải trước các cửa sổ Webview ngầm
+/// Scans existing Messenger profiles and preloads webviews
 pub fn preload_existing_messenger_windows(app: &AppHandle, chat_state: Arc<ChatState>) {
     let app_handle = app.clone();
     std::thread::spawn(move || {
-        // Chờ 300ms để Dashboard chính (main window) render xong FCP/LCP trước khi tải các Webview ngầm
         std::thread::sleep(std::time::Duration::from_millis(300));
-
         let app_data_dir = match app_handle.path().app_data_dir() {
             Ok(p) => p,
             Err(_) => return,
         };
         let profiles_dir = app_data_dir.join("profiles");
-
         for idx in 1..=5 {
             let account_profile = profiles_dir.join(format!("messenger_{:02}", idx));
-            // Tải trước nếu profile của tài khoản này đã tồn tại trên đĩa (đã từng cấu hình/đăng nhập)
-            // hoặc mặc định tài khoản 01 nếu chưa có profile nào
             if account_profile.exists() || (idx == 1 && !profiles_dir.exists()) {
-                println!("[BE - Window] Khởi chạy preload ngầm cho Messenger {:02}...", idx);
+                println!("[BE - Window] Preloading Messenger {:02}...", idx);
                 let _ = get_or_create_messenger_window(&app_handle, idx, Arc::clone(&chat_state));
             }
         }
     });
 }
 
-/// Cấu hình sự kiện cho cửa sổ chat Messenger
+/// Sets up event listeners for Messenger chat window
 pub fn setup_chat_window(app: &AppHandle, chat_state: Arc<ChatState>) {
     if let Some(chat_window) = app.get_webview_window("chat-messenger") {
         setup_window_events(app, &chat_window, Arc::clone(&chat_state));
         let _ = chat_window.eval(MESSENGER_INJECT_SCRIPT);
     }
-    // Tuyệt đối KHÔNG preload mù quáng tất cả profile trên đĩa lúc khởi động app.
-    // Việc nạp Webview vào RAM hoàn toàn do trạng thái SSOT của từng Bubble quyết định:
-    // Bubble nào được cấu hình BẬT mới được nạp; Bubble nào TẮT giữ nguyên Cold Standby (0 MB RAM).
 }

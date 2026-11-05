@@ -1,5 +1,6 @@
 import React from "react";
 import { Activity } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface ConnectionMetricsColumnProps {
   visibleBubbleCount: number;
@@ -10,21 +11,20 @@ interface ConnectionMetricsColumnProps {
 export const ConnectionMetricsColumn: React.FC<
   ConnectionMetricsColumnProps
 > = ({ visibleBubbleCount, totalConnected, unreadCount }) => {
+  const { t } = useTranslation("dashboard");
+
   return (
     <div className="w-full lg:w-[260px] shrink-0 border-t lg:border-t-0 lg:border-l border-border pt-5 lg:pt-0 lg:pl-6 flex flex-col justify-between gap-3">
-      {/* Header */}
       <div className="flex items-center gap-1.5">
         <Activity className="w-3.5 h-3.5 text-primary" />
         <span className="text-caption font-semibold tracking-wider uppercase text-content-secondary">
-          Trạng thái
+          {t("metrics.status_header")}
         </span>
       </div>
-
-      {/* Metric 1: Bong bóng bật */}
       <div className="p-3 rounded-card bg-background-subtle border border-border flex items-center justify-between">
         <div className="flex flex-col">
           <span className="text-small font-medium text-content-secondary">
-            Bong bóng bật
+            {t("metrics.bubbles_active")}
           </span>
           <span className="text-xl font-bold text-content-primary leading-tight">
             {totalConnected > 0
@@ -44,12 +44,10 @@ export const ConnectionMetricsColumn: React.FC<
           </span>
         </div>
       </div>
-
-      {/* Metric 2: Tin chưa đọc */}
       <div className="p-3 rounded-card bg-background-subtle border border-border flex items-center justify-between">
         <div className="flex flex-col">
           <span className="text-small font-medium text-content-secondary">
-            Tin chưa đọc
+            {t("metrics.unread_messages")}
           </span>
           <span className="text-xl font-bold text-content-primary leading-tight">
             {unreadCount}
@@ -62,7 +60,7 @@ export const ConnectionMetricsColumn: React.FC<
               : "bg-background-app text-content-muted"
           }`}
         >
-          {unreadCount > 0 ? `${unreadCount} mới` : "0"}
+          {unreadCount > 0 ? t("metrics.new_count", { count: unreadCount }) : "0"}
         </div>
       </div>
     </div>

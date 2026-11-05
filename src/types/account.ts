@@ -22,12 +22,12 @@ export interface MessengerAccount {
   index: number; // 1..5
   name: string; // "Messenger 01"
   avatarText: string; // "M1"
-  color: string; // Mã màu hex đại diện riêng của tài khoản
+  color: string; // Account theme hex color
   isConnected: boolean;
   isAuthenticating?: boolean;
-  isBubbleVisible: boolean; // Trạng thái hiển thị bong bóng nổi đang active hiện tại
-  shouldRestoreBubble?: boolean; // Cấu hình người dùng: Tự động bật lại bong bóng khi Messenger tải xong
-  lifecycleState?: ProcessLifecycleState; // Trạng thái tiến trình thực tế (0 MB Cold Standby vs Active)
+  isBubbleVisible: boolean; // Current active bubble display state
+  shouldRestoreBubble?: boolean; // Auto-restore bubble when loaded
+  lifecycleState?: ProcessLifecycleState; // Process lifecycle state (Cold Standby vs Active)
   unreadCount: number;
   lastSynced?: string;
   latestSenderAvatar?: string;
@@ -56,7 +56,7 @@ export function createMessengerAccount(index: number): MessengerAccount {
     isBubbleVisible: false,
     lifecycleState: "cold",
     unreadCount: 0,
-    lastSynced: "Chưa kết nối",
+    lastSynced: "Not connected",
     soundEnabled: true,
     hideMessageContent: false,
   };

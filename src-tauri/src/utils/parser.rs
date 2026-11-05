@@ -1,4 +1,4 @@
-/// Trích xuất số unread từ tiêu đề cửa sổ (ví dụ: "(3) Messenger", "(99+) Messenger")
+/// Extracts unread count from window title (e.g. "(3) Messenger", "(99+) Messenger")
 pub fn parse_unread_from_title(title: &str) -> u32 {
     let clean_title = title.replace("[AUTH_OK]", "");
     if let (Some(start), Some(end)) = (clean_title.find('('), clean_title.find(')')) {

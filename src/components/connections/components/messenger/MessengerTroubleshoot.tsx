@@ -1,23 +1,25 @@
 import React from "react";
 import { HelpCircle, ArrowRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { TROUBLESHOOT_STEPS } from "../../../../config";
 import { CommonLargeCard } from "../../../common/index";
 import { useNavigationStore } from "../../../../stores/navigationStore";
 
 export const MessengerTroubleshoot: React.FC = () => {
+  const { t } = useTranslation("dashboard");
   const setActiveTab = useNavigationStore((s) => s.setActiveTab);
 
   return (
     <CommonLargeCard
       icon={<HelpCircle className="w-4 h-4 text-primary" />}
-      title="Gặp vấn đề kết nối Messenger?"
+      title={t("connections_page.troubleshoot_title")}
       linkTitle={
         <button
           type="button"
           onClick={() => setActiveTab("help")}
           className="flex items-center gap-1 text-small font-medium text-primary-foreground hover:underline cursor-pointer"
         >
-          <span>Trợ giúp & phản hồi</span>
+          <span>{t("connections_page.troubleshoot_help_link")}</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       }

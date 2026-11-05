@@ -1,5 +1,6 @@
 import React from "react";
 import { Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { CommonDialog } from "../../common";
 
 interface ClearNotificationsDialogProps {
@@ -13,20 +14,22 @@ export const ClearNotificationsDialog: React.FC<ClearNotificationsDialogProps> =
   onClose,
   onConfirm,
 }) => {
+  const { t } = useTranslation("dashboard");
+
   return (
     <CommonDialog
       isOpen={isOpen}
       onClose={onClose}
-      eyebrow="XÁC NHẬN XÓA"
+      eyebrow={t("notifications_page.dialog_eyebrow")}
       titleIcon={<Trash2 className="w-5 h-5 text-status-error" />}
-      title="Xóa lịch sử thông báo"
-      content="Bạn có chắc chắn muốn xóa toàn bộ danh sách thông báo? Thao tác này sẽ làm sạch các thông báo tin nhắn đã ghi nhận trên màn hình này."
+      title={t("notifications_page.dialog_title")}
+      content={t("notifications_page.dialog_content")}
       backButton={{
-        label: "Hủy bỏ",
+        label: t("notifications_page.dialog_cancel"),
         onClick: onClose,
       }}
       rightButton={{
-        label: "Xác nhận xóa",
+        label: t("notifications_page.dialog_confirm"),
         variant: "danger",
         onClick: () => {
           onClose();

@@ -5,12 +5,7 @@ import { useAppLifecycleStore } from "../stores/appLifecycleStore";
 import { feLog } from "../services/loggerService";
 
 /**
- * Hook chuyên trách đồng bộ trạng thái hiển thị bong bóng nổi theo thời gian thực (SSOT):
- * 1. Tuân thủ nguyên tắc: Dashboard chỉ là nơi lắng nghe (Listener) & truy vấn Snapshot (Read-Only).
- * 2. Tuyệt đối KHÔNG tự ý phát lệnh `toggleBubble(true)` làm đột biến trạng thái của Backend khi init.
- * 3. Khi Dashboard Ready: Truy vấn `getActiveBubbleAccounts()` từ Backend và cập nhật switch trên UI khớp 1:1.
- *
- * Chỉ chạy 1 lần trên cửa sổ chính ('main').
+ * Syncs bubble visibility state with Backend SSOT snapshot
  */
 export function useBubbleAutoRestore() {
   const isDashboardReady = useAppLifecycleStore((s) => s.isDashboardReady);
@@ -26,10 +21,7 @@ export function useBubbleAutoRestore() {
       isMainWindow = true;
     }
     if (!isMainWindow) return;
-
     if (!isDashboardReady) return;
-
-    // Khi Dashboard chuyển sang Ready: Đồng bộ snapshot thực tế từ Backend để hiển thị switch UI
     messengerService
       .getActiveBubbleAccounts()
       .then((activeIndices) => {
@@ -39,14 +31,14 @@ export function useBubbleAutoRestore() {
           const isLive = activeSet.has(acc.index);
           if (acc.isBubbleVisible !== isLive) {
             feLog.info(
-              `[useBubbleAutoRestore] Đồng bộ trạng thái Bubble ${acc.index} theo Backend SSOT: ${isLive ? "BẬT" : "TẮT"}`
+              `[useBubbleAutoRestore] Syncing Bubble ${acc.index} state from Backend SSOT: ${isLive ? "ON" : "OFF"}`
             );
             store.setAccountBubbleVisibility(acc.index, isLive);
           }
         }
       })
       .catch((err) => {
-        feLog.warn("[useBubbleAutoRestore] Lỗi khi truy vấn active bubble snapshot:", err);
+        feLog.warn("[useBubbleAutoRestore] Error querying active bubble snapshot:", err);
       });
   }, [isDashboardReady]);
 }

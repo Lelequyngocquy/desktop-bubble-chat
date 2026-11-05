@@ -1,25 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAppLifecycleStore } from "../../stores/appLifecycleStore";
 
-/**
- * DashboardLoadingOverlay:
- * Lớp phủ khóa tương tác (interaction blocker) xuất hiện khi:
- * 1. App vừa khởi động (Cold Launch) chưa nạp xong dữ liệu nền.
- * 2. Dashboard vừa được tái sinh từ ngủ đông (Re-open from Tray / Dynamic Destruction).
- *
- * Chức năng:
- * - Hiển thị spinner xoay vòng mượt mà và thông điệp trạng thái.
- * - Khóa hoàn toàn click chuột trên Workspace nhằm chống nghẽn IPC & race conditions.
- * - Khi isDashboardReady = true, overlay mờ dần mượt mà và tự động mở khóa tương tác.
- * - Tích hợp Fallback Timer (4.0s) bảo đảm không bao giờ làm treo UI người dùng.
- */
 export const DashboardLoadingOverlay: React.FC = () => {
+  const { t } = useTranslation("common");
   const isDashboardReady = useAppLifecycleStore((s) => s.isDashboardReady);
   const statusMessage = useAppLifecycleStore((s) => s.statusMessage);
   const markDashboardReady = useAppLifecycleStore((s) => s.markDashboardReady);
-
-  // Trạng thái giữ DOM trong lúc hiệu ứng mờ dần (300ms) kết thúc
   const [shouldRender, setShouldRender] = useState(!isDashboardReady);
 
   useEffect(() => {
@@ -30,7 +18,6 @@ export const DashboardLoadingOverlay: React.FC = () => {
       return () => clearTimeout(timer);
     } else {
       setShouldRender(true);
-      // Fallback timer an toàn: Tối đa 4 giây nếu vì lý do nào đó IPC bị trễ, tự động mở khóa UI
       const safetyTimer = setTimeout(() => {
         markDashboardReady();
       }, 4000);
@@ -54,10 +41,10 @@ export const DashboardLoadingOverlay: React.FC = () => {
         </div>
         <div className="flex flex-col min-w-0">
           <span className="text-nav font-semibold text-content-primary truncate">
-            {statusMessage || "Đang khởi tạo không gian làm việc..."}
+            {statusMessage || t("overlay_initializing")}
           </span>
           <span className="text-small text-content-secondary mt-0.5">
-            Đang ổn định hệ sinh thái & kết nối
+            {t("overlay_stabilizing")}
           </span>
         </div>
       </div>

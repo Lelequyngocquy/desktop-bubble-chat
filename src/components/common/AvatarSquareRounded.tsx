@@ -2,9 +2,9 @@ import React from "react";
 import { Color, Dimen } from "../../constants/design";
 
 export interface AvatarSquareRoundedProps {
-  size?: number; // Kích thước pixel cạnh vuông (mặc định 38px)
-  radius?: number | string; // Bán kính bo góc (mặc định 8px)
-  bg?: string; // Màu nền (hex hoặc class)
+  size?: number; // Pixel square size (default 38px)
+  radius?: number | string; // Corner radius (default 8px)
+  bg?: string; // Background color (hex or class)
   textColor?: string;
   icon?: React.ReactNode;
   src?: string;
@@ -33,10 +33,8 @@ export const AvatarSquareRounded: React.FC<AvatarSquareRoundedProps> = ({
       : border
       ? `1px solid ${Color.border.default}`
       : "none";
-
   const isBgHex = bg.startsWith("#") || bg.startsWith("rgb");
   const isTextHex = textColor.startsWith("#") || textColor.startsWith("rgb");
-
   return (
     <div
       style={{

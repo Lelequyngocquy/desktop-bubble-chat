@@ -23,57 +23,48 @@ class MessengerAuthManager {
   async startAuth(account: MessengerAccount): Promise<void> {
     const accountId = account.id;
     this.cancelAuth(accountId);
-
     const store = useMessengerStore.getState();
     store.updateAccount(accountId, { isAuthenticating: true });
-
     feLog.info(
-      `[AuthManager] Bắt đầu phiên xác thực SSOT cho tài khoản: ${account.name} (ID: ${accountId}, Index: ${account.index})`
+      `[AuthManager] Starting auth session for account: ${account.name} (ID: ${accountId}, Index: ${account.index})`
     );
-
     try {
       await messengerService.openAuth(account.index);
-
-      // Polling checkAuth every 1000ms
       const pollInterval = setInterval(async () => {
-        // SSOT Invariant: Verify account still exists in store
         const currentAccount = useMessengerStore
           .getState()
           .accounts.find((a) => a.id === accountId);
         if (!currentAccount) {
-          // Account was deleted from store! Abort polling immediately
           this.cancelAuth(accountId);
           return;
         }
-
         try {
           const res = await messengerService.checkAuth(account.index);
           if (res && res.connected) {
             feLog.info(
-              `[AuthManager] XÁC THỰC THÀNH CÔNG cho tài khoản ${account.name}! User: ${res.name || ""}`
+              `[AuthManager] Authentication successful for account ${account.name}! User: ${res.name || ""}`
             );
             this.cancelAuth(accountId);
             useMessengerStore.getState().updateAccount(accountId, {
               isConnected: true,
               isAuthenticating: false,
               isBubbleVisible: true,
-              lastSynced: "Đồng bộ vừa xong",
+              lastSynced: "Just synced",
             });
             useMessengerStore.getState().setAccountBubbleVisibility(account.index, true);
             messengerService.toggleBubble(true, account.index).catch(() => {});
           }
         } catch (err) {
-          feLog.error(`[AuthManager] Lỗi kiểm tra trạng thái:`, err);
+          feLog.error(`[AuthManager] Status check error:`, err);
         }
       }, 1000);
 
-      // 120s Timeout
       const timeoutTimer = setTimeout(() => {
         const currentAccount = useMessengerStore
           .getState()
           .accounts.find((a) => a.id === accountId);
         if (currentAccount && currentAccount.isAuthenticating) {
-          feLog.warn(`[AuthManager] Quá thời gian chờ đăng nhập (120s) cho ${account.name}`);
+          feLog.warn(`[AuthManager] Login timeout (120s) for ${account.name}`);
           useMessengerStore.getState().updateAccount(accountId, { isAuthenticating: false });
         }
         this.cancelAuth(accountId);
@@ -81,7 +72,7 @@ class MessengerAuthManager {
 
       this.activeSessions.set(accountId, { pollInterval, timeoutTimer });
     } catch (err) {
-      feLog.error(`[AuthManager] openAuth thất bại:`, err);
+      feLog.error(`[AuthManager] openAuth failed:`, err);
       this.cancelAuth(accountId);
       useMessengerStore.getState().updateAccount(accountId, { isAuthenticating: false });
     }

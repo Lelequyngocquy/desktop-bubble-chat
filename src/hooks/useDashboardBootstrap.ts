@@ -9,14 +9,7 @@ import { messengerService } from "../platforms/messenger/services/messengerServi
 import { feLog } from "../services/loggerService";
 
 /**
- * Hook điều phối quá trình bootstrap và khởi tạo dữ liệu cho Dashboard chính:
- * 1. Nạp System Username vào systemUserStore.
- * 2. Đồng bộ trạng thái Autostart với Registry Windows.
- * 3. Kiểm tra tính hợp lệ của các phiên đăng nhập Messenger.
- * 4. Chờ settling buffer (200ms) để DOM & Zustand state hoàn toàn ổn định.
- * 5. Chuyển dashboardStatus sang "ready" và mở khóa tương tác (LoadingIndicator fade-out).
- *
- * Chỉ chạy trên cửa sổ Dashboard chính ('main').
+ * Coordinates bootstrap lifecycle and initial state hydration for main Dashboard
  */
 export function useDashboardBootstrap() {
   const isBootstrappingRef = useRef(false);
@@ -35,41 +28,31 @@ export function useDashboardBootstrap() {
       isMainWindow = true;
     }
     if (!isMainWindow) return;
-
     if (isBootstrappingRef.current) return;
     isBootstrappingRef.current = true;
-
-    feLog.info("[useDashboardBootstrap] Bắt đầu quá trình bootstrap Dashboard...");
-    setDashboardStatus("initializing", "Đang khởi tạo không gian làm việc...");
-
-    // Safety timeout: Tối đa 3.5s nếu một IPC call bị trễ mạng/backend
+    feLog.info("[useDashboardBootstrap] Starting Dashboard bootstrap...");
+    setDashboardStatus("initializing");
     const safetyTimer = setTimeout(() => {
       if (!useAppLifecycleStore.getState().isDashboardReady) {
-        feLog.warn("[useDashboardBootstrap] [Safety 3.5s] Buộc mở khóa Dashboard do quá thời gian bootstrap.");
+        feLog.warn("[useDashboardBootstrap] [Safety 3.5s] Unlocking Dashboard due to bootstrap timeout.");
         markDashboardReady();
       }
     }, 3500);
-
     const runBootstrap = async () => {
       try {
-        // 1. Nạp tên người dùng hệ điều hành
-        setDashboardStatus("rehydrating", "Đang nạp hồ sơ người dùng...");
+        setDashboardStatus("rehydrating");
         try {
           const username = await systemService.getSystemUsername();
           useSystemUserStore.getState().setSystemUser(username);
         } catch (err) {
-          feLog.warn("[useDashboardBootstrap] Không thể lấy system username:", err);
+          feLog.warn("[useDashboardBootstrap] Unable to get system username:", err);
         }
-
-        // 2. Đồng bộ trạng thái Autostart từ Windows Registry
         try {
           const autostart = await systemService.isAutostartEnabled();
           useSettingsStore.getState().setAutoStart(autostart);
         } catch (err) {
-          feLog.warn("[useDashboardBootstrap] Không thể kiểm tra autostart:", err);
+          feLog.warn("[useDashboardBootstrap] Unable to check autostart:", err);
         }
-
-        // 2b. Đồng bộ cấu hình người dùng (Bubble Size, Always on Top) từ Backend SSOT Cache
         try {
           const userSettings = await systemService.getUserSettings();
           if (userSettings) {
@@ -86,11 +69,9 @@ export function useDashboardBootstrap() {
             }
           }
         } catch (err) {
-          feLog.warn("[useDashboardBootstrap] Không thể đồng bộ user settings từ cache:", err);
+          feLog.warn("[useDashboardBootstrap] Unable to sync user settings from cache:", err);
         }
-
-        // 3. Đồng bộ trạng thái tài khoản Messenger
-        setDashboardStatus("rehydrating", "Đang đồng bộ kết nối tài khoản...");
+        setDashboardStatus("rehydrating");
         try {
           const accounts = useMessengerStore.getState().accounts;
           for (const acc of accounts) {
@@ -101,15 +82,11 @@ export function useDashboardBootstrap() {
                   isConnected: true,
                 });
               }
-            } catch {
-              // Bỏ qua lỗi kết nối từng tài khoản, không làm dừng bootstrap
-            }
+            } catch {}
           }
         } catch (err) {
-          feLog.warn("[useDashboardBootstrap] Không thể đồng bộ tài khoản Messenger:", err);
+          feLog.warn("[useDashboardBootstrap] Unable to sync Messenger accounts:", err);
         }
-
-        // 4. Đồng bộ snapshot thực tế các Bong bóng đang hiển thị từ Backend (SSOT - Read Only)
         try {
           const activeIndices = await messengerService.getActiveBubbleAccounts();
           const activeSet = new Set(activeIndices);
@@ -121,24 +98,19 @@ export function useDashboardBootstrap() {
             }
           }
         } catch (err) {
-          feLog.warn("[useDashboardBootstrap] Không thể lấy snapshot active bubbles:", err);
+          feLog.warn("[useDashboardBootstrap] Unable to get active bubbles snapshot:", err);
         }
-
-        // 5. Settling buffer 200ms giúp React layout ổn định không bị giật nhấp nháy
         await new Promise((resolve) => setTimeout(resolve, 200));
-
-        feLog.info("[useDashboardBootstrap] Hoàn tất bootstrap! Dashboard đã sẵn sàng.");
+        feLog.info("[useDashboardBootstrap] Bootstrap completed! Dashboard is ready.");
         markDashboardReady();
       } catch (err) {
-        feLog.error("[useDashboardBootstrap] Lỗi không xác định trong quá trình bootstrap:", err);
+        feLog.error("[useDashboardBootstrap] Unhandled error during bootstrap:", err);
         markDashboardReady();
       } finally {
         clearTimeout(safetyTimer);
       }
     };
-
     runBootstrap();
-
     return () => {
       clearTimeout(safetyTimer);
     };

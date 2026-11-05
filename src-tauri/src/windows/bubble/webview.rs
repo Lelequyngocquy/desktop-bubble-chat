@@ -26,7 +26,7 @@ const SWP_NOACTIVATE: u32 = 0x0010;
 #[cfg(target_os = "windows")]
 const SWP_FRAMECHANGED: u32 = 0x0020;
 
-/// Thay đổi kích thước cửa sổ Bubble trực tiếp qua Win32 SetWindowPos và Tauri set_size
+/// Resizes bubble window via Win32 SetWindowPos and Tauri set_size
 pub fn resize_bubble_window(bubble: &tauri::WebviewWindow, size_px: f64) {
     #[cfg(target_os = "windows")]
     {
@@ -58,19 +58,17 @@ pub fn resize_bubble_window(bubble: &tauri::WebviewWindow, size_px: f64) {
     }));
 }
 
-/// Trả về label định danh cửa sổ Bubble theo số thứ tự tài khoản
+/// Returns window label for bubble by account index
 pub fn get_bubble_window_label(account_index: u32) -> String {
     format!("bubble-{:02}", account_index)
 }
 
-/// Tìm hoặc khởi tạo WebviewWindow nổi độc lập cho Bubble của tài khoản chỉ định
+/// Finds or creates WebviewWindow for specified bubble account
 pub fn get_or_create_bubble_window(
     app: &AppHandle,
     account_index: u32,
 ) -> Result<tauri::WebviewWindow, String> {
     let label = get_bubble_window_label(account_index);
-
-    // 1. Kiểm tra cửa sổ đã tồn tại và HWND Win32 còn hợp lệ (kèm grace period dọn dẹp nếu đã destroy)
     for attempt in 0..10 {
         if let Some(win) = app.get_webview_window(&label) {
             #[cfg(target_os = "windows")]
@@ -80,7 +78,6 @@ pub fn get_or_create_bubble_window(
                 } else {
                     false
                 };
-
                 if is_alive {
                     return Ok(win);
                 } else {
@@ -97,15 +94,11 @@ pub fn get_or_create_bubble_window(
             break;
         }
     }
-
-    // 2. Khởi tạo WebviewWindow Bubble động khi cần (Dynamic Lifecycle Spawning)
     let is_on_top = app
         .try_state::<Arc<crate::state::ChatState>>()
         .map(|s| s.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst))
         .unwrap_or(true);
-
     let config = crate::movement::get_bubble_physics_config(app);
-
     let window = tauri::WebviewWindowBuilder::new(
         app,
         &label,
@@ -122,13 +115,11 @@ pub fn get_or_create_bubble_window(
     .shadow(false)
     .visible(false)
     .build()
-    .map_err(|e| format!("Lỗi khởi tạo Bubble {:02}: {}", account_index, e))?;
-
+    .map_err(|e| format!("Failed to create Bubble {:02}: {}", account_index, e))?;
     #[cfg(target_os = "windows")]
     {
         let config = crate::movement::get_bubble_physics_config(app);
         resize_bubble_window(&window, config.size);
     }
-
     Ok(window)
 }

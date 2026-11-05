@@ -1,5 +1,6 @@
 import React from "react";
 import { X, Pin } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Conversation } from "../../../types/conversation";
 import { getAccountThemeColor } from "../../../constants/design";
 
@@ -16,6 +17,7 @@ export const ActiveChatHeadItem: React.FC<ActiveChatHeadItemProps> = ({
   onTogglePin,
   onRemove,
 }) => {
+  const { t } = useTranslation("dashboard");
   const color = getAccountThemeColor(item.accountIndex || 1);
 
   return (
@@ -23,13 +25,11 @@ export const ActiveChatHeadItem: React.FC<ActiveChatHeadItemProps> = ({
       onClick={() => onOpen(item)}
       className="h-[52px] flex items-center gap-3 py-1 px-2 -mx-2 rounded-panel hover:bg-background-subtle cursor-pointer group transition-colors"
     >
-      {/* Hủy bỏ avatar: thay bằng chấm tròn chỉ báo màu tài khoản Messenger */}
       <span
         className="w-2.5 h-2.5 rounded-pill shrink-0 ml-1"
         style={{ backgroundColor: color.hex }}
         title={`Messenger ${item.accountIndex || 1}`}
       />
-
       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5">
           <span className="text-small font-semibold text-content-primary truncate">
@@ -48,19 +48,17 @@ export const ActiveChatHeadItem: React.FC<ActiveChatHeadItemProps> = ({
           {item.lastMessage}
         </p>
       </div>
-
       <div className="flex items-center gap-1 shrink-0">
         <span className="text-caption text-content-muted mr-0.5">
           {item.timestamp}
         </span>
-
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onTogglePin(item.id);
           }}
-          title={item.isPinned ? "Bỏ ghim" : "Ghim lên đầu (tối đa 6)"}
+          title={item.isPinned ? t("chatheads.unpin") : t("chatheads.pin")}
           className={`w-6 h-6 flex items-center justify-center rounded-xs transition-all cursor-pointer ${
             item.isPinned
               ? "text-primary hover:bg-primary-subtle"
@@ -71,14 +69,13 @@ export const ActiveChatHeadItem: React.FC<ActiveChatHeadItemProps> = ({
             className={`w-3.5 h-3.5 ${item.isPinned ? "fill-current -rotate-45" : ""}`}
           />
         </button>
-
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onRemove(item.id);
           }}
-          title="Ẩn chat head"
+          title={t("chatheads.hide")}
           className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-content-secondary hover:text-status-error hover:bg-status-errorBg rounded-xs transition-all cursor-pointer"
         >
           <X className="w-3.5 h-3.5" />

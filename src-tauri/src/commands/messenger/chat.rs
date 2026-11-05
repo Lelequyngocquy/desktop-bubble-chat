@@ -15,7 +15,7 @@ pub struct IncomingMessageDto {
     pub timestamp: u64,
 }
 
-/// Command nhận báo cáo tin nhắn mới từ webview inject script và phát event cho Frontend SSOT
+/// Command receiving new message notification from injected script
 #[tauri::command]
 pub fn report_new_message(
     app: AppHandle,
@@ -30,7 +30,6 @@ pub fn report_new_message(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0);
-
     let payload = IncomingMessageDto {
         account_index: idx,
         sender_name,
@@ -39,23 +38,16 @@ pub fn report_new_message(
         thread_id,
         timestamp: now,
     };
-
-    // 1. Phát âm thanh Pop thuần Native trong Rust Core
     crate::utils::native_sound::play_bubble_pop();
-
-    // 2. Kích hoạt hiệu ứng sóng lan tỏa Pulse trên Bong bóng Native Win32 (Giai đoạn 3)
     crate::windows::native_bubble::trigger_native_bubble_pulse(idx);
-
-    // 3. Gửi Windows Toast Notification thuần Native nếu khung chat của account này đang không mở
     use tauri_plugin_notification::NotificationExt;
     let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
     let is_chat_open = app
         .get_webview_window(&chat_label)
         .map(|w| w.is_visible().unwrap_or(false))
         .unwrap_or(false);
-
     if !is_chat_open {
-        let notif_body = payload.body.as_deref().unwrap_or("Bạn có tin nhắn mới");
+        let notif_body = payload.body.as_deref().unwrap_or("You have a new message");
         let _ = app
             .notification()
             .builder()
@@ -63,11 +55,10 @@ pub fn report_new_message(
             .body(notif_body)
             .show();
     }
-
     app.emit("new-message-received", &payload).map_err(|e| e.to_string())
 }
 
-/// Command nhận danh sách hội thoại gần nhất trích xuất an toàn từ webview
+/// Command receiving recent conversations extracted from webview
 #[tauri::command]
 pub fn sync_recent_conversations(
     app: AppHandle,
@@ -85,7 +76,7 @@ pub fn sync_recent_conversations(
     .map_err(|e| e.to_string())
 }
 
-/// Command mở trực tiếp khung chat cạnh bong bóng nổi cho tài khoản chỉ định
+/// Command opening chat window docked next to bubble for specified account
 #[tauri::command]
 pub async fn open_chat(
     app: AppHandle,
@@ -96,7 +87,7 @@ pub async fn open_chat(
     ChatService::open_chat(&app, &state, idx)
 }
 
-/// Command mở trực tiếp một thread hội thoại cụ thể và dock khung chat cạnh Bubble
+/// Command opening a specific conversation thread and docking next to bubble
 #[tauri::command]
 pub async fn open_thread(
     app: AppHandle,
@@ -106,7 +97,6 @@ pub async fn open_thread(
 ) -> Result<(), String> {
     let idx = account_index.unwrap_or(1);
     ChatService::open_chat(&app, &state, idx)?;
-
     let chat_label = format!("chat-{:02}", idx);
     if let Some(chat_window) = app.get_webview_window(&chat_label) {
         let clean_id = thread_id.trim();
@@ -119,7 +109,7 @@ pub async fn open_thread(
     Ok(())
 }
 
-/// Command bật/tắt khung chat Messenger khi người dùng click vào bong bóng nổi
+/// Command toggling Messenger chat window
 #[tauri::command]
 pub async fn toggle_chat(
     app: AppHandle,
@@ -130,7 +120,7 @@ pub async fn toggle_chat(
     ChatService::toggle_chat(&app, &state, idx)
 }
 
-/// Command tải lại trang Messenger cho tài khoản chỉ định
+/// Command reloading Messenger page for specified account
 #[tauri::command]
 pub fn refresh_messenger(
     app: AppHandle,
@@ -140,7 +130,7 @@ pub fn refresh_messenger(
     ChatService::refresh(&app, idx)
 }
 
-/// Command đóng và hủy hẳn cửa sổ webview của tài khoản bị xóa, xóa sạch cache/storage
+/// Command closing and destroying webview window for deleted account
 #[tauri::command]
 pub fn close_messenger_window(
     app: AppHandle,
@@ -151,7 +141,7 @@ pub fn close_messenger_window(
     StorageService::clean_account_session(&app, &state, idx)
 }
 
-/// Command xóa toàn bộ bộ nhớ đệm, cookies và storage của một tài khoản cụ thể trên ổ cứng
+/// Command clearing storage and cookies for account
 #[tauri::command]
 pub fn clear_account_storage(
     app: AppHandle,
@@ -162,7 +152,7 @@ pub fn clear_account_storage(
     StorageService::clean_account_session(&app, &state, idx)
 }
 
-/// Command chủ động tải trước Webview Messenger trong nền cho tài khoản chỉ định
+/// Command preloading Messenger webview in background
 #[tauri::command]
 pub async fn preload_chat(
     app: AppHandle,
@@ -174,7 +164,7 @@ pub async fn preload_chat(
     Ok(())
 }
 
-/// Command bật/tắt âm thanh tab webview của tài khoản Messenger (Mute/Unmute tab)
+/// Command setting account tab audio muted state
 #[tauri::command]
 pub fn set_account_muted(
     app: AppHandle,
@@ -196,13 +186,11 @@ pub fn set_account_muted(
         c.is_notifications_enabled = c.muted_accounts.len() < 5;
     });
     let label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
-
     println!(
-        "\x1b[34m[BE - Audio] {} âm thanh tab Messenger {:02}\x1b[0m",
-        if muted { "Tắt (Muted)" } else { "Bật (Unmuted)" },
+        "\x1b[34m[BE - Audio] {} Messenger {:02} tab audio\x1b[0m",
+        if muted { "Muting" } else { "Unmuting" },
         idx
     );
-
     if let Some(win) = app.get_webview_window(&label) {
         #[cfg(target_os = "windows")]
         {
@@ -218,8 +206,6 @@ pub fn set_account_muted(
                     }
                 }
             });
-
-            // Đồng thời eval script tắt Audio elements trong DOM
             let js = format!(
                 r#"
                 (function() {{
@@ -232,13 +218,11 @@ pub fn set_account_muted(
             );
             let _ = win.eval(&js);
         }
-
         #[cfg(not(target_os = "windows"))]
         {
             let js = format!("document.querySelectorAll('audio, video').forEach(el => el.muted = {});", muted);
             let _ = win.eval(&js);
         }
     }
-
     Ok(())
 }

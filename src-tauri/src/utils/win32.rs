@@ -13,7 +13,7 @@ unsafe extern "system" {
     fn GetAsyncKeyState(vKey: i32) -> i16;
 }
 
-/// Kiểm tra xem con trỏ chuột hiện tại có đang nằm trên cửa sổ Webview bất kỳ hay không
+/// Checks if the cursor is currently over a given WebviewWindow
 #[cfg(target_os = "windows")]
 pub fn is_cursor_over_window(window: &WebviewWindow) -> bool {
     let mut pt = POINT { x: 0, y: 0 };
@@ -22,7 +22,6 @@ pub fn is_cursor_over_window(window: &WebviewWindow) -> bool {
             return false;
         }
     }
-
     if let Ok(pos) = window.outer_position() {
         if let Ok(size) = window.outer_size() {
             return pt.x >= pos.x
@@ -39,12 +38,12 @@ pub fn is_cursor_over_window(_window: &WebviewWindow) -> bool {
     false
 }
 
-/// Kiểm tra xem con trỏ chuột hiện tại có đang nằm trên cửa sổ bong bóng nổi hay không
+/// Checks if the cursor is currently over the bubble window
 pub fn is_cursor_over_bubble(bubble_window: &WebviewWindow) -> bool {
     is_cursor_over_window(bubble_window)
 }
 
-/// Kiểm tra xem chuột trái có đang được nhấn giữ (kéo thả) hay không
+/// Checks if the left mouse button is currently held down
 #[cfg(target_os = "windows")]
 pub fn is_lbutton_down() -> bool {
     unsafe { (GetAsyncKeyState(0x01) as u16 & 0x8000) != 0 }

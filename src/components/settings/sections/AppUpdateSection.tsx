@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Sparkles,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { CommonLargeCard, SwitchButton } from "../../common";
 import { formatBytes, useAutoUpdater } from "../../../hooks/useAutoUpdater";
 import { systemService } from "../../../services/systemService";
@@ -23,6 +24,7 @@ interface GitHubReleaseData {
 }
 
 export const AppUpdateSection: React.FC = () => {
+  const { t, i18n } = useTranslation("settings");
   const {
     status,
     currentVersion,
@@ -42,7 +44,6 @@ export const AppUpdateSection: React.FC = () => {
     installAndRelaunch,
     setAutoCheckOnStartup,
   } = useAutoUpdater();
-
   const isChecking = status === "checking";
   const isDownloading = status === "downloading";
   const isDownloaded = status === "downloaded";
@@ -50,11 +51,7 @@ export const AppUpdateSection: React.FC = () => {
   const isAvailable = status === "available";
   const isUpToDate = status === "up-to-date";
   const hasUpdate = isAvailable || isDownloading || isDownloaded;
-
-  // Trạng thái quản lý Release Notes lấy trực tiếp từ GitHub (không hardcode)
-  const [githubRelease, setGithubRelease] = useState<GitHubReleaseData | null>(
-    null,
-  );
+  const [githubRelease, setGithubRelease] = useState<GitHubReleaseData | null>(null);
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
   const [notesError, setNotesError] = useState<string | null>(null);
 
@@ -70,11 +67,9 @@ export const AppUpdateSection: React.FC = () => {
           },
         },
       );
-
       if (!res.ok) {
-        throw new Error(`GitHub API phản hồi mã ${res.status}`);
+        throw new Error(`GitHub API returned status ${res.status}`);
       }
-
       const data = await res.json();
       setGithubRelease({
         tag: data.tag_name || `v${availableVersion || currentVersion}`,
@@ -86,12 +81,7 @@ export const AppUpdateSection: React.FC = () => {
         body: (data.body || "").trim(),
       });
     } catch (err) {
-      console.warn(
-        "[AppUpdateSection] Không thể tải release notes từ GitHub API:",
-        err,
-      );
-
-      // Thử fallback sang latest.json do GitHub CDN lưu trữ
+      console.warn("[AppUpdateSection] Failed to fetch release notes from GitHub API:", err);
       try {
         const resLatest = await fetch(
           "https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/latest/download/latest.json",
@@ -108,11 +98,7 @@ export const AppUpdateSection: React.FC = () => {
           });
           return;
         }
-      } catch {
-        // Fallback không thành công
-      }
-
-      // Nếu đã có releaseNotes từ tauri updater check
+      } catch {}
       if (releaseNotes) {
         setGithubRelease({
           tag: availableVersion ? `v${availableVersion}` : `v${currentVersion}`,
@@ -123,16 +109,13 @@ export const AppUpdateSection: React.FC = () => {
           body: releaseNotes.trim(),
         });
       } else {
-        setNotesError(
-          "Không thể kết nối đến GitHub để lấy thông tin phát hành.",
-        );
+        setNotesError(t("update.notes_error"));
       }
     } finally {
       setIsLoadingNotes(false);
     }
-  }, [availableVersion, currentVersion, releaseDate, releaseNotes]);
+  }, [availableVersion, currentVersion, releaseDate, releaseNotes, t]);
 
-  // Tự động tải release notes từ GitHub khi mở mục cài đặt hoặc khi phát hiện bản mới
   useEffect(() => {
     fetchGitHubReleaseNotes();
   }, [fetchGitHubReleaseNotes]);
@@ -144,14 +127,40 @@ export const AppUpdateSection: React.FC = () => {
     );
   };
 
+  const getStatusText = (): string => {
+    if (isChecking) return t("update.status_checking");
+    if (isDownloading) return t("update.status_downloading", { version: availableVersion });
+    if (isDownloaded) return t("update.status_downloaded", { version: availableVersion });
+    if (isInstalling) return t("update.status_installing");
+    if (isAvailable) return t("update.status_available", { version: availableVersion });
+    if (isUpToDate) return t("update.status_uptodate");
+    return t("update.status_ready");
+  };
+
+  const getDescriptionText = (): string => {
+    if (isChecking) return t("update.desc_checking");
+    if (isDownloading) {
+      return t("update.desc_downloading", {
+        percent: progressPercent,
+        downloaded: formatBytes(downloadedBytes),
+        total: formatBytes(totalBytes),
+        speed: downloadSpeed,
+      });
+    }
+    if (isDownloaded) return t("update.desc_downloaded");
+    if (isAvailable) return t("update.desc_available", { version: availableVersion });
+    if (isUpToDate) return t("update.desc_uptodate", { version: currentVersion });
+    return t("update.desc_ready");
+  };
+
   return (
     <CommonLargeCard
       icon={<ArrowUpCircle className="w-4 h-4 text-primary" />}
-      title="Cập nhật ứng dụng"
+      title={t("update.title")}
       subTitle={
         hasUpdate ? (
           <span className="px-2 py-0.5 rounded-pill text-xs font-semibold bg-primary text-white shadow-xs">
-            Có bản mới v{availableVersion}
+            {t("update.new_version_badge", { version: availableVersion })}
           </span>
         ) : (
           <span className="text-caption text-content-secondary">
@@ -162,16 +171,15 @@ export const AppUpdateSection: React.FC = () => {
       linkTitle={
         <button
           onClick={handleOpenGitHubReleases}
-          className="flex items-center gap-1.5 text-caption text-primary hover:underline font-medium transition-colors"
-          title="Xem kho lưu trữ GitHub Releases"
+          className="flex items-center gap-1.5 text-caption text-primary hover:underline font-medium transition-colors cursor-pointer"
+          title={t("update.github_releases_tooltip")}
         >
-          <span>GitHub Releases</span>
+          <span>{t("update.github_releases")}</span>
           <ExternalLink className="w-3.5 h-3.5" />
         </button>
       }
     >
       <div className="flex flex-col gap-5">
-        {/* KHỐI 1: Trạng thái tổng quan, Tiến trình tải & Các nút hành động chính */}
         <div className="p-4 bg-background-subtle/70 border border-border/80 rounded-panel flex flex-col gap-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
@@ -198,90 +206,57 @@ export const AppUpdateSection: React.FC = () => {
                   <ArrowUpCircle className="w-6 h-6" />
                 )}
               </div>
-
               <div className="flex flex-col gap-0.5">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-body font-semibold text-content-primary">
-                    {isChecking
-                      ? "Đang kiểm tra bản cập nhật..."
-                      : isDownloading
-                        ? `Đang tải bản cập nhật v${availableVersion}...`
-                        : isDownloaded
-                          ? `Đã tải xong bản cập nhật v${availableVersion}`
-                          : isInstalling
-                            ? "Đang khởi chạy bộ cài đặt..."
-                            : isAvailable
-                              ? `Đã có bản cập nhật mới: v${availableVersion}`
-                              : isUpToDate
-                                ? "Bạn đang dùng phiên bản mới nhất"
-                                : "Sẵn sàng kiểm tra bản cập nhật"}
+                    {getStatusText()}
                   </span>
-
                   {isAvailable && (
                     <span className="px-2 py-0.5 rounded-pill text-xs font-semibold bg-primary text-white shadow-xs">
-                      Bản mới
+                      {t("update.new_badge")}
                     </span>
                   )}
                   {isDownloaded && (
                     <span className="px-2 py-0.5 rounded-pill text-xs font-semibold bg-emerald-600 text-white shadow-xs">
-                      Sẵn sàng kích hoạt
+                      {t("update.ready_to_activate")}
                     </span>
                   )}
                 </div>
-
                 <p className="text-small text-content-secondary m-0">
-                  {isChecking
-                    ? "Đang kết nối đến GitHub CDN để quét dữ liệu..."
-                    : isDownloading
-                      ? `Tiến trình: ${progressPercent}% · ${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)} (${downloadSpeed})`
-                      : isDownloaded
-                        ? "Gói cài đặt đã được tải xuống và kiểm tra toàn vẹn. Nhấn 'Khởi động lại để cập nhật'."
-                        : isAvailable
-                          ? `Phiên bản v${availableVersion} đã sẵn sàng. Bạn có thể tải ngay bây giờ hoặc tiếp tục sử dụng.`
-                          : isUpToDate
-                            ? `DesktopBubbleChat v${currentVersion} là phiên bản ổn định nhất hiện hành.`
-                            : "Nhấn nút bên dưới để kiểm tra các tính năng mới từ GitHub."}
+                  {getDescriptionText()}
                 </p>
-
                 {releaseDate && (
                   <span className="text-caption text-content-muted mt-0.5">
-                    Ngày phát hành:{" "}
-                    {new Date(releaseDate).toLocaleDateString("vi-VN")}
+                    {t("update.release_date")}:{" "}
+                    {new Date(releaseDate).toLocaleDateString(i18n.language === "vi" ? "vi-VN" : "en-US")}
                   </span>
                 )}
               </div>
             </div>
-
-            {/* Các nút hành động chính */}
             <div className="flex items-center gap-2 flex-wrap shrink-0">
-              {/* Nút Tải bản cập nhật */}
               {isAvailable && (
                 <button
                   onClick={startDownload}
                   className="flex items-center gap-2 px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-control text-small font-semibold shadow-xs transition-colors cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Tải bản cập nhật</span>
+                  <span>{t("update.download_btn")}</span>
                 </button>
               )}
-
-              {/* Nút Dừng tải */}
               {isDownloading && (
                 <button
                   onClick={cancelDownload}
                   className="flex items-center gap-2 px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-control text-small font-semibold transition-colors cursor-pointer"
                 >
                   <Pause className="w-4 h-4" />
-                  <span>Dừng tải</span>
+                  <span>{t("update.pause_btn")}</span>
                 </button>
               )}
-
-              {/* Nút Khởi động lại: CHỈ hiển thị khi đã tải xong thành công 100% */}
               {isDownloaded && (
                 <button
                   onClick={installAndRelaunch}
                   disabled={isInstalling}
-                  title="Khởi động lại ứng dụng để áp dụng bản cập nhật mới"
+                  title={t("update.relaunch_tooltip")}
                   className="flex items-center gap-2 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-control text-small font-semibold shadow-xs transition-colors disabled:opacity-60 animate-pulse cursor-pointer"
                 >
                   <RotateCcw
@@ -289,13 +264,11 @@ export const AppUpdateSection: React.FC = () => {
                   />
                   <span>
                     {isInstalling
-                      ? "Đang áp dụng..."
-                      : "Khởi động lại để cập nhật"}
+                      ? t("update.applying_btn")
+                      : t("update.relaunch_btn")}
                   </span>
                 </button>
               )}
-
-              {/* Nút Kiểm tra bản mới */}
               {!isDownloading && !isInstalling && (
                 <button
                   onClick={() => checkForUpdates(false)}
@@ -310,27 +283,24 @@ export const AppUpdateSection: React.FC = () => {
                     }`}
                   />
                   <span>
-                    {isChecking ? "Đang quét..." : "Kiểm tra bản mới"}
+                    {isChecking ? t("update.scanning_btn") : t("update.check_btn")}
                   </span>
                 </button>
               )}
             </div>
           </div>
-
-          {/* Thanh tiến trình tải */}
           {(isDownloading || isDownloaded) && (
             <div className="flex flex-col gap-1.5 pt-2 border-t border-border/60">
               <div className="flex items-center justify-between text-caption font-medium">
                 <span className="text-content-secondary">
                   {isDownloaded
-                    ? "Tải xuống hoàn tất 100%"
-                    : `Đang tải: ${progressPercent}% · Tốc độ: ${downloadSpeed}`}
+                    ? t("update.download_complete")
+                    : `${t("update.downloading", { percent: progressPercent })} · ${downloadSpeed}`}
                 </span>
                 <span className="text-content-primary font-semibold">
                   {formatBytes(downloadedBytes)} / {formatBytes(totalBytes)}
                 </span>
               </div>
-
               <div className="w-full h-2.5 bg-slate-100 rounded-pill overflow-hidden border border-border/40 p-0.5">
                 <div
                   className={`h-full rounded-pill transition-all duration-300 ${
@@ -343,8 +313,6 @@ export const AppUpdateSection: React.FC = () => {
               </div>
             </div>
           )}
-
-          {/* Banner thông báo lỗi nếu có */}
           {errorMessage && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-control text-rose-700 text-small flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -355,70 +323,63 @@ export const AppUpdateSection: React.FC = () => {
                 onClick={() => checkForUpdates(false)}
                 className="text-xs font-semibold text-rose-700 underline hover:no-underline shrink-0 cursor-pointer"
               >
-                Thử lại
+                {t("update.retry")}
               </button>
             </div>
           )}
-
-          {/* Hàng thông số & Toggle tự động */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/60 text-small">
             <div className="flex items-center gap-2 text-content-secondary">
               <span className="w-1.5 h-1.5 rounded-full bg-content-muted" />
               <span>
-                Kiểm tra lần cuối:{" "}
+                {t("update.last_checked")}:{" "}
                 <strong className="text-content-primary font-medium">
-                  {lastCheckedTime || "Chưa quét trong phiên này"}
+                  {lastCheckedTime || t("update.never_checked")}
                 </strong>
               </span>
             </div>
-
             <div className="flex items-center gap-3">
               <span className="text-content-secondary">
-                Tự động kiểm tra khi mở ứng dụng
+                {t("update.autocheck_label")}
               </span>
               <SwitchButton
                 checked={autoCheckOnStartup}
                 onChange={setAutoCheckOnStartup}
-                ariaLabel="Tự động kiểm tra bản cập nhật khi mở app"
+                ariaLabel={t("update.autocheck_aria")}
               />
             </div>
           </div>
         </div>
-
-        {/* KHỐI 2: Nhật ký phát hành (Changelog / Release Notes) lấy thực tế từ GitHub */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h3 className="text-body font-semibold text-content-primary m-0">
                 {githubRelease?.tag
-                  ? `Điểm mới trong bản phát hành ${githubRelease.tag}`
+                  ? t("update.release_notes_new", { tag: githubRelease.tag })
                   : availableVersion
-                    ? `Điểm mới trong bản phát hành v${availableVersion}`
-                    : `Thông tin phiên bản v${currentVersion}`}
+                    ? t("update.release_notes_new", { tag: `v${availableVersion}` })
+                    : t("update.release_notes_current", { version: currentVersion })}
               </h3>
             </div>
-
             <button
               onClick={fetchGitHubReleaseNotes}
               disabled={isLoadingNotes}
               className="flex items-center gap-1.5 text-caption text-content-secondary hover:text-primary transition-colors cursor-pointer"
-              title="Làm mới nội dung ghi chú từ GitHub"
+              title={t("update.refresh_notes_tooltip")}
             >
               <RefreshCw
                 className={`w-3.5 h-3.5 ${isLoadingNotes ? "animate-spin text-primary" : ""}`}
               />
               <span>
-                {isLoadingNotes ? "Đang đồng bộ..." : "Làm mới ghi chú"}
+                {isLoadingNotes ? t("update.refreshing_notes") : t("update.refresh_notes")}
               </span>
             </button>
           </div>
-
           <div className="bg-background-app/70 border border-border/80 rounded-control p-4 text-small text-content-primary leading-relaxed whitespace-pre-wrap font-sans min-h-[90px]">
             {isLoadingNotes ? (
               <div className="flex items-center justify-center gap-2.5 py-6 text-content-secondary">
                 <RefreshCw className="w-4 h-4 animate-spin text-primary" />
                 <span>
-                  Đang tải thông tin bản phát hành thực tế từ GitHub...
+                  {t("update.loading_notes")}
                 </span>
               </div>
             ) : notesError ? (
@@ -428,7 +389,7 @@ export const AppUpdateSection: React.FC = () => {
                   onClick={fetchGitHubReleaseNotes}
                   className="text-xs text-primary underline hover:no-underline font-medium cursor-pointer"
                 >
-                  Thử tải lại
+                  {t("update.retry")}
                 </button>
               </div>
             ) : githubRelease?.body ? (
@@ -436,22 +397,17 @@ export const AppUpdateSection: React.FC = () => {
             ) : githubRelease ? (
               <div className="text-content-secondary">
                 <p className="m-0">
-                  Bản phát hành{" "}
-                  <strong className="text-content-primary">
-                    {githubRelease.tag}
-                  </strong>
-                  {githubRelease.name ? ` (${githubRelease.name})` : ""} đã sẵn
-                  sàng trên GitHub
+                  Release <strong className="text-content-primary">{githubRelease.tag}</strong>
+                  {githubRelease.name ? ` (${githubRelease.name})` : ""} is ready on GitHub
                   {githubRelease.publishedAt
-                    ? ` (Ngày đăng: ${new Date(githubRelease.publishedAt).toLocaleDateString("vi-VN")})`
+                    ? ` (${t("update.release_date")}: ${new Date(githubRelease.publishedAt).toLocaleDateString(i18n.language === "vi" ? "vi-VN" : "en-US")})`
                     : ""}
                   .
                 </p>
               </div>
             ) : (
               <div className="text-content-muted text-center py-4">
-                Chưa có dữ liệu phát hành. Nhấn &apos;Làm mới ghi chú&apos; để
-                tải từ GitHub.
+                {t("update.no_notes")}
               </div>
             )}
           </div>

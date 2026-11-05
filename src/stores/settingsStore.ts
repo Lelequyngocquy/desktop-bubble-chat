@@ -1,7 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { invoke } from "@tauri-apps/api/core";
+import i18n from "../i18n";
+import { IPC_COMMANDS } from "../types/ipc";
 
 export type BubbleSize = "sm" | "md" | "lg";
+export type AppLanguage = "vi" | "en";
 
 export const BUBBLE_SIZE_PIXELS: Record<BubbleSize, number> = {
   sm: 48,
@@ -15,20 +19,18 @@ interface SettingsState {
   isAutoStart: boolean;
   isGlobalShortcutEnabled: boolean;
   bubbleSize: BubbleSize;
+  language: AppLanguage;
 
   setAlwaysOnTop: (enabled: boolean) => void;
   toggleAlwaysOnTop: () => void;
-
   setNotificationsEnabled: (enabled: boolean) => void;
   toggleNotifications: () => void;
-
   setAutoStart: (enabled: boolean) => void;
   toggleAutoStart: () => void;
-
   setGlobalShortcutEnabled: (enabled: boolean) => void;
   toggleGlobalShortcut: () => void;
-
   setBubbleSize: (size: BubbleSize) => void;
+  setLanguage: (lang: AppLanguage) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -39,29 +41,35 @@ export const useSettingsStore = create<SettingsState>()(
       isAutoStart: false,
       isGlobalShortcutEnabled: true,
       bubbleSize: "md",
+      language: "vi",
 
       setAlwaysOnTop: (enabled) => set({ isAlwaysOnTop: enabled }),
       toggleAlwaysOnTop: () => set((state) => ({ isAlwaysOnTop: !state.isAlwaysOnTop })),
-
       setNotificationsEnabled: (enabled) => set({ isNotificationsEnabled: enabled }),
       toggleNotifications: () => set((state) => ({ isNotificationsEnabled: !state.isNotificationsEnabled })),
-
       setAutoStart: (enabled) => set({ isAutoStart: enabled }),
       toggleAutoStart: () => set((state) => ({ isAutoStart: !state.isAutoStart })),
-
       setGlobalShortcutEnabled: (enabled) => set({ isGlobalShortcutEnabled: enabled }),
       toggleGlobalShortcut: () => set((state) => ({ isGlobalShortcutEnabled: !state.isGlobalShortcutEnabled })),
-
       setBubbleSize: (size) => set({ bubbleSize: size }),
+      setLanguage: (lang) => {
+        set({ language: lang });
+        i18n.changeLanguage(lang);
+        invoke(IPC_COMMANDS.SET_APP_LANGUAGE, { language: lang }).catch(() => {});
+      },
     }),
     {
       name: "desktop_bubble_chat_settings",
+      onRehydrateStorage: () => (state) => {
+        if (state?.language) {
+          i18n.changeLanguage(state.language);
+        }
+      },
     }
   )
 );
 
-// Cross-window synchronization: Khi cửa sổ main lưu cài đặt mới vào localStorage,
-// các cửa sổ phụ (bubble-01 .. bubble-05) tự động cập nhật lại Zustand store đồng bộ.
+// Cross-window synchronization
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (event) => {
     if (event.key === "desktop_bubble_chat_settings" && event.newValue) {
@@ -69,6 +77,9 @@ if (typeof window !== "undefined") {
         const parsed = JSON.parse(event.newValue);
         if (parsed?.state) {
           useSettingsStore.setState(parsed.state);
+          if (parsed.state.language) {
+            i18n.changeLanguage(parsed.state.language);
+          }
         }
       } catch (err) {
         console.warn("[SettingsStore] Failed to sync storage event:", err);

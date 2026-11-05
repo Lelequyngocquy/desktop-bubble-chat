@@ -36,7 +36,7 @@ impl Default for BubbleRenderOptions {
     }
 }
 
-/// Chuyển đổi dữ liệu premultiplied RGBA của tiny-skia sang chuẩn BGRA của Windows DIB Section
+/// Converts premultiplied RGBA from tiny-skia to Windows DIB Section BGRA.
 pub fn rgba_to_bgra(rgba: &[u8]) -> Vec<u8> {
     let mut bgra = Vec::with_capacity(rgba.len());
     for chunk in rgba.chunks_exact(4) {
@@ -49,31 +49,27 @@ pub fn rgba_to_bgra(rgba: &[u8]) -> Vec<u8> {
     bgra
 }
 
-/// Vẽ Bong bóng nổi bằng tiny-skia và xuất ra buffer 32-bit BGRA tương thích 100% với Win32 UpdateLayeredWindow
+/// Renders bubble via tiny-skia into a 32-bit BGRA buffer for Win32 UpdateLayeredWindow.
 pub fn render_bubble_bgra(opts: &BubbleRenderOptions) -> Option<Vec<u8>> {
     let w = opts.canvas_width;
     let h = opts.canvas_height;
     let mut pixmap = Pixmap::new(w, h)?;
     pixmap.fill(Color::TRANSPARENT);
-
     let cx = w as f32 / 2.0;
     let cy = h as f32 / 2.0;
-    // Bán kính thân bong bóng theo kích thước bubble_size logic (chừa 4.5px viền và shadow)
+    // Bubble body radius based on logical bubble_size (leaves 4.5px for border and shadow)
     let base_radius = (opts.bubble_size as f32 / 2.0) - 4.5;
     let radius = if opts.is_hovered {
         base_radius + 0.5
     } else {
         base_radius
     };
-
     let theme = get_account_theme(opts.account_index);
-
-    // 1. Vẽ bóng đổ mềm (Soft Drop Shadow)
+    // 1. Soft drop shadow
     {
         let mut shadow_paint = Paint::default();
         shadow_paint.set_color_rgba8(0, 0, 0, 45);
         shadow_paint.anti_alias = true;
-
         let mut pb = PathBuilder::new();
         pb.push_circle(cx, cy + 2.5, radius + 1.0);
         if let Some(shadow_path) = pb.finish() {
@@ -86,8 +82,7 @@ pub fn render_bubble_bgra(opts: &BubbleRenderOptions) -> Option<Vec<u8>> {
             );
         }
     }
-
-    // 2. Vẽ thân chính Bong bóng (Linear Gradient từ trên xuống)
+    // 2. Main bubble body (linear gradient top-to-bottom)
     {
         let start = Point::from_xy(cx, cy - radius);
         let end = Point::from_xy(cx, cy + radius);
@@ -95,7 +90,6 @@ pub fn render_bubble_bgra(opts: &BubbleRenderOptions) -> Option<Vec<u8>> {
             GradientStop::new(0.0, Color::from_rgba8(theme.primary.0, theme.primary.1, theme.primary.2, 255)),
             GradientStop::new(1.0, Color::from_rgba8(theme.secondary.0, theme.secondary.1, theme.secondary.2, 255)),
         ];
-
         let shader = LinearGradient::new(
             start,
             end,
@@ -103,11 +97,9 @@ pub fn render_bubble_bgra(opts: &BubbleRenderOptions) -> Option<Vec<u8>> {
             SpreadMode::Pad,
             Transform::identity(),
         )?;
-
         let mut body_paint = Paint::default();
         body_paint.shader = shader;
         body_paint.anti_alias = true;
-
         let mut pb = PathBuilder::new();
         pb.push_circle(cx, cy, radius);
         if let Some(body_path) = pb.finish() {
@@ -118,12 +110,10 @@ pub fn render_bubble_bgra(opts: &BubbleRenderOptions) -> Option<Vec<u8>> {
                 Transform::identity(),
                 None,
             );
-
-            // Viền ngoài màu trắng (White Border 2px)
+            // White border (2px)
             let mut border_paint = Paint::default();
             border_paint.set_color_rgba8(255, 255, 255, 245);
             border_paint.anti_alias = true;
-
             let mut stroke = Stroke::default();
             stroke.width = 2.0;
             pixmap.stroke_path(
@@ -135,13 +125,10 @@ pub fn render_bubble_bgra(opts: &BubbleRenderOptions) -> Option<Vec<u8>> {
             );
         }
     }
-
-    // 3. Vẽ biểu tượng Vector Messenger chuẩn SVG màu trắng ở chính giữa (theo MessengerIcon.tsx)
+    // 3. White Messenger vector icon in center
     draw_messenger_icon(&mut pixmap, cx, cy, radius);
-
-    // 4. Vẽ huy hiệu đếm chưa đọc nhọn trỏ vào Bubble (Pointed Circle Pin) nếu > 0
+    // 4. Pointed unread badge if > 0
     draw_unread_badge(&mut pixmap, cx, cy, radius, opts.unread_count, opts.is_left_edge);
-
     Some(rgba_to_bgra(pixmap.data()))
 }
 
@@ -160,15 +147,12 @@ mod tests {
             is_left_edge: true,
             unread_count: 3,
         };
-
         let bgra = render_bubble_bgra(&opts).expect("render_bubble_bgra failed");
         assert_eq!(bgra.len(), 124 * 88 * 4, "Buffer size must match 124x88x4 bytes");
-
-        // 1. Góc trên bên trái (0, 0) phải hoàn toàn trong suốt (Alpha = 0)
+        // 1. Top-left corner (0, 0) must be fully transparent (Alpha = 0)
         let top_left_alpha = bgra[3];
         assert_eq!(top_left_alpha, 0, "Corner (0, 0) must be 100% transparent alpha");
-
-        // 2. Điểm chính giữa tâm (62, 44) phải đặc (Alpha > 200)
+        // 2. Center (62, 44) must be opaque (Alpha > 200)
         let center_idx = (44 * 124 + 62) * 4;
         let center_alpha = bgra[center_idx + 3];
         assert!(center_alpha > 200, "Center (62, 44) must be solid alpha, got {}", center_alpha);
@@ -185,7 +169,6 @@ mod tests {
             is_left_edge: true,
             unread_count: 5,
         };
-
         let bgra = render_bubble_bgra(&opts).expect("render_bubble_bgra failed for single digit");
         assert_eq!(bgra.len(), 124 * 88 * 4);
     }
@@ -201,7 +184,6 @@ mod tests {
             is_left_edge: false,
             unread_count: 24,
         };
-
         let bgra = render_bubble_bgra(&opts).expect("render_bubble_bgra failed for double digit");
         assert_eq!(bgra.len(), 124 * 88 * 4);
     }
@@ -217,14 +199,13 @@ mod tests {
             is_left_edge: false,
             unread_count: 120,
         };
-
         let bgra = render_bubble_bgra(&opts).expect("render_bubble_bgra failed for overflow 99+");
         assert_eq!(bgra.len(), 124 * 88 * 4);
     }
 
     #[test]
     fn test_render_bubble_pointed_badge_left_and_right_edge() {
-        // Kiểm tra vẽ badge nhọn khi ở mép trái (badge nằm bên phải)
+        // Test left-edge pointed badge (badge rendered on right)
         let opts_left = BubbleRenderOptions {
             canvas_width: 124,
             canvas_height: 88,
@@ -236,8 +217,7 @@ mod tests {
         };
         let bgra_left = render_bubble_bgra(&opts_left).expect("render_bubble_bgra failed for left edge");
         assert_eq!(bgra_left.len(), 124 * 88 * 4);
-
-        // Kiểm tra vẽ badge nhọn khi ở mép phải (badge nằm bên trái)
+        // Test right-edge pointed badge (badge rendered on left)
         let opts_right = BubbleRenderOptions {
             canvas_width: 124,
             canvas_height: 88,
@@ -249,8 +229,7 @@ mod tests {
         };
         let bgra_right = render_bubble_bgra(&opts_right).expect("render_bubble_bgra failed for right edge");
         assert_eq!(bgra_right.len(), 124 * 88 * 4);
-
-        // Hai ảnh BGRA phải khác nhau do badge nằm ở hai bên đối nghịch
+        // Buffers must differ due to opposing badge positions
         assert_ne!(bgra_left, bgra_right, "Left-edge badge and Right-edge badge must render at different positions");
     }
 }

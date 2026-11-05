@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { TabHeader } from "../common";
 import {
   QuickTipsSection,
@@ -8,21 +9,20 @@ import {
 } from "./components";
 
 export const HelpWorkspace: React.FC = () => {
+  const { t } = useTranslation("help");
+
   return (
     <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden select-none">
-      {/* 1. Header cố định chung */}
       <TabHeader
-        eyebrow="TRỢ GIÚP & HỖ TRỢ"
-        title="Trợ giúp & phản hồi"
-        description="Mẹo sử dụng các phím tắt, điều hướng bong bóng nổi và gửi phản hồi đóng góp ý kiến."
+        eyebrow={t("header_eyebrow")}
+        title={t("header_title")}
+        description={t("header_desc")}
         rightSlot={
           <span className="px-3 py-1.5 bg-background-surface border border-border rounded-pill text-small font-semibold text-primary-foreground shadow-xs">
-            Bản xem trước (Preview)
+            {t("preview_badge")}
           </span>
         }
       />
-
-      {/* 2. Nội dung cuộn mượt mà */}
       <main className="flex-1 min-h-0 overflow-y-auto px-8 py-6 flex flex-col gap-6 custom-scrollbar">
         <QuickTipsSection />
         <ResourceOptimizationCard />

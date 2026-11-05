@@ -26,13 +26,12 @@ export function useMessengerAccounts() {
   const handleOpenAccount = useCallback(
     async (account: MessengerAccount) => {
       feLog.info(
-        `[UI Click] Người dùng bấm '${account.isConnected ? "Mở chat" : account.isAuthenticating ? "Xem cửa sổ" : "Đăng nhập"}' cho tài khoản: ${account.name} (ID: ${account.id}, Index: ${account.index})`
+        `[UI Click] User clicked '${account.isConnected ? "Open chat" : account.isAuthenticating ? "View window" : "Login"}' for account: ${account.name} (ID: ${account.id}, Index: ${account.index})`
       );
       setActiveAccountIndex(account.index);
-
       if (account.isConnected) {
         try {
-          feLog.info(`[useMessengerAccounts] Đang mở khung chat cho tài khoản ${account.index}...`);
+          feLog.info(`[useMessengerAccounts] Opening chat window for account ${account.index}...`);
           useMessengerStore.getState().setAccountBubbleVisibility(account.index, true);
           useWindowStore.getState().setOpenChatAccountIndex(account.index);
           await messengerService.openChat(account.index);
@@ -41,8 +40,6 @@ export function useMessengerAccounts() {
         }
         return;
       }
-
-      // Delegate auth session management to SSOT AuthManager
       await messengerAuthManager.startAuth(account);
     },
     [setActiveAccountIndex]
@@ -62,14 +59,14 @@ export function useMessengerAccounts() {
   const handleRefreshAccount = useCallback(
     async (account: MessengerAccount) => {
       setRefreshingId(account.id);
-      feLog.info(`[useMessengerAccounts] Người dùng làm mới trạng thái tài khoản ${account.index}...`);
+      feLog.info(`[useMessengerAccounts] Refreshing account status ${account.index}...`);
       try {
         await messengerService.refresh(account.index);
         const res = await messengerService.checkAuth(account.index);
         if (res && res.connected) {
           updateAccount(account.id, {
             isConnected: true,
-            lastSynced: "Đồng bộ vừa xong",
+            lastSynced: "Just synced",
           });
         }
       } catch (err) {
@@ -83,7 +80,7 @@ export function useMessengerAccounts() {
 
   const handleDisconnect = useCallback(
     async (account: MessengerAccount) => {
-      feLog.warn(`[useMessengerAccounts] Ngắt kết nối tài khoản: ${account.name} (${account.id})`);
+      feLog.warn(`[useMessengerAccounts] Disconnecting account: ${account.name} (${account.id})`);
       messengerAuthManager.cancelAuth(account.id);
       try {
         await messengerService.disconnect(account.index);
@@ -100,19 +97,19 @@ export function useMessengerAccounts() {
   );
 
   const handleAddAccount = useCallback(() => {
-    feLog.info("[useMessengerAccounts] Thêm profile Messenger mới...");
+    feLog.info("[useMessengerAccounts] Adding new Messenger profile...");
     const newAcc = addAccountToStore();
     if (newAcc) {
-      feLog.info(`[useMessengerAccounts] Đã tạo tài khoản mới:`, newAcc);
+      feLog.info(`[useMessengerAccounts] Created new account:`, newAcc);
     } else {
-      feLog.warn(`[useMessengerAccounts] Không thể thêm tài khoản (đã đạt giới hạn tối đa)`);
+      feLog.warn(`[useMessengerAccounts] Cannot add account (max limit reached)`);
     }
     return newAcc;
   }, [addAccountToStore]);
 
   const handleRemoveAccount = useCallback(
     async (account: MessengerAccount) => {
-      feLog.info(`[useMessengerAccounts] Xóa tài khoản: ${account.name} (ID: ${account.id}, Index: ${account.index})`);
+      feLog.info(`[useMessengerAccounts] Removing account: ${account.name} (ID: ${account.id}, Index: ${account.index})`);
       removeAccountFromStore(account.id);
       try {
         await messengerService.toggleBubble(false, account.index);
@@ -129,26 +126,18 @@ export function useMessengerAccounts() {
     activeAccountIndex,
     isConnected,
     refreshingId,
-
-    // Primary & Alias action handlers for full consumer compatibility
     openAccount: handleOpenAccount,
     handleOpenAccount,
-
     cancelAuth: handleCancelAuth,
     handleCancelAuth,
-
     refreshAccount: handleRefreshAccount,
     handleRefresh: handleRefreshAccount,
-
     removeAccount: handleRemoveAccount,
     handleRemoveAccount,
-
     addAccount: handleAddAccount,
     handleAddAccount,
-
     disconnectAccount: handleDisconnect,
     handleDisconnect,
-
     setActiveAccountIndex,
     updateAccount,
   };

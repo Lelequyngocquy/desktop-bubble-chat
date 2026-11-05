@@ -1,5 +1,6 @@
 import React from "react";
 import { Settings } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { PlatformId } from "../../../../types/platform";
 import { PLATFORM_CONFIGS } from "../../../../config";
 import { PlatformIcon } from "../../../icons";
@@ -19,12 +20,12 @@ interface MessengerPlatformHeaderProps {
 export const MessengerPlatformHeader: React.FC<
   MessengerPlatformHeaderProps
 > = ({ totalConnected, totalAccounts, onManage }) => {
+  const { t } = useTranslation("dashboard");
   const messengerConfig = PLATFORM_CONFIGS[PlatformId.MESSENGER];
   const isConnected = totalConnected > 0;
 
   return (
     <div className="flex items-center justify-between gap-4 flex-wrap pb-1">
-      {/* Left: Platform Logo & Title */}
       <div className="flex items-center gap-[14px]">
         <AvatarSquareRounded
           size={52}
@@ -39,13 +40,11 @@ export const MessengerPlatformHeader: React.FC<
             />
           }
         />
-
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
             <span className="text-platform font-semibold text-content-primary leading-none">
               {messengerConfig.name}
             </span>
-
             {isConnected ? (
               <CommonBadge
                 color="success"
@@ -54,8 +53,11 @@ export const MessengerPlatformHeader: React.FC<
                 }
                 status={
                   totalConnected === 1
-                    ? "Đã kết nối"
-                    : `${totalConnected}/${totalAccounts} tài khoản kết nối`
+                    ? t("single_connected")
+                    : t("accounts_connected_ratio", {
+                        connected: totalConnected,
+                        total: totalAccounts,
+                      })
                 }
               />
             ) : (
@@ -64,7 +66,7 @@ export const MessengerPlatformHeader: React.FC<
                 icon={
                   <span className="w-1.5 h-1.5 rounded-pill bg-status-warning" />
                 }
-                status="Chưa kết nối"
+                status={t("accounts.disconnected")}
               />
             )}
           </div>
@@ -73,8 +75,6 @@ export const MessengerPlatformHeader: React.FC<
           </span>
         </div>
       </div>
-
-      {/* Right: Master Actions Toolbar */}
       <div className="flex items-center gap-2">
         <CommonButton
           variant="outline"
@@ -82,7 +82,7 @@ export const MessengerPlatformHeader: React.FC<
           onClick={onManage}
           iconLeading={<Settings className="w-3.5 h-3.5 text-content-secondary" />}
         >
-          Quản lý
+          {t("accounts.manage_btn")}
         </CommonButton>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Home,
   Unplug,
@@ -17,11 +18,13 @@ import {
 import { useConversationStore } from "../../stores/conversationStore";
 import { useSystemUserStore } from "../../stores/systemUserStore";
 import { useUpdateStore } from "../../stores/updateStore";
+import { useSettingsStore } from "../../stores/settingsStore";
 import { NavTab, NavigationItemConfig } from "../../types";
 import { NAVIGATION_ITEMS } from "../../config";
 import { AvatarCircle } from "../common";
 
 export const Sidebar: React.FC = () => {
+  const { t } = useTranslation(["common", "dashboard"]);
   const activeTab = useNavigationStore((s) => s.activeTab);
   const setActiveTab = useNavigationStore((s) => s.setActiveTab);
   const conversations = useConversationStore((s) => s.conversations);
@@ -30,23 +33,21 @@ export const Sidebar: React.FC = () => {
   const systemUserInitials = useSystemUserStore((s) => s.systemUserInitials);
   const updateStatus = useUpdateStore((s) => s.status);
   const currentVersion = useUpdateStore((s) => s.currentVersion);
-
+  const currentLanguage = useSettingsStore((s) => s.language);
+  const setLanguage = useSettingsStore((s) => s.setLanguage);
   const hasUpdate =
     updateStatus === "available" ||
     updateStatus === "downloading" ||
     updateStatus === "downloaded";
-
-  const navIconMap: Record<NavigationItemConfig["iconName"], React.ReactNode> =
-    {
-      Home: <Home className="w-[18px] h-[18px]" />,
-      Unplug: <Unplug className="w-[18px] h-[18px]" />,
-      MessageSquare: <MessageSquare className="w-[18px] h-[18px]" />,
-      Bell: <Bell className="w-[18px] h-[18px]" />,
-      Activity: <Activity className="w-[18px] h-[18px]" />,
-      Settings2: <Settings2 className="w-[18px] h-[18px]" />,
-      HelpCircle: <HelpCircle className="w-[18px] h-[18px]" />,
-    };
-
+  const navIconMap: Record<NavigationItemConfig["iconName"], React.ReactNode> = {
+    Home: <Home className="w-[18px] h-[18px]" />,
+    Unplug: <Unplug className="w-[18px] h-[18px]" />,
+    MessageSquare: <MessageSquare className="w-[18px] h-[18px]" />,
+    Bell: <Bell className="w-[18px] h-[18px]" />,
+    Activity: <Activity className="w-[18px] h-[18px]" />,
+    Settings2: <Settings2 className="w-[18px] h-[18px]" />,
+    HelpCircle: <HelpCircle className="w-[18px] h-[18px]" />,
+  };
   const getBadgeForTab = (id: NavTab): number | string | undefined => {
     switch (id) {
       case "connections":
@@ -57,14 +58,30 @@ export const Sidebar: React.FC = () => {
         return undefined;
     }
   };
-
+  const getNavLabel = (id: NavTab, fallback: string): string => {
+    switch (id) {
+      case "home":
+        return t("dashboard:navigation.home");
+      case "connections":
+        return t("dashboard:navigation.connections");
+      case "chat-heads":
+        return t("dashboard:navigation.chat_heads");
+      case "performance":
+        return t("dashboard:navigation.performance");
+      case "settings":
+        return t("dashboard:navigation.settings");
+      case "help":
+        return t("dashboard:navigation.help");
+      default:
+        return fallback;
+    }
+  };
   const primaryNavItems = NAVIGATION_ITEMS.map((item) => ({
     id: item.id,
-    label: item.label,
+    label: getNavLabel(item.id, item.label),
     icon: navIconMap[item.iconName],
     badge: getBadgeForTab(item.id),
   }));
-
   const secondaryNavItems: Array<{
     id: NavTab;
     label: string;
@@ -73,7 +90,7 @@ export const Sidebar: React.FC = () => {
   }> = [
     {
       id: "settings",
-      label: "Cài đặt",
+      label: t("dashboard:navigation.settings"),
       icon: <Settings2 className="w-[18px] h-[18px]" />,
       badge: hasUpdate ? (
         <span className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-xs" />
@@ -81,16 +98,15 @@ export const Sidebar: React.FC = () => {
     },
     {
       id: "help",
-      label: "Trợ giúp & phản hồi",
+      label: t("dashboard:navigation.help"),
       icon: <HelpCircle className="w-[18px] h-[18px]" />,
     },
   ];
-
   return (
     <aside className="w-sidebar shrink-0 bg-background-app border-r border-border flex flex-col justify-between p-[14px_12px_16px] select-none h-full overflow-hidden">
       {/* Top section: Profile & Primary Nav */}
       <div className="flex flex-col gap-6">
-        {/* Profile - Windows User Profile */}
+        {/* Profile - User Header */}
         <div
           onClick={() => setActiveTab("home")}
           className="flex items-center gap-[11px] px-[10px] pb-2 cursor-pointer hover:opacity-90 transition-opacity"
@@ -105,7 +121,7 @@ export const Sidebar: React.FC = () => {
               {systemUser}
             </span>
             <span className="text-caption text-content-secondary truncate leading-tight">
-              Không gian cá nhân
+              {t("common:personal_space")}
             </span>
           </div>
         </div>
@@ -124,11 +140,9 @@ export const Sidebar: React.FC = () => {
                     : "hover:bg-white/40 active:bg-white/60"
                 }`}
               >
-                {/* Active selection indicator */}
                 {isActive && (
                   <div className="absolute left-0 top-[13px] w-[3px] h-[16px] bg-primary rounded-indicator" />
                 )}
-
                 <div className="flex items-center gap-3">
                   <span
                     className={`transition-colors ${
@@ -149,8 +163,6 @@ export const Sidebar: React.FC = () => {
                     {item.label}
                   </span>
                 </div>
-
-                {/* Badge if present */}
                 {item.badge !== undefined && (
                   <span
                     className={`text-small font-normal px-1.5 py-0.5 rounded-pill ${
@@ -168,18 +180,18 @@ export const Sidebar: React.FC = () => {
         </nav>
       </div>
 
-      {/* Bottom section: Background service, Secondary Nav & Version */}
+      {/* Bottom section: Background service, Secondary Nav, Language Switcher & Version */}
       <div className="flex flex-col gap-4">
-        {/* Background Service Card */}
+        {/* Background Service Status Card */}
         <div className="bg-white/50 border border-white/75 rounded-panel p-[14px] flex flex-col gap-2">
           <div className="flex items-center gap-2 text-content-primary">
             <CheckCircle2 className="w-4 h-4 text-status-success" />
             <span className="text-small font-medium leading-none">
-              Đang chạy nền
+              {t("common:running_in_background")}
             </span>
           </div>
           <p className="text-caption text-content-secondary leading-snug m-0">
-            Đóng cửa sổ vẫn sẽ giữ ứng dụng hoạt động.
+            {t("common:running_in_background_desc")}
           </p>
         </div>
 
@@ -197,11 +209,9 @@ export const Sidebar: React.FC = () => {
                     : "hover:bg-white/40 active:bg-white/60"
                 }`}
               >
-                {/* Active selection indicator */}
                 {isActive && (
                   <div className="absolute left-0 top-[11px] w-[3px] h-[16px] bg-primary rounded-indicator" />
                 )}
-
                 <div className="flex items-center gap-3">
                   <span
                     className={`transition-colors ${
@@ -222,24 +232,53 @@ export const Sidebar: React.FC = () => {
                     {item.label}
                   </span>
                 </div>
-
-                {/* Badge if present */}
                 {item.badge}
               </button>
             );
           })}
         </div>
 
+        {/* Quick Language Switcher */}
+        <div className="flex items-center justify-center gap-1 pt-1 text-caption">
+          <button
+            type="button"
+            onClick={() => setLanguage("en")}
+            className={`px-2 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5 ${
+              currentLanguage === "en"
+                ? "bg-white text-primary font-semibold shadow-xs"
+                : "text-content-muted hover:text-content-primary hover:bg-white/30"
+            }`}
+            title="Switch language to English"
+          >
+            <span>🇺🇸</span>
+            <span>English</span>
+          </button>
+          <span className="text-border/70 select-none">/</span>
+          <button
+            type="button"
+            onClick={() => setLanguage("vi")}
+            className={`px-2 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5 ${
+              currentLanguage === "vi"
+                ? "bg-white text-primary font-semibold shadow-xs"
+                : "text-content-muted hover:text-content-primary hover:bg-white/30"
+            }`}
+            title="Switch language to Vietnamese"
+          >
+            <span>🇻🇳</span>
+            <span>Tiếng Việt</span>
+          </button>
+        </div>
+
         {/* App Version */}
         <div
           onClick={() => setActiveTab("settings")}
-          className="pt-2 pl-[32px] text-caption text-content-muted hover:text-primary cursor-pointer transition-colors flex items-center gap-1.5"
-          title="Bấm để mở Cài đặt & Cập nhật ứng dụng"
+          className="pt-1 text-caption text-content-muted hover:text-primary cursor-pointer transition-colors flex items-center justify-center gap-1.5"
+          title="Open Settings & Updates"
         >
           <span>DesktopBubbleChat v{currentVersion}</span>
           {hasUpdate && (
             <span className="px-1.5 py-0.5 bg-primary text-white text-[10px] font-bold rounded-pill animate-pulse leading-none shadow-xs">
-              MỚI
+              {t("common:new_badge")}
             </span>
           )}
         </div>

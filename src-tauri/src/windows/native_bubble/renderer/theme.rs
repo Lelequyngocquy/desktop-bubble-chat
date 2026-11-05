@@ -4,7 +4,7 @@ pub struct AccountTheme {
     pub secondary: (u8, u8, u8),
 }
 
-/// Lấy bảng màu đại diện cho tài khoản theo chỉ số (1 -> 5)
+/// Retrieves color palette for account by index (1 -> 5).
 pub fn get_account_theme(index: u32) -> AccountTheme {
     match ((index.max(1) - 1) % 5) + 1 {
         1 => AccountTheme {

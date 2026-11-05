@@ -18,6 +18,7 @@ export const IPC_COMMANDS = {
   LOG_FRONTEND: "log_frontend",
   GET_USER_SETTINGS: "get_user_settings",
   SAVE_USER_SETTINGS: "save_user_settings",
+  SET_APP_LANGUAGE: "set_app_language",
 
   // Performance Commands
   GET_PERFORMANCE_SNAPSHOT: "get_performance_snapshot",

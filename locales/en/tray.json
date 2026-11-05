@@ -1,0 +1,11 @@
+{
+  "open_dashboard": "Open Dashboard",
+  "close_dashboard": "Close Dashboard",
+  "toggle_all_bubbles": "Toggle All Bubbles",
+  "hide_all_bubbles": "Hide All Bubbles",
+  "show_all_bubbles": "Show All Bubbles",
+  "account_label": "Messenger {{index}}",
+  "quit_app": "Exit Application",
+  "confirm_exit_title": "Confirm Exit DesktopBubbleChat",
+  "confirm_exit_text": "Are you sure you want to completely exit DesktopBubbleChat?\n\n• All floating bubbles will close.\n• Messenger chat windows will stop running."
+}

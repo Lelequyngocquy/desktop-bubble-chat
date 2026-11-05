@@ -1,25 +1,15 @@
 import React from "react";
 
 export interface CommonWidgetProps {
-  /** Tiêu đề chính của widget */
   title: string;
-  /** Badge hiển thị số lượng bên cạnh tiêu đề (tùy chọn) */
   badgeCount?: number;
-  /** Dòng mô tả ngắn bên dưới tiêu đề (tùy chọn) */
   description?: string;
-  /** Nút hoặc icon góc trên bên phải header */
   headerAction?: React.ReactNode;
-  /** Banner cảnh báo hiển thị ngay dưới header (ví dụ Alert cảnh báo) */
   banner?: React.ReactNode;
-  /** Nội dung thân widget */
   children: React.ReactNode;
-  /** Nội dung góc trái của footer (ví dụ "3/6 cuộc trò chuyện") */
   footerLeft?: React.ReactNode;
-  /** Nút hoặc hành động góc phải của footer */
   footerRight?: React.ReactNode;
-  /** Class CSS bổ sung cho container ngoài cùng (ví dụ căn chỉnh width trên desktop) */
   className?: string;
-  /** Tùy biến class cho vùng body */
   bodyClassName?: string;
 }
 
@@ -39,7 +29,6 @@ export const CommonWidget: React.FC<CommonWidgetProps> = ({
     <div
       className={`bg-background-surface border border-border rounded-card shadow-card flex flex-col justify-between min-w-0 select-none ${className}`}
     >
-      {/* 1. Header */}
       <div className="p-[20px_22px_12px] flex flex-col gap-1.5 border-b border-border/50 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -52,28 +41,20 @@ export const CommonWidget: React.FC<CommonWidgetProps> = ({
               </span>
             )}
           </div>
-
           {headerAction && (
             <div className="flex items-center shrink-0">{headerAction}</div>
           )}
         </div>
-
         {description && (
           <p className="text-small text-content-secondary m-0 leading-normal">
             {description}
           </p>
         )}
       </div>
-
-      {/* Banner / Notification (Nếu có) */}
       {banner && <div className="px-[22px] pt-2 shrink-0">{banner}</div>}
-
-      {/* 2. Body Slot */}
       <div className={`px-[22px] flex-1 min-h-0 flex flex-col ${bodyClassName}`}>
         {children}
       </div>
-
-      {/* 3. Footer */}
       {(footerLeft || footerRight) && (
         <div className="h-12 px-[22px] border-t border-border/50 flex items-center justify-between shrink-0">
           <div>{footerLeft}</div>

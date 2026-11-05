@@ -7,17 +7,17 @@ export interface TroubleshootStep {
 export const TROUBLESHOOT_STEPS: TroubleshootStep[] = [
   {
     num: 1,
-    title: "Kiểm tra Internet",
-    desc: "Đảm bảo máy tính đang có kết nối mạng ổn định.",
+    title: "Check Internet",
+    desc: "Ensure your computer has a stable network connection.",
   },
   {
     num: 2,
-    title: "Mở Messenger để kiểm tra",
-    desc: "Đăng nhập lại nếu phiên xác thực trên thiết bị đã hết hạn.",
+    title: "Check Messenger login",
+    desc: "Log in again if your authentication session on this device has expired.",
   },
   {
     num: 3,
-    title: "Thử kết nối lại",
-    desc: "Dùng chức năng Kết nối lại nếu dữ liệu tin nhắn chưa được cập nhật.",
+    title: "Try reconnecting",
+    desc: "Use the Reconnect action if unread messages are not synchronizing.",
   },
 ];

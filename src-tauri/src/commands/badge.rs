@@ -3,7 +3,7 @@ use tauri::{AppHandle, Emitter, State};
 
 use crate::state::ChatState;
 
-// Command nhận số unread từ injected script và phát event cho toàn bộ app
+// Command to update unread badge count from injected script and emit event
 #[tauri::command]
 pub fn update_unread_badge(
     app: AppHandle,
@@ -19,7 +19,7 @@ pub fn update_unread_badge(
     Ok(())
 }
 
-// Command giả lập / thiết lập trực tiếp số badge (tiện cho test và điều khiển)
+// Command to set badge count directly
 #[tauri::command]
 pub fn set_badge_count(
     app: AppHandle,
@@ -35,7 +35,7 @@ pub fn set_badge_count(
     Ok(())
 }
 
-/// Command truy vấn số đếm chưa đọc của một tài khoản cụ thể (SSOT)
+/// Command to query unread count of a specific account (SSOT)
 #[tauri::command]
 pub fn get_unread_count(
     state: State<'_, Arc<ChatState>>,
@@ -45,7 +45,7 @@ pub fn get_unread_count(
     Ok(state.get_unread_count(idx))
 }
 
-/// Command truy vấn toàn bộ số đếm chưa đọc của tất cả tài khoản từ SSOT Backend (Giai đoạn 4)
+/// Command to query all unread counts across all accounts from backend SSOT
 #[tauri::command]
 pub fn get_all_unread_counts(
     state: State<'_, Arc<ChatState>>,

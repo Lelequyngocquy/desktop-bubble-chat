@@ -92,7 +92,7 @@ export const messengerService = {
   },
 
   /**
-   * Truy vấn danh sách snapshot các account_index đang có Bubble hiển thị thực tế trên màn hình (Read-Only SSOT).
+   * Query snapshot of account indices currently having visible bubbles (Read-Only SSOT).
    */
   async getActiveBubbleAccounts(): Promise<number[]> {
     try {
@@ -103,7 +103,7 @@ export const messengerService = {
   },
 
   /**
-   * Truy vấn danh sách tin nhắn gần nhất từ bộ nhớ Backend Rust ChatState (Giai đoạn 4).
+   * Query recent incoming messages list from backend Rust ChatState.
    */
   async getRecentMessages(accountIndex?: number): Promise<IncomingMessagePayload[]> {
     try {
@@ -117,7 +117,7 @@ export const messengerService = {
   },
 
   /**
-   * Truy vấn toàn bộ số unread hiện tại của tất cả tài khoản từ SSOT Backend (Giai đoạn 4).
+   * Query all current unread counts across all accounts from backend SSOT.
    */
   async getAllUnreadCounts(): Promise<Record<number, number>> {
     try {
@@ -129,7 +129,7 @@ export const messengerService = {
   },
 
   /**
-   * Bật/tắt âm thanh tab webview của tài khoản Messenger (Mute/Unmute tab).
+   * Mute or unmute the webview tab audio for an account.
    */
   async setAccountMuted(accountIndex: number, muted: boolean): Promise<void> {
     try {
@@ -154,7 +154,6 @@ export const messengerService = {
     try {
       await invoke(IPC_COMMANDS.TOGGLE_ALL_BUBBLES, { visible, accountIndices });
     } catch {
-      // Fallback: Tuần tự hoá tuyệt đối nếu IPC gặp sự cố
       for (const idx of accountIndices) {
         await invoke(IPC_COMMANDS.TOGGLE_BUBBLE, { visible, accountIndex: idx });
         if (visible) {
@@ -165,7 +164,7 @@ export const messengerService = {
   },
 
   /**
-   * Cấu hình kích thước và tỉ lệ lấn mép của Bong bóng nổi.
+   * Configure bubble size and tuck ratio.
    */
   async setBubbleConfig(size?: number, tuckRatio?: number): Promise<void> {
     await systemService.setBubbleConfig(size, tuckRatio);

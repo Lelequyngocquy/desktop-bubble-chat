@@ -1,12 +1,11 @@
 import React, { ReactNode } from "react";
 
-// Định nghĩa các preset màu phổ biến trong app
 export type BadgeVariant =
-  | "success" // Xanh lá (Đã kết nối, Hoàn thành)
-  | "primary" // Xanh dương (Đang hoạt động)
-  | "secondary" // Xám (Đang ngủ đông, Chưa kích hoạt)
-  | "warning" // Vàng / Cam (Cảnh báo, Đang chờ)
-  | "danger"; // Đỏ (Mất kết nối, Lỗi)
+  | "success" // Green (Connected, Done)
+  | "primary" // Blue (Active)
+  | "secondary" // Gray (Hibernating, Inactive)
+  | "warning" // Yellow / Orange (Warning, Pending)
+  | "danger"; // Red (Disconnected, Error)
 
 const VARIANT_STYLES: Record<
   BadgeVariant,
@@ -35,18 +34,10 @@ const VARIANT_STYLES: Record<
 };
 
 export interface CommonBadgeProps {
-  /** Nội dung / trạng thái hiển thị (text hoặc ReactNode) */
   status: ReactNode;
-  /** Icon hiển thị bên trái (tùy chọn) */
   icon?: ReactNode;
-  /**
-   * Chọn theo preset (`success` | `primary` | `secondary` | `warning` | `danger`)
-   * hoặc tự truyền chuỗi class CSS tùy biến
-   */
   color?: BadgeVariant | string;
-  /** Tooltip khi hover (tùy chọn) */
   title?: string;
-  /** Bổ sung class tùy biến ngoài nếu cần */
   className?: string;
 }
 
@@ -57,12 +48,10 @@ export const CommonBadge: React.FC<CommonBadgeProps> = ({
   title,
   className = "",
 }) => {
-  // Kiểm tra xem color có nằm trong preset không, nếu không thì xem như custom class
   const isPreset = color in VARIANT_STYLES;
   const colorClasses = isPreset
     ? VARIANT_STYLES[color as BadgeVariant].container
     : color;
-
   return (
     <span
       title={title}

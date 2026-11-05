@@ -3,7 +3,7 @@ use tauri::State;
 
 use crate::state::{ChatState, IncomingMessage};
 
-/// Command truy vấn danh sách tin nhắn gần nhất đã lưu trong ChatState (Giai đoạn 2)
+/// Command to query recent messages stored in ChatState
 #[tauri::command]
 pub fn get_recent_messages(
     state: State<'_, Arc<ChatState>>,

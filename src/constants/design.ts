@@ -1,26 +1,22 @@
-/**
- * DesktopBubbleChat — Single Source of Truth (SSOT) Design System Tokens
- */
-
 export interface AccountThemeColor {
   index: number;
   hex: string;
-  bgLight: string;
   borderHex: string;
+  bgLight: string;
 }
 
 export const ACCOUNT_THEME_COLORS: Record<number, AccountThemeColor> = {
   1: {
     index: 1,
-    hex: "#06B6D4",
-    borderHex: "#0891B2",
-    bgLight: "#ECFEFF",
+    hex: "#0866FF",
+    borderHex: "#0056D6",
+    bgLight: "#EAF2FF",
   },
   2: {
     index: 2,
-    hex: "#EC4899",
-    borderHex: "#DB2777",
-    bgLight: "#FDF2F8",
+    hex: "#00C6FF",
+    borderHex: "#009BCC",
+    bgLight: "#E6F9FF",
   },
   3: {
     index: 3,
@@ -43,7 +39,7 @@ export const ACCOUNT_THEME_COLORS: Record<number, AccountThemeColor> = {
 };
 
 /**
- * Lấy mã màu đại diện theo số thứ tự tài khoản (1-based index)
+ * Returns theme color by 1-based account index
  */
 export function getAccountThemeColor(index: number = 1): AccountThemeColor {
   const normalized = ((Math.max(1, index) - 1) % 5) + 1;
@@ -52,46 +48,46 @@ export function getAccountThemeColor(index: number = 1): AccountThemeColor {
 
 export const Color = {
   background: {
-    app: "#EEF2F9",       // Nền tổng thể cửa sổ, sidebar
-    workspace: "#F4F7FC", // Nền vùng làm việc nội dung chính
-    surface: "#FFFFFF",   // Nền thẻ card, popup dialog, nút nền trắng
-    subtle: "#F8FAFD",    // Nền khu vực phụ bên trong card (empty state, preview)
+    app: "#EEF2F9",       // Window and sidebar background
+    workspace: "#F4F7FC", // Main workspace background
+    surface: "#FFFFFF",   // Card and modal background
+    subtle: "#F8FAFD",    // Secondary background within cards
   },
 
   text: {
-    primary: "#202733",   // Tiêu đề chính, nhãn quan trọng (hợp nhất từ #1E293B, #0F172A)
-    secondary: "#6B7483", // Mô tả, phụ đề, nhãn phụ (hợp nhất từ #64748B, #475467)
-    muted: "#929AA7",     // Thời gian, timestamp, placeholder (hợp nhất từ #94A3B8)
-    inverse: "#FFFFFF",   // Chữ trắng trên nền tối/nền màu
+    primary: "#202733",   // Primary headers and labels
+    secondary: "#6B7483", // Descriptions and subtitles
+    muted: "#929AA7",     // Timestamps and placeholders
+    inverse: "#FFFFFF",   // White text on dark/colored background
   },
 
   primary: {
-    main: "#0866FF",      // Nút chính, toggle bật, badge chưa đọc (hợp nhất từ #0084FF, #0068FF)
-    foreground: "#0759DB",// Liên kết, chữ xanh trên nền nhạt, hover
-    subtle: "#EAF2FF",    // Nền badge, nền icon nổi bật (hợp nhất từ #EFF6FF, #F0F4FF, #F0F7FF)
+    main: "#0866FF",      // Primary action and active switches
+    foreground: "#0759DB",// Links and blue text on light background
+    subtle: "#EAF2FF",    // Badge background
   },
 
   border: {
-    default: "#E2E7EF",   // Viền card, nút phụ, gạch phân cách (hợp nhất từ #CBD5E1, #E2E8F0)
-    strong: "#929AA7",    // Viền toggle tắt, viền phân cách đậm
-    focus: "#0866FF",     // Viền khi focus ô input
+    default: "#E2E7EF",   // Default borders
+    strong: "#929AA7",    // Inactive switches and strong borders
+    focus: "#0866FF",     // Focus outlines
   },
 
   status: {
-    success: "#25805C",             // Trạng thái đã kết nối, hoàn thành
-    successBackground: "#EAF6EF",   // Nền badge thành công (hợp nhất từ #E9F5EF)
-    successBorder: "#BBF7D0",       // Viền thông báo thành công
+    success: "#25805C",             // Connected/Success status
+    successBackground: "#EAF6EF",   // Success badge background
+    successBorder: "#BBF7D0",       // Success border
 
-    warning: "#D97706",             // Cảnh báo, đang tải, chưa đăng nhập
-    warningBackground: "#FFF3E8",   // Nền badge cảnh báo
-    warningBorder: "#FED7AA",       // Viền thông báo cảnh báo
+    warning: "#D97706",             // Warning/Pending status
+    warningBackground: "#FFF3E8",   // Warning badge background
+    warningBorder: "#FED7AA",       // Warning border
 
-    error: "#DC2626",               // Báo lỗi, xóa tài khoản, nguy hiểm (hợp nhất từ #E81123)
-    errorBackground: "#FEF2F2",     // Nền badge lỗi (hợp nhất từ #FFF5F5)
-    errorBorder: "#FECACA",         // Viền nút danger
+    error: "#DC2626",               // Error status
+    errorBackground: "#FEF2F2",     // Error badge background
+    errorBorder: "#FECACA",         // Danger button border
   },
 
-  brand: {                          // Màu thương hiệu các nền tảng
+  brand: {
     messenger: "#0866FF",
     telegram: "#229ED9",
     zalo: "#0068FF",

@@ -16,7 +16,6 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 pub fn run() {
     let chat_state = Arc::new(ChatState::default());
     let chat_state_clone = Arc::clone(&chat_state);
-
     let app = tauri::Builder::default()
         .manage(chat_state)
         .manage(movement::BubbleConfigState::default())
@@ -82,6 +81,7 @@ pub fn run() {
             commands::update_tray_menu_status,
             commands::get_user_settings,
             commands::save_user_settings,
+            commands::set_app_language,
             commands::exit_app,
             commands::restart_app,
             commands::set_always_on_top,
@@ -95,95 +95,69 @@ pub fn run() {
             commands::trim_system_memory
         ])
         .setup(move |app| {
-            // 1. Cấu hình System Tray Menu & Icon (cần &mut app)
             if let Err(err) = tray::setup_system_tray(app) {
                 eprintln!("[Tray Error] Failed to setup system tray: {}", err);
             }
-
             let handle = app.handle().clone();
             let initial_config = utils::load_user_cache(&handle);
             chat_state_clone.init_user_config(initial_config.clone());
-
-            // 2. Đồng bộ kích thước Bong bóng từ Cache vào BubbleConfigState TRƯỚC KHI spawn bất kỳ bubble nào
             let target_bubble_size = initial_config.bubble_size_px();
             if let Some(state) = app.try_state::<movement::BubbleConfigState>() {
                 if let Ok(mut guard) = state.0.write() {
                     guard.size = target_bubble_size;
                 }
             }
-
-            // 3. Áp dụng các cài đặt muted vào chat_state
             for &idx in &initial_config.muted_accounts {
                 chat_state_clone.set_account_muted(idx, true);
             }
-
-            // 4. Áp dụng Always-on-top
             chat_state_clone.is_always_on_top.store(initial_config.is_always_on_top, Ordering::SeqCst);
             #[cfg(target_os = "windows")]
             crate::windows::native_bubble::set_native_bubble_always_on_top(initial_config.is_always_on_top);
-
-            // 5. Khôi phục các Bong bóng người dùng đã cấu hình bật (KHÔNG tắt bubble một cách mặc định!)
-            println!("[Startup] Khôi phục các Bong bóng đang bật từ cache: {:?}", initial_config.active_bubble_accounts);
+            println!("[Startup] Restoring active bubbles from cache: {:?}", initial_config.active_bubble_accounts);
             let mut committed_rects: Vec<movement::BubbleRect> = Vec::new();
             for &idx in &initial_config.active_bubble_accounts {
                 match commands::bubble::resume_account_bubble_and_chat(&handle, idx, Some(&committed_rects)) {
                     Ok(rect) => {
-                        println!("[Startup] Đã khôi phục thành công Bong bóng {:02} tại ({}, {})", idx, rect.x, rect.y);
+                        println!("[Startup] Restored bubble {:02} at ({}, {})", idx, rect.x, rect.y);
                         committed_rects.push(rect);
                     }
                     Err(err) => {
-                        eprintln!("[Startup ERROR] Khôi phục bubble {} thất bại: {}", idx, err);
+                        eprintln!("[Startup ERROR] Failed to restore bubble {}: {}", idx, err);
                     }
                 }
             }
-
-            // 5. Cấu hình và điều khiển cửa sổ chính (Home Dashboard)
             windows::main_window::setup_main_window(&handle);
             if initial_config.is_dashboard_open {
-                println!("[Startup] Dashboard được cấu hình BẬT -> Hiển thị Dashboard");
+                println!("[Startup] Dashboard configured ON -> Showing Dashboard");
                 let _ = windows::main_window::get_or_create_main_window(&handle);
             } else {
-                println!("[Startup] Dashboard được cấu hình TẮT -> Giữ Dashboard ở chế độ ngủ đông (0 MB RAM)");
+                println!("[Startup] Dashboard configured OFF -> Hibernating Dashboard");
                 windows::main_window::destroy_or_hibernate_main_window(&handle);
             }
-
-            // 6. Quản lý sự kiện trên cửa sổ chat Messenger (Auto-hide on blur vs Auth Mode)
             platforms::messenger::windows::setup_chat_window(&handle, Arc::clone(&chat_state_clone));
-
-            // 7. Luồng giám sát trạng thái đăng nhập và URL của Messenger theo thời gian thực
             platforms::messenger::daemons::start_auth_watcher(handle.clone(), Arc::clone(&chat_state_clone));
-
-            // 8. Luồng giám sát toàn cục: Hover 0.1s trên Bubble để mở Chat, rời khỏi thì tự động đóng
             platforms::messenger::daemons::start_hover_and_autoclose_monitor(handle.clone(), Arc::clone(&chat_state_clone));
-
-            // 9. Phím tắt toàn cục (Global Shortcut: Ctrl+Shift+M)
             if let Ok(shortcut) = "Ctrl+Shift+M".parse::<Shortcut>() {
                 if let Err(err) = app.global_shortcut().register(shortcut) {
                     eprintln!("[Global Shortcut] Failed to register Ctrl+Shift+M: {}", err);
                 }
             }
-
-            // 10. Cập nhật menu System Tray khớp 1:1 với config vừa nạp
             let _ = tray::update_tray_menu(&handle);
-
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
-
     app.run(|app_handle, event| {
         if let tauri::RunEvent::ExitRequested { code, api, .. } = event {
             let is_explicit = app_handle
                 .try_state::<Arc<ChatState>>()
                 .map(|s| s.is_explicit_exit.load(Ordering::SeqCst))
                 .unwrap_or(false);
-
             if !is_explicit {
-                // Ngăn chặn Tauri tự động thoát tiến trình Backend khi toàn bộ cửa sổ đã bị đóng/hủy
-                println!("[Tauri Lifecycle] Chặn thoát tự động: Giữ Rust Host & System Tray tiếp tục chạy ngầm (Exit code: {:?})", code);
+                println!("[Tauri Lifecycle] Preventing exit: Keeping host & tray running in background (Exit code: {:?})", code);
                 api.prevent_exit();
             } else {
-                println!("[Tauri Lifecycle] Người dùng xác nhận thoát hoàn toàn ứng dụng (Exit code: {:?})", code);
+                println!("[Tauri Lifecycle] User confirmed explicit app exit (Exit code: {:?})", code);
             }
         }
     });

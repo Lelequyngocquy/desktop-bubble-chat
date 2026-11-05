@@ -1,5 +1,6 @@
 import React from "react";
 import { Bell, MessageCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Conversation } from "../../../types/conversation";
 import { NotificationItemRow } from "./NotificationItemRow";
 import { CommonLargeCard } from "../../common/index";
@@ -17,14 +18,16 @@ export const NotificationListCard: React.FC<NotificationListCardProps> = ({
   onOpenNotification,
   onRemove,
 }) => {
+  const { t } = useTranslation("dashboard");
+
   return (
     <CommonLargeCard 
       icon={<Bell className="w-4 h-4 text-primary fill-current" />}
-      title="Thông báo gần đây"
+      title={t("notifications_page.recent_title")}
       subTitle={
         totalUnread > 0 ? (
           <span className="px-2.5 py-0.5 rounded-pill bg-status-error text-content-inverse text-caption font-bold">
-            {totalUnread} chưa đọc
+            {t("notifications_page.unread_badge", { count: totalUnread })}
           </span>
         ) : undefined
       }
@@ -34,10 +37,10 @@ export const NotificationListCard: React.FC<NotificationListCardProps> = ({
         <div className="py-12 flex flex-col items-center justify-center text-content-secondary gap-2">
           <MessageCircle className="w-8 h-8 text-border" />
           <span className="text-body font-medium text-content-primary">
-            Không có thông báo nào
+            {t("notifications_page.empty_title")}
           </span>
           <span className="text-caption">
-            Khi có tin nhắn mới gửi đến Messenger, thông báo sẽ hiển thị ở đây.
+            {t("notifications_page.empty_desc")}
           </span>
         </div>
       ) : (

@@ -33,12 +33,12 @@ export interface MessengerState {
   toggleAccountBubbleVisibility: (accountIndex: number) => void;
   setAllBubblesVisibility: (visible: boolean) => void;
 
-  // --- Visual Pulse & Sender Avatar Actions (Giai đoạn 3) ---
+  // --- Visual Pulse & Sender Avatar Actions ---
   triggerAccountPulse: (accountIndex: number) => void;
   clearAccountPulse: (accountIndex: number) => void;
   setAccountLatestAvatar: (accountIndex: number, avatarUrl?: string) => void;
 
-  // --- Per-Account Preferences (Giai đoạn 4) ---
+  // --- Per-Account Preferences ---
   toggleAccountSound: (accountIndex: number) => void;
   setAllAccountsSound: (enabled: boolean) => void;
   toggleAccountPrivacy: (accountIndex: number) => void;
@@ -68,26 +68,22 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
     if (current.length >= MAX_MESSENGER_ACCOUNTS) {
       return null;
     }
-
     const usedIndices = new Set(current.map((a) => a.index));
     let nextIndex = 1;
     for (let i = 1; i <= MAX_MESSENGER_ACCOUNTS; i++) {
       if (!usedIndices.has(i)) {
         nextIndex = i;
-        break; // Dừng ngay ở vị trí trống nhỏ nhất đầu tiên (ưu tiên tăng dần 01 -> 05)
+        break;
       }
     }
-
     const newAccount = createMessengerAccount(nextIndex);
     const updated = [...current, newAccount].sort((a, b) => a.index - b.index);
     accountStorageService.save(updated);
-
     const currentActive = get().activeAccountIndex;
     const activeAccount = updated.find((a) => a.index === currentActive);
     const newActiveIndex = activeAccount?.isConnected
       ? currentActive
       : updated.find((a) => a.isConnected)?.index || currentActive;
-
     set({
       accounts: updated,
       activeAccountIndex: newActiveIndex,
@@ -100,7 +96,6 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
     const current = get().accounts;
     const updated = current.filter((a) => a.id !== id);
     accountStorageService.save(updated);
-
     const primary = updated.find((a) => a.isConnected);
     set({
       accounts: updated,
@@ -113,7 +108,6 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
     const updated = current.map((a) => {
       if (a.id === id) {
         const safeUpdates = { ...updates };
-        // Bảo vệ SSOT: Tên luôn là "Messenger 01", "Messenger 02",... tuyệt đối không bị ghi đè bởi chuỗi số định danh UID
         delete safeUpdates.name;
         return {
           ...a,
@@ -212,8 +206,6 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
       a.index === accountIndex ? { ...a, hasNewMessagePulse: true } : a
     );
     set({ accounts: updated });
-
-    // Auto-clear pulse after 4s
     setTimeout(() => {
       get().clearAccountPulse(accountIndex);
     }, 4000);
@@ -277,8 +269,6 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
 export const selectIsMessengerConnected = (state: MessengerState): boolean =>
   state.accounts.some((a) => a.isConnected);
 
-// Memoized selector: Trả về cùng instance mảng nếu state.accounts không thay đổi,
-// bảo đảm an toàn tuyệt đối cho useSyncExternalStore trong React 18/19 (chống infinite re-render loop)
 let lastAccountsRef: MessengerAccount[] | null = null;
 let cachedConnectedAccounts: MessengerAccount[] = [];
 

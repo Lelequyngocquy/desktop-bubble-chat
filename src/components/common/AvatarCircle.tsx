@@ -5,9 +5,9 @@ export interface AvatarCircleProps {
   src?: string;
   text?: string;
   icon?: React.ReactNode;
-  size?: number; // Kích thước theo pixel (mặc định 40px)
-  bg?: string; // Màu nền (hex hoặc class)
-  textColor?: string; // Màu chữ (hex hoặc class)
+  size?: number; // Size in pixels (default 40px)
+  bg?: string; // Background color (hex or class)
+  textColor?: string; // Text color (hex or class)
   border?: boolean | string;
   className?: string;
 }
@@ -28,13 +28,9 @@ export const AvatarCircle: React.FC<AvatarCircleProps> = ({
       : border
       ? "1px solid rgba(8, 102, 255, 0.12)"
       : "none";
-
   const isBgHex = bg.startsWith("#") || bg.startsWith("rgb");
   const isTextHex = textColor.startsWith("#") || textColor.startsWith("rgb");
-
-  // Tính cỡ chữ tỉ lệ tương ứng với size
   const fontSize = Math.max(10, Math.round(size * 0.35));
-
   return (
     <div
       style={{

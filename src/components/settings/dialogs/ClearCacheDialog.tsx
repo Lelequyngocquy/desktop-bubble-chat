@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
 import { CommonDialog } from "../../common";
 
@@ -15,26 +16,26 @@ export const ClearCacheDialog: React.FC<ClearCacheDialogProps> = ({
   onClose,
   onConfirm,
 }) => {
+  const { t } = useTranslation(["settings", "common"]);
   return (
     <CommonDialog
       isOpen={isOpen}
       onClose={onClose}
-      eyebrow="XÁC NHẬN DỌN DẸP"
+      eyebrow={t("common:confirm").toUpperCase()}
       titleIcon={<Trash2 className="w-5 h-5 text-status-error" />}
-      title="Xóa bộ nhớ đệm WebView2"
-      content="Bạn có chắc chắn muốn xóa bộ nhớ đệm WebView2? Thao tác này sẽ giải phóng dung lượng ổ đĩa và làm mới hoàn toàn session dữ liệu của trình duyệt nhúng."
+      title={t("settings:data_cache.dialog_title")}
+      content={t("settings:data_cache.dialog_desc")}
       widget={
         <div className="p-3 bg-status-errorBg rounded-panel border border-status-errorBorder text-small text-status-error leading-relaxed">
-          Lưu ý: Sau khi xóa bộ nhớ đệm, các phiên đăng nhập webview có thể
-          cần tải lại tài nguyên trong lần mở kế tiếp.
+          {t("settings:data_cache.warning")}
         </div>
       }
       backButton={{
-        label: "Hủy bỏ",
+        label: t("common:cancel"),
         onClick: onClose,
       }}
       rightButton={{
-        label: "Xác nhận xóa",
+        label: t("common:delete"),
         variant: "danger",
         loading: isClearing,
         onClick: onConfirm,
