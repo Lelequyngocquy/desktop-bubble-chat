@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import { HelpCircle, Send, CheckCircle2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CommonLargeCard } from "../../common/index";
+import { useUpdateStore } from "../../../stores/updateStore";
 
 export const FeedbackSection: React.FC = () => {
   const { t } = useTranslation("help");
+  const currentVersion = useUpdateStore((s) => s.currentVersion);
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
   const handleSendFeedback = (e: React.FormEvent) => {
@@ -41,7 +43,7 @@ export const FeedbackSection: React.FC = () => {
             </div>
           ) : (
             <span className="text-caption text-content-muted">
-              {t("app_version", { version: "0.1.0" })}
+              {currentVersion ? t("app_version", { version: currentVersion }) : ""}
             </span>
           )}
           <button

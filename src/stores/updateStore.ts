@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { getVersion } from "@tauri-apps/api/app";
 import type { Update } from "@tauri-apps/plugin-updater";
 
 export type UpdateStatus =
@@ -56,7 +57,7 @@ export const useUpdateStore = create<UpdateState>()(
   persist(
     (set) => ({
       status: "idle",
-      currentVersion: "0.1.0",
+      currentVersion: "",
       availableVersion: null,
       releaseDate: null,
       releaseNotes: null,
@@ -127,3 +128,14 @@ export const useUpdateStore = create<UpdateState>()(
     }
   )
 );
+
+// Automatically load runtime version from Tauri
+if (typeof window !== "undefined") {
+  getVersion()
+    .then((ver) => {
+      if (ver) {
+        useUpdateStore.getState().setCurrentVersion(ver);
+      }
+    })
+    .catch(() => {});
+}
