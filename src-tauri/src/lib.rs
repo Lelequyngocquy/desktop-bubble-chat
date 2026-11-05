@@ -139,6 +139,7 @@ pub fn run() {
             platforms::messenger::windows::setup_chat_window(&handle, Arc::clone(&chat_state_clone));
             platforms::messenger::daemons::start_auth_watcher(handle.clone(), Arc::clone(&chat_state_clone));
             platforms::messenger::daemons::start_hover_and_autoclose_monitor(handle.clone(), Arc::clone(&chat_state_clone));
+            utils::trim_controller::start_idle_trim_sweeper(handle.clone());
             if let Ok(shortcut) = "Ctrl+Shift+M".parse::<Shortcut>() {
                 if let Err(err) = app.global_shortcut().register(shortcut) {
                     eprintln!("[Global Shortcut] Failed to register Ctrl+Shift+M: {}", err);

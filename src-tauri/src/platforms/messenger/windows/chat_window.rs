@@ -189,10 +189,11 @@ pub fn get_or_create_messenger_window(
             }));
         }
     })
-    .on_page_load(move |_win, payload| {
+    .on_page_load(move |win, payload| {
         if let tauri::webview::PageLoadEvent::Finished = payload.event() {
             state_page_load.set_chat_ready(account_index, true);
             println!("\x1b[32m[BE - Window] Webview Messenger {:02} preloading finished (Ready)!\x1b[0m", account_index);
+            crate::utils::trim_controller::schedule_auto_trim_on_preload(account_index, win.app_handle().clone());
         }
     });
     match builder.build() {

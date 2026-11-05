@@ -10,6 +10,12 @@ pub const TUCK_DEBOUNCE_DURATION: Duration = Duration::from_millis(3000);
 /// Debounce duration after incoming message notification before trimming memory
 pub const MESSAGE_DEBOUNCE_DURATION: Duration = Duration::from_millis(2000);
 
+/// Settle duration after webview preload finishes before trimming memory
+pub const PRELOAD_SETTLE_DURATION: Duration = Duration::from_millis(5000);
+
+/// Interval duration between periodic idle sweeps (5 minutes)
+pub const IDLE_SWEEP_INTERVAL: Duration = Duration::from_secs(300);
+
 /// Minimum cooldown duration between consecutive trims of the same account process tree
 pub const TRIM_COOLDOWN_DURATION: Duration = Duration::from_secs(10);
 
@@ -160,11 +166,85 @@ impl AutoTrimController {
             controller.cancel_pending_trim(account_index);
         });
     }
+    /// Schedules an auto-trim task after webview preloading finishes (5.0s settle duration)
+    pub fn on_preload_finished(&self, account_index: u32, app: AppHandle) {
+        let token = self.next_token(account_index);
+        let controller = Self::global();
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(PRELOAD_SETTLE_DURATION).await;
+            if !controller.is_token_valid(account_index, token) {
+                return;
+            }
+            if !controller.is_account_tucked(account_index) {
+                return;
+            }
+            let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(account_index);
+            let is_chat_visible = app.get_webview_window(&chat_label)
+                .and_then(|w| w.is_visible().ok())
+                .unwrap_or(false);
+            if is_chat_visible {
+                return;
+            }
+            if !controller.is_auto_trim_enabled(&app) {
+                return;
+            }
+            if !controller.can_trim(account_index) {
+                return;
+            }
+            let trimmed = controller.trim_account_process_tree(account_index);
+            if trimmed > 0 {
+                println!(
+                    "\x1b[32m[AutoTrimEngine] Post-preload settle trim executed for Messenger {:02} ({} processes trimmed)\x1b[0m",
+                    account_index, trimmed
+                );
+            }
+            controller.cancel_pending_trim(account_index);
+        });
+    }
 }
 
 /// Convenience function to schedule debounced trim on tuck
 pub fn schedule_auto_trim_on_tuck(account_index: u32, app: AppHandle) {
     AutoTrimController::global().on_account_tucked(account_index, app);
+}
+
+/// Convenience function to schedule debounced trim on preload finish
+pub fn schedule_auto_trim_on_preload(account_index: u32, app: AppHandle) {
+    AutoTrimController::global().on_preload_finished(account_index, app);
+}
+
+/// Starts the background idle trim sweeper daemon (runs every 5 minutes)
+pub fn start_idle_trim_sweeper(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        let mut interval = tokio::time::interval(IDLE_SWEEP_INTERVAL);
+        interval.tick().await;
+        let controller = AutoTrimController::global();
+        loop {
+            interval.tick().await;
+            if !controller.is_auto_trim_enabled(&app) {
+                continue;
+            }
+            for account_index in 1..=5 {
+                if !controller.is_account_tucked(account_index) {
+                    continue;
+                }
+                let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(account_index);
+                let is_chat_visible = app.get_webview_window(&chat_label)
+                    .and_then(|w| w.is_visible().ok())
+                    .unwrap_or(false);
+                if is_chat_visible {
+                    continue;
+                }
+                if !controller.can_trim(account_index) {
+                    continue;
+                }
+                let pids = crate::utils::performance::get_account_process_pids(account_index);
+                if !pids.is_empty() {
+                    controller.trim_account_process_tree(account_index);
+                }
+            }
+        }
+    });
 }
 
 /// Convenience function to cancel pending trim when untucked
@@ -216,5 +296,11 @@ mod tests {
         assert!(!controller.is_account_tucked(1));
         controller.set_tucked_state(1, true);
         assert!(controller.is_account_tucked(1));
+    }
+
+    #[test]
+    fn test_preload_and_idle_durations() {
+        assert_eq!(PRELOAD_SETTLE_DURATION.as_secs(), 5);
+        assert_eq!(IDLE_SWEEP_INTERVAL.as_secs(), 300);
     }
 }
