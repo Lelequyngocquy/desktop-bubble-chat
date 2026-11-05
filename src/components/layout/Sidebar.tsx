@@ -48,12 +48,13 @@ export const Sidebar: React.FC = () => {
     Settings2: <Settings2 className="w-[18px] h-[18px]" />,
     HelpCircle: <HelpCircle className="w-[18px] h-[18px]" />,
   };
+  const totalUnread = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
   const getBadgeForTab = (id: NavTab): number | string | undefined => {
     switch (id) {
       case "connections":
         return connectedAccounts.length;
-      case "chat-heads":
-        return conversations.length;
+      case "notifications":
+        return totalUnread > 0 ? totalUnread : undefined;
       default:
         return undefined;
     }
@@ -64,8 +65,8 @@ export const Sidebar: React.FC = () => {
         return t("dashboard:navigation.home");
       case "connections":
         return t("dashboard:navigation.connections");
-      case "chat-heads":
-        return t("dashboard:navigation.chat_heads");
+      case "notifications":
+        return t("dashboard:navigation.notifications");
       case "performance":
         return t("dashboard:navigation.performance");
       case "settings":

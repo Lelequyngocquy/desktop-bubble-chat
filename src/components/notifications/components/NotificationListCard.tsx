@@ -10,6 +10,7 @@ interface NotificationListCardProps {
   totalUnread: number;
   onOpenNotification: (item: Conversation) => void;
   onRemove: (id: string) => void;
+  onTogglePin?: (id: string) => void;
 }
 
 export const NotificationListCard: React.FC<NotificationListCardProps> = ({
@@ -17,11 +18,11 @@ export const NotificationListCard: React.FC<NotificationListCardProps> = ({
   totalUnread,
   onOpenNotification,
   onRemove,
+  onTogglePin,
 }) => {
   const { t } = useTranslation("dashboard");
-
   return (
-    <CommonLargeCard 
+    <CommonLargeCard
       icon={<Bell className="w-4 h-4 text-primary fill-current" />}
       title={t("notifications_page.recent_title")}
       subTitle={
@@ -51,6 +52,7 @@ export const NotificationListCard: React.FC<NotificationListCardProps> = ({
               item={item}
               onOpenNotification={onOpenNotification}
               onRemove={onRemove}
+              onTogglePin={onTogglePin}
             />
           ))}
         </div>

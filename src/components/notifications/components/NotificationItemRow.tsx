@@ -1,5 +1,5 @@
 import React from "react";
-import { Trash2, ArrowUpRight } from "lucide-react";
+import { Trash2, ArrowUpRight, Pin } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Conversation } from "../../../types/conversation";
 import { getAccountThemeColor } from "../../../constants/design";
@@ -8,17 +8,18 @@ interface NotificationItemRowProps {
   item: Conversation;
   onOpenNotification: (item: Conversation) => void;
   onRemove: (id: string) => void;
+  onTogglePin?: (id: string) => void;
 }
 
 export const NotificationItemRow: React.FC<NotificationItemRowProps> = ({
   item,
   onOpenNotification,
   onRemove,
+  onTogglePin,
 }) => {
   const { t } = useTranslation("dashboard");
   const color = getAccountThemeColor(item.accountIndex || 1);
   const isUnread = (item.unreadCount || 0) > 0;
-
   return (
     <div
       onClick={() => onOpenNotification(item)}
@@ -55,6 +56,23 @@ export const NotificationItemRow: React.FC<NotificationItemRowProps> = ({
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <span className="text-caption text-content-muted">{item.timestamp}</span>
+        {onTogglePin && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTogglePin(item.id);
+            }}
+            title={item.isPinned ? t("chatheads_page.unpin") : t("chatheads_page.pin")}
+            className={`w-7 h-7 flex items-center justify-center rounded-control transition-colors cursor-pointer ${
+              item.isPinned
+                ? "text-primary hover:bg-status-errorBg hover:text-status-error"
+                : "text-content-muted hover:text-primary hover:bg-background-subtle"
+            }`}
+          >
+            <Pin className={`w-3.5 h-3.5 ${item.isPinned ? "fill-current -rotate-45" : ""}`} />
+          </button>
+        )}
         <button
           type="button"
           onClick={(e) => {

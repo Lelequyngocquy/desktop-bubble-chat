@@ -3,7 +3,6 @@ import { TitleBar } from "./components/layout/TitleBar";
 import { Sidebar } from "./components/layout/Sidebar";
 import { HomeWorkspace } from "./components/home";
 import { ConnectionsWorkspace } from "./components/connections";
-import { ChatHeadsWorkspace } from "./components/chatheads";
 import { NotificationsWorkspace } from "./components/notifications";
 import { PerformanceWorkspace } from "./components/performance";
 import { SettingsWorkspace } from "./components/settings";
@@ -30,9 +29,7 @@ export const App: React.FC = () => {
         <Sidebar />
         {activeTab === "connections" ? (
           <ConnectionsWorkspace />
-        ) : activeTab === "chat-heads" ? (
-          <ChatHeadsWorkspace />
-        ) : activeTab === "notifications" ? (
+        ) : activeTab === "notifications" || (activeTab as string) === "chat-heads" ? (
           <NotificationsWorkspace />
         ) : activeTab === "performance" ? (
           <PerformanceWorkspace />

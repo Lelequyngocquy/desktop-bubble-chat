@@ -13,7 +13,10 @@ import {
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import { ProcessMetricItem, SystemPerformanceSnapshot } from "../../types/performance";
+import {
+  ProcessMetricItem,
+  SystemPerformanceSnapshot,
+} from "../../types/performance";
 import { IPC_COMMANDS } from "../../types/ipc";
 
 interface ProcessDetailCardProps {
@@ -34,7 +37,9 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
   onTrimMemory,
 }) => {
   const { t } = useTranslation("performance");
-  const [actingAccountIndex, setActingAccountIndex] = useState<number | null>(null);
+  const [actingAccountIndex, setActingAccountIndex] = useState<number | null>(
+    null,
+  );
   const hostItems: ProcessMetricItem[] = [];
   const dashboardItems: ProcessMetricItem[] = [];
   const messengerItemsMap = new Map<number, ProcessMetricItem[]>();
@@ -55,7 +60,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
     }
   }
   const messengerAccounts = Array.from(messengerItemsMap.entries()).sort(
-    ([a], [b]) => a - b
+    ([a], [b]) => a - b,
   );
   const handleFreezeAccount = async (accountIndex: number) => {
     try {
@@ -104,8 +109,12 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-primary border border-blue-200 rounded-control text-small font-medium transition-colors cursor-pointer disabled:opacity-60"
             title={t("trim_ram_tooltip")}
           >
-            <Sparkles className={`w-3.5 h-3.5 ${isTrimming ? "animate-spin" : ""}`} />
-            <span>{isTrimming ? t("trim_ram_running") : t("trim_ram_btn")}</span>
+            <Sparkles
+              className={`w-3.5 h-3.5 ${isTrimming ? "animate-spin" : ""}`}
+            />
+            <span>
+              {isTrimming ? t("trim_ram_running") : t("trim_ram_btn")}
+            </span>
           </button>
           <button
             onClick={onRefresh}
@@ -113,7 +122,9 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 bg-background-surface hover:bg-white border border-border rounded-control text-small text-content-secondary hover:text-content-primary transition-colors cursor-pointer"
             title={t("refresh_tooltip")}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-primary" : ""}`} />
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-primary" : ""}`}
+            />
             <span>{isLoading ? t("refresh_running") : t("refresh_btn")}</span>
           </button>
         </div>
@@ -123,9 +134,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
       {lastTrimmedMb !== null && lastTrimmedMb > 0 && (
         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-control text-emerald-800 text-small flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>
-            {t("trim_success", { mb: lastTrimmedMb.toFixed(1) })}
-          </span>
+          <span>{t("trim_success", { mb: lastTrimmedMb.toFixed(1) })}</span>
         </div>
       )}
 
@@ -261,9 +270,17 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
           ) : (
             messengerAccounts.map(([accountIndex, procList]) => {
               const isSuspended = procList.every((p) => p.isSuspended);
-              const totalAccountRam = procList.reduce((sum, p) => sum + p.workingSetMb, 0);
-              const totalAccountCpu = procList.reduce((sum, p) => sum + p.cpuPercent, 0);
-              const displayName = procList[0]?.accountName || `Messenger ${accountIndex.toString().padStart(2, "0")}`;
+              const totalAccountRam = procList.reduce(
+                (sum, p) => sum + p.workingSetMb,
+                0,
+              );
+              const totalAccountCpu = procList.reduce(
+                (sum, p) => sum + p.cpuPercent,
+                0,
+              );
+              const displayName =
+                procList[0]?.accountName ||
+                `Messenger ${accountIndex.toString().padStart(2, "0")}`;
               const isActing = actingAccountIndex === accountIndex;
 
               return (
@@ -302,7 +319,8 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                           )}
                         </div>
                         <span className="text-caption text-content-muted">
-                          {t("profile_dir")}: profiles/messenger_{accountIndex.toString().padStart(2, "0")}
+                          {t("profile_dir")}: profiles/messenger_
+                          {accountIndex.toString().padStart(2, "0")}
                         </span>
                       </div>
                     </div>
@@ -311,10 +329,14 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                         <div className="flex flex-col items-end">
                           <span
                             className={`font-semibold ${
-                              isSuspended ? "text-emerald-600 font-bold" : "text-content-primary"
+                              isSuspended
+                                ? "text-emerald-600 font-bold"
+                                : "text-content-primary"
                             }`}
                           >
-                            {isSuspended ? "0 MB" : `${totalAccountRam.toFixed(1)} MB`}
+                            {isSuspended
+                              ? "0 MB"
+                              : `${totalAccountRam.toFixed(1)} MB`}
                           </span>
                           <span className="text-caption text-content-muted">
                             {isSuspended ? t("savings_tag") : t("total_ram")}
@@ -322,9 +344,13 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                         </div>
                         <div className="flex flex-col items-end w-12">
                           <span className="font-semibold text-content-primary">
-                            {isSuspended ? "0.0%" : `${totalAccountCpu.toFixed(1)}%`}
+                            {isSuspended
+                              ? "0.0%"
+                              : `${totalAccountCpu.toFixed(1)}%`}
                           </span>
-                          <span className="text-caption text-content-muted">{t("cpu")}</span>
+                          <span className="text-caption text-content-muted">
+                            {t("cpu")}
+                          </span>
                         </div>
                       </div>
                       {isSuspended ? (
@@ -334,8 +360,12 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-control text-small font-medium shadow-xs transition-colors cursor-pointer disabled:opacity-60"
                           title={t("wake_tooltip")}
                         >
-                          <Play className={`w-3.5 h-3.5 fill-current ${isActing ? "animate-spin" : ""}`} />
-                          <span>{isActing ? t("wake_running") : t("wake_account")}</span>
+                          <Play
+                            className={`w-3.5 h-3.5 fill-current ${isActing ? "animate-spin" : ""}`}
+                          />
+                          <span>
+                            {isActing ? t("wake_running") : t("wake_account")}
+                          </span>
                         </button>
                       ) : (
                         <button
@@ -344,8 +374,14 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-control text-small font-medium transition-colors cursor-pointer disabled:opacity-60"
                           title={t("freeze_tooltip")}
                         >
-                          <Snowflake className={`w-3.5 h-3.5 ${isActing ? "animate-spin" : ""}`} />
-                          <span>{isActing ? t("freeze_running") : t("freeze_account")}</span>
+                          <Snowflake
+                            className={`w-3.5 h-3.5 ${isActing ? "animate-spin" : ""}`}
+                          />
+                          <span>
+                            {isActing
+                              ? t("freeze_running")
+                              : t("freeze_account")}
+                          </span>
                         </button>
                       )}
                     </div>
@@ -355,13 +391,17 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                       {procList.map((p) => (
                         <div
                           key={p.pid}
-                          className="px-2.5 py-1.5 bg-background-app/50 rounded-control text-caption flex items-center justify-between"
+                          className="px-2.5 py-1.5 bg-background-app/50 rounded-control text-caption flex items-center gap-2"
                         >
-                          <span className="text-content-secondary truncate max-w-[180px]">
+                          <span
+                            className="w-[70%] min-w-0 truncate text-content-secondary"
+                            title={`${p.name} (PID: ${p.pid})`}
+                          >
                             {p.name} (PID: {p.pid})
                           </span>
-                          <span className="font-semibold text-content-primary">
-                            {p.workingSetMb.toFixed(1)} MB · {p.cpuPercent.toFixed(1)}%
+                          <span className="w-[30%] shrink-0 text-right font-semibold text-content-primary whitespace-nowrap">
+                            {p.workingSetMb.toFixed(1)} MB ·{" "}
+                            {p.cpuPercent.toFixed(1)}%
                           </span>
                         </div>
                       ))}

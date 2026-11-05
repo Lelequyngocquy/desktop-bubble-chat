@@ -17,7 +17,6 @@ export const PinnedChatHeadsCard: React.FC<PinnedChatHeadsCardProps> = ({
   onUnpin,
 }) => {
   const { t } = useTranslation("dashboard");
-
   return (
     <CommonLargeCard
       icon={<Pin className="w-4 h-4 text-primary fill-current -rotate-45" />}
