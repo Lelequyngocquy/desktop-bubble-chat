@@ -25,6 +25,7 @@ export const PlatformRoadmap: React.FC = () => {
           >
             <AvatarSquareRounded
               size={38}
+              bg="bg-background-subtle border border-border"
               icon={
                 <PlatformIcon
                   platformId={p.id}

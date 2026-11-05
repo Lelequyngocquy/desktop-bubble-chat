@@ -36,7 +36,7 @@ export const MessengerAccountList: React.FC = () => {
     <div className="flex flex-col gap-3">
       {accounts.length === 0 ? (
         <div className="p-6 rounded-card-sm bg-background-subtle border border-border flex flex-col items-center justify-center text-center gap-2.5">
-          <div className="w-avatar-lg h-avatar-lg rounded-pill bg-primary-subtle flex items-center justify-center text-primary">
+          <div className="w-avatar-lg h-avatar-lg rounded-pill bg-background-surface border border-border flex items-center justify-center text-primary">
             <Users className="w-5 h-5" />
           </div>
           <div className="flex flex-col gap-0.5">

@@ -73,6 +73,10 @@ export function useDashboardBootstrap() {
             if (typeof autoTrim === "boolean") {
               useSettingsStore.getState().setAutoTrimEnabled(autoTrim, true);
             }
+            const themeMode = userSettings.themeMode || userSettings.theme_mode;
+            if (themeMode && (themeMode === "light" || themeMode === "dark" || themeMode === "system")) {
+              useSettingsStore.getState().setThemeMode(themeMode as any, true);
+            }
           }
         } catch (err) {
           feLog.warn("[useDashboardBootstrap] Unable to sync user settings from cache:", err);

@@ -6,12 +6,27 @@ import { IPC_COMMANDS } from "../types/ipc";
 
 export type BubbleSize = "sm" | "md" | "lg";
 export type AppLanguage = "vi" | "en";
+export type ThemeMode = "light" | "dark" | "system";
 
 export const BUBBLE_SIZE_PIXELS: Record<BubbleSize, number> = {
   sm: 48,
   md: 56,
   lg: 64,
 };
+
+export function applyThemeMode(mode: ThemeMode) {
+  if (typeof document === "undefined") return;
+  const isDark =
+    mode === "dark" ||
+    (mode === "system" &&
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches);
+  if (isDark) {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+}
 
 interface SettingsState {
   isAlwaysOnTop: boolean;
@@ -21,6 +36,7 @@ interface SettingsState {
   bubbleSize: BubbleSize;
   language: AppLanguage;
   isAutoTrimEnabled: boolean;
+  themeMode: ThemeMode;
 
   setAlwaysOnTop: (enabled: boolean) => void;
   toggleAlwaysOnTop: () => void;
@@ -34,6 +50,7 @@ interface SettingsState {
   setLanguage: (lang: AppLanguage, skipIpc?: boolean) => void;
   setAutoTrimEnabled: (enabled: boolean, skipIpc?: boolean) => void;
   toggleAutoTrim: () => void;
+  setThemeMode: (mode: ThemeMode, skipIpc?: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -46,6 +63,7 @@ export const useSettingsStore = create<SettingsState>()(
       bubbleSize: "md",
       language: "en",
       isAutoTrimEnabled: true,
+      themeMode: "system",
 
       setAlwaysOnTop: (enabled) => set({ isAlwaysOnTop: enabled }),
       toggleAlwaysOnTop: () => set((state) => ({ isAlwaysOnTop: !state.isAlwaysOnTop })),
@@ -76,12 +94,22 @@ export const useSettingsStore = create<SettingsState>()(
           return { isAutoTrimEnabled: next };
         });
       },
+      setThemeMode: (mode, skipIpc = false) => {
+        set({ themeMode: mode });
+        applyThemeMode(mode);
+        if (!skipIpc) {
+          invoke(IPC_COMMANDS.SET_THEME_MODE, { themeMode: mode }).catch(() => {});
+        }
+      },
     }),
     {
       name: "desktop_bubble_chat_settings",
       onRehydrateStorage: () => (state) => {
         if (state?.language) {
           i18n.changeLanguage(state.language);
+        }
+        if (state?.themeMode) {
+          applyThemeMode(state.themeMode);
         }
       },
     }
@@ -98,6 +126,9 @@ if (typeof window !== "undefined") {
           useSettingsStore.setState(parsed.state);
           if (parsed.state.language) {
             i18n.changeLanguage(parsed.state.language);
+          }
+          if (parsed.state.themeMode) {
+            applyThemeMode(parsed.state.themeMode);
           }
         }
       } catch (err) {

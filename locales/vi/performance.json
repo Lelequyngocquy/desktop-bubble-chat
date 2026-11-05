@@ -1,7 +1,7 @@
 {
   "header_eyebrow": "HỆ THỐNG & TÀI NGUYÊN",
   "header_title": "Hiệu năng",
-  "header_desc": "Giám sát mức chiếm dụng RAM, CPU thời gian thực của từng tài khoản và toàn bộ hệ thống.",
+  "header_desc": "Giám sát mức chiếm dụng RAM, CPU của từng tài khoản và toàn bộ hệ thống.",
   "realtime_badge": "Giám sát Real-time (1.5s)",
   "auto_trim_active": "Tự động tối ưu: Đang bật",
   "auto_trim_disabled": "Tự động tối ưu: Đã tắt",

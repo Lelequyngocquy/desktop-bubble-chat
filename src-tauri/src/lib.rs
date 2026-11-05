@@ -83,6 +83,7 @@ pub fn run() {
             commands::save_user_settings,
             commands::set_app_language,
             commands::set_auto_trim_enabled,
+            commands::set_theme_mode,
             commands::exit_app,
             commands::restart_app,
             commands::set_always_on_top,

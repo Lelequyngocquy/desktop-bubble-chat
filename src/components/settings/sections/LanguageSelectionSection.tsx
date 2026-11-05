@@ -31,8 +31,8 @@ export const LanguageSelectionSection: React.FC = () => {
                 onClick={() => setLanguage(lang.code)}
                 className={`flex items-center justify-between p-3.5 rounded-control border transition-all text-left cursor-pointer ${
                   isSelected
-                    ? "bg-blue-50/70 border-primary shadow-xs ring-1 ring-primary/20"
-                    : "bg-background-surface hover:bg-white border-border/80 hover:border-border"
+                    ? "bg-primary/10 border-primary shadow-xs ring-1 ring-primary/20"
+                    : "bg-background-surface hover:bg-background-subtle border-border hover:border-border"
                 }`}
               >
                 <div className="flex items-center gap-3">

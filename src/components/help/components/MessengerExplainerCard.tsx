@@ -14,7 +14,7 @@ export const MessengerExplainerCard: React.FC = () => {
     >
       <div className="flex flex-col gap-4">
         <div className="space-y-3 text-small text-content-secondary leading-relaxed">
-          <div className="p-3 bg-background-subtle rounded-panel border border-border/80 flex flex-col gap-1">
+          <div className="p-3 bg-background-subtle rounded-panel border border-border flex flex-col gap-1">
             <span className="font-semibold text-content-primary">
               {t("item1_title")}
             </span>
@@ -22,7 +22,7 @@ export const MessengerExplainerCard: React.FC = () => {
               {t("item1_desc")}
             </span>
           </div>
-          <div className="p-3 bg-background-subtle rounded-panel border border-border/80 flex flex-col gap-1">
+          <div className="p-3 bg-background-subtle rounded-panel border border-border flex flex-col gap-1">
             <span className="font-semibold text-content-primary">
               {t("item2_title")}
             </span>
@@ -30,7 +30,7 @@ export const MessengerExplainerCard: React.FC = () => {
               {t("item2_desc")}
             </span>
           </div>
-          <div className="p-3 bg-background-subtle rounded-panel border border-border/80 flex flex-col gap-1">
+          <div className="p-3 bg-background-subtle rounded-panel border border-border flex flex-col gap-1">
             <span className="font-semibold text-content-primary">
               {t("item3_title")}
             </span>

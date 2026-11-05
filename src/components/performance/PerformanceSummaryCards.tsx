@@ -35,7 +35,7 @@ export const PerformanceSummaryCards: React.FC<PerformanceSummaryCardsProps> = (
           <span className="text-caption font-semibold text-content-secondary uppercase tracking-wider">
             {t("total_ram_used")}
           </span>
-          <div className="w-8 h-8 rounded-lg bg-blue-50 text-primary flex items-center justify-center">
+          <div className="w-8 h-8 rounded-panel bg-background-subtle text-primary flex items-center justify-center">
             <Cpu className="w-4 h-4" />
           </div>
         </div>
@@ -54,7 +54,7 @@ export const PerformanceSummaryCards: React.FC<PerformanceSummaryCardsProps> = (
             {t("ram_breakdown_hint")}
           </span>
         </div>
-        <div className="w-full h-1.5 bg-slate-100 rounded-pill overflow-hidden mt-1">
+        <div className="w-full h-1.5 bg-slate-100 dark:bg-background-app rounded-pill overflow-hidden mt-1">
           <div
             className="h-full bg-primary rounded-pill transition-all duration-500"
             style={{
@@ -70,7 +70,7 @@ export const PerformanceSummaryCards: React.FC<PerformanceSummaryCardsProps> = (
           <span className="text-caption font-semibold text-content-secondary uppercase tracking-wider">
             {t("cpu_usage")}
           </span>
-          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-panel bg-background-subtle text-status-success flex items-center justify-center">
             <Activity className="w-4 h-4" />
           </div>
         </div>
@@ -88,7 +88,7 @@ export const PerformanceSummaryCards: React.FC<PerformanceSummaryCardsProps> = (
             {t("cpu_threads_hint", { cores: cpuCores })}
           </span>
         </div>
-        <div className="w-full h-1.5 bg-slate-100 rounded-pill overflow-hidden mt-1">
+        <div className="w-full h-1.5 bg-slate-100 dark:bg-background-app rounded-pill overflow-hidden mt-1">
           <div
             className="h-full bg-emerald-500 rounded-pill transition-all duration-500"
             style={{
@@ -104,7 +104,7 @@ export const PerformanceSummaryCards: React.FC<PerformanceSummaryCardsProps> = (
           <span className="text-caption font-semibold text-content-secondary uppercase tracking-wider">
             {t("accounts_and_savings")}
           </span>
-          <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-panel bg-background-subtle text-sky-500 flex items-center justify-center">
             <Snowflake className="w-4 h-4" />
           </div>
         </div>

@@ -3,6 +3,7 @@ export interface AccountThemeColor {
   hex: string;
   borderHex: string;
   bgLight: string;
+  bgLightDark: string;
 }
 
 export const ACCOUNT_THEME_COLORS: Record<number, AccountThemeColor> = {
@@ -11,30 +12,35 @@ export const ACCOUNT_THEME_COLORS: Record<number, AccountThemeColor> = {
     hex: "#06B6D4",
     borderHex: "#0891B2",
     bgLight: "#ECFEFF",
+    bgLightDark: "rgba(6, 182, 212, 0.15)",
   },
   2: {
     index: 2,
     hex: "#EC4899",
     borderHex: "#DB2777",
     bgLight: "#FDF2F8",
+    bgLightDark: "rgba(236, 72, 153, 0.15)",
   },
   3: {
     index: 3,
     hex: "#F97316",
     borderHex: "#EA580C",
     bgLight: "#FFF7ED",
+    bgLightDark: "rgba(249, 115, 22, 0.15)",
   },
   4: {
     index: 4,
     hex: "#8B5CF6",
     borderHex: "#7C3AED",
     bgLight: "#F5F3FF",
+    bgLightDark: "rgba(139, 92, 246, 0.15)",
   },
   5: {
     index: 5,
     hex: "#10B981",
     borderHex: "#059669",
     bgLight: "#ECFDF5",
+    bgLightDark: "rgba(16, 185, 129, 0.15)",
   },
 };
 

@@ -119,14 +119,14 @@ export const TitleBar: React.FC = () => {
           <button
             onClick={handleMinimize}
             title={t("titlebar.minimize")}
-            className="w-[46px] h-full flex items-center justify-center text-content-secondary hover:text-content-primary hover:bg-white/60 active:bg-white/90 transition-colors cursor-pointer"
+            className="w-[46px] h-full flex items-center justify-center text-content-secondary hover:text-content-primary hover:bg-white/60 active:bg-white/90 dark:hover:bg-white/10 dark:active:bg-white/20 transition-colors cursor-pointer"
           >
             <Minus className="w-[14px] h-[14px]" />
           </button>
           <button
             onClick={handleToggleMaximize}
             title={isMaximized ? t("titlebar.restore") : t("titlebar.maximize")}
-            className="w-[46px] h-full flex items-center justify-center text-content-secondary hover:text-content-primary hover:bg-white/60 active:bg-white/90 transition-colors cursor-pointer"
+            className="w-[46px] h-full flex items-center justify-center text-content-secondary hover:text-content-primary hover:bg-white/60 active:bg-white/90 dark:hover:bg-white/10 dark:active:bg-white/20 transition-colors cursor-pointer"
           >
             {isMaximized ? (
               <Copy className="w-[12px] h-[12px] rotate-180" />

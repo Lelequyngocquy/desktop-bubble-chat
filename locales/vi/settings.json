@@ -10,6 +10,16 @@
     "vietnamese_desc": "Mặc định hệ thống",
     "english_desc": "Chuẩn quốc tế"
   },
+  "appearance": {
+    "title": "Giao Diện & Chủ Đề",
+    "description": "Tùy chọn chế độ sáng tối cho giao diện ứng dụng",
+    "light": "Sáng",
+    "light_desc": "Giao diện sáng tiêu chuẩn",
+    "dark": "Tối",
+    "dark_desc": "Dịu mắt khi làm việc ban đêm",
+    "system": "Theo hệ thống",
+    "system_desc": "Tự động đồng bộ với cài đặt Windows"
+  },
   "startup": {
     "title": "Hệ thống & Khởi động",
     "autostart": "Khởi động cùng Windows",

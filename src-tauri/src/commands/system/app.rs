@@ -91,6 +91,19 @@ pub fn set_auto_trim_enabled(
     Ok(())
 }
 
+/// Sets application display theme mode in user configuration cache
+#[tauri::command]
+pub fn set_theme_mode(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<crate::state::ChatState>>,
+    theme_mode: String,
+) -> Result<(), String> {
+    state.update_user_config(&app, |c| {
+        c.theme_mode = Some(theme_mode);
+    });
+    Ok(())
+}
+
 /// Exits application completely
 #[tauri::command]
 pub fn exit_app(app: AppHandle) {

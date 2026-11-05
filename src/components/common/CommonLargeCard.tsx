@@ -24,7 +24,7 @@ export const CommonLargeCard: React.FC<CommonLargeCardProps> = ({
     <div
       className={`bg-background-surface border border-border rounded-card shadow-card p-5 flex flex-col gap-4 ${className}`}
     >
-      <div className="flex items-center justify-between pb-2 border-b border-border/60">
+      <div className="flex items-center justify-between pb-2 border-b border-border ">
         <div className="flex items-center gap-2">
           {icon && <div className="shrink-0 flex items-center">{icon}</div>}
           <h2 className="text-body-lg md:text-heading-sm font-semibold text-content-primary m-0">

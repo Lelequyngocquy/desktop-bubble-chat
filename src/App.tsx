@@ -9,21 +9,22 @@ import { SettingsWorkspace } from "./components/settings";
 import { HelpWorkspace } from "./components/help";
 import { BubbleSpawnIndicator } from "./components/common/BubbleSpawnIndicator";
 import { DashboardLoadingOverlay } from "./components/common/DashboardLoadingOverlay";
-import { useBubbleAutoRestore, useDashboardBootstrap, useAutoUpdater } from "./hooks";
+import { useBubbleAutoRestore, useDashboardBootstrap, useAutoUpdater, useThemeSync } from "./hooks";
 import { useUnreadListener } from "./hooks/useUnreadListener";
 import { useSystemUser } from "./hooks/useSystemUser";
 import { useNavigationStore } from "./stores/navigationStore";
 
 export const App: React.FC = () => {
   const activeTab = useNavigationStore((s) => s.activeTab);
-  // Initialize listeners, bootstrap lifecycle, and auto-restore background bubbles
+  // Initialize listeners, bootstrap lifecycle, auto-restore background bubbles, and theme sync
   useDashboardBootstrap();
+  useThemeSync();
   useUnreadListener();
   useSystemUser();
   useBubbleAutoRestore();
   useAutoUpdater();
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#EEF2F9] overflow-hidden text-[#202733] select-none font-sans border border-[#E2E7EF] shadow-window">
+    <div className="flex flex-col h-screen w-screen bg-background-app overflow-hidden text-content-primary select-none font-sans border border-border shadow-window">
       <TitleBar />
       <div className="relative flex flex-1 min-h-0 min-w-0 overflow-hidden">
         <Sidebar />

@@ -20,6 +20,7 @@ export const IPC_COMMANDS = {
   SAVE_USER_SETTINGS: "save_user_settings",
   SET_APP_LANGUAGE: "set_app_language",
   SET_AUTO_TRIM_ENABLED: "set_auto_trim_enabled",
+  SET_THEME_MODE: "set_theme_mode",
 
   // Performance Commands
   GET_PERFORMANCE_SNAPSHOT: "get_performance_snapshot",

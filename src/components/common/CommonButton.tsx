@@ -38,7 +38,7 @@ export const CommonButton: React.FC<CommonButtonProps> = ({
     outline:
       "bg-background-surface hover:bg-background-subtle active:bg-background-app text-content-primary border border-border",
     ghost:
-      "bg-transparent hover:bg-white/50 active:bg-white/80 text-content-primary border-transparent",
+      "bg-transparent hover:bg-background-subtle active:bg-background-app text-content-primary border-transparent",
     danger:
       "bg-status-error hover:bg-status-error/90 active:bg-status-error/80 text-content-inverse border-transparent",
   }[variant];

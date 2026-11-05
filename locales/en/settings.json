@@ -10,6 +10,16 @@
     "vietnamese_desc": "System default",
     "english_desc": "International standard"
   },
+  "appearance": {
+    "title": "Appearance & Theme",
+    "description": "Choose application theme mode and color scheme",
+    "light": "Light",
+    "light_desc": "Standard light theme",
+    "dark": "Dark",
+    "dark_desc": "Gentle on the eyes for dark environments",
+    "system": "System Default",
+    "system_desc": "Sync automatically with Windows settings"
+  },
   "startup": {
     "title": "System & Startup",
     "autostart": "Launch on Windows Startup",

@@ -84,7 +84,7 @@ export const MessengerManagerCard: React.FC = () => {
           <MessengerAccountList />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-          <div className="p-3.5 bg-background-subtle rounded-panel border border-border/60 flex items-start gap-2.5">
+          <div className="p-3.5 bg-background-subtle rounded-panel border border-border flex items-start gap-2.5">
             <Layers className="w-[17px] h-[17px] text-primary shrink-0 mt-0.5" />
             <div className="flex flex-col gap-0.5">
               <span className="text-caption font-medium text-content-secondary tracking-wider uppercase">
@@ -100,7 +100,7 @@ export const MessengerManagerCard: React.FC = () => {
               </span>
             </div>
           </div>
-          <div className="p-3.5 bg-background-subtle rounded-panel border border-border/60 flex items-start gap-2.5">
+          <div className="p-3.5 bg-background-subtle rounded-panel border border-border flex items-start gap-2.5">
             <RefreshCw className="w-[17px] h-[17px] text-primary shrink-0 mt-0.5" />
             <div className="flex flex-col gap-0.5">
               <span className="text-caption font-medium text-content-secondary tracking-wider uppercase">

@@ -130,7 +130,7 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
         onClick={(e) => e.stopPropagation()}
         className={`${DIALOG_SIZE_MAP[size]} bg-background-surface border border-border rounded-modal shadow-window flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-150 ${className}`}
       >
-        <div className="px-6 pt-5 pb-4 border-b border-border/70 flex items-start justify-between gap-4 shrink-0 bg-background-surface">
+        <div className="px-6 pt-5 pb-4 border-b border-border flex items-start justify-between gap-4 shrink-0 bg-background-surface">
           <div className="flex flex-col gap-1 min-w-0">
             {eyebrow && (
               <span className="text-caption font-semibold text-content-secondary uppercase tracking-wider leading-none">

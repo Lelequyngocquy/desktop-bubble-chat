@@ -34,14 +34,14 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
   const themeColor = getAccountThemeColor(account.index);
 
   return (
-    <div className="flex items-center justify-between p-3.5 bg-background-subtle hover:bg-background-workspace rounded-card-sm border border-border/80 transition-all gap-4 flex-wrap sm:flex-nowrap">
+    <div className="flex items-center justify-between p-3.5 bg-background-subtle hover:bg-background-workspace rounded-card-sm border border-border transition-all gap-4 flex-wrap sm:flex-nowrap">
       <div className="flex items-center gap-3 min-w-0">
         <AvatarCircle
           size={Dimen.layout.avatarMd}
           text={account.avatarText}
           bg={themeColor.hex}
           textColor={Color.text.inverse}
-          className="font-bold text-body shadow-xs shrink-0 ring-2 ring-white"
+          className="font-bold text-body shadow-xs shrink-0 ring-2 ring-background-subtle"
         />
         <div className="flex flex-col gap-0.5 overflow-hidden">
           <div className="flex items-center gap-2">

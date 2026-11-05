@@ -55,7 +55,7 @@ export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
           <p className="m-0 leading-relaxed">
             {t("close_dialog.desc")}
           </p>
-          <div className="flex items-start gap-3 p-3 bg-primary-subtle border border-primary/20 rounded-panel text-content-primary">
+          <div className="flex items-start gap-3 p-3 bg-primary-subtle border border-border rounded-panel text-content-primary">
             <MessageSquare className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
             <div className="text-small leading-relaxed">
               <span className="font-semibold">{t("close_dialog.tray_card_label")}</span>{" "}

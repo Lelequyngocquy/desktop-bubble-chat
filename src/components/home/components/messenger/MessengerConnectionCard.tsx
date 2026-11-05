@@ -78,7 +78,7 @@ export const MessengerConnectionCard: React.FC = () => {
                 />
               ))
             ) : (
-              <div className="flex items-center justify-between p-3.5 bg-status-warningBg rounded-card-sm border border-status-warningBorder/60 gap-3">
+              <div className="flex items-center justify-between p-3.5 bg-status-warningBg rounded-card-sm border border-status-warningBorder gap-3">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-body font-semibold text-content-primary">
                     {t("no_accounts_title")}
@@ -105,7 +105,7 @@ export const MessengerConnectionCard: React.FC = () => {
           unreadCount={totalUnreadCount}
         />
       </div>
-      <div className="bg-primary-subtle px-6 py-2.5 flex items-center justify-between gap-3 text-primary-foreground border-t border-border/50 flex-wrap sm:flex-nowrap">
+      <div className="bg-primary-subtle px-6 py-2.5 flex items-center justify-between gap-3 text-primary-foreground border-t border-border flex-wrap sm:flex-nowrap">
         <div className="flex items-center gap-2 min-w-0">
           <ShieldCheck className="w-4 h-4 shrink-0 text-primary" />
           <span className="text-caption font-normal leading-tight">

@@ -137,8 +137,8 @@ export const Sidebar: React.FC = () => {
                 onClick={() => setActiveTab(item.id)}
                 className={`relative flex items-center justify-between h-[42px] px-3 rounded-control transition-all text-left group ${
                   isActive
-                    ? "bg-white/70 shadow-sm"
-                    : "hover:bg-white/40 active:bg-white/60"
+                    ? "bg-white/70 dark:bg-white/10 shadow-sm"
+                    : "hover:bg-white/40 dark:hover:bg-white/5 active:bg-white/60 dark:active:bg-white/10"
                 }`}
               >
                 {isActive && (
@@ -184,7 +184,7 @@ export const Sidebar: React.FC = () => {
       {/* Bottom section: Background service, Secondary Nav, Language Switcher & Version */}
       <div className="flex flex-col gap-4">
         {/* Background Service Status Card */}
-        <div className="bg-white/50 border border-white/75 rounded-panel p-[14px] flex flex-col gap-2">
+        <div className="bg-sidebar-card border border-sidebar-cardBorder rounded-panel p-[14px] flex flex-col gap-2">
           <div className="flex items-center gap-2 text-content-primary">
             <CheckCircle2 className="w-4 h-4 text-status-success" />
             <span className="text-small font-medium leading-none">
@@ -206,8 +206,8 @@ export const Sidebar: React.FC = () => {
                 onClick={() => setActiveTab(item.id)}
                 className={`relative flex items-center justify-between h-[38px] px-3 rounded-control transition-all text-left group ${
                   isActive
-                    ? "bg-white/70 shadow-sm"
-                    : "hover:bg-white/40 active:bg-white/60"
+                    ? "bg-white/70 dark:bg-white/10 shadow-sm"
+                    : "hover:bg-white/40 dark:hover:bg-white/5 active:bg-white/60 dark:active:bg-white/10"
                 }`}
               >
                 {isActive && (
@@ -246,8 +246,8 @@ export const Sidebar: React.FC = () => {
             onClick={() => setLanguage("en")}
             className={`px-2 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5 ${
               currentLanguage === "en"
-                ? "bg-white text-primary font-semibold shadow-xs"
-                : "text-content-muted hover:text-content-primary hover:bg-white/30"
+                ? "bg-background-surface text-primary font-semibold shadow-xs"
+                : "text-content-muted hover:text-content-primary hover:bg-background-subtle"
             }`}
             title="Switch language to English"
           >
@@ -260,8 +260,8 @@ export const Sidebar: React.FC = () => {
             onClick={() => setLanguage("vi")}
             className={`px-2 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5 ${
               currentLanguage === "vi"
-                ? "bg-white text-primary font-semibold shadow-xs"
-                : "text-content-muted hover:text-content-primary hover:bg-white/30"
+                ? "bg-background-surface text-primary font-semibold shadow-xs"
+                : "text-content-muted hover:text-content-primary hover:bg-background-subtle"
             }`}
             title="Switch language to Vietnamese"
           >

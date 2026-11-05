@@ -1,4 +1,5 @@
 export * from "./LanguageSelectionSection";
+export * from "./AppearanceSection";
 export * from "./SystemStartupSection";
 export * from "./BubbleSizePicker";
 export * from "./BubbleCustomizationSection";

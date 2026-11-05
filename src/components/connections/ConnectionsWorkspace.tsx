@@ -6,11 +6,7 @@ import {
   selectIsMessengerConnected,
 } from "../../platforms/messenger";
 import { TabHeader } from "../common/TabHeader";
-import {
-  MessengerManagerCard,
-  MessengerTroubleshoot,
-  ConnectionsFooter,
-} from "./components";
+import { MessengerManagerCard, MessengerTroubleshoot } from "./components";
 import { PlatformRoadmap } from "../home";
 
 export const ConnectionsWorkspace: React.FC = () => {
@@ -32,7 +28,9 @@ export const ConnectionsWorkspace: React.FC = () => {
                 <CheckCircle2 className="w-3.5 h-3.5 text-status-success" />
                 <span className="text-content-primary font-medium">
                   {connectedCount > 1
-                    ? t("workspaces.connections.connected_count_plural", { count: connectedCount })
+                    ? t("workspaces.connections.connected_count_plural", {
+                        count: connectedCount,
+                      })
                     : t("workspaces.connections.connected_count_single")}
                 </span>
               </>
@@ -53,7 +51,6 @@ export const ConnectionsWorkspace: React.FC = () => {
         </div>
         <MessengerTroubleshoot />
         <PlatformRoadmap />
-        <ConnectionsFooter />
       </main>
     </div>
   );

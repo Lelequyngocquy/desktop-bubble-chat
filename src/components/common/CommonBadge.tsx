@@ -20,7 +20,8 @@ const VARIANT_STYLES: Record<
     iconColor: "text-primary",
   },
   secondary: {
-    container: "bg-background-app text-content-secondary",
+    container:
+      "bg-background-surface border border-border text-content-secondary",
     iconColor: "text-content-secondary",
   },
   warning: {

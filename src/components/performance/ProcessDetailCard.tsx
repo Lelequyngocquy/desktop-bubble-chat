@@ -87,7 +87,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
   return (
     <div className="bg-background-surface border border-border rounded-panel p-5 shadow-xs flex flex-col gap-5">
       {/* 1. Header Card with Realtime Status */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/70">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-primary" />
           <h2 className="text-body-lg font-semibold text-content-primary m-0">
@@ -103,12 +103,12 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
       </div>
 
       {/* 2. Process groups */}
-      <div className="flex flex-col gap-4 divide-y divide-border/60">
+      <div className="flex flex-col gap-4 divide-y divide-border">
         {/* Group 1: Host Core */}
         <div className="flex flex-col gap-2 pt-1 first:pt-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-blue-50 text-primary flex items-center justify-center">
+              <div className="w-6 h-6 rounded-md bg-background-subtle text-primary flex items-center justify-center">
                 <Cpu className="w-3.5 h-3.5" />
               </div>
               <span className="text-small font-semibold text-content-primary">
@@ -123,7 +123,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
           {hostItems.map((item) => (
             <div
               key={item.pid}
-              className="p-3 bg-background-app/50 border border-border/50 rounded-control flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+              className="p-3 bg-background-app/50 border border-border rounded-control flex flex-col sm:flex-row sm:items-center justify-between gap-2"
             >
               <div className="flex flex-col gap-0.5">
                 <span className="text-small font-medium text-content-primary">
@@ -159,7 +159,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
         <div className="flex flex-col gap-2 pt-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-md bg-background-subtle text-purple-500 flex items-center justify-center">
                 <Monitor className="w-3.5 h-3.5" />
               </div>
               <span className="text-small font-semibold text-content-primary">
@@ -172,14 +172,14 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
             </span>
           </div>
           {dashboardItems.length === 0 ? (
-            <div className="p-3 bg-background-app/30 border border-border/40 rounded-control text-caption text-content-muted">
+            <div className="p-3 bg-background-app/30 border border-border rounded-control text-caption text-content-muted">
               {t("dashboard_hibernating")}
             </div>
           ) : (
             dashboardItems.map((item) => (
               <div
                 key={item.pid}
-                className="p-3 bg-background-app/50 border border-border/50 rounded-control flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                className="p-3 bg-background-app/50 border border-border rounded-control flex flex-col sm:flex-row sm:items-center justify-between gap-2"
               >
                 <div className="flex flex-col gap-0.5">
                   <span className="text-small font-medium text-content-primary">
@@ -216,7 +216,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
         <div className="flex flex-col gap-2.5 pt-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-sky-50 text-sky-600 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-md bg-background-subtle text-sky-500 flex items-center justify-center">
                 <Snowflake className="w-3.5 h-3.5" />
               </div>
               <span className="text-small font-semibold text-content-primary">
@@ -228,7 +228,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
             </span>
           </div>
           {messengerAccounts.length === 0 ? (
-            <div className="p-4 bg-background-app/30 border border-border/40 rounded-control text-center text-caption text-content-muted">
+            <div className="p-4 bg-background-app/30 border border-border rounded-control text-center text-caption text-content-muted">
               {t("no_accounts_linked")}
             </div>
           ) : (
@@ -252,7 +252,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                   key={accountIndex}
                   className={`p-3.5 border rounded-panel flex flex-col gap-3 transition-colors ${
                     isSuspended
-                      ? "bg-slate-50/60 border-slate-200"
+                      ? "bg-slate-50 dark:bg-background-subtle  border-slate-200 dark:border-border"
                       : "bg-background-surface border-border shadow-xs"
                   }`}
                 >
@@ -261,7 +261,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                       <div
                         className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-small shrink-0 ${
                           isSuspended
-                            ? "bg-slate-200 text-slate-500"
+                            ? "bg-slate-200 dark:bg-background-app text-slate-500 dark:text-content-muted"
                             : "bg-gradient-to-br from-blue-500 to-sky-400 text-white shadow-xs"
                         }`}
                       >
@@ -355,7 +355,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                     </div>
                   </div>
                   {!isSuspended && procList.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-border/40">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-border">
                       {procList.map((p) => (
                         <div
                           key={p.pid}
@@ -385,7 +385,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
         <div className="flex flex-col gap-2 pt-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-md bg-background-subtle text-emerald-500 flex items-center justify-center">
                 <HardDrive className="w-3.5 h-3.5" />
               </div>
               <span className="text-small font-semibold text-content-primary">
@@ -400,7 +400,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
             {gpuUtilityItems.map((item) => (
               <div
                 key={item.pid}
-                className="p-2.5 bg-background-app/40 border border-border/40 rounded-control flex items-center justify-between text-caption"
+                className="p-2.5 bg-background-app/40 border border-border rounded-control flex items-center justify-between text-caption"
               >
                 <div className="flex flex-col">
                   <span className="font-medium text-content-primary">

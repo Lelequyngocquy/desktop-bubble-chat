@@ -126,12 +126,25 @@ export const systemService = {
     locale?: string;
     is_auto_trim_enabled?: boolean;
     isAutoTrimEnabled?: boolean;
+    theme_mode?: string;
+    themeMode?: string;
   } | null> {
     try {
       return await invoke(IPC_COMMANDS.GET_USER_SETTINGS);
     } catch (err) {
       console.warn("[SystemService] Failed to get user settings:", err);
       return null;
+    }
+  },
+
+  /**
+   * Updates application theme mode in persistent user cache.
+   */
+  async setThemeMode(themeMode: string): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.SET_THEME_MODE, { themeMode });
+    } catch (err) {
+      console.warn("[SystemService] Failed to set theme mode:", err);
     }
   },
 

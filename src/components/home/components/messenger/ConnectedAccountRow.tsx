@@ -21,7 +21,7 @@ export const ConnectedAccountRow: React.FC<ConnectedAccountRowProps> = ({
   const isSoundOn = account.soundEnabled ?? true;
 
   return (
-    <div className="flex items-center justify-between p-3 bg-background-subtle hover:bg-background-workspace rounded-card-sm border border-border/80 transition-all gap-3 flex-wrap sm:flex-nowrap">
+    <div className="flex items-center justify-between p-3 bg-background-subtle hover:bg-background-workspace rounded-card-sm border border-border transition-all gap-3 flex-wrap sm:flex-nowrap">
       <div className="flex items-center gap-3 min-w-0">
         <div className="relative shrink-0">
           <AvatarCircle
@@ -29,9 +29,9 @@ export const ConnectedAccountRow: React.FC<ConnectedAccountRowProps> = ({
             text={account.avatarText}
             bg={account.color}
             textColor={Color.text.inverse}
-            className="font-bold text-small shadow-xs ring-2 ring-white"
+            className="font-bold text-small shadow-xs ring-2 ring-background-subtle"
           />
-          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-pill bg-status-success ring-2 ring-white" />
+          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-pill bg-status-success ring-2 ring-background-subtle" />
         </div>
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-2">

@@ -180,7 +180,7 @@ export const AppUpdateSection: React.FC = () => {
       }
     >
       <div className="flex flex-col gap-5">
-        <div className="p-4 bg-background-subtle/70 border border-border/80 rounded-panel flex flex-col gap-4">
+        <div className="p-4 bg-background-subtle/70 border border-border rounded-panel flex flex-col gap-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
               <div
@@ -188,10 +188,10 @@ export const AppUpdateSection: React.FC = () => {
                   isAvailable || isDownloaded
                     ? "bg-primary text-white shadow-primary/20"
                     : isUpToDate
-                      ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                      ? "bg-background-subtle text-status-success border border-border"
                       : isChecking
-                        ? "bg-blue-50 text-primary border border-blue-200"
-                        : "bg-slate-100 text-content-secondary border border-border"
+                        ? "bg-background-subtle text-primary border border-border"
+                        : "bg-background-subtle text-content-secondary border border-border"
                 }`}
               >
                 {isChecking ? (
@@ -273,7 +273,7 @@ export const AppUpdateSection: React.FC = () => {
                 <button
                   onClick={() => checkForUpdates(false)}
                   disabled={isChecking}
-                  className={`flex items-center gap-2 px-3 py-1.5 border border-border hover:bg-white bg-background-surface text-content-primary rounded-control text-small font-medium transition-colors cursor-pointer ${
+                  className={`flex items-center gap-2 px-3 py-1.5 border border-border hover:bg-background-subtle bg-background-surface text-content-primary rounded-control text-small font-medium transition-colors cursor-pointer ${
                     isChecking ? "opacity-60 cursor-not-allowed" : ""
                   }`}
                 >
@@ -290,7 +290,7 @@ export const AppUpdateSection: React.FC = () => {
             </div>
           </div>
           {(isDownloading || isDownloaded) && (
-            <div className="flex flex-col gap-1.5 pt-2 border-t border-border/60">
+            <div className="flex flex-col gap-1.5 pt-2 border-t border-border">
               <div className="flex items-center justify-between text-caption font-medium">
                 <span className="text-content-secondary">
                   {isDownloaded
@@ -301,7 +301,7 @@ export const AppUpdateSection: React.FC = () => {
                   {formatBytes(downloadedBytes)} / {formatBytes(totalBytes)}
                 </span>
               </div>
-              <div className="w-full h-2.5 bg-slate-100 rounded-pill overflow-hidden border border-border/40 p-0.5">
+              <div className="w-full h-2.5 bg-slate-100 dark:bg-background-app rounded-pill overflow-hidden border border-border p-0.5">
                 <div
                   className={`h-full rounded-pill transition-all duration-300 ${
                     isDownloaded
@@ -327,7 +327,7 @@ export const AppUpdateSection: React.FC = () => {
               </button>
             </div>
           )}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/60 text-small">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border text-small">
             <div className="flex items-center gap-2 text-content-secondary">
               <span className="w-1.5 h-1.5 rounded-full bg-content-muted" />
               <span>
@@ -374,7 +374,7 @@ export const AppUpdateSection: React.FC = () => {
               </span>
             </button>
           </div>
-          <div className="bg-background-app/70 border border-border/80 rounded-control p-4 text-small text-content-primary leading-relaxed whitespace-pre-wrap font-sans min-h-[90px]">
+          <div className="bg-background-app/70 border border-border rounded-control p-4 text-small text-content-primary leading-relaxed whitespace-pre-wrap font-sans min-h-[90px]">
             {isLoadingNotes ? (
               <div className="flex items-center justify-center gap-2.5 py-6 text-content-secondary">
                 <RefreshCw className="w-4 h-4 animate-spin text-primary" />

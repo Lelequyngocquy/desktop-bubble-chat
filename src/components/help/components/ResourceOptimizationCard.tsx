@@ -21,7 +21,7 @@ export const ResourceOptimizationCard: React.FC = () => {
       <div className="flex flex-col gap-4">
         {/* Benefit summary banner */}
         <div className="p-3.5 bg-status-successBg rounded-card-sm border border-status-successBorder flex items-start gap-3">
-          <div className="w-8 h-8 rounded-panel bg-status-successBg text-status-success flex items-center justify-center shrink-0 mt-0.5">
+          <div className="w-8 h-8 rounded-panel bg-background-subtle text-status-success flex items-center justify-center shrink-0 mt-0.5">
             <Cpu className="w-4 h-4" />
           </div>
           <div className="flex flex-col gap-1 text-small text-status-success leading-relaxed">
@@ -39,7 +39,7 @@ export const ResourceOptimizationCard: React.FC = () => {
           {/* Step 1 */}
           <div className="p-3.5 bg-background-subtle rounded-card-sm border border-border flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <div className="w-avatar-sm h-avatar-sm rounded-control bg-primary-subtle text-primary-foreground flex items-center justify-center shrink-0">
+              <div className="w-avatar-sm h-avatar-sm rounded-control bg-background-surface border border-border text-primary flex items-center justify-center shrink-0">
                 <XCircle className="w-4 h-4" />
               </div>
               <span className="font-semibold text-content-primary">
@@ -54,7 +54,7 @@ export const ResourceOptimizationCard: React.FC = () => {
           {/* Step 2 */}
           <div className="p-3.5 bg-background-subtle rounded-card-sm border border-border flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <div className="w-avatar-sm h-avatar-sm rounded-control bg-primary-subtle text-primary-foreground flex items-center justify-center shrink-0">
+              <div className="w-avatar-sm h-avatar-sm rounded-control bg-background-surface border border-border text-primary flex items-center justify-center shrink-0">
                 <MousePointerClick className="w-4 h-4" />
               </div>
               <span className="font-semibold text-content-primary">
@@ -69,7 +69,7 @@ export const ResourceOptimizationCard: React.FC = () => {
           {/* Step 3 */}
           <div className="p-3.5 bg-background-subtle rounded-card-sm border border-border flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <div className="w-avatar-sm h-avatar-sm rounded-control bg-primary-subtle text-primary-foreground flex items-center justify-center shrink-0">
+              <div className="w-avatar-sm h-avatar-sm rounded-control bg-background-surface border border-border text-primary flex items-center justify-center shrink-0">
                 <Menu className="w-4 h-4" />
               </div>
               <span className="font-semibold text-content-primary">

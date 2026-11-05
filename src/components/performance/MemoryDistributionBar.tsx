@@ -77,7 +77,7 @@ export const MemoryDistributionBar: React.FC<MemoryDistributionBarProps> = ({
           {t("total_label")}: {Math.round(totalRam)} MB (100%)
         </span>
       </div>
-      <div className="w-full h-3.5 bg-slate-100 rounded-pill overflow-hidden flex p-0.5 border border-border/60 gap-0.5">
+      <div className="w-full h-3.5 bg-slate-100 dark:bg-background-app rounded-pill overflow-hidden flex p-0.5 border border-border gap-0.5">
         {segments.map((seg, idx) => {
           if (seg.pct <= 0) return null;
           return (

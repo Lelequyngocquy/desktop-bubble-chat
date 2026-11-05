@@ -15,7 +15,7 @@ export const TipCard: React.FC<TipCardProps> = ({
 }) => {
   return (
     <div className="p-4 rounded-card border border-border bg-background-subtle flex items-start gap-3">
-      <div className="w-avatar-md h-avatar-md rounded-panel bg-primary-subtle text-primary-foreground flex items-center justify-center shrink-0">
+      <div className="w-avatar-md h-avatar-md rounded-panel bg-background-surface border border-border text-primary flex items-center justify-center shrink-0">
         {icon}
       </div>
       <div className="flex flex-col gap-1">

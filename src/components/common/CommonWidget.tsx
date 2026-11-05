@@ -29,7 +29,7 @@ export const CommonWidget: React.FC<CommonWidgetProps> = ({
     <div
       className={`bg-background-surface border border-border rounded-card shadow-card flex flex-col justify-between min-w-0 select-none ${className}`}
     >
-      <div className="p-[20px_22px_12px] flex flex-col gap-1.5 border-b border-border/50 shrink-0">
+      <div className="p-[20px_22px_12px] flex flex-col gap-1.5 border-b border-border shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-section font-semibold text-content-primary m-0">
@@ -56,7 +56,7 @@ export const CommonWidget: React.FC<CommonWidgetProps> = ({
         {children}
       </div>
       {(footerLeft || footerRight) && (
-        <div className="h-12 px-[22px] border-t border-border/50 flex items-center justify-between shrink-0">
+        <div className="h-12 px-[22px] border-t border-border flex items-center justify-between shrink-0">
           <div>{footerLeft}</div>
           <div>{footerRight}</div>
         </div>

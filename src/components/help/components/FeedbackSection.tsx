@@ -31,7 +31,7 @@ export const FeedbackSection: React.FC = () => {
           onChange={(e) => setFeedbackText(e.target.value)}
           placeholder={t("feedback_placeholder")}
           rows={3}
-          className="w-full p-3 text-body border border-border rounded-panel focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-none"
+          className="w-full p-3 text-body bg-background-subtle text-content-primary placeholder:text-content-muted border border-border rounded-panel focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-none"
         />
         <div className="flex items-center justify-between">
           {feedbackSent ? (

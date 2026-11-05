@@ -130,8 +130,7 @@
     "dialog_wake_stay_hibernating": "Tiếp tục ngủ đông",
     "dialog_wake_confirm": "Cho phép hoạt động",
     "troubleshoot_title": "Gặp vấn đề kết nối Messenger?",
-    "troubleshoot_help_link": "Trợ giúp & phản hồi",
-    "footer_version_hint": "DesktopBubbleChat · Phiên bản đầu hiện chỉ hỗ trợ Messenger"
+    "troubleshoot_help_link": "Trợ giúp & phản hồi"
   },
   "navigation": {
     "home": "Tổng quan",

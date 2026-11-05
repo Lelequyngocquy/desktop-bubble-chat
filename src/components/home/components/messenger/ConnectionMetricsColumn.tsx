@@ -33,10 +33,10 @@ export const ConnectionMetricsColumn: React.FC<
           </span>
         </div>
         <div
-          className={`w-8 h-8 rounded-panel flex items-center justify-center ${
+          className={`w-8 h-8 rounded-panel border flex items-center justify-center ${
             visibleBubbleCount > 0
-              ? "bg-primary/10 text-primary"
-              : "bg-border/60 text-content-muted"
+              ? "bg-background-surface border-border text-primary"
+              : "bg-background-surface border-border text-content-muted"
           }`}
         >
           <span className="text-xs font-bold">
@@ -56,7 +56,7 @@ export const ConnectionMetricsColumn: React.FC<
         <div
           className={`px-2 py-1 rounded-control text-caption font-bold ${
             unreadCount > 0
-              ? "bg-status-errorBg text-status-error border border-status-errorBorder/60"
+              ? "bg-status-errorBg text-status-error border border-status-errorBorder"
               : "bg-background-app text-content-muted"
           }`}
         >

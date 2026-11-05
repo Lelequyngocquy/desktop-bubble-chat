@@ -35,7 +35,7 @@ export const PerformanceWorkspace: React.FC = () => {
             <div
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-caption font-semibold shadow-xs border ${
                 isAutoTrimEnabled
-                  ? "bg-primary/10 border-primary/20 text-primary"
+                  ? "bg-primary/10 border-primary text-primary"
                   : "bg-background-surface border-border text-content-secondary"
               }`}
             >

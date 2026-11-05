@@ -7,6 +7,7 @@ import { messengerService } from "../../platforms/messenger";
 import { TabHeader } from "../common";
 import {
   LanguageSelectionSection,
+  AppearanceSection,
   SystemStartupSection,
   BubbleCustomizationSection,
   GlobalShortcutSection,
@@ -68,7 +69,7 @@ export const SettingsWorkspace: React.FC = () => {
         rightSlot={
           <button
             onClick={scrollToUpdateSection}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-background-surface hover:bg-white border border-border rounded-pill text-small shadow-xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-background-surface hover:bg-background-subtle border border-border rounded-pill text-small shadow-xs transition-colors cursor-pointer"
             title={t("settings:scroll_to_update")}
           >
             <span
@@ -86,6 +87,7 @@ export const SettingsWorkspace: React.FC = () => {
       {/* Main settings section list */}
       <main className="flex-1 min-h-0 overflow-y-auto px-8 py-6 flex flex-col gap-6 custom-scrollbar">
         <LanguageSelectionSection />
+        <AppearanceSection />
 
         <SystemStartupSection
           isAutoStart={isAutoStart}

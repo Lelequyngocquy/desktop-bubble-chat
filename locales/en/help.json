@@ -1,8 +1,7 @@
 {
   "header_eyebrow": "HELP & SUPPORT",
   "header_title": "Help & Feedback",
-  "header_desc": "Tips for keyboard shortcuts, floating bubble navigation, and feedback submission.",
-  "preview_badge": "Preview",
+  "header_desc": "Tips for keyboard shortcuts, floating bubble navigation, and feedback submission.", 
   "quick_tips_title": "Quick Tips",
   "hover_title": "Hover for 0.1s",
   "hover_desc": "Hover over any bubble for 100ms to open chat without clicking. Moving mouse away for 1s smoothly auto-closes it.",
