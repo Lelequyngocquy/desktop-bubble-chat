@@ -21,7 +21,7 @@
   "sound_off_title": "Tab sound is muted",
   "bubble_label": "Bubble",
   "bubble_aria_label": "Toggle bubble for {{name}}",
-  "footer_tip": "Tip: Hiding a chat head does not delete your conversation on Messenger.",
+  "footer_tip": "Tip: Hiding a chat head does not delete your conversation on Platforms.",
   "bubble_desc_need_connect": "Messenger connection required to show bubbles",
   "bubble_desc_visible_ratio": "{{visible}}/{{total}} bubbles currently visible",
   "bubble_desc_all_hidden": "All floating bubbles hidden",
