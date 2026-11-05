@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { IPC_COMMANDS } from "../types/ipc";
+import { SystemPerformanceSnapshot } from "../types/performance";
 
 export const systemService = {
   /**
@@ -72,6 +73,17 @@ export const systemService = {
   },
 
   /**
+   * Opens the local user data profiles directory in File Explorer.
+   */
+  async openProfilesFolder(): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.OPEN_PROFILES_FOLDER);
+    } catch (err) {
+      console.warn("[SystemService] Failed to open profiles folder:", err);
+    }
+  },
+
+  /**
    * Updates the System Tray context menu items according to connected account state.
    */
   async updateTrayMenu(hasConnectedAccounts: boolean): Promise<void> {
@@ -132,6 +144,30 @@ export const systemService = {
       await invoke(IPC_COMMANDS.RESTART_APP);
     } catch (err) {
       console.warn("[SystemService] Failed to restart application:", err);
+    }
+  },
+
+  /**
+   * Retrieves real-time system performance snapshot.
+   */
+  async getPerformanceSnapshot(): Promise<SystemPerformanceSnapshot | null> {
+    try {
+      return await invoke<SystemPerformanceSnapshot>(IPC_COMMANDS.GET_PERFORMANCE_SNAPSHOT);
+    } catch (err) {
+      console.warn("[SystemService] Failed to get performance snapshot:", err);
+      return null;
+    }
+  },
+
+  /**
+   * Trims working set memory of all application processes.
+   */
+  async trimSystemMemory(): Promise<number> {
+    try {
+      return await invoke<number>(IPC_COMMANDS.TRIM_SYSTEM_MEMORY);
+    } catch (err) {
+      console.warn("[SystemService] Failed to trim system memory:", err);
+      return 0;
     }
   },
 };

@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { ShieldCheck, LogIn } from "lucide-react";
+import { ShieldCheck, LogIn, FolderOpen } from "lucide-react";
 import {
   messengerService,
   useMessengerStore,
@@ -9,6 +9,7 @@ import {
 } from "../../../../platforms/messenger";
 import { useWindowStore } from "../../../../stores/windowStore";
 import { useNavigationStore } from "../../../../stores/navigationStore";
+import { systemService } from "../../../../services/systemService";
 import { MessengerAccount } from "../../../../types/account";
 import { CommonButton } from "../../../common";
 import { MessengerPlatformHeader } from "./MessengerPlatformHeader";
@@ -124,12 +125,23 @@ export const MessengerConnectionCard: React.FC = () => {
       </div>
 
       {/* Bottom Reassurance Banner */}
-      <div className="bg-primary-subtle px-6 py-2.5 flex items-center gap-2 text-primary-foreground border-t border-border/50">
-        <ShieldCheck className="w-4 h-4 shrink-0" />
-        <span className="text-caption font-normal leading-tight">
-          Phiên đăng nhập được lưu trên thiết bị này. Không gửi dữ liệu tài
-          khoản ra ngoài.
-        </span>
+      <div className="bg-primary-subtle px-6 py-2.5 flex items-center justify-between gap-3 text-primary-foreground border-t border-border/50 flex-wrap sm:flex-nowrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <ShieldCheck className="w-4 h-4 shrink-0 text-primary" />
+          <span className="text-caption font-normal leading-tight">
+            Phiên đăng nhập được lưu trên thiết bị này. Không gửi dữ liệu tài
+            khoản ra ngoài.
+          </span>
+        </div>
+
+        <button
+          onClick={() => systemService.openProfilesFolder()}
+          className="shrink-0 flex items-center gap-1.5 text-caption font-semibold text-primary hover:text-primary-hover hover:underline transition-colors cursor-pointer ml-auto"
+          title="Mở thư mục lưu trữ hồ sơ tài khoản (profiles) trên máy tính"
+        >
+          <span>Xem ngay</span>
+          <FolderOpen className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );
