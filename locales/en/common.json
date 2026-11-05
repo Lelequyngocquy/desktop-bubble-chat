@@ -38,15 +38,18 @@
     "close": "Close"
   },
   "close_dialog": {
-    "eyebrow": "SYSTEM",
-    "title": "Close Application Options",
+    "eyebrow": "CLOSE CONFIRMATION",
+    "title": "Dashboard Close Options",
+    "desc": "Would you like to hide the Dashboard to the system tray or quit DesktopBubbleChat completely?",
     "cancel": "Cancel",
-    "hide_to_tray": "Close Window",
-    "desc": "Do you want to keep running in the System Tray to receive notifications and maintain floating bubbles?",
-    "tray_card_label": "Run in System Tray:",
-    "tray_card_desc": "The main dashboard window will close while the app continues running in the background. Floating bubbles and notification sounds will remain active, saving system resources.",
-    "exit_warning": "Quit application and all bubbles",
-    "exit_btn": "Quit completely",
-    "remember_choice": "Remember this choice (automatically run in background next time)"
+    "action_hide": "Hide to Tray",
+    "action_exit": "Quit Application",
+    "hide_title": "Hide to System Tray (Background)",
+    "hide_desc": "Dashboard closes to 0 MB RAM. Floating bubbles and message notifications stay active in background.",
+    "hide_badge": "Recommended",
+    "exit_title": "Quit Application Completely",
+    "exit_desc": "Closes all windows, bubbles, and background processes. Next time you launch, Dashboard will open automatically.",
+    "exit_badge": "Terminate",
+    "remember_choice": "Remember this choice (can be changed anytime in Settings)"
   }
 }

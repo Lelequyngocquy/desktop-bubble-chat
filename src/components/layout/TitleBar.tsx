@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Minus, Square, Copy, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTranslation } from "react-i18next";
 import { CloseAppDialog } from "./dialogs/CloseAppDialog";
@@ -9,6 +10,13 @@ export const TitleBar: React.FC = () => {
   const { t } = useTranslation("common");
   const [isMaximized, setIsMaximized] = useState(false);
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem("dbc_close_dialog_migrated_v2")) {
+      localStorage.removeItem("dbc_close_window_action");
+      localStorage.setItem("dbc_close_dialog_migrated_v2", "true");
+    }
+  }, []);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -72,6 +80,18 @@ export const TitleBar: React.FC = () => {
     setIsCloseDialogOpen(true);
   };
 
+  useEffect(() => {
+    let unlistenDialog: (() => void) | undefined;
+    listen("show-close-dialog", () => {
+      handleCloseClick();
+    }).then((un) => {
+      unlistenDialog = un;
+    });
+    return () => {
+      if (unlistenDialog) unlistenDialog();
+    };
+  }, []);
+
   const handleHideToTray = async () => {
     setIsCloseDialogOpen(false);
     try {
@@ -89,7 +109,7 @@ export const TitleBar: React.FC = () => {
       await invoke("exit_app");
     } catch {
       try {
-        await getCurrentWindow().close();
+        await getCurrentWindow().destroy();
       } catch {}
     }
   };

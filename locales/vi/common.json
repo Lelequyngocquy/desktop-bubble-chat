@@ -38,15 +38,18 @@
     "close": "Đóng"
   },
   "close_dialog": {
-    "eyebrow": "HỆ THỐNG",
-    "title": "Tùy chọn đóng ứng dụng",
+    "eyebrow": "XÁC NHẬN ĐÓNG",
+    "title": "Tùy chọn đóng Bảng điều khiển",
+    "desc": "Bạn muốn ẩn giao diện Bảng điều khiển vào khay hệ thống hay thoát hoàn toàn ứng dụng DesktopBubbleChat?",
     "cancel": "Hủy bỏ",
-    "hide_to_tray": "Đóng cửa sổ",
-    "desc": "Bạn có muốn tiếp tục chạy ứng dụng dưới khay hệ thống (System Tray) để nhận thông báo và duy trì bong bóng nổi không?",
-    "tray_card_label": "Chạy trong khay hệ thống:",
-    "tray_card_desc": "Cửa sổ giao diện chính sẽ đóng lại, ứng dụng tiếp tục chạy ngầm ở góc màn hình. Bong bóng chat nổi và chuông thông báo vẫn hoạt động bình thường. Điều này sẽ giúp tiết kiệm tài nguyên hệ thống và tránh làm gián đoạn công việc của bạn.",
-    "exit_warning": "Tắt hoàn toàn ứng dụng và bong bóng",
-    "exit_btn": "Thoát hoàn toàn",
-    "remember_choice": "Ghi nhớ lựa chọn này (tự động chạy ngầm ở các lần sau)"
+    "action_hide": "Ẩn về khay",
+    "action_exit": "Thoát ứng dụng",
+    "hide_title": "Ẩn về khay hệ thống (Chạy ngầm)",
+    "hide_desc": "Dashboard đóng lại (0 MB RAM). Bong bóng chat và thông báo tin nhắn vẫn hoạt động bình thường ở góc màn hình.",
+    "hide_badge": "Khuyên dùng",
+    "exit_title": "Thoát hoàn toàn ứng dụng",
+    "exit_desc": "Đóng tất cả cửa sổ, tắt bong bóng chat và dừng mọi tiến trình ngầm. Lần tới mở app, Dashboard sẽ tự động bật lại.",
+    "exit_badge": "Đóng toàn bộ",
+    "remember_choice": "Ghi nhớ lựa chọn này (có thể đổi lại trong Cài đặt)"
   }
 }

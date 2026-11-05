@@ -29,7 +29,12 @@
     "notifications": "Desktop Notifications & Chime",
     "notifications_desc": "Play chime sound and show alerts on new messages",
     "auto_trim": "Auto Trim Memory",
-    "auto_trim_desc": "Automatically optimize idle RAM when chat heads tuck or 2 seconds after receiving messages"
+    "auto_trim_desc": "Automatically optimize idle RAM when chat heads tuck or 2 seconds after receiving messages",
+    "close_action": "Action when clicking [X] on Dashboard",
+    "close_action_desc": "Behavior when clicking the close [X] button on the Dashboard title bar",
+    "close_action_ask": "Always ask",
+    "close_action_hide": "Hide to tray",
+    "close_action_exit": "Quit completely"
   },
   "bubble": {
     "title": "Bubble Customization",

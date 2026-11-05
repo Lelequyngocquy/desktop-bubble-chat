@@ -50,8 +50,14 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
                     if confirm_exit_dialog(&locale) {
                         if let Some(state) = app_handle.try_state::<Arc<crate::state::ChatState>>() {
                             state.is_explicit_exit.store(true, std::sync::atomic::Ordering::SeqCst);
+                            state.update_user_config(&app_handle, |c| {
+                                c.is_dashboard_open = true;
+                            });
                         }
-                        app_handle.exit(0);
+                        for (_, window) in app_handle.webview_windows() {
+                            let _ = window.destroy();
+                        }
+                        std::process::exit(0);
                     }
                 }
                 id if id.starts_with("toggle_bubble_") => {

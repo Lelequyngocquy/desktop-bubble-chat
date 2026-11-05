@@ -38,7 +38,9 @@ fn is_window_valid(_window: &WebviewWindow) -> bool {
 /// Destroys or hibernates main dashboard window to reach 0 MB UI RAM
 pub fn destroy_or_hibernate_main_window(app: &AppHandle) {
     if let Some(state) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
-        state.update_user_config(app, |c| c.is_dashboard_open = false);
+        if !state.is_explicit_exit.load(std::sync::atomic::Ordering::SeqCst) {
+            state.update_user_config(app, |c| c.is_dashboard_open = false);
+        }
     }
     if let Some(main_window) = app.get_webview_window("main") {
         println!("\x1b[35m[MainWindow] Activating Dynamic Destruction: closing main window to 0 MB RAM...\x1b[0m");
@@ -55,8 +57,15 @@ pub fn setup_main_window_events(main_window: &WebviewWindow, app: &AppHandle) {
     let app_handle = app.clone();
     main_window.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-            api.prevent_close();
-            destroy_or_hibernate_main_window(&app_handle);
+            let is_explicit = app_handle
+                .try_state::<std::sync::Arc<crate::state::ChatState>>()
+                .map(|s| s.is_explicit_exit.load(std::sync::atomic::Ordering::SeqCst))
+                .unwrap_or(false);
+            if !is_explicit {
+                api.prevent_close();
+                use tauri::Emitter;
+                let _ = app_handle.emit("show-close-dialog", ());
+            }
         }
     });
 }

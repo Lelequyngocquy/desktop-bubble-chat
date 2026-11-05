@@ -150,17 +150,24 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
     app.run(|app_handle, event| {
-        if let tauri::RunEvent::ExitRequested { code, api, .. } = event {
-            let is_explicit = app_handle
-                .try_state::<Arc<ChatState>>()
-                .map(|s| s.is_explicit_exit.load(Ordering::SeqCst))
-                .unwrap_or(false);
-            if !is_explicit {
-                println!("[Tauri Lifecycle] Preventing exit: Keeping host & tray running in background (Exit code: {:?})", code);
-                api.prevent_exit();
-            } else {
-                println!("[Tauri Lifecycle] User confirmed explicit app exit (Exit code: {:?})", code);
+        match event {
+            tauri::RunEvent::ExitRequested { code, api, .. } => {
+                let is_explicit = app_handle
+                    .try_state::<Arc<ChatState>>()
+                    .map(|s| s.is_explicit_exit.load(Ordering::SeqCst))
+                    .unwrap_or(false);
+                if !is_explicit {
+                    println!("[Tauri Lifecycle] Preventing exit: Keeping host & tray running in background (Exit code: {:?})", code);
+                    api.prevent_exit();
+                } else {
+                    println!("[Tauri Lifecycle] User confirmed explicit app exit (Exit code: {:?})", code);
+                    std::process::exit(code.unwrap_or(0));
+                }
             }
+            tauri::RunEvent::Exit => {
+                std::process::exit(0);
+            }
+            _ => {}
         }
     });
 }

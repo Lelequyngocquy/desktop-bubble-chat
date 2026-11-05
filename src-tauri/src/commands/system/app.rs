@@ -107,10 +107,17 @@ pub fn set_theme_mode(
 /// Exits application completely
 #[tauri::command]
 pub fn exit_app(app: AppHandle) {
+    println!("\x1b[33m[AppLifecycle] Explicit application exit initiated...\x1b[0m");
     if let Some(state) = app.try_state::<Arc<crate::state::ChatState>>() {
         state.is_explicit_exit.store(true, std::sync::atomic::Ordering::SeqCst);
+        state.update_user_config(&app, |c| {
+            c.is_dashboard_open = true;
+        });
     }
-    app.exit(0);
+    for (_, window) in app.webview_windows() {
+        let _ = window.destroy();
+    }
+    std::process::exit(0);
 }
 
 /// Restarts application (used for updates or resets)
@@ -120,7 +127,7 @@ pub fn restart_app(app: AppHandle) {
         state.is_explicit_exit.store(true, std::sync::atomic::Ordering::SeqCst);
     }
     for (_, window) in app.webview_windows() {
-        let _ = window.close();
+        let _ = window.destroy();
     }
     app.request_restart();
 }

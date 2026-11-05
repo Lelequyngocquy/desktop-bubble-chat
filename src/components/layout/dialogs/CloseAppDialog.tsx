@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { MessageSquare, Power, HelpCircle, ShieldAlert } from "lucide-react";
+import { MessageSquare, Power, HelpCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CommonDialog } from "../../common/CommonDialog";
 
@@ -17,14 +17,27 @@ export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
   onExitApp,
 }) => {
   const { t } = useTranslation("common");
+  const [selectedAction, setSelectedAction] = useState<"hide_to_tray" | "exit_app">("hide_to_tray");
   const [rememberChoice, setRememberChoice] = useState(false);
-  const handleConfirmHide = () => {
+  const handleConfirm = () => {
+    if (rememberChoice) {
+      localStorage.setItem("dbc_close_window_action", selectedAction);
+    } else {
+      localStorage.removeItem("dbc_close_window_action");
+    }
+    if (selectedAction === "hide_to_tray") {
+      onHideToTray();
+    } else {
+      onExitApp();
+    }
+  };
+  const handleDirectHide = () => {
     if (rememberChoice) {
       localStorage.setItem("dbc_close_window_action", "hide_to_tray");
     }
     onHideToTray();
   };
-  const handleConfirmExit = () => {
+  const handleDirectExit = () => {
     if (rememberChoice) {
       localStorage.setItem("dbc_close_window_action", "exit_app");
     }
@@ -46,53 +59,96 @@ export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
         onClick: onClose,
       }}
       rightButton={{
-        label: t("close_dialog.hide_to_tray"),
-        variant: "primary",
-        onClick: handleConfirmHide,
+        label:
+          selectedAction === "hide_to_tray"
+            ? t("close_dialog.action_hide")
+            : t("close_dialog.action_exit"),
+        variant: selectedAction === "hide_to_tray" ? "primary" : "danger",
+        onClick: handleConfirm,
       }}
       content={
-        <div className="space-y-4 text-body text-content-secondary">
-          <p className="m-0 leading-relaxed">
+        <div className="space-y-3.5 text-body text-content-secondary">
+          <p className="m-0 text-small text-content-secondary leading-relaxed">
             {t("close_dialog.desc")}
           </p>
-          <div className="flex items-start gap-3 p-3 bg-primary-subtle border border-border rounded-panel text-content-primary">
-            <MessageSquare className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
-            <div className="text-small leading-relaxed">
-              <span className="font-semibold">{t("close_dialog.tray_card_label")}</span>{" "}
-              {t("close_dialog.tray_card_desc")}
-            </div>
-          </div>
-          <div className="pt-2 border-t border-border">
-            <div className="flex items-center justify-between p-2.5 rounded-panel border border-status-errorBorder bg-status-errorBg/60 hover:bg-status-errorBg transition-colors">
-              <div className="flex items-center gap-2.5">
-                <ShieldAlert className="w-4 h-4 text-status-error shrink-0" />
-                <span className="text-small text-status-error font-medium">
-                  {t("close_dialog.exit_warning")}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleConfirmExit}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-caption font-semibold text-status-error bg-background-surface border border-status-errorBorder rounded-control hover:bg-status-error hover:text-content-inverse hover:border-status-error transition-colors shadow-2xs cursor-pointer"
-              >
-                <Power className="w-3 h-3" />
-                {t("close_dialog.exit_btn")}
-              </button>
-            </div>
-          </div>
-          <div className="pt-1 flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="rememberCloseChoice"
-              checked={rememberChoice}
-              onChange={(e) => setRememberChoice(e.target.checked)}
-              className="w-4 h-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
-            />
-            <label
-              htmlFor="rememberCloseChoice"
-              className="text-small text-content-secondary cursor-pointer select-none"
+          <div className="grid grid-cols-1 gap-2.5">
+            <div
+              onClick={() => setSelectedAction("hide_to_tray")}
+              onDoubleClick={handleDirectHide}
+              className={`p-3.5 rounded-panel border transition-all cursor-pointer select-none flex items-start gap-3 ${
+                selectedAction === "hide_to_tray"
+                  ? "bg-primary-subtle border-primary ring-1 ring-primary"
+                  : "bg-background-surface border-border hover:border-border hover:bg-background-subtle"
+              }`}
             >
-              {t("close_dialog.remember_choice")}
+              <div
+                className={`w-8 h-8 rounded-control flex items-center justify-center shrink-0 ${
+                  selectedAction === "hide_to_tray"
+                    ? "bg-primary text-content-inverse"
+                    : "bg-background-subtle text-content-secondary"
+                }`}
+              >
+                <MessageSquare className="w-4 h-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-small font-semibold text-content-primary">
+                    {t("close_dialog.hide_title")}
+                  </span>
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-pill bg-primary/10 text-primary shrink-0">
+                    {t("close_dialog.hide_badge")}
+                  </span>
+                </div>
+                <p className="mt-1 mb-0 text-caption text-content-secondary leading-relaxed">
+                  {t("close_dialog.hide_desc")}
+                </p>
+              </div>
+            </div>
+            <div
+              onClick={() => setSelectedAction("exit_app")}
+              onDoubleClick={handleDirectExit}
+              className={`p-3.5 rounded-panel border transition-all cursor-pointer select-none flex items-start gap-3 ${
+                selectedAction === "exit_app"
+                  ? "bg-status-errorBg border-status-error ring-1 ring-status-error"
+                  : "bg-background-surface border-border hover:border-border hover:bg-background-subtle"
+              }`}
+            >
+              <div
+                className={`w-8 h-8 rounded-control flex items-center justify-center shrink-0 ${
+                  selectedAction === "exit_app"
+                    ? "bg-status-error text-content-inverse"
+                    : "bg-background-subtle text-status-error"
+                }`}
+              >
+                <Power className="w-4 h-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-small font-semibold text-content-primary">
+                    {t("close_dialog.exit_title")}
+                  </span>
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-pill bg-status-error/10 text-status-error shrink-0">
+                    {t("close_dialog.exit_badge")}
+                  </span>
+                </div>
+                <p className="mt-1 mb-0 text-caption text-content-secondary leading-relaxed">
+                  {t("close_dialog.exit_desc")}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="pt-2 border-t border-border flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                id="rememberCloseChoice"
+                checked={rememberChoice}
+                onChange={(e) => setRememberChoice(e.target.checked)}
+                className="w-4 h-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+              />
+              <span className="text-caption text-content-secondary">
+                {t("close_dialog.remember_choice")}
+              </span>
             </label>
           </div>
         </div>
