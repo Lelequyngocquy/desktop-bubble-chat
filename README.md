@@ -7,13 +7,13 @@
 [![Rust 2024](https://img.shields.io/badge/Rust-2024%20Edition-DEA584?style=flat-square&logo=rust&logoColor=black)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-> Extensible, high-performance floating chat heads for Windows Desktop featuring pluggable multi-platform messaging, hardware-accelerated Win32 + Skia vector avatars, physics-driven edge docking, and zero-click interactions.
+> Extensible, high-performance floating chat heads for Windows Desktop featuring pluggable multi-platform messaging, hardware-accelerated Win32 + Skia vector avatars, intelligent 4-tier RAM trimming, physics-driven edge docking, and zero-click interactions.
 
 **English** | [Tiếng Việt](README.vi.md)
 
 ---
 
-**DesktopBubbleChat** brings the fluid, non-intrusive mobile chat head experience to Windows 10 and 11 across multiple messaging networks. Built with **Tauri v2**, **React 19**, **TypeScript**, and a native **Rust (Win32 + Skia)** core, it decouples windowing, physics, and rendering from platform adapters. It runs concurrent isolated profiles inside dedicated Microsoft WebView2 sandboxes while keeping a smooth, responsive desktop experience.
+**DesktopBubbleChat** brings the fluid, non-intrusive mobile chat head experience to Windows 10 and 11 across multiple messaging networks. Built with **Tauri v2**, **React 19**, **TypeScript**, and a native **Rust (Win32 + Skia)** core, it decouples windowing, physics, and rendering from platform adapters. It runs concurrent isolated profiles inside dedicated Microsoft WebView2 sandboxes while keeping memory overhead exceptionally low via automated working-set trimming.
 
 ### Table of Contents
 
@@ -27,6 +27,7 @@
 - [Troubleshooting](#troubleshooting)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
+- [Disclaimer](#disclaimer)
 - [License](#license)
 
 ---
@@ -37,16 +38,40 @@
 
 ### Key Features
 
-- **Pluggable Multi-Platform Architecture**: Unified core engine separating physical window movement and rendering from individual social platform adapters.
-- **Concurrent Multi-Account Isolation**: Run up to 5 concurrent accounts per platform in isolated browser sessions without cookie collisions.
-- **Pure Rust Win32 + Skia Vector Engine**: Dedicated native thread drawing vector platform icons and unread count badges with sub-pixel anti-aliased rendering.
-- **Physics-Based Edge Snapping & Tucking**: Smoothly snaps to screen edges and tucks 75% of the bubble off-screen when idle to save screen space.
-- **Vertical Collision Resolver**: Automatic repositioning ensures stacked bubbles docked on the same edge never overlap.
+- **Pure Rust Win32 + Skia Vector Avatars**:
+  - Floating bubbles are **100% native Win32 Layered Windows** rendered on a dedicated thread with the **Tiny-Skia 2D vector engine**.
+  - Zero WebView overhead for bubbles: no black borders, no GPU composition lag, perfect transparency, and sub-pixel anti-aliasing.
+  - Interactive spring physics animation at 60 FPS.
+- **Intelligent 4-Tier Auto-Trim Memory Management**:
+  - Automatically manages Windows Virtual Memory via `SetProcessWorkingSetSize` across host and WebView2 process trees.
+  - **4 automated triggers**: 3s after bubble tucks, 2s after receiving an unread message, 5s after session preload finishes, and an idle sweeper every 5 minutes.
+  - **Dynamic Dashboard Destruction**: Closing or minimizing the main dashboard destroys its window down to **0 MB RAM** (only background headless message workers persist).
+  - Trims total RAM footprint from typical 500–700 MB down to **80–140 MB**.
+- **Real-Time Performance Dashboard**:
+  - Live per-process RAM breakdown (Host Rust, Dashboard UI, WebView2 instances, GPU processes).
+  - Single-click manual memory flush ("Trim Memory") with live recovery metric.
+- **Auto-Seen Prevention & Background Shield**:
+  - Overrides `document.hasFocus()` and mocks DOM blur on window hide to prevent Meta Messenger Web from auto-marking unread messages as "Seen" while the chat window is hidden.
+  - Multi-tier unread counter guard prevents title-flashing from wiping unread badges prematurely.
+- **Concurrent Multi-Account Isolation**:
+  - Run up to 5 concurrent accounts per platform in isolated browser data partitions (`profiles/<platform>_<index>`).
+  - No cookie collisions, cross-account logouts, or session leakage.
+- **Physics-Based Edge Snapping & Tucking**:
+  - Smoothly snaps to screen edges and tucks 75% of the bubble off-screen when idle to save screen real estate.
+  - Collision resolver prevents stacked bubbles from overlapping.
 - **Zero-Click Hover Interaction**:
-  - **Hover (100ms)** to peek out and pop open the conversation window.
+  - **Hover (100ms)** to glide out and open the docked conversation window.
   - **Leave cursor (1000ms)** to automatically close the chat window and glide the bubble back into tucked mode.
-- **Native Notifications & Audio**: Integrated with Windows Action Center toasts and native Win32 audio cues.
-- **Global Shortcut & Tray Integration**: Instant visibility toggle (`Ctrl + Shift + M`) and dynamic system tray controls.
+- **Cryptographically Secured In-App Auto-Updates**:
+  - Integrated Tauri Updater signed with **Minisign (Ed25519)** keys to prevent malicious binary tampering.
+  - Visual download progress and release notes viewer in Settings.
+- **Full Personalization & System Integration**:
+  - **Dark / Light Mode**: Seamless system sync with manual toggle.
+  - **Bilingual Interface**: Full English and Vietnamese support with runtime reactive switching.
+  - **Customizable Bubble Size**: Small (48px), Medium (56px), and Large (64px).
+  - **Configurable Close Action**: Ask each time, hide to tray, or exit completely.
+  - **Global Hotkey (`Ctrl + Shift + M`)**: Instant toggle for all floating bubbles.
+  - **Native Notifications & Audio**: Windows Action Center toasts + per-account audio muting.
 
 ---
 
@@ -54,40 +79,42 @@
 
 ```mermaid
 flowchart TD
-    subgraph Frontend["Frontend Layer (React 19 + TypeScript + Zustand)"]
-        UI["Main Dashboard Window"]
-        STORE["Zustand SSOT Stores"]
-        HOOKS["Physics & Drag Hooks"]
-        FE_PLUG["Platform Adapters (Messenger, ...)"]
+    subgraph Frontend["Frontend Layer - Dashboard (React 19 + TypeScript + Zustand)"]
+        UI["Main Dashboard Window (Dynamic Lifecycle)"]
+        STORE["Zustand SSOT Stores (Settings, Window, Messenger)"]
+        SERVICES["Frontend Services (windowService, messengerService, ...)"]
+        FE_PLUG["Platform UI & Settings Adapters"]
     end
 
     subgraph IPC["Tauri v2 IPC Bridge"]
-        INVOKE["Tauri Commands (invoke)"]
-        EVENTS["Tauri Event Bus (emit / listen)"]
+        INVOKE["Tauri Commands (Typed IPC Contracts)"]
+        EVENTS["Tauri Central Event Bus (useUnreadListener)"]
     end
 
     subgraph Backend["Backend Layer (Rust 2024 Core)"]
-        STATE["ChatState (Thread-safe SSOT)"]
+        STATE["ChatState (Thread-Safe SSOT)"]
+        TRIM["AutoTrimController (4-Tier Working Set Optimizer)"]
         ENGINE["BubbleMovementEngine (Snap / Tuck / Collision)"]
-        SKIA["Native Skia Bubble Engine (Win32 Thread)"]
-        BE_PLUG["Platform Daemons & Watchers"]
+        SKIA["Native Skia Bubble Engine (Win32 HWND + Raw Skia)"]
+        BE_PLUG["Platform Watchers & Auth Daemons"]
     end
 
     subgraph OS["Windows 10 / 11 Operating System"]
-        WIN32["Win32 APIs (GetCursorPos, SetWindowPos, Layered)"]
-        WV2["Microsoft Edge WebView2 (Isolated Sandboxes)"]
+        WIN32["Win32 APIs (SetProcessWorkingSetSize, Layered Window)"]
+        WV2["Microsoft Edge WebView2 (Isolated Account Profiles)"]
     end
 
     UI --> STORE
-    FE_PLUG --> STORE
-    STORE --> INVOKE
-    HOOKS --> INVOKE
+    STORE --> SERVICES
+    SERVICES --> INVOKE
     EVENTS --> STORE
 
     INVOKE --> STATE
     INVOKE --> ENGINE
     INVOKE --> BE_PLUG
 
+    BE_PLUG --> TRIM
+    TRIM --> WIN32
     ENGINE --> WIN32
     SKIA --> WIN32
     BE_PLUG --> WV2
@@ -98,20 +125,24 @@ flowchart TD
 
 ```text
 DesktopBubbleChat/
+├── locales/                    # Bilingual i18n translation resources (en/, vi/)
 ├── scripts/                    # Automation scripts (check_env.ps1, start.ps1, status.ps1)
 ├── src/                        # Frontend Application (React 19 + TypeScript + Tailwind)
-│   ├── components/             # Dashboard, chat heads workspace, settings & UI primitives
+│   ├── components/             # Dashboard views, title bar, settings sections & UI primitives
+│   ├── hooks/                  # Global listeners (useUnreadListener, useAutoUpdater, ...)
+│   ├── i18n/                   # i18next runtime initialization & reactive language switching
 │   ├── platforms/              # Modular Frontend Platform Adapters (e.g. messenger/)
-│   ├── stores/                 # Zustand state stores
-│   ├── services/               # IPC client, notifications, and audio services
-│   └── types/                  # Typed IPC contracts and domain interfaces
+│   ├── stores/                 # Zustand state stores (settings, window, performance, ...)
+│   ├── services/               # windowService, systemService, messengerService, ...
+│   └── types/                  # Typed IPC contracts, domain models, and performance types
 ├── src-tauri/                  # Rust Backend Core & Native OS Integration
 │   ├── capabilities/           # Tauri v2 security ACL policies
 │   ├── src/
 │   │   ├── commands/           # IPC command handlers (bubble, system, platforms)
 │   │   ├── movement/           # Physics engine, snap calculations & collision resolver
-│   │   ├── platforms/          # Backend Platform Adapters (daemons, scrapers, webview lifecycle)
+│   │   ├── platforms/          # Platform adapters (auth watchers, scrapers, lifecycle)
 │   │   ├── tray/               # System tray setup & dynamic context menus
+│   │   ├── utils/              # Memory trimming (AutoTrimController), win32, user_cache
 │   │   ├── windows/            # Skia rendering engine & Win32 native window management
 │   │   └── state.rs            # Centralized thread-safe app state
 │   ├── Cargo.toml              # Rust dependencies manifest
@@ -141,7 +172,7 @@ DesktopBubbleChat/
 - **Windows 10 (1903+) or Windows 11 (64-bit)**
 - **Node.js**: `>= 18.0.0`
 - **Rust & Cargo**: Stable (1.80+ with `x86_64-pc-windows-msvc`)
-- **Visual Studio Build Tools 2022** (C++ Workload)
+- **Visual Studio Build Tools 2022** (Desktop development with C++ Workload)
 - **Microsoft Edge WebView2 Runtime** (Evergreen)
 
 #### Installation & Setup
@@ -181,13 +212,15 @@ DesktopBubbleChat/
 ### Usage & Shortcuts
 
 - **`Ctrl + Shift + M`**: Master hotkey to toggle visibility of all floating bubbles.
+- **Hover on Bubble**: Slides out and opens docked conversation window.
+- **Leave Cursor**: Slides chat back into docked edge tucking.
 - **System Tray Menu**: Right-click the taskbar tray icon to:
   - Toggle Main Dashboard
   - Show / Hide All Bubbles
   - Toggle individual accounts
   - Exit Application cleanly
 - **Resource Monitoring**:
-  Inspect live RAM and WebView2 usage across profiles:
+  Inspect live RAM and WebView2 usage across profiles via the in-app **Performance Dashboard** or CLI:
   ```powershell
   powershell -ExecutionPolicy Bypass -File scripts/status.ps1 -Watch
   ```
@@ -196,9 +229,10 @@ DesktopBubbleChat/
 
 ### Security Model
 
-1. **Zero Cloud Intermediaries**: Messaging data flows strictly between your local client and official endpoints (e.g., `https://www.messenger.com`). No telemetry, tokens, or messages touch third-party servers.
+1. **Zero Cloud Intermediaries**: Messaging data flows strictly between your local client and official endpoints (`https://www.messenger.com`). No telemetry, tokens, or messages touch third-party servers.
 2. **Profile Isolation**: Each account operates in an isolated user data directory (`profiles/<platform>_<index>`). Sessions, cookies, and local storage never mix.
-3. **Strict Tauri Permissions**: Strict ACL capability policies (`src-tauri/capabilities/default.json`) prevent unauthorized shell or file system operations.
+3. **Cryptographic Updates**: In-app updater verifies binary signatures using **Minisign Ed25519** public keys prior to execution.
+4. **Strict Tauri Permissions**: Strict ACL capability policies (`src-tauri/capabilities/default.json`) prevent unauthorized shell or file system operations.
 
 ---
 
@@ -228,6 +262,12 @@ Contributions, issues, and feature requests are welcome!
 3. Commit your Changes (`git commit -m 'feat: Add some AmazingFeature'`)
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
+
+---
+
+## Disclaimer
+
+DesktopBubbleChat is an independent open-source project plays a role as mini BROWSER, and is not affiliated, associated, authorized, endorsed by, or in any way officially connected with Meta Platforms, Inc., or Facebook Messenger. The official Messenger website can be found at https://www.messenger.com.
 
 ---
 
