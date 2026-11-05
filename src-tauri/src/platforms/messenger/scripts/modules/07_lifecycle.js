@@ -31,6 +31,20 @@ function runAdaptiveInterval(fn, activeMs, hiddenMs) {
   loop();
 }
 
+// 0. Quản lý trạng thái Focus để chống Auto-Seen khi cửa sổ chat bị ẩn
+if (!window.__FOCUS_INTERCEPTOR_INSTALLED__) {
+  window.__FOCUS_INTERCEPTOR_INSTALLED__ = true;
+  try {
+    const originalHasFocus = document.hasFocus ? document.hasFocus.bind(document) : () => true;
+    document.hasFocus = function () {
+      if (window.__isWindowFocused === false) return false;
+      return originalHasFocus();
+    };
+    window.addEventListener("focus", () => { window.__isWindowFocused = true; });
+    window.addEventListener("blur", () => { window.__isWindowFocused = false; });
+  } catch (e) {}
+}
+
 logDebug("LIFECYCLE-BOOT", ">>> BẮT ĐẦU KHỞI CHẠY HỆ THỐNG MESSENGER INJECT SCRIPTS...", {
   url: window.location.href,
   readyState: document.readyState,

@@ -150,6 +150,14 @@ pub fn get_or_create_messenger_window(
         );
         let count = parse_unread_from_title(&title);
         let prev = state_title.get_unread_count(account_index);
+        let is_visible = win.is_visible().unwrap_or(false);
+        if !is_visible && count < prev {
+            println!(
+                "\x1b[33m[BE - Webview Title M{:02}] Suppressed badge drop ({} -> {}) while window is hidden\x1b[0m",
+                account_index, prev, count
+            );
+            return;
+        }
         if count != prev {
             state_title.set_unread_count(account_index, count);
             crate::windows::native_bubble::set_native_bubble_unread_count(account_index, count);

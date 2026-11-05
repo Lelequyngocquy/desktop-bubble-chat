@@ -76,7 +76,11 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                     if is_logged_in {
                         if let Ok(title) = chat_window.title() {
                             let count = parse_unread_from_title(&title);
-                            let prev_count = *unread_map.get(&idx).unwrap_or(&0);
+                            let prev_count = chat_state.get_unread_count(idx);
+                            let is_visible = chat_window.is_visible().unwrap_or(false);
+                            if !is_visible && count < prev_count {
+                                continue;
+                            }
                             if count != prev_count {
                                 unread_map.insert(idx, count);
                                 if count > prev_count {

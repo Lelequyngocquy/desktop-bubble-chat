@@ -157,6 +157,7 @@ impl ChatService {
         println!("[BE - Chat] Opened Messenger {:02} chat docked next to bubble", idx);
         chat_window.show().map_err(|e| e.to_string())?;
         chat_window.set_focus().map_err(|e| e.to_string())?;
+        let _ = chat_window.eval("window.__isWindowFocused = true; window.dispatchEvent(new Event('focus'));");
         let _ = app.emit("bubble-visibility-changed", serde_json::json!({
             "accountIndex": idx,
             "visible": true
@@ -181,6 +182,7 @@ impl ChatService {
             .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
         if let Some(chat_window) = chat_window {
             if chat_window.is_visible().unwrap_or(false) {
+                let _ = chat_window.eval("window.__isWindowFocused = false; if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); } window.dispatchEvent(new Event('blur'));");
                 let _ = chat_window.hide();
                 let app_handle = app.clone();
                 std::thread::spawn(move || {

@@ -31,7 +31,7 @@
   "overlay_initializing": "Initializing workspace...",
   "overlay_stabilizing": "Stabilizing ecosystem & connections",
   "titlebar": {
-    "app_title": "DesktopBubbleChat - Floating Messenger Bubbles",
+    "app_title": "DesktopBubbleChat",
     "minimize": "Minimize to Taskbar",
     "maximize": "Maximize",
     "restore": "Restore",
