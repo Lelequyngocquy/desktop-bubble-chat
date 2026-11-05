@@ -18,6 +18,7 @@
 ### Mục lục
 
 - [Minh họa](#minh-họa)
+- [Tải về & Cài đặt](#tải-về--cài-đặt)
 - [Tính năng nổi bật](#tính-năng-nổi-bật)
 - [Tổng quan kiến trúc](#tổng-quan-kiến-trúc)
 - [Lộ trình phát triển](#lộ-trình-phát-triển)
@@ -35,6 +36,19 @@
 ## Minh họa
 
 ![Minh họa](assets/gif/preview.gif)
+
+---
+
+## Tải về & Cài đặt
+
+Bản cài đặt trực tiếp sẵn sàng sử dụng cho **Windows 10 / 11 (64-bit)**:
+
+[![Tải về cho Windows](https://img.shields.io/badge/T%E1%BA%A3i%20v%E1%BB%81-v0.3.1%20(B%E1%BA%A3n%20c%C3%A0i%20.exe)-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v0.3.1/DesktopBubbleChat_0.3.1_x64-setup.exe)
+
+- **Tải trực tiếp**: [DesktopBubbleChat_0.3.1_x64-setup.exe](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v0.3.1/DesktopBubbleChat_0.3.1_x64-setup.exe)
+- **Tất cả các bản phát hành & Nhật ký cập nhật**: [GitHub Releases](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases)
+
+---
 
 ### Tính năng nổi bật
 
