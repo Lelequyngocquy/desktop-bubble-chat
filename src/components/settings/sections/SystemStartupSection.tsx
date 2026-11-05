@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
 import { Power } from "lucide-react";
 import { SwitchButton, CommonLargeCard } from "../../common";
+import { useSettingsStore, CloseWindowAction } from "../../../stores/settingsStore";
 
 interface SystemStartupSectionProps {
   isAutoStart: boolean;
@@ -25,20 +26,12 @@ export const SystemStartupSection: React.FC<SystemStartupSectionProps> = ({
   onToggleAutoTrim,
 }) => {
   const { t } = useTranslation(["settings"]);
-  const [closeAction, setCloseAction] = useState<"ask" | "hide_to_tray" | "exit_app">(() => {
-    const val = localStorage.getItem("dbc_close_window_action");
-    if (val === "hide_to_tray" || val === "exit_app") return val;
-    return "ask";
-  });
-  const handleSetCloseAction = (val: "ask" | "hide_to_tray" | "exit_app") => {
-    setCloseAction(val);
-    if (val === "ask") {
-      localStorage.removeItem("dbc_close_window_action");
-    } else {
-      localStorage.setItem("dbc_close_window_action", val);
-    }
+  const closeAction = useSettingsStore((s) => s.closeWindowAction);
+  const setCloseWindowAction = useSettingsStore((s) => s.setCloseWindowAction);
+  const handleSetCloseAction = (val: CloseWindowAction) => {
+    setCloseWindowAction(val);
   };
-  const closeActionOptions: Array<{ id: "ask" | "hide_to_tray" | "exit_app"; label: string }> = [
+  const closeActionOptions: Array<{ id: CloseWindowAction; label: string }> = [
     { id: "ask", label: t("settings:startup.close_action_ask") },
     { id: "hide_to_tray", label: t("settings:startup.close_action_hide") },
     { id: "exit_app", label: t("settings:startup.close_action_exit") },

@@ -13,6 +13,10 @@ export const IPC_COMMANDS = {
   OPEN_PROFILES_FOLDER: "open_profiles_folder",
   EXIT_APP: "exit_app",
   RESTART_APP: "restart_app",
+  MINIMIZE_MAIN_WINDOW: "minimize_main_window",
+  TOGGLE_MAXIMIZE_MAIN_WINDOW: "toggle_maximize_main_window",
+  HIDE_MAIN_WINDOW: "hide_main_window",
+  SHOW_MAIN_WINDOW: "show_main_window",
   SET_ALWAYS_ON_TOP: "set_always_on_top",
   UPDATE_TRAY_MENU_STATUS: "update_tray_menu_status",
   LOG_FRONTEND: "log_frontend",
@@ -76,6 +80,7 @@ export const IPC_EVENTS = {
   RECENT_CONVERSATIONS_SYNCED: "recent-conversations-synced",
   BUBBLE_CONFIG_CHANGED: "bubble-config-changed",
   LANGUAGE_CHANGED: "language-changed",
+  SHOW_CLOSE_DIALOG: "show-close-dialog",
 } as const;
 
 export type IpcEvent = (typeof IPC_EVENTS)[keyof typeof IPC_EVENTS];

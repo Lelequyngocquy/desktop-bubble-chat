@@ -2,10 +2,8 @@ import React from "react";
 import { Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { TabHeader } from "../common/TabHeader";
-import {
-  usePerformanceStore,
-  usePerformanceAutoPoll,
-} from "../../stores/performanceStore";
+import { usePerformanceStore } from "../../stores/performanceStore";
+import { usePerformanceAutoPoll } from "../../hooks";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { PerformanceSummaryCards } from "./PerformanceSummaryCards";
 import { MemoryDistributionBar } from "./MemoryDistributionBar";

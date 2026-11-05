@@ -7,6 +7,7 @@ import { IPC_COMMANDS } from "../types/ipc";
 export type BubbleSize = "sm" | "md" | "lg";
 export type AppLanguage = "vi" | "en";
 export type ThemeMode = "light" | "dark" | "system";
+export type CloseWindowAction = "ask" | "hide_to_tray" | "exit_app";
 
 export const BUBBLE_SIZE_PIXELS: Record<BubbleSize, number> = {
   sm: 48,
@@ -37,6 +38,7 @@ interface SettingsState {
   language: AppLanguage;
   isAutoTrimEnabled: boolean;
   themeMode: ThemeMode;
+  closeWindowAction: CloseWindowAction;
 
   setAlwaysOnTop: (enabled: boolean) => void;
   toggleAlwaysOnTop: () => void;
@@ -51,6 +53,7 @@ interface SettingsState {
   setAutoTrimEnabled: (enabled: boolean, skipIpc?: boolean) => void;
   toggleAutoTrim: () => void;
   setThemeMode: (mode: ThemeMode, skipIpc?: boolean) => void;
+  setCloseWindowAction: (action: CloseWindowAction) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -64,6 +67,13 @@ export const useSettingsStore = create<SettingsState>()(
       language: "en",
       isAutoTrimEnabled: true,
       themeMode: "system",
+      closeWindowAction: (() => {
+        if (typeof localStorage !== "undefined") {
+          const val = localStorage.getItem("dbc_close_window_action");
+          if (val === "hide_to_tray" || val === "exit_app") return val;
+        }
+        return "ask";
+      })(),
 
       setAlwaysOnTop: (enabled) => set({ isAlwaysOnTop: enabled }),
       toggleAlwaysOnTop: () => set((state) => ({ isAlwaysOnTop: !state.isAlwaysOnTop })),
@@ -99,6 +109,16 @@ export const useSettingsStore = create<SettingsState>()(
         applyThemeMode(mode);
         if (!skipIpc) {
           invoke(IPC_COMMANDS.SET_THEME_MODE, { themeMode: mode }).catch(() => {});
+        }
+      },
+      setCloseWindowAction: (action) => {
+        set({ closeWindowAction: action });
+        if (typeof localStorage !== "undefined") {
+          if (action === "ask") {
+            localStorage.removeItem("dbc_close_window_action");
+          } else {
+            localStorage.setItem("dbc_close_window_action", action);
+          }
         }
       },
     }),

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { MessageSquare, Power, HelpCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CommonDialog } from "../../common/CommonDialog";
+import { useSettingsStore } from "../../../stores/settingsStore";
 
 export interface CloseAppDialogProps {
   isOpen: boolean;
@@ -21,9 +22,7 @@ export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
   const [rememberChoice, setRememberChoice] = useState(false);
   const handleConfirm = () => {
     if (rememberChoice) {
-      localStorage.setItem("dbc_close_window_action", selectedAction);
-    } else {
-      localStorage.removeItem("dbc_close_window_action");
+      useSettingsStore.getState().setCloseWindowAction(selectedAction);
     }
     if (selectedAction === "hide_to_tray") {
       onHideToTray();
@@ -33,13 +32,13 @@ export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
   };
   const handleDirectHide = () => {
     if (rememberChoice) {
-      localStorage.setItem("dbc_close_window_action", "hide_to_tray");
+      useSettingsStore.getState().setCloseWindowAction("hide_to_tray");
     }
     onHideToTray();
   };
   const handleDirectExit = () => {
     if (rememberChoice) {
-      localStorage.setItem("dbc_close_window_action", "exit_app");
+      useSettingsStore.getState().setCloseWindowAction("exit_app");
     }
     onExitApp();
   };

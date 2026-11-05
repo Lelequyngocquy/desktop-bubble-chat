@@ -9,13 +9,12 @@ import {
   HardDrive,
   Info,
 } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import {
   ProcessMetricItem,
   SystemPerformanceSnapshot,
 } from "../../types/performance";
-import { IPC_COMMANDS } from "../../types/ipc";
+import { messengerService } from "../../platforms/messenger/services/messengerService";
 import { CommonBadge } from "../common";
 import { usePerformanceStore } from "../../stores/performanceStore";
 
@@ -57,10 +56,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
   const handleFreezeAccount = async (accountIndex: number) => {
     try {
       setActingAccountIndex(accountIndex);
-      await invoke(IPC_COMMANDS.TOGGLE_BUBBLE, {
-        accountIndex,
-        visible: false,
-      });
+      await messengerService.toggleBubble(false, accountIndex);
       setTimeout(() => {
         usePerformanceStore.getState().fetchSnapshot();
         setActingAccountIndex(null);
@@ -73,7 +69,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
   const handleWakeAccount = async (accountIndex: number) => {
     try {
       setActingAccountIndex(accountIndex);
-      await invoke(IPC_COMMANDS.OPEN_CHAT, { accountIndex });
+      await messengerService.openChat(accountIndex);
       setTimeout(() => {
         usePerformanceStore.getState().fetchSnapshot();
         setActingAccountIndex(null);

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import { useWindowStore } from "../stores/windowStore";
+import { useSettingsStore } from "../stores/settingsStore";
 import { useConversationStore } from "../stores/conversationStore";
 import {
   useMessengerStore,
@@ -9,12 +10,14 @@ import {
   messengerAuthManager,
 } from "../platforms/messenger";
 import { systemService } from "../services/systemService";
+import { windowService } from "../services/windowService";
 import {
   IPC_EVENTS,
   MessengerAuthStatusPayload,
   MessengerAuthClosedPayload,
   BadgeUpdatedPayload,
   BubbleVisibilityPayload,
+  BubbleSpawnedPayload,
   ChatVisibilityPayload,
   IncomingMessagePayload,
   RecentConversationsSyncedPayload,
@@ -51,6 +54,8 @@ export const useUnreadListener = () => {
     let unlistenChat: (() => void) | undefined;
     let unlistenNewMessage: (() => void) | undefined;
     let unlistenRecent: (() => void) | undefined;
+    let unlistenCloseDialog: (() => void) | undefined;
+    let unlistenBubbleSpawned: (() => void) | undefined;
     const setupListeners = async () => {
       try {
         const currentAccounts = useMessengerStore.getState().accounts;
@@ -198,6 +203,24 @@ export const useUnreadListener = () => {
             }
           }
         );
+        unlistenCloseDialog = await listen(IPC_EVENTS.SHOW_CLOSE_DIALOG, () => {
+          const action = useSettingsStore.getState().closeWindowAction;
+          if (action === "hide_to_tray") {
+            windowService.hide();
+          } else if (action === "exit_app") {
+            windowService.exit();
+          } else {
+            useWindowStore.getState().setIsCloseDialogOpen(true);
+          }
+        });
+        unlistenBubbleSpawned = await listen<BubbleSpawnedPayload>(
+          IPC_EVENTS.BUBBLE_SPAWNED,
+          (event) => {
+            if (event.payload) {
+              useWindowStore.getState().setLastBubbleSpawn(event.payload);
+            }
+          }
+        );
       } catch (err) {
         console.warn("[useUnreadListener] Desktop IPC event listeners not available in preview:", err);
       }
@@ -220,6 +243,8 @@ export const useUnreadListener = () => {
       if (unlistenChat) unlistenChat();
       if (unlistenNewMessage) unlistenNewMessage();
       if (unlistenRecent) unlistenRecent();
+      if (unlistenCloseDialog) unlistenCloseDialog();
+      if (unlistenBubbleSpawned) unlistenBubbleSpawned();
     };
   }, []);
 

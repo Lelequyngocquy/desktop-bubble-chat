@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { getCurrentWindow, currentMonitor } from "@tauri-apps/api/window";
-import { listen } from "@tauri-apps/api/event";
 import { getAccountThemeColor, AccountThemeColor } from "../../constants/design";
-import { IPC_EVENTS, BubbleSpawnedPayload } from "../../types/ipc";
+import { useWindowStore } from "../../stores/windowStore";
 
 interface ActiveIndicator {
   id: string;
@@ -87,21 +86,20 @@ export const BubbleSpawnIndicator: React.FC = () => {
     [removeIndicator]
   );
 
+  const lastBubbleSpawn = useWindowStore((s) => s.lastBubbleSpawn);
+
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listen<BubbleSpawnedPayload>(IPC_EVENTS.BUBBLE_SPAWNED, (event) => {
-      if (event.payload) {
-        addIndicator(event.payload.accountIndex, event.payload.x, event.payload.y);
-      }
-    }).then((fn) => {
-      unlisten = fn;
-    });
+    if (lastBubbleSpawn) {
+      addIndicator(lastBubbleSpawn.accountIndex, lastBubbleSpawn.x, lastBubbleSpawn.y);
+    }
+  }, [lastBubbleSpawn, addIndicator]);
+
+  useEffect(() => {
     return () => {
-      if (unlisten) unlisten();
       timersRef.current.forEach((t) => clearTimeout(t));
       timersRef.current.clear();
     };
-  }, [addIndicator]);
+  }, []);
 
   if (indicators.length === 0) return null;
 
