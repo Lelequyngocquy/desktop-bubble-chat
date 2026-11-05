@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
+  ArrowDownCircle,
   ArrowUpCircle,
   CheckCircle2,
   Download,
@@ -51,7 +52,9 @@ export const AppUpdateSection: React.FC = () => {
   const isAvailable = status === "available";
   const isUpToDate = status === "up-to-date";
   const hasUpdate = isAvailable || isDownloading || isDownloaded;
-  const [githubRelease, setGithubRelease] = useState<GitHubReleaseData | null>(null);
+  const [githubRelease, setGithubRelease] = useState<GitHubReleaseData | null>(
+    null,
+  );
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
   const [notesError, setNotesError] = useState<string | null>(null);
 
@@ -81,7 +84,10 @@ export const AppUpdateSection: React.FC = () => {
         body: (data.body || "").trim(),
       });
     } catch (err) {
-      console.warn("[AppUpdateSection] Failed to fetch release notes from GitHub API:", err);
+      console.warn(
+        "[AppUpdateSection] Failed to fetch release notes from GitHub API:",
+        err,
+      );
       try {
         const resLatest = await fetch(
           "https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/latest/download/latest.json",
@@ -129,10 +135,13 @@ export const AppUpdateSection: React.FC = () => {
 
   const getStatusText = (): string => {
     if (isChecking) return t("update.status_checking");
-    if (isDownloading) return t("update.status_downloading", { version: availableVersion });
-    if (isDownloaded) return t("update.status_downloaded", { version: availableVersion });
+    if (isDownloading)
+      return t("update.status_downloading", { version: availableVersion });
+    if (isDownloaded)
+      return t("update.status_downloaded", { version: availableVersion });
     if (isInstalling) return t("update.status_installing");
-    if (isAvailable) return t("update.status_available", { version: availableVersion });
+    if (isAvailable)
+      return t("update.status_available", { version: availableVersion });
     if (isUpToDate) return t("update.status_uptodate");
     return t("update.status_ready");
   };
@@ -148,14 +157,16 @@ export const AppUpdateSection: React.FC = () => {
       });
     }
     if (isDownloaded) return t("update.desc_downloaded");
-    if (isAvailable) return t("update.desc_available", { version: availableVersion });
-    if (isUpToDate) return t("update.desc_uptodate", { version: currentVersion });
+    if (isAvailable)
+      return t("update.desc_available", { version: availableVersion });
+    if (isUpToDate)
+      return t("update.desc_uptodate", { version: currentVersion });
     return t("update.desc_ready");
   };
 
   return (
     <CommonLargeCard
-      icon={<ArrowUpCircle className="w-4 h-4 text-primary" />}
+      icon={<ArrowDownCircle className="w-4 h-4 text-primary" />}
       title={t("update.title")}
       subTitle={
         hasUpdate ? (
@@ -228,7 +239,9 @@ export const AppUpdateSection: React.FC = () => {
                 {releaseDate && (
                   <span className="text-caption text-content-muted mt-0.5">
                     {t("update.release_date")}:{" "}
-                    {new Date(releaseDate).toLocaleDateString(i18n.language === "vi" ? "vi-VN" : "en-US")}
+                    {new Date(releaseDate).toLocaleDateString(
+                      i18n.language === "vi" ? "vi-VN" : "en-US",
+                    )}
                   </span>
                 )}
               </div>
@@ -283,7 +296,9 @@ export const AppUpdateSection: React.FC = () => {
                     }`}
                   />
                   <span>
-                    {isChecking ? t("update.scanning_btn") : t("update.check_btn")}
+                    {isChecking
+                      ? t("update.scanning_btn")
+                      : t("update.check_btn")}
                   </span>
                 </button>
               )}
@@ -356,8 +371,12 @@ export const AppUpdateSection: React.FC = () => {
                 {githubRelease?.tag
                   ? t("update.release_notes_new", { tag: githubRelease.tag })
                   : availableVersion
-                    ? t("update.release_notes_new", { tag: `v${availableVersion}` })
-                    : t("update.release_notes_current", { version: currentVersion })}
+                    ? t("update.release_notes_new", {
+                        tag: `v${availableVersion}`,
+                      })
+                    : t("update.release_notes_current", {
+                        version: currentVersion,
+                      })}
               </h3>
             </div>
             <button
@@ -370,7 +389,9 @@ export const AppUpdateSection: React.FC = () => {
                 className={`w-3.5 h-3.5 ${isLoadingNotes ? "animate-spin text-primary" : ""}`}
               />
               <span>
-                {isLoadingNotes ? t("update.refreshing_notes") : t("update.refresh_notes")}
+                {isLoadingNotes
+                  ? t("update.refreshing_notes")
+                  : t("update.refresh_notes")}
               </span>
             </button>
           </div>
@@ -378,9 +399,7 @@ export const AppUpdateSection: React.FC = () => {
             {isLoadingNotes ? (
               <div className="flex items-center justify-center gap-2.5 py-6 text-content-secondary">
                 <RefreshCw className="w-4 h-4 animate-spin text-primary" />
-                <span>
-                  {t("update.loading_notes")}
-                </span>
+                <span>{t("update.loading_notes")}</span>
               </div>
             ) : notesError ? (
               <div className="flex flex-col items-center justify-center gap-2 py-4 text-content-muted">
@@ -397,8 +416,12 @@ export const AppUpdateSection: React.FC = () => {
             ) : githubRelease ? (
               <div className="text-content-secondary">
                 <p className="m-0">
-                  Release <strong className="text-content-primary">{githubRelease.tag}</strong>
-                  {githubRelease.name ? ` (${githubRelease.name})` : ""} is ready on GitHub
+                  Release{" "}
+                  <strong className="text-content-primary">
+                    {githubRelease.tag}
+                  </strong>
+                  {githubRelease.name ? ` (${githubRelease.name})` : ""} is
+                  ready on GitHub
                   {githubRelease.publishedAt
                     ? ` (${t("update.release_date")}: ${new Date(githubRelease.publishedAt).toLocaleDateString(i18n.language === "vi" ? "vi-VN" : "en-US")})`
                     : ""}

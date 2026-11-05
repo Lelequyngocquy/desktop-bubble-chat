@@ -77,7 +77,9 @@ export function useAutoUpdater() {
         setLastCheckedTime(nowStr);
         const update = await check();
         if (update) {
-          console.log(`[AutoUpdater] Found new version: ${update.version} (Current: ${update.currentVersion})`);
+          console.log(
+            `[AutoUpdater] Found new version: ${update.version} (Current: ${update.currentVersion})`,
+          );
           setUpdateAvailable({
             availableVersion: update.version,
             releaseDate: update.date,
@@ -100,7 +102,7 @@ export function useAutoUpdater() {
           message.includes("Could not fetch a valid release JSON") ||
           message.includes("404")
         ) {
-          message = "No new release available!";
+          message = "New release are not available!";
         } else if (
           message.toLowerCase().includes("network") ||
           message.toLowerCase().includes("failed to fetch")
