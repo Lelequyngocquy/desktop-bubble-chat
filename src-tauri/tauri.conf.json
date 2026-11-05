@@ -24,7 +24,8 @@
         "decorations": false,
         "transparent": false,
         "center": true,
-        "visible": false
+        "visible": false,
+        "additionalBrowserArgs": "--renderer-process-limit=1 --disable-gpu-rasterization --enable-low-end-device-mode --disable-background-networking"
       }
     ],
     "security": {

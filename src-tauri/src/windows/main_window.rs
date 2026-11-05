@@ -91,6 +91,7 @@ pub fn get_or_create_main_window(app: &AppHandle) -> Result<WebviewWindow, Strin
         .decorations(false)
         .transparent(false)
         .center()
+        .additional_browser_args("--renderer-process-limit=1 --disable-gpu-rasterization --enable-low-end-device-mode --disable-background-networking")
         .build()
         .map_err(|e| format!("Không thể tái tạo cửa sổ Dashboard: {}", e))?;
 
