@@ -7,18 +7,22 @@ interface SystemStartupSectionProps {
   isAutoStart: boolean;
   isAlwaysOnTop: boolean;
   isNotificationsEnabled: boolean;
+  isAutoTrimEnabled: boolean;
   onToggleAutoStart: () => void | Promise<void>;
   onToggleAlwaysOnTop: () => void | Promise<void>;
   onToggleNotifications: () => void | Promise<void>;
+  onToggleAutoTrim: () => void | Promise<void>;
 }
 
 export const SystemStartupSection: React.FC<SystemStartupSectionProps> = ({
   isAutoStart,
   isAlwaysOnTop,
   isNotificationsEnabled,
+  isAutoTrimEnabled,
   onToggleAutoStart,
   onToggleAlwaysOnTop,
   onToggleNotifications,
+  onToggleAutoTrim,
 }) => {
   const { t } = useTranslation(["settings"]);
   return (
@@ -69,6 +73,21 @@ export const SystemStartupSection: React.FC<SystemStartupSectionProps> = ({
           <SwitchButton
             checked={isNotificationsEnabled}
             onChange={onToggleNotifications}
+          />
+        </div>
+
+        <div className="py-3 flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-body font-medium text-content-primary">
+              {t("settings:startup.auto_trim")}
+            </span>
+            <span className="text-caption text-content-secondary">
+              {t("settings:startup.auto_trim_desc")}
+            </span>
+          </div>
+          <SwitchButton
+            checked={isAutoTrimEnabled}
+            onChange={onToggleAutoTrim}
           />
         </div>
       </div>

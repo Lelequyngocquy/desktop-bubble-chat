@@ -192,6 +192,7 @@ impl NativeBubbleManager {
                                         }
                                     }
                                     NativeBubbleAction::Tuck { account_index, app } => {
+                                        crate::utils::trim_controller::schedule_auto_trim_on_tuck(account_index, app.clone());
                                         if let Some(win) = bubbles.get(&account_index) {
                                             let monitor = app
                                                 .get_webview_window("main")
@@ -213,6 +214,7 @@ impl NativeBubbleManager {
                                         }
                                     }
                                     NativeBubbleAction::Untuck { account_index, app } => {
+                                        crate::utils::trim_controller::cancel_auto_trim(account_index);
                                         if let Some(win) = bubbles.get(&account_index) {
                                             let monitor = app
                                                 .get_webview_window("main")

@@ -3,6 +3,8 @@
   "header_title": "Hiệu năng",
   "header_desc": "Giám sát mức chiếm dụng RAM, CPU thời gian thực của từng tài khoản và toàn bộ hệ thống.",
   "realtime_badge": "Giám sát Real-time (1.5s)",
+  "auto_trim_active": "Tự động tối ưu: Đang bật",
+  "auto_trim_disabled": "Tự động tối ưu: Đã tắt",
   "title": "Chi Tiết Tiến Trình & Tài Nguyên Hệ Thống",
   "subtitle": "Theo dõi cây tiến trình và tài nguyên theo thời gian thực của DesktopBubbleChat",
   "trim_ram_btn": "Dọn dẹp RAM",

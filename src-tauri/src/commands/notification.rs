@@ -45,6 +45,7 @@ pub fn report_incoming_notification(
     let is_new = state.add_recent_message(msg);
     let new_count = state.increment_unread_count(idx);
     crate::windows::native_bubble::set_native_bubble_unread_count(idx, new_count);
+    crate::utils::trim_controller::schedule_auto_trim_on_message(idx, app.clone());
     let _ = app.emit("badge-updated", serde_json::json!({
         "accountIndex": idx,
         "count": new_count

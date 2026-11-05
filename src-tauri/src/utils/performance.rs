@@ -375,8 +375,52 @@ pub fn trim_all_app_processes_memory(_app: &AppHandle) -> f64 {
     }
 }
 
+/// Returns all process IDs belonging to a specific account index
+pub fn get_account_process_pids(account_index: u32) -> Vec<u32> {
+    let mut pids = HashSet::new();
+    let pattern_padded = format!("messenger_{:02}", account_index);
+    let pattern_single = format!("messenger_{}", account_index);
+    let sys_mutex = get_performance_system();
+    if let Ok(mut sys) = sys_mutex.lock() {
+        sys.refresh_processes_specifics(
+            ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::nothing().with_cmd(UpdateKind::OnlyIfNotSet),
+        );
+        for (pid, proc) in sys.processes() {
+            let cmd_str = proc
+                .cmd()
+                .iter()
+                .map(|c| c.to_string_lossy())
+                .collect::<Vec<_>>()
+                .join(" ")
+                .to_lowercase();
+            if cmd_str.contains(&pattern_padded) || cmd_str.contains(&pattern_single) {
+                pids.insert(pid.as_u32());
+            }
+        }
+        let mut added = true;
+        while added {
+            added = false;
+            for (pid, proc) in sys.processes() {
+                let pid_u32 = pid.as_u32();
+                if pids.contains(&pid_u32) {
+                    continue;
+                }
+                if let Some(parent) = proc.parent() {
+                    if pids.contains(&parent.as_u32()) {
+                        pids.insert(pid_u32);
+                        added = true;
+                    }
+                }
+            }
+        }
+    }
+    pids.into_iter().collect()
+}
+
 #[cfg(target_os = "windows")]
-fn trim_single_process_working_set(pid: u32) {
+pub fn trim_single_process_working_set(pid: u32) {
     #[link(name = "kernel32")]
     unsafe extern "system" {
         fn OpenProcess(
@@ -408,4 +452,4 @@ fn trim_single_process_working_set(pid: u32) {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn trim_single_process_working_set(_pid: u32) {}
+pub fn trim_single_process_working_set(_pid: u32) {}

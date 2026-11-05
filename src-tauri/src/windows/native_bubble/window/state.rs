@@ -180,6 +180,7 @@ impl BubbleWindowState {
 
     /// Triggers spring animation to untuck from edge (180ms ease-out cubic).
     pub fn untuck(&mut self) {
+        crate::utils::trim_controller::cancel_auto_trim(self.account_index);
         if let Some(app) = &self.app_handle {
             let monitor = app
                 .get_webview_window("main")
@@ -208,6 +209,7 @@ impl BubbleWindowState {
     /// Triggers spring animation to tuck into edge (180ms ease-out cubic).
     pub fn tuck(&mut self) {
         if let Some(app) = &self.app_handle {
+            crate::utils::trim_controller::schedule_auto_trim_on_tuck(self.account_index, app.clone());
             let monitor = app
                 .get_webview_window("main")
                 .and_then(|m| m.current_monitor().ok().flatten())

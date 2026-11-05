@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import {
   Layers,
-  Sparkles,
-  RefreshCw,
   Snowflake,
   Play,
   CheckCircle2,
@@ -19,23 +17,16 @@ import {
 } from "../../types/performance";
 import { IPC_COMMANDS } from "../../types/ipc";
 import { CommonBadge } from "../common";
+import { usePerformanceStore } from "../../stores/performanceStore";
 
 interface ProcessDetailCardProps {
   snapshot: SystemPerformanceSnapshot | null;
   isLoading: boolean;
-  isTrimming: boolean;
-  lastTrimmedMb: number | null;
-  onRefresh: () => void;
-  onTrimMemory: () => Promise<number>;
 }
 
 export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
   snapshot,
-  isLoading,
-  isTrimming,
-  lastTrimmedMb,
-  onRefresh,
-  onTrimMemory,
+  isLoading: _isLoading,
 }) => {
   const { t } = useTranslation("performance");
   const [actingAccountIndex, setActingAccountIndex] = useState<number | null>(
@@ -71,7 +62,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
         visible: false,
       });
       setTimeout(() => {
-        onRefresh();
+        usePerformanceStore.getState().fetchSnapshot();
         setActingAccountIndex(null);
       }, 500);
     } catch (err) {
@@ -84,7 +75,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
       setActingAccountIndex(accountIndex);
       await invoke(IPC_COMMANDS.OPEN_CHAT, { accountIndex });
       setTimeout(() => {
-        onRefresh();
+        usePerformanceStore.getState().fetchSnapshot();
         setActingAccountIndex(null);
       }, 800);
     } catch (err) {
@@ -95,7 +86,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
 
   return (
     <div className="bg-background-surface border border-border rounded-panel p-5 shadow-xs flex flex-col gap-5">
-      {/* 1. Header Card & Action Buttons */}
+      {/* 1. Header Card with Realtime Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/70">
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-primary" />
@@ -104,40 +95,12 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
           </h2>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={onTrimMemory}
-            disabled={isTrimming}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-primary border border-blue-200 rounded-control text-small font-medium transition-colors cursor-pointer disabled:opacity-60"
-            title={t("trim_ram_tooltip")}
-          >
-            <Sparkles
-              className={`w-3.5 h-3.5 ${isTrimming ? "animate-spin" : ""}`}
-            />
-            <span>
-              {isTrimming ? t("trim_ram_running") : t("trim_ram_btn")}
-            </span>
-          </button>
-          <button
-            onClick={onRefresh}
-            disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-background-surface hover:bg-white border border-border rounded-control text-small text-content-secondary hover:text-content-primary transition-colors cursor-pointer"
-            title={t("refresh_tooltip")}
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-primary" : ""}`}
-            />
-            <span>{isLoading ? t("refresh_running") : t("refresh_btn")}</span>
-          </button>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-background-workspace border border-border rounded-pill text-caption text-content-secondary shadow-2xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>{t("realtime_badge")}</span>
+          </div>
         </div>
       </div>
-
-      {/* Trim RAM success notification */}
-      {lastTrimmedMb !== null && lastTrimmedMb > 0 && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-control text-emerald-800 text-small flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>{t("trim_success", { mb: lastTrimmedMb.toFixed(1) })}</span>
-        </div>
-      )}
 
       {/* 2. Process groups */}
       <div className="flex flex-col gap-4 divide-y divide-border/60">

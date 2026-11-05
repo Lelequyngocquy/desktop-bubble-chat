@@ -20,6 +20,7 @@ interface SettingsState {
   isGlobalShortcutEnabled: boolean;
   bubbleSize: BubbleSize;
   language: AppLanguage;
+  isAutoTrimEnabled: boolean;
 
   setAlwaysOnTop: (enabled: boolean) => void;
   toggleAlwaysOnTop: () => void;
@@ -31,6 +32,8 @@ interface SettingsState {
   toggleGlobalShortcut: () => void;
   setBubbleSize: (size: BubbleSize) => void;
   setLanguage: (lang: AppLanguage, skipIpc?: boolean) => void;
+  setAutoTrimEnabled: (enabled: boolean, skipIpc?: boolean) => void;
+  toggleAutoTrim: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -42,6 +45,7 @@ export const useSettingsStore = create<SettingsState>()(
       isGlobalShortcutEnabled: true,
       bubbleSize: "md",
       language: "en",
+      isAutoTrimEnabled: true,
 
       setAlwaysOnTop: (enabled) => set({ isAlwaysOnTop: enabled }),
       toggleAlwaysOnTop: () => set((state) => ({ isAlwaysOnTop: !state.isAlwaysOnTop })),
@@ -58,6 +62,19 @@ export const useSettingsStore = create<SettingsState>()(
         if (!skipIpc) {
           invoke(IPC_COMMANDS.SET_APP_LANGUAGE, { language: lang }).catch(() => {});
         }
+      },
+      setAutoTrimEnabled: (enabled, skipIpc = false) => {
+        set({ isAutoTrimEnabled: enabled });
+        if (!skipIpc) {
+          invoke(IPC_COMMANDS.SET_AUTO_TRIM_ENABLED, { enabled }).catch(() => {});
+        }
+      },
+      toggleAutoTrim: () => {
+        set((state) => {
+          const next = !state.isAutoTrimEnabled;
+          invoke(IPC_COMMANDS.SET_AUTO_TRIM_ENABLED, { enabled: next }).catch(() => {});
+          return { isAutoTrimEnabled: next };
+        });
       },
     }),
     {

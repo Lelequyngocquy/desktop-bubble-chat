@@ -16,10 +16,16 @@ pub struct AppUserConfig {
     pub is_auto_start: bool,
     #[serde(default = "default_locale")]
     pub locale: Option<String>,
+    #[serde(default = "default_true", alias = "is_auto_trim_enabled")]
+    pub is_auto_trim_enabled: bool,
 }
 
 fn default_locale() -> Option<String> {
     Some("en".to_string())
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for AppUserConfig {
@@ -33,6 +39,7 @@ impl Default for AppUserConfig {
             is_always_on_top: true,
             is_auto_start: false,
             locale: Some("en".to_string()),
+            is_auto_trim_enabled: true,
         }
     }
 }
@@ -99,6 +106,7 @@ mod tests {
             is_always_on_top: false,
             is_auto_start: true,
             locale: Some("en".to_string()),
+            is_auto_trim_enabled: false,
         };
         let serialized = serde_json::to_string(&config).unwrap();
         let deserialized: AppUserConfig = serde_json::from_str(&serialized).unwrap();
@@ -111,11 +119,16 @@ mod tests {
         assert_eq!(deserialized.is_auto_start, true);
         assert_eq!(deserialized.current_locale(), "en");
         assert_eq!(deserialized.bubble_size_px(), 64.0);
+        assert_eq!(deserialized.is_auto_trim_enabled, false);
         let sm_config = AppUserConfig {
             bubble_size: "sm".to_string(),
             ..AppUserConfig::default()
         };
         assert_eq!(sm_config.bubble_size_px(), 48.0);
         assert_eq!(sm_config.current_locale(), "en");
+        assert_eq!(sm_config.is_auto_trim_enabled, true);
+        let legacy_json = r#"{"isDashboardOpen":true,"activeBubbleAccounts":[1],"isNotificationsEnabled":true,"mutedAccounts":[],"bubbleSize":"md","isAlwaysOnTop":true,"isAutoStart":false}"#;
+        let legacy_config: AppUserConfig = serde_json::from_str(legacy_json).unwrap();
+        assert_eq!(legacy_config.is_auto_trim_enabled, true);
     }
 }

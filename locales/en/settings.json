@@ -17,7 +17,9 @@
     "always_on_top": "Always on Top",
     "always_on_top_desc": "Keep floating bubbles pinned above other windows",
     "notifications": "Desktop Notifications & Chime",
-    "notifications_desc": "Play chime sound and show alerts on new messages"
+    "notifications_desc": "Play chime sound and show alerts on new messages",
+    "auto_trim": "Auto Trim Memory",
+    "auto_trim_desc": "Automatically optimize idle RAM when chat heads tuck or 2 seconds after receiving messages"
   },
   "bubble": {
     "title": "Bubble Customization",

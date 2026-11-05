@@ -40,6 +40,7 @@ pub fn report_new_message(
     };
     crate::utils::native_sound::play_bubble_pop();
     crate::windows::native_bubble::trigger_native_bubble_pulse(idx);
+    crate::utils::trim_controller::schedule_auto_trim_on_message(idx, app.clone());
     use tauri_plugin_notification::NotificationExt;
     let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
     let is_chat_open = app

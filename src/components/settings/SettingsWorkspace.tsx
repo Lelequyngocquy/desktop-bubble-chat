@@ -31,6 +31,8 @@ export const SettingsWorkspace: React.FC = () => {
     (s) => s.isGlobalShortcutEnabled,
   );
   const toggleGlobalShortcut = useSettingsStore((s) => s.toggleGlobalShortcut);
+  const isAutoTrimEnabled = useSettingsStore((s) => s.isAutoTrimEnabled);
+  const toggleAutoTrim = useSettingsStore((s) => s.toggleAutoTrim);
   const currentVersion = useUpdateStore((s) => s.currentVersion);
   const hasUpdate = useUpdateStore(
     (s) =>
@@ -89,9 +91,11 @@ export const SettingsWorkspace: React.FC = () => {
           isAutoStart={isAutoStart}
           isAlwaysOnTop={isAlwaysOnTop}
           isNotificationsEnabled={isNotificationsEnabled}
+          isAutoTrimEnabled={isAutoTrimEnabled}
           onToggleAutoStart={handleToggleAutoStart}
           onToggleAlwaysOnTop={handleToggleAlwaysOnTop}
           onToggleNotifications={handleToggleNotifications}
+          onToggleAutoTrim={toggleAutoTrim}
         />
 
         <BubbleCustomizationSection

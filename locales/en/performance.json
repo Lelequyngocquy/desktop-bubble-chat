@@ -3,6 +3,8 @@
   "header_title": "Performance",
   "header_desc": "Monitor real-time RAM and CPU usage across accounts and the entire system.",
   "realtime_badge": "Real-time Monitoring (1.5s)",
+  "auto_trim_active": "Auto-Optimized: Active",
+  "auto_trim_disabled": "Auto-Optimized: Off",
   "title": "System Performance & Resources",
   "subtitle": "Real-time process tree and memory monitor for DesktopBubbleChat",
   "trim_ram_btn": "Trim RAM",

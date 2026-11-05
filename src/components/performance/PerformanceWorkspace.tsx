@@ -6,6 +6,7 @@ import {
   usePerformanceStore,
   usePerformanceAutoPoll,
 } from "../../stores/performanceStore";
+import { useSettingsStore } from "../../stores/settingsStore";
 import { PerformanceSummaryCards } from "./PerformanceSummaryCards";
 import { MemoryDistributionBar } from "./MemoryDistributionBar";
 import { ProcessDetailCard } from "./ProcessDetailCard";
@@ -15,10 +16,7 @@ export const PerformanceWorkspace: React.FC = () => {
   usePerformanceAutoPoll();
   const snapshot = usePerformanceStore((s) => s.snapshot);
   const isLoading = usePerformanceStore((s) => s.isLoading);
-  const isTrimming = usePerformanceStore((s) => s.isTrimming);
-  const lastTrimmedMb = usePerformanceStore((s) => s.lastTrimmedMb);
-  const fetchSnapshot = usePerformanceStore((s) => s.fetchSnapshot);
-  const trimMemory = usePerformanceStore((s) => s.trimMemory);
+  const isAutoTrimEnabled = useSettingsStore((s) => s.isAutoTrimEnabled);
 
   return (
     <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden select-none">
@@ -34,29 +32,27 @@ export const PerformanceWorkspace: React.FC = () => {
                 {t("realtime_badge")}
               </span>
             </div>
-            <button
-              onClick={() => trimMemory()}
-              disabled={isTrimming}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-pill text-caption font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-60"
-              title={t("trim_ram_tooltip")}
+            <div
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-caption font-semibold shadow-xs border ${
+                isAutoTrimEnabled
+                  ? "bg-primary/10 border-primary/20 text-primary"
+                  : "bg-background-surface border-border text-content-secondary"
+              }`}
             >
-              <Sparkles className={`w-3.5 h-3.5 ${isTrimming ? "animate-spin" : ""}`} />
-              <span>{isTrimming ? t("trim_ram_reclaiming") : t("trim_ram_btn")}</span>
-            </button>
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>
+                {isAutoTrimEnabled
+                  ? t("auto_trim_active")
+                  : t("auto_trim_disabled")}
+              </span>
+            </div>
           </div>
         }
       />
       <main className="flex-1 min-h-0 overflow-y-auto px-8 py-6 flex flex-col gap-6 custom-scrollbar">
         <PerformanceSummaryCards snapshot={snapshot} isLoading={isLoading} />
         <MemoryDistributionBar snapshot={snapshot} />
-        <ProcessDetailCard
-          snapshot={snapshot}
-          isLoading={isLoading}
-          isTrimming={isTrimming}
-          lastTrimmedMb={lastTrimmedMb}
-          onRefresh={fetchSnapshot}
-          onTrimMemory={trimMemory}
-        />
+        <ProcessDetailCard snapshot={snapshot} isLoading={isLoading} />
       </main>
     </div>
   );

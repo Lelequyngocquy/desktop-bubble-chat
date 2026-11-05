@@ -78,6 +78,19 @@ pub fn set_app_language(
     Ok(())
 }
 
+/// Sets auto-trim enabled flag in user configuration cache
+#[tauri::command]
+pub fn set_auto_trim_enabled(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<crate::state::ChatState>>,
+    enabled: bool,
+) -> Result<(), String> {
+    state.update_user_config(&app, |c| {
+        c.is_auto_trim_enabled = enabled;
+    });
+    Ok(())
+}
+
 /// Exits application completely
 #[tauri::command]
 pub fn exit_app(app: AppHandle) {

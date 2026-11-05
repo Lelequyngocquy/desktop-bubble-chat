@@ -235,6 +235,7 @@ pub fn tuck_bubble(app: &AppHandle, account_index: Option<u32>) {
     };
     let config = crate::movement::get_bubble_physics_config(app);
     for idx in indices {
+        crate::utils::trim_controller::schedule_auto_trim_on_tuck(idx, app.clone());
         let label = get_bubble_window_label(idx);
         let win = app.get_webview_window(&label);
         if let Some(bubble_window) = win {

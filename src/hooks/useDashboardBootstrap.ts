@@ -58,19 +58,20 @@ export function useDashboardBootstrap() {
         try {
           const userSettings = await systemService.getUserSettings();
           if (userSettings) {
-            if (
-              userSettings.bubble_size &&
-              (userSettings.bubble_size === "sm" ||
-                userSettings.bubble_size === "md" ||
-                userSettings.bubble_size === "lg")
-            ) {
-              useSettingsStore.getState().setBubbleSize(userSettings.bubble_size);
+            const bubbleSize = userSettings.bubbleSize || userSettings.bubble_size;
+            if (bubbleSize && (bubbleSize === "sm" || bubbleSize === "md" || bubbleSize === "lg")) {
+              useSettingsStore.getState().setBubbleSize(bubbleSize);
             }
-            if (typeof userSettings.is_always_on_top === "boolean") {
-              useSettingsStore.getState().setAlwaysOnTop(userSettings.is_always_on_top);
+            const alwaysOnTop = typeof userSettings.isAlwaysOnTop === "boolean" ? userSettings.isAlwaysOnTop : userSettings.is_always_on_top;
+            if (typeof alwaysOnTop === "boolean") {
+              useSettingsStore.getState().setAlwaysOnTop(alwaysOnTop);
             }
             if (userSettings.locale && (userSettings.locale === "en" || userSettings.locale === "vi")) {
               useSettingsStore.getState().setLanguage(userSettings.locale, true);
+            }
+            const autoTrim = typeof userSettings.isAutoTrimEnabled === "boolean" ? userSettings.isAutoTrimEnabled : userSettings.is_auto_trim_enabled;
+            if (typeof autoTrim === "boolean") {
+              useSettingsStore.getState().setAutoTrimEnabled(autoTrim, true);
             }
           }
         } catch (err) {

@@ -109,20 +109,40 @@ export const systemService = {
    * Gets persisted user settings snapshot from Backend cache.
    */
   async getUserSettings(): Promise<{
-    is_dashboard_open: boolean;
-    active_bubble_accounts: number[];
-    is_notifications_enabled: boolean;
-    muted_accounts: number[];
-    bubble_size: "sm" | "md" | "lg";
-    is_always_on_top: boolean;
-    is_auto_start: boolean;
+    is_dashboard_open?: boolean;
+    isDashboardOpen?: boolean;
+    active_bubble_accounts?: number[];
+    activeBubbleAccounts?: number[];
+    is_notifications_enabled?: boolean;
+    isNotificationsEnabled?: boolean;
+    muted_accounts?: number[];
+    mutedAccounts?: number[];
+    bubble_size?: "sm" | "md" | "lg";
+    bubbleSize?: "sm" | "md" | "lg";
+    is_always_on_top?: boolean;
+    isAlwaysOnTop?: boolean;
+    is_auto_start?: boolean;
+    isAutoStart?: boolean;
     locale?: string;
+    is_auto_trim_enabled?: boolean;
+    isAutoTrimEnabled?: boolean;
   } | null> {
     try {
       return await invoke(IPC_COMMANDS.GET_USER_SETTINGS);
     } catch (err) {
       console.warn("[SystemService] Failed to get user settings:", err);
       return null;
+    }
+  },
+
+  /**
+   * Updates auto-trim enabled configuration in persistent user cache.
+   */
+  async setAutoTrimEnabled(enabled: boolean): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.SET_AUTO_TRIM_ENABLED, { enabled });
+    } catch (err) {
+      console.warn("[SystemService] Failed to set auto trim enabled:", err);
     }
   },
 
