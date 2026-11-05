@@ -71,7 +71,7 @@ html.dark {
   --color-bg-app: #0b0f19;
   --color-bg-workspace: #111827;
   --color-bg-surface: #1c293d;
-  --color-bg-subtle: #161f2e;
+  --color-bg-subtle: #29364d;
 
   /* Typography & Content (Restful dark grays, no glowing glare) */
   --color-text-primary: #f8fafc;
@@ -80,7 +80,7 @@ html.dark {
   --color-text-inverse: #ffffff;
 
   /* Borders & Dividers (Subdued dark gray, no bright glowing edges) */
-  --color-border-default: #38465d;
+  --color-border-default: #333f4f;
   --color-border-strong: #262e3b;
   --color-border-focus: #3b82f6;
 
