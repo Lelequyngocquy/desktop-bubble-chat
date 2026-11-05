@@ -58,6 +58,8 @@ Ready-to-use installer for **Windows 10 / 11 (64-bit)**:
   - Interactive spring physics animation at 60 FPS.
 - **Intelligent 4-Tier Auto-Trim Memory Management**:
   - Automatically manages Windows Virtual Memory via `SetProcessWorkingSetSize` across host and WebView2 process trees.
+  - **Dynamic WebView2 Memory Target Level**: Automatically toggles `ICoreWebView2_19::SetMemoryUsageTargetLevel` between `Low` (when tucked or idle) and `Normal` (when active) to force Chromium to purge its V8 JavaScript heap, decode caches, and font buffers.
+  - **Stripped Chromium Background Services & Process Limiter**: Injected Chromium startup flags (`--renderer-process-limit=1`, `--disable-features=Translate,OptimizationHints,CalculateNativeWinOcclusion,...`, `--disable-3d-apis`, strict cache limits) and trimmed `CoreWebView2Settings` (disabled status bar, autofill, zoom, and swipe navigation) to completely eliminate redundant Chromium background processes and bloatware strictly unneeded when only running Messenger.
   - **4 automated triggers**: 3s after bubble tucks, 2s after receiving an unread message, 5s after session preload finishes, and an idle sweeper every 5 minutes.
   - **Dynamic Dashboard Destruction**: Closing or minimizing the main dashboard destroys its window down to **0 MB RAM** (only background headless message workers persist).
   - Trims total RAM footprint from typical 500–700 MB down to **80–140 MB**.

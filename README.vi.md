@@ -58,6 +58,8 @@ Bản cài đặt trực tiếp sẵn sàng sử dụng cho **Windows 10 / 11 (6
   - Hiệu ứng vật lý lò xo (Spring Physics) đạt tốc độ khung hình 60 FPS mượt mà.
 - **Động cơ tối ưu bộ nhớ 4 tầng (Auto-Trim RAM Engine)**:
   - Tự động can thiệp vào Windows Virtual Memory Manager (`SetProcessWorkingSetSize`) trên toàn bộ cây tiến trình Host và WebView2.
+  - **Điều phối bộ nhớ WebView2 động (Memory Usage Target Level)**: Tự động chuyển đổi giữa mức `Low` (khi bong bóng thu gọn/chạy ngầm) và `Normal` (khi mở chat tương tác) qua API `ICoreWebView2_19` để ép Chromium dọn sạch JavaScript heap và cache giải mã hình ảnh.
+  - **Triệt tiêu tiến trình Chromium thừa qua Startup Flags**: Bổ sung các cờ tối ưu hóa khởi động (`--renderer-process-limit=1`, `--disable-features=Translate,OptimizationHints,CalculateNativeWinOcclusion,...`, `--disable-3d-apis`, giới hạn cache) và cắt bỏ các thiết lập dư thừa trong `CoreWebView2Settings` (tắt status bar, autofill, zoom, swipe navigation). Điều này loại bỏ hoàn toàn các sub-process và dịch vụ nền vô ích của Chromium khi chỉ chạy duy nhất nền tảng Messenger.
   - **4 kịch bản xả RAM tự động**: Sau khi bong bóng thụt mép 3s, sau khi nhận tin nhắn 2s, sau khi preload webview 5s, và bộ quét ngầm định kỳ 5 phút/lần chống rò rỉ bộ nhớ.
   - **Tiêu hủy Dashboard động (Dynamic Destruction)**: Khi thu nhỏ hoặc đóng giao diện chính về System Tray, cửa sổ Dashboard bị tiêu hủy hoàn toàn về đúng **0 MB RAM** (chỉ giữ lại các worker lắng nghe tin nhắn nền).
   - Giảm mức chiếm dụng RAM từ 500–700 MB xuống chỉ còn **80–140 MB**.
