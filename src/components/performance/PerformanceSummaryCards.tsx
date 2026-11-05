@@ -2,6 +2,7 @@ import React from "react";
 import { Cpu, Activity, Snowflake } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SystemPerformanceSnapshot } from "../../types/performance";
+import { CommonBadge } from "../common";
 
 interface PerformanceSummaryCardsProps {
   snapshot: SystemPerformanceSnapshot | null;
@@ -78,9 +79,10 @@ export const PerformanceSummaryCards: React.FC<PerformanceSummaryCardsProps> = (
             <span className="text-2xl font-bold text-content-primary tracking-tight">
               {isLoading && !snapshot ? "..." : `${totalCpuPercent.toFixed(1)}%`}
             </span>
-            <span className="px-2 py-0.5 rounded-pill text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              {totalCpuPercent < 5 ? t("cpu_load_light") : totalCpuPercent < 20 ? t("cpu_load_normal") : t("cpu_load_heavy")}
-            </span>
+            <CommonBadge
+              status={totalCpuPercent < 5 ? t("cpu_load_light") : totalCpuPercent < 20 ? t("cpu_load_normal") : t("cpu_load_heavy")}
+              color={totalCpuPercent < 20 ? "success" : "warning"}
+            />
           </div>
           <span className="text-caption text-content-secondary">
             {t("cpu_threads_hint", { cores: cpuCores })}
@@ -113,9 +115,10 @@ export const PerformanceSummaryCards: React.FC<PerformanceSummaryCardsProps> = (
             </span>
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="px-2 py-0.5 rounded-pill text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 flex items-center gap-1">
-              <span>{t("saved_ram_badge", { mb: Math.round(estimatedSavedMb) })}</span>
-            </span>
+            <CommonBadge
+              status={t("saved_ram_badge", { mb: Math.round(estimatedSavedMb) })}
+              color="primary"
+            />
           </div>
         </div>
         <div className="text-caption text-content-muted mt-1">
