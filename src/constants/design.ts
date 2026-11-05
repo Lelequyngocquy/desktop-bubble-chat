@@ -8,15 +8,15 @@ export interface AccountThemeColor {
 export const ACCOUNT_THEME_COLORS: Record<number, AccountThemeColor> = {
   1: {
     index: 1,
-    hex: "#0866FF",
-    borderHex: "#0056D6",
-    bgLight: "#EAF2FF",
+    hex: "#06B6D4",
+    borderHex: "#0891B2",
+    bgLight: "#ECFEFF",
   },
   2: {
     index: 2,
-    hex: "#00C6FF",
-    borderHex: "#009BCC",
-    bgLight: "#E6F9FF",
+    hex: "#EC4899",
+    borderHex: "#DB2777",
+    bgLight: "#FDF2F8",
   },
   3: {
     index: 3,

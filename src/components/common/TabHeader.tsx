@@ -1,6 +1,7 @@
 import React from "react";
 
 interface TabHeaderProps {
+  eyebrow?: string;
   title: string;
   description?: string;
   rightSlot?: React.ReactNode;
