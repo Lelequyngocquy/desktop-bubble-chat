@@ -12,7 +12,7 @@ pub fn build_tray_menu(app_handle: &AppHandle) -> Result<Menu<tauri::Wry>, Box<d
     let locale_str = app_handle
         .try_state::<Arc<crate::state::ChatState>>()
         .and_then(|s| s.user_config.lock().ok().map(|c| c.current_locale().to_string()))
-        .unwrap_or_else(|| "vi".to_string());
+        .unwrap_or_else(|| "en".to_string());
     let tray_i18n = get_tray_locale(&locale_str);
     let is_open = is_main_window_open(app_handle);
     let home_title = if is_open {
@@ -66,6 +66,15 @@ pub fn build_tray_menu(app_handle: &AppHandle) -> Result<Menu<tauri::Wry>, Box<d
         let sep3 = PredefinedMenuItem::separator(app_handle)?;
         menu.append(&sep3)?;
     }
+    let lang_label = if locale_str == "vi" {
+        "English (lang)"
+    } else {
+        "Tiếng Việt"
+    };
+    let toggle_lang_item = MenuItem::with_id(app_handle, "toggle_language", lang_label, true, None::<&str>)?;
+    let sep_lang = PredefinedMenuItem::separator(app_handle)?;
+    menu.append(&toggle_lang_item)?;
+    menu.append(&sep_lang)?;
     let quit = MenuItem::with_id(app_handle, "quit", &tray_i18n.quit_app, true, None::<&str>)?;
     menu.append(&quit)?;
     Ok(menu)

@@ -116,6 +116,7 @@ export const systemService = {
     bubble_size: "sm" | "md" | "lg";
     is_always_on_top: boolean;
     is_auto_start: boolean;
+    locale?: string;
   } | null> {
     try {
       return await invoke(IPC_COMMANDS.GET_USER_SETTINGS);

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 use super::dialog::confirm_exit_dialog;
 use super::helpers::{toggle_main_window, toggle_single_bubble_from_tray};
@@ -26,6 +26,20 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
                     tauri::async_runtime::spawn(async move {
                         crate::commands::bubble::toggle_all_bubbles_impl(&handle, None, None).await;
                         let _ = update_tray_menu(&handle);
+                    });
+                }
+                "toggle_language" => {
+                    let handle = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Some(chat_state) = handle.try_state::<Arc<crate::state::ChatState>>() {
+                            let current = chat_state.get_user_config().current_locale().to_string();
+                            let new_lang = if current == "vi" { "en" } else { "vi" };
+                            chat_state.update_user_config(&handle, |c| {
+                                c.locale = Some(new_lang.to_string());
+                            });
+                            let _ = update_tray_menu(&handle);
+                            let _ = handle.emit("language-changed", new_lang);
+                        }
                     });
                 }
                 "quit" => {

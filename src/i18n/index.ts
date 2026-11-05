@@ -36,7 +36,7 @@ export const resources = {
 // Initialize i18next instance
 i18n.use(initReactI18next).init({
   resources,
-  lng: "vi",
+  lng: "en",
   fallbackLng: "en",
   defaultNS,
   interpolation: {

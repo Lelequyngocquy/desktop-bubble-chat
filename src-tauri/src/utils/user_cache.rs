@@ -19,7 +19,7 @@ pub struct AppUserConfig {
 }
 
 fn default_locale() -> Option<String> {
-    Some("vi".to_string())
+    Some("en".to_string())
 }
 
 impl Default for AppUserConfig {
@@ -32,7 +32,7 @@ impl Default for AppUserConfig {
             bubble_size: "md".to_string(),
             is_always_on_top: true,
             is_auto_start: false,
-            locale: Some("vi".to_string()),
+            locale: Some("en".to_string()),
         }
     }
 }
@@ -46,7 +46,7 @@ impl AppUserConfig {
         }
     }
     pub fn current_locale(&self) -> &str {
-        self.locale.as_deref().unwrap_or("vi")
+        self.locale.as_deref().unwrap_or("en")
     }
 }
 
@@ -116,6 +116,6 @@ mod tests {
             ..AppUserConfig::default()
         };
         assert_eq!(sm_config.bubble_size_px(), 48.0);
-        assert_eq!(sm_config.current_locale(), "vi");
+        assert_eq!(sm_config.current_locale(), "en");
     }
 }

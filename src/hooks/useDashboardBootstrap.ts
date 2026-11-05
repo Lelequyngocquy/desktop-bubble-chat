@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
 import { useAppLifecycleStore } from "../stores/appLifecycleStore";
 import { useSystemUserStore } from "../stores/systemUserStore";
 import { useSettingsStore } from "../stores/settingsStore";
@@ -7,6 +8,7 @@ import { useMessengerStore } from "../platforms/messenger/stores/messengerStore"
 import { systemService } from "../services/systemService";
 import { messengerService } from "../platforms/messenger/services/messengerService";
 import { feLog } from "../services/loggerService";
+import { IPC_EVENTS } from "../types/ipc";
 
 /**
  * Coordinates bootstrap lifecycle and initial state hydration for main Dashboard
@@ -67,6 +69,9 @@ export function useDashboardBootstrap() {
             if (typeof userSettings.is_always_on_top === "boolean") {
               useSettingsStore.getState().setAlwaysOnTop(userSettings.is_always_on_top);
             }
+            if (userSettings.locale && (userSettings.locale === "en" || userSettings.locale === "vi")) {
+              useSettingsStore.getState().setLanguage(userSettings.locale, true);
+            }
           }
         } catch (err) {
           feLog.warn("[useDashboardBootstrap] Unable to sync user settings from cache:", err);
@@ -110,9 +115,19 @@ export function useDashboardBootstrap() {
         clearTimeout(safetyTimer);
       }
     };
+    let unlistenLang: (() => void) | undefined;
+    listen<string>(IPC_EVENTS.LANGUAGE_CHANGED, (event) => {
+      const newLang = event.payload;
+      if (newLang === "en" || newLang === "vi") {
+        useSettingsStore.getState().setLanguage(newLang, true);
+      }
+    }).then((unsub) => {
+      unlistenLang = unsub;
+    }).catch(() => {});
     runBootstrap();
     return () => {
       clearTimeout(safetyTimer);
+      unlistenLang?.();
     };
   }, [setDashboardStatus, markDashboardReady]);
 

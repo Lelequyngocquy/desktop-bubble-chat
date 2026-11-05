@@ -30,7 +30,7 @@ interface SettingsState {
   setGlobalShortcutEnabled: (enabled: boolean) => void;
   toggleGlobalShortcut: () => void;
   setBubbleSize: (size: BubbleSize) => void;
-  setLanguage: (lang: AppLanguage) => void;
+  setLanguage: (lang: AppLanguage, skipIpc?: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -41,7 +41,7 @@ export const useSettingsStore = create<SettingsState>()(
       isAutoStart: false,
       isGlobalShortcutEnabled: true,
       bubbleSize: "md",
-      language: "vi",
+      language: "en",
 
       setAlwaysOnTop: (enabled) => set({ isAlwaysOnTop: enabled }),
       toggleAlwaysOnTop: () => set((state) => ({ isAlwaysOnTop: !state.isAlwaysOnTop })),
@@ -52,10 +52,12 @@ export const useSettingsStore = create<SettingsState>()(
       setGlobalShortcutEnabled: (enabled) => set({ isGlobalShortcutEnabled: enabled }),
       toggleGlobalShortcut: () => set((state) => ({ isGlobalShortcutEnabled: !state.isGlobalShortcutEnabled })),
       setBubbleSize: (size) => set({ bubbleSize: size }),
-      setLanguage: (lang) => {
+      setLanguage: (lang, skipIpc = false) => {
         set({ language: lang });
         i18n.changeLanguage(lang);
-        invoke(IPC_COMMANDS.SET_APP_LANGUAGE, { language: lang }).catch(() => {});
+        if (!skipIpc) {
+          invoke(IPC_COMMANDS.SET_APP_LANGUAGE, { language: lang }).catch(() => {});
+        }
       },
     }),
     {

@@ -86,7 +86,7 @@ pub fn get_or_create_main_window(app: &AppHandle) -> Result<WebviewWindow, Strin
         .decorations(false)
         .transparent(false)
         .center()
-        .additional_browser_args("--renderer-process-limit=1 --disable-gpu-rasterization --enable-low-end-device-mode --disable-background-networking")
+        .additional_browser_args("--renderer-process-limit=1 --disable-background-networking")
         .build()
         .map_err(|e| format!("Failed to recreate Dashboard window: {}", e))?;
     setup_main_window_events(&new_window, app);

@@ -73,6 +73,7 @@ export const IPC_EVENTS = {
   NEW_MESSAGE_RECEIVED: "new-message-received",
   RECENT_CONVERSATIONS_SYNCED: "recent-conversations-synced",
   BUBBLE_CONFIG_CHANGED: "bubble-config-changed",
+  LANGUAGE_CHANGED: "language-changed",
 } as const;
 
 export type IpcEvent = (typeof IPC_EVENTS)[keyof typeof IPC_EVENTS];
