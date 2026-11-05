@@ -135,7 +135,6 @@ window.getFacebookUserId = getFacebookUserId;
 
 // Kiểm tra trạng thái xác thực thời gian thực
 let lastReportedAuth = null;
-const AUTH_OK_TAG = " [AUTH_OK]";
 
 /**
  * Đánh giá trạng thái đăng nhập thực tế của trang Messenger
@@ -194,12 +193,6 @@ function checkAndReportAuth() {
       (Boolean(userId) || isChatPath);
 
     if (isLoggedIn) {
-      if (!document.title.includes(AUTH_OK_TAG)) {
-        const rawTitle = (document.title || "Messenger").replace(AUTH_OK_TAG, "").trim();
-        document.title = rawTitle + AUTH_OK_TAG;
-        logDebug("AUTH-TAG", `Gắn '${AUTH_OK_TAG}' vào title: '${document.title}'`);
-      }
-
       // Đóng dấu UID lên URL hash để Rust backend đọc tức thì và đồng bộ 100% không phụ thuộc IPC
       if (userId && !window.location.hash.includes("auth_uid=")) {
         try {
@@ -209,11 +202,7 @@ function checkAndReportAuth() {
         } catch (e) {}
       }
     } else {
-      // Nếu chưa đăng nhập / đang ở màn hình login: xóa dấu AUTH_OK và auth_uid nếu còn sót
-      if (document.title.includes(AUTH_OK_TAG)) {
-        document.title = document.title.replace(AUTH_OK_TAG, "").trim();
-        logDebug("AUTH-TAG", `Gỡ '${AUTH_OK_TAG}' khỏi title`);
-      }
+      // Nếu chưa đăng nhập / đang ở màn hình login: xóa auth_uid nếu còn sót
       if (window.location.hash.includes("auth_uid=")) {
         try {
           window.history.replaceState(null, "", window.location.pathname + window.location.search);
