@@ -67,7 +67,7 @@ pub fn build_tray_menu(app_handle: &AppHandle) -> Result<Menu<tauri::Wry>, Box<d
         menu.append(&sep3)?;
     }
     let lang_label = if locale_str == "vi" {
-        "English (lang)"
+        "English (language)"
     } else {
         "Tiếng Việt"
     };
