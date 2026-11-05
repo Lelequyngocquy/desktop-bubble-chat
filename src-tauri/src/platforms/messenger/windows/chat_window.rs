@@ -139,6 +139,7 @@ pub fn get_or_create_messenger_window(
     .always_on_top(true)
     .skip_taskbar(true)
     .shadow(true)
+    .additional_browser_args(crate::platforms::messenger::constants::CHROMIUM_BROWSER_ARGS)
     .visible(false)
     .on_document_title_changed(move |win, title| {
         let count = parse_unread_from_title(&title);
@@ -200,23 +201,45 @@ pub fn get_or_create_messenger_window(
             setup_window_events(app, &window, chat_state.clone());
             #[cfg(target_os = "windows")]
             apply_window_theme_color(&window, theme.hex, theme.border_hex);
-            if chat_state.is_account_muted(account_index) {
-                #[cfg(target_os = "windows")]
-                {
-                    let _ = window.with_webview(move |webview| {
-                        unsafe {
-                            use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2_8;
-                            use windows_core::Interface;
-                            let controller = webview.controller();
-                            if let Ok(core_webview) = controller.CoreWebView2() {
+            #[cfg(target_os = "windows")]
+            {
+                let is_muted = chat_state.is_account_muted(account_index);
+                let _ = window.with_webview(move |webview| {
+                    unsafe {
+                        use webview2_com::Microsoft::Web::WebView2::Win32::{
+                            ICoreWebView2_8, ICoreWebView2Settings4, ICoreWebView2Settings6,
+                        };
+                        use windows_core::Interface;
+                        let controller = webview.controller();
+                        if let Ok(core_webview) = controller.CoreWebView2() {
+                            if is_muted {
                                 if let Ok(webview_8) = core_webview.cast::<ICoreWebView2_8>() {
                                     let _ = webview_8.SetIsMuted(true);
                                 }
                             }
+                            if let Ok(settings) = core_webview.Settings() {
+                                let _ = settings.SetIsStatusBarEnabled(false);
+                                let _ = settings.SetIsZoomControlEnabled(false);
+                                let _ = settings.SetIsBuiltInErrorPageEnabled(false);
+                                let _ = settings.SetAreDefaultContextMenusEnabled(false);
+                                #[cfg(debug_assertions)]
+                                let _ = settings.SetAreDevToolsEnabled(true);
+                                #[cfg(not(debug_assertions))]
+                                let _ = settings.SetAreDevToolsEnabled(false);
+                                if let Ok(settings4) = settings.cast::<ICoreWebView2Settings4>() {
+                                    let _ = settings4.SetIsPasswordAutosaveEnabled(false);
+                                    let _ = settings4.SetIsGeneralAutofillEnabled(false);
+                                }
+                                if let Ok(settings6) = settings.cast::<ICoreWebView2Settings6>() {
+                                    let _ = settings6.SetIsSwipeNavigationEnabled(false);
+                                }
+                            }
                         }
-                    });
-                }
+                    }
+                });
             }
+            #[cfg(target_os = "windows")]
+            set_webview_memory_target_level(&window, true);
             Ok(window)
         }
         Err(err) => {
@@ -227,12 +250,53 @@ pub fn get_or_create_messenger_window(
     }
 }
 
+/// Adjusts WebView2 memory usage target level (Low vs Normal)
+#[cfg(target_os = "windows")]
+pub fn set_webview_memory_target_level(window: &tauri::WebviewWindow, is_low: bool) {
+    let _ = window.with_webview(move |webview| {
+        unsafe {
+            use webview2_com::Microsoft::Web::WebView2::Win32::{
+                ICoreWebView2_19,
+                COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW,
+                COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL,
+            };
+            use windows_core::Interface;
+            let controller = webview.controller();
+            if let Ok(core_webview) = controller.CoreWebView2() {
+                if let Ok(webview_19) = core_webview.cast::<ICoreWebView2_19>() {
+                    let level = if is_low {
+                        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW
+                    } else {
+                        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL
+                    };
+                    let _ = webview_19.SetMemoryUsageTargetLevel(level);
+                }
+            }
+        }
+    });
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn set_webview_memory_target_level(_window: &tauri::WebviewWindow, _is_low: bool) {}
+
+/// Sets memory target level for a specific Messenger account chat window
+pub fn set_chat_window_memory_target(app: &tauri::AppHandle, account_index: u32, is_low: bool) {
+    let label = get_messenger_window_label(account_index);
+    let win = app
+        .get_webview_window(&label)
+        .or_else(|| if account_index == 1 { app.get_webview_window("chat-messenger") } else { None });
+    if let Some(chat_window) = win {
+        set_webview_memory_target_level(&chat_window, is_low);
+    }
+}
+
 /// Ensures only one chat/auth window is displayed at a time and others are tucked
 pub fn hide_all_other_messenger_windows(app: &AppHandle, active_label: &str) {
     for idx in 1..=5 {
         let label = get_messenger_window_label(idx);
         if label != active_label {
             if let Some(w) = app.get_webview_window(&label) {
+                set_webview_memory_target_level(&w, true);
                 let _ = w.hide();
             }
             let _ = app.emit("chat-visibility-changed", serde_json::json!({
@@ -245,6 +309,7 @@ pub fn hide_all_other_messenger_windows(app: &AppHandle, active_label: &str) {
     }
     if active_label != "chat-messenger" {
         if let Some(w) = app.get_webview_window("chat-messenger") {
+            set_webview_memory_target_level(&w, true);
             let _ = w.hide();
             let _ = app.emit("chat-visibility-changed", serde_json::json!({
                 "accountIndex": 1,

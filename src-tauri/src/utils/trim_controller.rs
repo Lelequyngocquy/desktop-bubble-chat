@@ -135,6 +135,7 @@ impl AutoTrimController {
             if !controller.can_trim(account_index) {
                 return;
             }
+            crate::platforms::messenger::windows::set_chat_window_memory_target(&app, account_index, true);
             controller.trim_account_process_tree(account_index);
             controller.cancel_pending_trim(account_index);
         });
@@ -162,6 +163,7 @@ impl AutoTrimController {
             if !controller.can_trim(account_index) {
                 return;
             }
+            crate::platforms::messenger::windows::set_chat_window_memory_target(&app, account_index, true);
             controller.trim_account_process_tree(account_index);
             controller.cancel_pending_trim(account_index);
         });
@@ -191,6 +193,7 @@ impl AutoTrimController {
             if !controller.can_trim(account_index) {
                 return;
             }
+            crate::platforms::messenger::windows::set_chat_window_memory_target(&app, account_index, true);
             let trimmed = controller.trim_account_process_tree(account_index);
             if trimmed > 0 {
                 println!(

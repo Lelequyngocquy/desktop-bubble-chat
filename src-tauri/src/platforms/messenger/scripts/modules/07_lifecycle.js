@@ -6,32 +6,7 @@
 // 2. Lên lịch giám sát định kỳ trạng thái auth và URL (chặn chuyển hướng ngoài ý muốn).
 // 3. Khởi tạo các module styles và offline handler khi DOM sẵn sàng.
 
-/**
- * Kiểm tra định kỳ thông minh với cơ chế Throttling khi tab/webview bị ẩn
- * @param {Function} fn Hàm thực thi
- * @param {number} activeMs Khoảng thời gian khi cửa sổ đang active (ms)
- * @param {number} hiddenMs Khoảng thời gian khi cửa sổ đang ẩn/ngủ đông (ms)
- */
-function runAdaptiveInterval(fn, activeMs, hiddenMs) {
-  let timer = null;
-  function loop() {
-    const ms = document.hidden ? hiddenMs : activeMs;
-    timer = setTimeout(() => {
-      try {
-        fn();
-      } catch (e) {}
-      loop();
-    }, ms);
-  }
-  document.addEventListener("visibilitychange", () => {
-    logDebug("LIFECYCLE-VIS", `Trạng thái hiển thị webview thay đổi: document.hidden=${document.hidden}`, null, "info");
-    clearTimeout(timer);
-    loop();
-  });
-  loop();
-}
-
-// 0. Quản lý trạng thái Focus để chống Auto-Seen khi cửa sổ chat bị ẩn
+// 0. Focus state manager to prevent Auto-Seen and detect hidden window states
 if (!window.__FOCUS_INTERCEPTOR_INSTALLED__) {
   window.__FOCUS_INTERCEPTOR_INSTALLED__ = true;
   try {
@@ -43,6 +18,34 @@ if (!window.__FOCUS_INTERCEPTOR_INSTALLED__) {
     window.addEventListener("focus", () => { window.__isWindowFocused = true; });
     window.addEventListener("blur", () => { window.__isWindowFocused = false; });
   } catch (e) {}
+}
+
+/**
+ * Smart periodic interval with adaptive throttling when tab/webview is hidden or unfocused
+ * @param {Function} fn Function to execute
+ * @param {number} activeMs Interval duration when window is active (ms)
+ * @param {number} hiddenMs Interval duration when window is hidden or idle (ms)
+ */
+function runAdaptiveInterval(fn, activeMs, hiddenMs) {
+  let timer = null;
+  function loop() {
+    const isHidden = document.hidden || window.__isWindowFocused === false;
+    const ms = isHidden ? hiddenMs : activeMs;
+    timer = setTimeout(() => {
+      try {
+        fn();
+      } catch (e) {}
+      loop();
+    }, ms);
+  }
+  function handleVisibilityOrFocusChange() {
+    clearTimeout(timer);
+    loop();
+  }
+  document.addEventListener("visibilitychange", handleVisibilityOrFocusChange);
+  window.addEventListener("focus", handleVisibilityOrFocusChange);
+  window.addEventListener("blur", handleVisibilityOrFocusChange);
+  loop();
 }
 
 logDebug("LIFECYCLE-BOOT", ">>> BẮT ĐẦU KHỞI CHẠY HỆ THỐNG MESSENGER INJECT SCRIPTS...", {

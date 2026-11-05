@@ -14,7 +14,7 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
         let mut logged_in_map: std::collections::HashMap<u32, bool> = std::collections::HashMap::new();
         let mut unread_map: std::collections::HashMap<u32, u32> = std::collections::HashMap::new();
         loop {
-            std::thread::sleep(Duration::from_millis(700));
+            std::thread::sleep(Duration::from_millis(2000));
             for idx in 1..=5 {
                 if chat_state.is_account_suspended(idx) {
                     continue;
@@ -27,7 +27,11 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                     let win_label = chat_window.label().to_string();
                     let auth_info = chat_state.get_account_auth(idx);
                     let state_logged_in = auth_info.as_ref().map(|a| a.connected).unwrap_or(false);
-                    let (win_logged_in, win_user_name) = is_window_logged_in(&chat_window);
+                    let (win_logged_in, win_user_name) = if state_logged_in {
+                        (true, String::new())
+                    } else {
+                        is_window_logged_in(&chat_window)
+                    };
                     let is_logged_in = state_logged_in || win_logged_in;
                     let user_name = if state_logged_in {
                         auth_info.as_ref().map(|a| a.name.clone()).unwrap_or_default()

@@ -18,3 +18,24 @@ pub const MESSENGER_INJECT_SCRIPT: &str = concat!(
 );
 pub const MESSENGER_LOGIN_URL: &str = "https://www.messenger.com/";
 pub const MESSENGER_BASE_URL: &str = "https://www.messenger.com/";
+
+/// Optimized Chromium flags for WebView2 Messenger instances (excluding --disable-background-networking to prevent socket drops)
+pub const CHROMIUM_BROWSER_ARGS: &str = concat!(
+    "--disable-features=Translate,OptimizationHints,MediaRouter,DialMediaRouteProvider,",
+    "CalculateNativeWinOcclusion,InterestFeedContentSuggestions,AutofillServerCommunication,",
+    "CertificateTransparencyComponentUpdater,msWebOOUI,msPdfOOUI,msSmartScreenProtection ",
+    "--disable-extensions ",
+    "--disable-component-extensions-with-background-pages ",
+    "--disable-sync ",
+    "--disable-default-apps ",
+    "--disable-spell-checking ",
+    "--renderer-process-limit=1 ",
+    "--process-per-site ",
+    "--disable-3d-apis ",
+    "--disable-usb-keyboard-detect ",
+    "--disable-gamepad ",
+    "--disable-speech-api ",
+    "--autoplay-policy=no-user-gesture-required ",
+    "--disk-cache-size=52428800 ",
+    "--media-cache-size=20971520"
+);

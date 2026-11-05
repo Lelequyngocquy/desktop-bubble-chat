@@ -155,6 +155,7 @@ impl ChatService {
             "count": 0
         }));
         println!("[BE - Chat] Opened Messenger {:02} chat docked next to bubble", idx);
+        crate::platforms::messenger::windows::set_webview_memory_target_level(&chat_window, false);
         chat_window.show().map_err(|e| e.to_string())?;
         chat_window.set_focus().map_err(|e| e.to_string())?;
         let _ = chat_window.eval("window.__isWindowFocused = true; window.dispatchEvent(new Event('focus'));");
@@ -183,6 +184,7 @@ impl ChatService {
         if let Some(chat_window) = chat_window {
             if chat_window.is_visible().unwrap_or(false) {
                 let _ = chat_window.eval("window.__isWindowFocused = false; if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); } window.dispatchEvent(new Event('blur'));");
+                crate::platforms::messenger::windows::set_webview_memory_target_level(&chat_window, true);
                 let _ = chat_window.hide();
                 let app_handle = app.clone();
                 std::thread::spawn(move || {

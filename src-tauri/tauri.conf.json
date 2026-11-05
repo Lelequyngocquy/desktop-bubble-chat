@@ -25,7 +25,7 @@
         "transparent": false,
         "center": true,
         "visible": false,
-        "additionalBrowserArgs": "--renderer-process-limit=1 --disable-background-networking"
+        "additionalBrowserArgs": "--disable-features=Translate,OptimizationHints,MediaRouter,DialMediaRouteProvider,CalculateNativeWinOcclusion,InterestFeedContentSuggestions,AutofillServerCommunication,CertificateTransparencyComponentUpdater,msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-extensions --disable-component-extensions-with-background-pages --disable-sync --disable-default-apps --disable-spell-checking --renderer-process-limit=1 --process-per-site --disable-3d-apis --disable-usb-keyboard-detect --disable-gamepad --disable-speech-api --autoplay-policy=no-user-gesture-required --disk-cache-size=52428800 --media-cache-size=20971520"
       }
     ],
     "security": {

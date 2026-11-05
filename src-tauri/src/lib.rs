@@ -14,6 +14,13 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "windows")]
+    unsafe {
+        std::env::set_var(
+            "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+            crate::platforms::messenger::constants::CHROMIUM_BROWSER_ARGS,
+        );
+    }
     let chat_state = Arc::new(ChatState::default());
     let chat_state_clone = Arc::clone(&chat_state);
     let app = tauri::Builder::default()
