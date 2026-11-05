@@ -33,10 +33,10 @@ export const MessengerTroubleshoot: React.FC = () => {
             </div>
             <div className="flex flex-col">
               <span className="text-body font-medium text-content-primary">
-                {step.title}
+                {t(`connections_page.troubleshoot_step_${step.num}_title`, step.title)}
               </span>
               <span className="text-caption text-content-secondary leading-relaxed">
-                {step.desc}
+                {t(`connections_page.troubleshoot_step_${step.num}_desc`, step.desc)}
               </span>
             </div>
           </div>

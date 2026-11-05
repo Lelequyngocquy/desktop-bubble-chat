@@ -21,7 +21,7 @@
   "sound_off_title": "Đã tắt âm thanh tab",
   "bubble_label": "Bong bóng",
   "bubble_aria_label": "Bật tắt bong bóng cho {{name}}",
-  "footer_tip": "Mẹo: Ẩn chat head không xóa cuộc trò chuyện của bạn trên Messenger.",
+  "footer_tip": "Mẹo: Ẩn chat head không xóa cuộc trò chuyện của bạn trên các nền tảng.",
   "bubble_desc_need_connect": "Cần kết nối Messenger để hiển thị bong bóng",
   "bubble_desc_visible_ratio": "{{visible}}/{{total}} bong bóng đang hiển thị",
   "bubble_desc_all_hidden": "Đang ẩn tất cả bong bóng nổi",
@@ -130,7 +130,13 @@
     "dialog_wake_stay_hibernating": "Tiếp tục ngủ đông",
     "dialog_wake_confirm": "Cho phép hoạt động",
     "troubleshoot_title": "Gặp vấn đề kết nối Messenger?",
-    "troubleshoot_help_link": "Trợ giúp & phản hồi"
+    "troubleshoot_help_link": "Trợ giúp & phản hồi",
+    "troubleshoot_step_1_title": "Kiểm tra kết nối Internet",
+    "troubleshoot_step_1_desc": "Đảm bảo máy tính của bạn có kết nối mạng Internet ổn định.",
+    "troubleshoot_step_2_title": "Kiểm tra đăng nhập Messenger",
+    "troubleshoot_step_2_desc": "Đăng nhập lại nếu phiên xác thực trên thiết bị này của bạn đã hết hạn.",
+    "troubleshoot_step_3_title": "Thử kết nối lại",
+    "troubleshoot_step_3_desc": "Sử dụng thao tác Kết nối lại nếu tin nhắn chưa đọc không đồng bộ."
   },
   "navigation": {
     "home": "Tổng quan",
@@ -207,7 +213,28 @@
   "roadmap": {
     "title": "Sắp có thêm nhiều kết nối",
     "subtitle": "Phiên bản đầu hiện chỉ hỗ trợ Messenger",
-    "upcoming_badge": "Sắp ra mắt"
+    "upcoming_badge": "Sắp ra mắt",
+    "telegram_desc": "Hỗ trợ bong bóng chat đa nền tảng.",
+    "zalo_desc": "Trình bao nhắn tin Zalo trực tiếp.",
+    "discord_desc": "Lớp phủ bong bóng Discord trực tiếp."
+  },
+  "platforms": {
+    "messenger": {
+      "tagline": "Kết nối trực tiếp qua Smart WebView Wrapper",
+      "desc": "Nhắn tin và gọi video trực tiếp trên nền tảng Meta Messenger."
+    },
+    "telegram": {
+      "tagline": "Sắp có thêm nhiều kết nối",
+      "desc": "Hỗ trợ bong bóng chat đa nền tảng."
+    },
+    "zalo": {
+      "tagline": "Luôn giữ liên lạc với danh bạ",
+      "desc": "Trình bao nhắn tin Zalo trực tiếp."
+    },
+    "discord": {
+      "tagline": "Kết nối cùng các cộng đồng của bạn",
+      "desc": "Lớp phủ bong bóng Discord trực tiếp."
+    }
   },
   "warning_heavy_load": "Bạn đang bật {{count}} bong bóng cùng lúc. Mỗi phiên WebView2 chiếm bộ nhớ. Hãy tắt các tài khoản không dùng để tiết kiệm RAM."
 }

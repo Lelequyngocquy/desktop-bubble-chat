@@ -71,7 +71,7 @@ export const MessengerPlatformHeader: React.FC<
             )}
           </div>
           <span className="text-body text-content-secondary">
-            {messengerConfig.tagline}
+            {t("platforms.messenger.tagline", messengerConfig.tagline)}
           </span>
         </div>
       </div>

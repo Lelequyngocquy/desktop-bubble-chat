@@ -130,7 +130,13 @@
     "dialog_wake_stay_hibernating": "Keep Hibernating",
     "dialog_wake_confirm": "Activate Account",
     "troubleshoot_title": "Trouble connecting to Messenger?",
-    "troubleshoot_help_link": "Help & Feedback"
+    "troubleshoot_help_link": "Help & Feedback",
+    "troubleshoot_step_1_title": "Check Internet",
+    "troubleshoot_step_1_desc": "Ensure your computer has a stable network connection.",
+    "troubleshoot_step_2_title": "Check Messenger login",
+    "troubleshoot_step_2_desc": "Log in again if your authentication session on this device has expired.",
+    "troubleshoot_step_3_title": "Try reconnecting",
+    "troubleshoot_step_3_desc": "Use the Reconnect action if unread messages are not synchronizing."
   },
   "navigation": {
     "home": "Home",
@@ -207,7 +213,28 @@
   "roadmap": {
     "title": "More Connections Coming Soon",
     "subtitle": "Initial release supports Messenger",
-    "upcoming_badge": "Coming Soon"
+    "upcoming_badge": "Coming Soon",
+    "telegram_desc": "Multi-platform chat heads support.",
+    "zalo_desc": "Direct Zalo messaging wrapper.",
+    "discord_desc": "Discord direct bubble overlay."
+  },
+  "platforms": {
+    "messenger": {
+      "tagline": "Direct connection via Smart WebView Wrapper",
+      "desc": "Messaging and video calls directly on Meta Messenger platform."
+    },
+    "telegram": {
+      "tagline": "More connections coming soon",
+      "desc": "Multi-platform chat heads support."
+    },
+    "zalo": {
+      "tagline": "Stay close to your contacts",
+      "desc": "Direct Zalo messaging wrapper."
+    },
+    "discord": {
+      "tagline": "Connect with your communities",
+      "desc": "Discord direct bubble overlay."
+    }
   },
   "warning_heavy_load": "You have {{count}} active bubbles. Each WebView2 instance consumes memory. Consider hiding unused accounts."
 }

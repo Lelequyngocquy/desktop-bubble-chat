@@ -67,7 +67,7 @@ export const MessengerManagerCard: React.FC = () => {
                 )}
               </div>
               <span className="text-small text-content-secondary">
-                {messengerConfig.tagline} • {t("connections_page.tagline_hint")}
+                {t("platforms.messenger.tagline", messengerConfig.tagline)} • {t("connections_page.tagline_hint")}
               </span>
             </div>
           </div>

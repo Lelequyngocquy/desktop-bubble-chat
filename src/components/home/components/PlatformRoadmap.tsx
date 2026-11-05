@@ -41,11 +41,11 @@ export const PlatformRoadmap: React.FC = () => {
                 </span>
                 <CommonBadge
                   color="secondary"
-                  status={p.upcomingBadgeText || t("roadmap.upcoming_badge")}
+                  status={t("roadmap.upcoming_badge")}
                 />
               </div>
               <span className="text-caption text-content-secondary truncate">
-                {p.description}
+                {t(`roadmap.${p.id}_desc`, p.description)}
               </span>
             </div>
           </div>
