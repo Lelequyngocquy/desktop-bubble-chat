@@ -2,7 +2,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, Manager, PhysicalPosition};
 
 use super::dto::{BubblePositionDto, SnapCoordsDto};
-use crate::movement::{get_bubble_physics_config, BubbleMovementEngine, BubbleRect, ScreenMetrics};
+use crate::movement::{get_bubble_physics_config, BubbleMovementEngine, BubbleRect};
 use crate::state::ChatState;
 use crate::windows::bubble::{get_active_bubble_rects, get_bubble_window_label};
 
@@ -125,29 +125,27 @@ pub fn get_bubble_snap_coords(
 ) -> Result<SnapCoordsDto, String> {
     let idx = account_index.unwrap_or(1);
     let label = get_bubble_window_label(idx);
-    if let Some(window) = app.get_webview_window(&label) {
-        if let Ok(Some(monitor)) = window.current_monitor() {
-            let screen = ScreenMetrics::from_monitor(&monitor);
-            let win_pos = PhysicalPosition {
-                x: current_x,
-                y: current_y,
-            };
-            let config = get_bubble_physics_config(&app);
-            let all_bubbles = get_active_bubble_rects(&app, None);
-            let snap = BubbleMovementEngine::calculate_snap(
-                &screen,
-                &config,
-                win_pos,
-                idx,
-                &all_bubbles,
-            );
-            return Ok(SnapCoordsDto {
-                target_x: snap.target_x,
-                target_y: snap.target_y,
-                should_dismiss: snap.should_dismiss,
-                is_left_edge: snap.is_left_edge,
-            });
-        }
+    if let Some(_window) = app.get_webview_window(&label) {
+        let screen = crate::movement::get_target_dashboard_screen(Some(&app));
+        let win_pos = PhysicalPosition {
+            x: current_x,
+            y: current_y,
+        };
+        let config = get_bubble_physics_config(&app);
+        let all_bubbles = get_active_bubble_rects(&app, None);
+        let snap = BubbleMovementEngine::calculate_snap(
+            &screen,
+            &config,
+            win_pos,
+            idx,
+            &all_bubbles,
+        );
+        return Ok(SnapCoordsDto {
+            target_x: snap.target_x,
+            target_y: snap.target_y,
+            should_dismiss: snap.should_dismiss,
+            is_left_edge: snap.is_left_edge,
+        });
     }
     Err("Monitor not available".into())
 }
@@ -158,33 +156,17 @@ pub fn get_bubble_default_coords(
     app: AppHandle,
     account_index: Option<u32>,
 ) -> Result<SnapCoordsDto, String> {
-    let idx = account_index.unwrap_or(1);
-    let label = get_bubble_window_label(idx);
-    let win = app.get_webview_window(&label);
-    let monitor = app
-        .get_webview_window("main")
-        .and_then(|m| {
-            if m.is_visible().unwrap_or(false) {
-                m.current_monitor().ok().flatten()
-            } else {
-                None
-            }
-        })
-        .or_else(|| win.as_ref().and_then(|w| w.current_monitor().ok().flatten()))
-        .or_else(|| app.primary_monitor().ok().flatten());
-    if let Some(monitor) = monitor {
-        let screen = ScreenMetrics::from_monitor(&monitor);
-        let config = get_bubble_physics_config(&app);
-        let all_bubbles = get_active_bubble_rects(&app, None);
-        let pos = BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &all_bubbles);
-        return Ok(SnapCoordsDto {
-            target_x: pos.x,
-            target_y: pos.y,
-            should_dismiss: false,
-            is_left_edge: true,
-        });
-    }
-    Err("Monitor not available".into())
+    let _idx = account_index.unwrap_or(1);
+    let screen = crate::movement::get_target_dashboard_screen(Some(&app));
+    let config = get_bubble_physics_config(&app);
+    let all_bubbles = get_active_bubble_rects(&app, None);
+    let pos = BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &all_bubbles);
+    Ok(SnapCoordsDto {
+        target_x: pos.x,
+        target_y: pos.y,
+        should_dismiss: false,
+        is_left_edge: true,
+    })
 }
 
 /// Returns hover coordinates when entering or leaving bubble
@@ -197,29 +179,27 @@ pub fn get_bubble_hover_coords(
     let idx = account_index.unwrap_or(1);
     let label = get_bubble_window_label(idx);
     if let Some(window) = app.get_webview_window(&label) {
-        if let Ok(Some(monitor)) = window.current_monitor() {
-            let win_pos = match window.outer_position() {
-                Ok(pos) => pos,
-                Err(_) => return Err("Failed to get window position".into()),
-            };
-            let screen = ScreenMetrics::from_monitor(&monitor);
-            let config = get_bubble_physics_config(&app);
-            let target_pos = BubbleMovementEngine::calculate_hover_pos(
-                &screen,
-                &config,
-                win_pos.x,
-                win_pos.y,
-                is_hovered,
-            );
-            let bubble_w = (config.size * screen.scale_factor) as i32;
-            let is_left = win_pos.x + bubble_w / 2 < (screen.x + screen.width / 2);
-            return Ok(SnapCoordsDto {
-                target_x: target_pos.x,
-                target_y: target_pos.y,
-                should_dismiss: false,
-                is_left_edge: is_left,
-            });
-        }
+        let win_pos = match window.outer_position() {
+            Ok(pos) => pos,
+            Err(_) => return Err("Failed to get window position".into()),
+        };
+        let screen = crate::movement::get_target_dashboard_screen(Some(&app));
+        let config = get_bubble_physics_config(&app);
+        let target_pos = BubbleMovementEngine::calculate_hover_pos(
+            &screen,
+            &config,
+            win_pos.x,
+            win_pos.y,
+            is_hovered,
+        );
+        let bubble_w = (config.size * screen.scale_factor) as i32;
+        let is_left = win_pos.x + bubble_w / 2 < (screen.x + screen.width / 2);
+        return Ok(SnapCoordsDto {
+            target_x: target_pos.x,
+            target_y: target_pos.y,
+            should_dismiss: false,
+            is_left_edge: is_left,
+        });
     }
-    Err("Monitor not available".into())
+    Err("Window not available".into())
 }

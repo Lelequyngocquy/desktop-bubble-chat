@@ -22,6 +22,19 @@ pub struct RECT {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy, Default, Debug)]
+pub struct MONITORINFO {
+    pub cb_size: u32,
+    pub rc_monitor: RECT,
+    pub rc_work: RECT,
+    pub dw_flags: u32,
+}
+
+pub const MONITOR_DEFAULTTONEAREST: u32 = 2;
+pub const SM_CXSCREEN: i32 = 0;
+pub const SM_CYSCREEN: i32 = 1;
+
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct BLENDFUNCTION {
     pub blend_op: u8,

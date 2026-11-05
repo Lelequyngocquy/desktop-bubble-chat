@@ -122,6 +122,7 @@ pub fn run() {
             chat_state_clone.is_always_on_top.store(initial_config.is_always_on_top, Ordering::SeqCst);
             #[cfg(target_os = "windows")]
             crate::windows::native_bubble::set_native_bubble_always_on_top(initial_config.is_always_on_top);
+            windows::main_window::setup_main_window(&handle);
             println!("[Startup] Restoring active bubbles from cache: {:?}", initial_config.active_bubble_accounts);
             let mut committed_rects: Vec<movement::BubbleRect> = Vec::new();
             for &idx in &initial_config.active_bubble_accounts {
@@ -135,7 +136,6 @@ pub fn run() {
                     }
                 }
             }
-            windows::main_window::setup_main_window(&handle);
             if initial_config.is_dashboard_open {
                 println!("[Startup] Dashboard configured ON -> Showing Dashboard");
                 let _ = windows::main_window::get_or_create_main_window(&handle);

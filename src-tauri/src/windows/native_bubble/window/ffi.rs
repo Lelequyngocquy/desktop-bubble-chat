@@ -63,6 +63,7 @@ unsafe extern "system" {
         lpTimerFunc: Option<unsafe extern "system" fn(*mut std::ffi::c_void, u32, usize, u32)>,
     ) -> usize;
     pub fn KillTimer(hWnd: *mut std::ffi::c_void, uIDEvent: usize) -> i32;
+    pub fn GetSystemMetrics(nIndex: i32) -> i32;
 }
 
 #[link(name = "gdi32")]
@@ -84,4 +85,9 @@ unsafe extern "system" {
 #[link(name = "kernel32")]
 unsafe extern "system" {
     pub fn GetModuleHandleW(lpModuleName: *const u16) -> *mut std::ffi::c_void;
+}
+
+/// Retrieves target screen metrics for bubbles, locked to Dashboard's current or last monitor
+pub fn get_screen_metrics_for_hwnd(_hwnd: *mut std::ffi::c_void) -> crate::movement::ScreenMetrics {
+    crate::movement::get_target_dashboard_screen(None)
 }

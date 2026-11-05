@@ -5,7 +5,7 @@ use std::sync::mpsc::{channel, Sender};
 #[cfg(target_os = "windows")]
 use std::sync::{Arc, OnceLock, RwLock};
 #[cfg(target_os = "windows")]
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 #[cfg(target_os = "windows")]
 use super::window::{ensure_window_class_registered, NativeBubbleWindow, POINT};
@@ -179,6 +179,12 @@ impl NativeBubbleManager {
                                     NativeBubbleAction::AnimateTo { account_index, target_x, target_y, duration_ms } => {
                                         if let Some(win) = bubbles.get(&account_index) {
                                             win.animate_to(target_x, target_y, duration_ms);
+                                            if let Ok(mut cache) = bounds_clone.write() {
+                                                if let Some(b) = cache.get_mut(&account_index) {
+                                                    b.0 = target_x;
+                                                    b.1 = target_y;
+                                                }
+                                            }
                                         }
                                     }
                                     NativeBubbleAction::SetUnread { account_index, count } => {
@@ -194,44 +200,130 @@ impl NativeBubbleManager {
                                     NativeBubbleAction::Tuck { account_index, app } => {
                                         crate::utils::trim_controller::schedule_auto_trim_on_tuck(account_index, app.clone());
                                         if let Some(win) = bubbles.get(&account_index) {
-                                            let monitor = app
-                                                .get_webview_window("main")
-                                                .and_then(|m| m.current_monitor().ok().flatten())
-                                                .or_else(|| app.primary_monitor().ok().flatten());
-                                            if let Some(mon) = monitor {
-                                                let screen = crate::movement::ScreenMetrics::from_monitor(&mon);
-                                                let config = crate::movement::get_bubble_physics_config(&app);
-                                                let (cur_x, cur_y, _, _) = win.get_bounds();
-                                                let target_pos = crate::movement::BubbleMovementEngine::calculate_hover_pos(
-                                                    &screen,
-                                                    &config,
-                                                    cur_x,
-                                                    cur_y,
-                                                    false,
-                                                );
-                                                win.animate_to(target_pos.x, target_pos.y, 180);
+                                            let screen = crate::movement::get_target_dashboard_screen(Some(&app));
+                                            let config = crate::movement::get_bubble_physics_config(&app);
+                                            let (cur_x, cur_y, _, _) = win.get_bounds();
+                                            let target_pos = crate::movement::BubbleMovementEngine::calculate_hover_pos(
+                                                &screen,
+                                                &config,
+                                                cur_x,
+                                                cur_y,
+                                                false,
+                                            );
+                                            let mid_x = screen.x + screen.width / 2;
+                                            let is_left_edge = cur_x + (config.size * screen.scale_factor) as i32 / 2 < mid_x;
+                                            let all_bubbles: Vec<crate::movement::BubbleRect> = if let Ok(cache) = bounds_clone.read() {
+                                                cache.iter().map(|(&idx, &(x, y, w, h))| crate::movement::BubbleRect {
+                                                    account_index: idx,
+                                                    x,
+                                                    y,
+                                                    width: w as i32,
+                                                    height: h as i32,
+                                                }).collect()
+                                            } else {
+                                                Vec::new()
+                                            };
+                                            let slots = crate::movement::CollisionResolver::resolve_mutual_column_layout(
+                                                account_index,
+                                                cur_y,
+                                                is_left_edge,
+                                                &screen,
+                                                &config,
+                                                &all_bubbles,
+                                            );
+                                            let resolved_y = slots.iter()
+                                                .find(|s| s.account_index == account_index)
+                                                .map(|s| s.target_y)
+                                                .unwrap_or(cur_y);
+                                            win.animate_to(target_pos.x, resolved_y, 180);
+                                            if let Ok(mut cache) = bounds_clone.write() {
+                                                if let Some(b) = cache.get_mut(&account_index) {
+                                                    b.0 = target_pos.x;
+                                                    b.1 = resolved_y;
+                                                }
+                                            }
+                                            for slot in &slots {
+                                                if slot.account_index == account_index {
+                                                    continue;
+                                                }
+                                                let sibling_x = all_bubbles.iter()
+                                                    .find(|b| b.account_index == slot.account_index)
+                                                    .map(|b| b.x)
+                                                    .unwrap_or(target_pos.x);
+                                                if let Some(sibling_win) = bubbles.get(&slot.account_index) {
+                                                    sibling_win.animate_to(sibling_x, slot.target_y, 180);
+                                                }
+                                                if let Ok(mut cache) = bounds_clone.write() {
+                                                    if let Some(b) = cache.get_mut(&slot.account_index) {
+                                                        b.0 = sibling_x;
+                                                        b.1 = slot.target_y;
+                                                    }
+                                                }
                                             }
                                         }
                                     }
                                     NativeBubbleAction::Untuck { account_index, app } => {
                                         crate::utils::trim_controller::cancel_auto_trim(account_index);
                                         if let Some(win) = bubbles.get(&account_index) {
-                                            let monitor = app
-                                                .get_webview_window("main")
-                                                .and_then(|m| m.current_monitor().ok().flatten())
-                                                .or_else(|| app.primary_monitor().ok().flatten());
-                                            if let Some(mon) = monitor {
-                                                let screen = crate::movement::ScreenMetrics::from_monitor(&mon);
-                                                let config = crate::movement::get_bubble_physics_config(&app);
-                                                let (cur_x, cur_y, _, _) = win.get_bounds();
-                                                let target_pos = crate::movement::BubbleMovementEngine::calculate_hover_pos(
-                                                    &screen,
-                                                    &config,
-                                                    cur_x,
-                                                    cur_y,
-                                                    true,
-                                                );
-                                                win.animate_to(target_pos.x, target_pos.y, 180);
+                                            let screen = crate::movement::get_target_dashboard_screen(Some(&app));
+                                            let config = crate::movement::get_bubble_physics_config(&app);
+                                            let (cur_x, cur_y, _, _) = win.get_bounds();
+                                            let target_pos = crate::movement::BubbleMovementEngine::calculate_hover_pos(
+                                                &screen,
+                                                &config,
+                                                cur_x,
+                                                cur_y,
+                                                true,
+                                            );
+                                            let mid_x = screen.x + screen.width / 2;
+                                            let is_left_edge = cur_x + (config.size * screen.scale_factor) as i32 / 2 < mid_x;
+                                            let all_bubbles: Vec<crate::movement::BubbleRect> = if let Ok(cache) = bounds_clone.read() {
+                                                cache.iter().map(|(&idx, &(x, y, w, h))| crate::movement::BubbleRect {
+                                                    account_index: idx,
+                                                    x,
+                                                    y,
+                                                    width: w as i32,
+                                                    height: h as i32,
+                                                }).collect()
+                                            } else {
+                                                Vec::new()
+                                            };
+                                            let slots = crate::movement::CollisionResolver::resolve_mutual_column_layout(
+                                                account_index,
+                                                cur_y,
+                                                is_left_edge,
+                                                &screen,
+                                                &config,
+                                                &all_bubbles,
+                                            );
+                                            let resolved_y = slots.iter()
+                                                .find(|s| s.account_index == account_index)
+                                                .map(|s| s.target_y)
+                                                .unwrap_or(cur_y);
+                                            win.animate_to(target_pos.x, resolved_y, 180);
+                                            if let Ok(mut cache) = bounds_clone.write() {
+                                                if let Some(b) = cache.get_mut(&account_index) {
+                                                    b.0 = target_pos.x;
+                                                    b.1 = resolved_y;
+                                                }
+                                            }
+                                            for slot in &slots {
+                                                if slot.account_index == account_index {
+                                                    continue;
+                                                }
+                                                let sibling_x = all_bubbles.iter()
+                                                    .find(|b| b.account_index == slot.account_index)
+                                                    .map(|b| b.x)
+                                                    .unwrap_or(target_pos.x);
+                                                if let Some(sibling_win) = bubbles.get(&slot.account_index) {
+                                                    sibling_win.animate_to(sibling_x, slot.target_y, 180);
+                                                }
+                                                if let Ok(mut cache) = bounds_clone.write() {
+                                                    if let Some(b) = cache.get_mut(&slot.account_index) {
+                                                        b.0 = sibling_x;
+                                                        b.1 = slot.target_y;
+                                                    }
+                                                }
                                             }
                                         }
                                     }

@@ -34,20 +34,18 @@ pub fn resize_bubble_window(bubble: &tauri::WebviewWindow, size_px: f64) {
         let _ = bubble.run_on_main_thread(move || {
             if let Ok(hwnd) = bubble_clone.hwnd() {
                 let raw_hwnd = hwnd.0 as *mut std::ffi::c_void;
-                if let Ok(Some(monitor)) = bubble_clone.current_monitor() {
-                    let scale = monitor.scale_factor();
-                    let size = (size_px * scale) as i32;
-                    unsafe {
-                        SetWindowPos(
-                            raw_hwnd,
-                            std::ptr::null_mut(),
-                            0,
-                            0,
-                            size,
-                            size,
-                            SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
-                        );
-                    }
+                let screen = crate::movement::get_target_dashboard_screen(None);
+                let size = (size_px * screen.scale_factor) as i32;
+                unsafe {
+                    SetWindowPos(
+                        raw_hwnd,
+                        std::ptr::null_mut(),
+                        0,
+                        0,
+                        size,
+                        size,
+                        SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+                    );
                 }
             }
         });

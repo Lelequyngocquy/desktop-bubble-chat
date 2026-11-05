@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::movement::{BubbleMovementEngine, ScreenMetrics};
+use crate::movement::BubbleMovementEngine;
 use crate::platforms::messenger::constants::MESSENGER_INJECT_SCRIPT;
 use crate::platforms::messenger::windows::{
     get_messenger_window_label, get_or_create_messenger_window, hide_all_other_messenger_windows,
@@ -35,62 +35,47 @@ impl ChatService {
         } else {
             (0, 0, 56)
         };
-        let monitor = app.available_monitors().ok().and_then(|monitors| {
-            monitors.into_iter().find(|m| {
-                let pos = m.position();
-                let size = m.size();
-                bubble_x >= pos.x
-                    && bubble_x < pos.x + size.width as i32
-                    && bubble_y >= pos.y
-                    && bubble_y < pos.y + size.height as i32
-            })
-        })
-        .or_else(|| chat_window.current_monitor().ok().flatten())
-        .or_else(|| app.get_webview_window("main").and_then(|m| m.current_monitor().ok().flatten()))
-        .or_else(|| app.primary_monitor().ok().flatten());
-        if let Some(mon) = monitor {
-            let screen = ScreenMetrics::from_monitor(&mon);
-            let scale = screen.scale_factor;
-            let config = crate::movement::get_bubble_physics_config(app);
-            let chat_w = (config.chat_width * scale).round() as i32;
-            let chat_h = (config.chat_height * scale).round() as i32;
-            let gap = (config.chat_gap * scale).round() as i32;
-            let margin = (config.margin * scale) as i32;
-            let taskbar_margin = (config.taskbar_margin * scale) as i32;
-            let _ = chat_window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-                width: chat_w as u32,
-                height: chat_h as u32,
-            }));
-            let untucked_pos = BubbleMovementEngine::calculate_hover_pos(
-                &screen,
-                &config,
-                bubble_x,
-                bubble_y,
-                true,
-            );
-            if let Some(bw) = &webview_bubble {
-                let _ = bw.set_position(tauri::Position::Physical(untucked_pos));
-            } else {
-                crate::windows::native_bubble::untuck_native_bubble(app, account_index);
-            }
-            let mid_x = screen.x + screen.width / 2;
-            let target_x = if untucked_pos.x + bubble_w / 2 >= mid_x {
-                untucked_pos.x - chat_w - gap
-            } else {
-                untucked_pos.x + bubble_w + gap
-            };
-            let min_x = screen.x + margin;
-            let max_x = screen.x + screen.width - chat_w - margin;
-            let final_x = target_x.clamp(min_x, max_x);
-            let bubble_top = bubble_y;
-            let min_y = screen.y + margin;
-            let max_y = (screen.y + screen.height - chat_h - taskbar_margin).max(min_y);
-            let final_y = bubble_top.clamp(min_y, max_y);
-            let _ = chat_window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-                x: final_x,
-                y: final_y,
-            }));
+        let screen = crate::movement::get_target_dashboard_screen(Some(app));
+        let scale = screen.scale_factor;
+        let config = crate::movement::get_bubble_physics_config(app);
+        let chat_w = (config.chat_width * scale).round() as i32;
+        let chat_h = (config.chat_height * scale).round() as i32;
+        let gap = (config.chat_gap * scale).round() as i32;
+        let margin = (config.margin * scale) as i32;
+        let taskbar_margin = (config.taskbar_margin * scale) as i32;
+        let _ = chat_window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+            width: chat_w as u32,
+            height: chat_h as u32,
+        }));
+        let untucked_pos = BubbleMovementEngine::calculate_hover_pos(
+            &screen,
+            &config,
+            bubble_x,
+            bubble_y,
+            true,
+        );
+        if let Some(bw) = &webview_bubble {
+            let _ = bw.set_position(tauri::Position::Physical(untucked_pos));
+        } else {
+            crate::windows::native_bubble::untuck_native_bubble(app, account_index);
         }
+        let mid_x = screen.x + screen.width / 2;
+        let target_x = if untucked_pos.x + bubble_w / 2 >= mid_x {
+            untucked_pos.x - chat_w - gap
+        } else {
+            untucked_pos.x + bubble_w + gap
+        };
+        let min_x = screen.x + margin;
+        let max_x = screen.x + screen.width - chat_w - margin;
+        let final_x = target_x.clamp(min_x, max_x);
+        let bubble_top = bubble_y;
+        let min_y = screen.y + margin;
+        let max_y = (screen.y + screen.height - chat_h - taskbar_margin).max(min_y);
+        let final_y = bubble_top.clamp(min_y, max_y);
+        let _ = chat_window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+            x: final_x,
+            y: final_y,
+        }));
         for other_idx in 1..=5 {
             if other_idx != account_index {
                 tuck_bubble(app, Some(other_idx));

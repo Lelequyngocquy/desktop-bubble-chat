@@ -4,7 +4,7 @@ use tauri::{Manager, PhysicalPosition};
 use super::ffi::*;
 use super::state::BubbleWindowState;
 use super::types::*;
-use crate::movement::{BubbleMovementEngine, ScreenMetrics};
+use crate::movement::BubbleMovementEngine;
 use crate::state::ChatState;
 
 /// Window Procedure handling Win32 messages for native bubbles.
@@ -62,28 +62,20 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                             state.bubble_size,
                         );
                         // Bottom dismiss fade opacity
-                        if let Some(app) = &state.app_handle {
-                            let monitor = app
-                                .get_webview_window("main")
-                                .and_then(|m| m.current_monitor().ok().flatten())
-                                .or_else(|| app.primary_monitor().ok().flatten());
-                            if let Some(mon) = monitor {
-                                let screen = ScreenMetrics::from_monitor(&mon);
-                                let bottom_edge = screen.y + screen.height;
-                                let dist = bottom_edge - new_y;
-                                let start_fade_dist = (340.0 * screen.scale_factor) as i32;
-                                let max_fade_dist = (140.0 * screen.scale_factor) as i32;
-                                let alpha = if dist >= start_fade_dist {
-                                    255
-                                } else if dist <= max_fade_dist {
-                                    64 // 0.25 opacity
-                                } else {
-                                    let ratio = (start_fade_dist - dist) as f64 / (start_fade_dist - max_fade_dist) as f64;
-                                    ((1.0 - ratio * 0.75) * 255.0).clamp(64.0, 255.0) as u8
-                                };
-                                state.set_layered_alpha(alpha);
-                            }
-                        }
+                        let screen = crate::movement::get_target_dashboard_screen(state.app_handle.as_ref());
+                        let bottom_edge = screen.y + screen.height;
+                        let dist = bottom_edge - new_y;
+                        let start_fade_dist = (340.0 * screen.scale_factor) as i32;
+                        let max_fade_dist = (140.0 * screen.scale_factor) as i32;
+                        let alpha = if dist >= start_fade_dist {
+                            255
+                        } else if dist <= max_fade_dist {
+                            64 // 0.25 opacity
+                        } else {
+                            let ratio = (start_fade_dist - dist) as f64 / (start_fade_dist - max_fade_dist) as f64;
+                            ((1.0 - ratio * 0.75) * 255.0).clamp(64.0, 255.0) as u8
+                        };
+                        state.set_layered_alpha(alpha);
                         unsafe {
                             SetWindowPos(
                                 hwnd,
@@ -138,31 +130,21 @@ pub unsafe extern "system" fn native_bubble_wndproc(
             0
         }
         WM_LBUTTONUP => {
-            unsafe { ReleaseCapture(); }
             if let Some(state) = unsafe { state_ptr.as_mut() } {
                 if state.is_dragging {
                     state.is_dragging = false;
+                    // Release capture after clearing is_dragging so WM_CAPTURECHANGED
+                    // fires with is_dragging already false and becomes a no-op.
+                    unsafe { ReleaseCapture(); }
                     if state.has_dragged {
                         // Restore full opacity
                         state.set_layered_alpha(255);
                         // Drag finished -> trigger snap to edge
-                        let (target_x, target_y, should_dismiss) = if let Some(app) = &state.app_handle {
-                            let monitor = app
-                                .get_webview_window("main")
-                                .and_then(|m| m.current_monitor().ok().flatten())
-                                .or_else(|| app.primary_monitor().ok().flatten());
-                            let screen = monitor
-                                .map(|m| ScreenMetrics::from_monitor(&m))
-                                .unwrap_or(ScreenMetrics {
-                                    x: 0,
-                                    y: 0,
-                                    width: 1920,
-                                    height: 1080,
-                                    scale_factor: 1.0,
-                                });
+                        let (target_x, target_y, should_dismiss, displaced_slots) = if let Some(app) = &state.app_handle {
+                            let screen = crate::movement::get_target_dashboard_screen(Some(app));
                             let config = crate::movement::get_bubble_physics_config(app);
                             let all_bubbles = crate::windows::bubble::get_active_bubble_rects(app, None);
-                            let snap = BubbleMovementEngine::calculate_snap(
+                            let snap = BubbleMovementEngine::calculate_mutual_snap(
                                 &screen,
                                 &config,
                                 PhysicalPosition { x: state.x, y: state.y },
@@ -184,10 +166,16 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                                     );
                                 }
                             }
-                            (snap.target_x, snap.target_y, snap.should_dismiss)
+                            (snap.target_x, snap.target_y, snap.should_dismiss, snap.column_slots)
                         } else {
-                            let target_x = if state.x < 960 { 0 } else { 1920 - state.bubble_size as i32 };
-                            (target_x, state.y, false)
+                            let screen = crate::movement::get_target_dashboard_screen(None);
+                            let mid_x = screen.x + screen.width / 2;
+                            let target_x = if state.x + (state.bubble_size as i32 / 2) < mid_x {
+                                screen.x
+                            } else {
+                                screen.x + screen.width - state.bubble_size as i32
+                            };
+                            (target_x, state.y, false, Vec::new())
                         };
                         if should_dismiss {
                             unsafe { ShowWindow(hwnd, SW_HIDE); }
@@ -195,14 +183,56 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                                 let app_clone = app.clone();
                                 let idx = state.account_index;
                                 tauri::async_runtime::spawn(async move {
-                                    crate::commands::bubble::suspend_account_bubble_and_chat(&app_clone, idx);
+                                    let _ = crate::commands::bubble::toggle_bubble(app_clone, false, Some(idx)).await;
                                 });
                             }
                         } else {
-                            // Spring glide (160ms) to snapped edge
+                            crate::windows::native_bubble::manager::update_cached_bubble_bounds(
+                                state.account_index,
+                                target_x,
+                                target_y,
+                                state.bubble_size,
+                                state.bubble_size,
+                            );
                             state.anim_state.start(state.x, state.y, target_x, target_y, 160);
                             unsafe {
                                 SetTimer(hwnd, TIMER_ID_SPRING, 16, None);
+                            }
+                            if let Some(app) = &state.app_handle {
+                                let config = crate::movement::get_bubble_physics_config(app);
+                                let screen = crate::movement::get_target_dashboard_screen(Some(app));
+                                let bubble_w = (config.size * screen.scale_factor) as i32;
+                                for slot in displaced_slots {
+                                    if slot.account_index != state.account_index {
+                                        crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
+                                            crate::windows::native_bubble::NativeBubbleAction::AnimateTo {
+                                                account_index: slot.account_index,
+                                                target_x,
+                                                target_y: slot.target_y,
+                                                duration_ms: 160,
+                                            }
+                                        );
+                                        crate::windows::native_bubble::manager::update_cached_bubble_bounds(
+                                            slot.account_index,
+                                            target_x,
+                                            slot.target_y,
+                                            bubble_w as u32,
+                                            bubble_w as u32,
+                                        );
+                                        if let Some(cs) = app.try_state::<Arc<ChatState>>() {
+                                            cs.set_bubble_rect(
+                                                slot.account_index,
+                                                crate::movement::BubbleRect {
+                                                    account_index: slot.account_index,
+                                                    x: target_x,
+                                                    y: slot.target_y,
+                                                    width: bubble_w,
+                                                    height: bubble_w,
+                                                },
+                                            );
+                                        }
+                                    }
+                                }
                             }
                         }
                     } else {

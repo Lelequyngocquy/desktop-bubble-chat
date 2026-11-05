@@ -1,9 +1,8 @@
 use tauri::AppHandle;
-use tauri::Manager;
 
 use super::ffi::*;
 use super::types::*;
-use crate::movement::{BubbleMovementEngine, ScreenMetrics};
+use crate::movement::BubbleMovementEngine;
 use crate::windows::native_bubble::renderer::{render_bubble_bgra, BubbleRenderOptions};
 
 /// Internal state of a native bubble attached to HWND via GWLP_USERDATA.
@@ -90,18 +89,10 @@ impl BubbleWindowState {
 
     /// Determines if bubble is on the left or right half of the screen for badge orientation.
     pub fn is_at_left_edge(&self) -> bool {
-        if let Some(app) = &self.app_handle {
-            let monitor = app
-                .get_webview_window("main")
-                .and_then(|m| m.current_monitor().ok().flatten())
-                .or_else(|| app.primary_monitor().ok().flatten());
-            if let Some(mon) = monitor {
-                let screen_cx = mon.position().x + (mon.size().width as i32 / 2);
-                let bubble_cx = self.x + (self.bubble_size as i32 / 2);
-                return bubble_cx < screen_cx;
-            }
-        }
-        self.x + (self.bubble_size as i32 / 2) < 960
+        let screen = crate::movement::get_target_dashboard_screen(self.app_handle.as_ref());
+        let screen_cx = screen.x + (screen.width / 2);
+        let bubble_cx = self.x + (self.bubble_size as i32 / 2);
+        bubble_cx < screen_cx
     }
 
     /// Updates and redraws bubble content via UpdateLayeredWindow.
@@ -181,27 +172,55 @@ impl BubbleWindowState {
     /// Triggers spring animation to untuck from edge (180ms ease-out cubic).
     pub fn untuck(&mut self) {
         crate::utils::trim_controller::cancel_auto_trim(self.account_index);
+        let screen = crate::movement::get_target_dashboard_screen(self.app_handle.as_ref());
         if let Some(app) = &self.app_handle {
-            let monitor = app
-                .get_webview_window("main")
-                .and_then(|m| m.current_monitor().ok().flatten())
-                .or_else(|| app.primary_monitor().ok().flatten());
-            if let Some(mon) = monitor {
-                let screen = ScreenMetrics::from_monitor(&mon);
-                let config = crate::movement::get_bubble_physics_config(app);
-                let target_pos = BubbleMovementEngine::calculate_hover_pos(
-                    &screen,
-                    &config,
-                    self.x,
-                    self.y,
-                    true,
-                );
-                if self.x != target_pos.x || self.y != target_pos.y {
-                    self.anim_state.start(self.x, self.y, target_pos.x, target_pos.y, 180);
-                    unsafe {
-                        SetTimer(self.hwnd, TIMER_ID_SPRING, 16, None);
-                    }
+            let config = crate::movement::get_bubble_physics_config(app);
+            let target_pos = BubbleMovementEngine::calculate_hover_pos(
+                &screen,
+                &config,
+                self.x,
+                self.y,
+                true,
+            );
+            let mid_x = screen.x + screen.width / 2;
+            let is_left_edge = self.x + (self.bubble_size as i32 / 2) < mid_x;
+            let all_bubbles = crate::windows::bubble::get_active_bubble_rects(app, None);
+            let slots = crate::movement::collision::CollisionResolver::resolve_mutual_column_layout(
+                self.account_index,
+                self.y,
+                is_left_edge,
+                &screen,
+                &config,
+                &all_bubbles,
+            );
+            let resolved_y = slots
+                .iter()
+                .find(|s| s.account_index == self.account_index)
+                .map(|s| s.target_y)
+                .unwrap_or(self.y);
+            if self.x != target_pos.x || self.y != resolved_y {
+                self.anim_state.start(self.x, self.y, target_pos.x, resolved_y, 180);
+                unsafe {
+                    SetTimer(self.hwnd, TIMER_ID_SPRING, 16, None);
                 }
+            }
+            for slot in &slots {
+                if slot.account_index == self.account_index {
+                    continue;
+                }
+                let sibling_x = all_bubbles
+                    .iter()
+                    .find(|b| b.account_index == slot.account_index)
+                    .map(|b| b.x)
+                    .unwrap_or(target_pos.x);
+                crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
+                    crate::windows::native_bubble::NativeBubbleAction::AnimateTo {
+                        account_index: slot.account_index,
+                        target_x: sibling_x,
+                        target_y: slot.target_y,
+                        duration_ms: 180,
+                    },
+                );
             }
         }
     }
@@ -210,26 +229,54 @@ impl BubbleWindowState {
     pub fn tuck(&mut self) {
         if let Some(app) = &self.app_handle {
             crate::utils::trim_controller::schedule_auto_trim_on_tuck(self.account_index, app.clone());
-            let monitor = app
-                .get_webview_window("main")
-                .and_then(|m| m.current_monitor().ok().flatten())
-                .or_else(|| app.primary_monitor().ok().flatten());
-            if let Some(mon) = monitor {
-                let screen = ScreenMetrics::from_monitor(&mon);
-                let config = crate::movement::get_bubble_physics_config(app);
-                let target_pos = BubbleMovementEngine::calculate_hover_pos(
-                    &screen,
-                    &config,
-                    self.x,
-                    self.y,
-                    false,
-                );
-                if self.x != target_pos.x || self.y != target_pos.y {
-                    self.anim_state.start(self.x, self.y, target_pos.x, target_pos.y, 180);
-                    unsafe {
-                        SetTimer(self.hwnd, TIMER_ID_SPRING, 16, None);
-                    }
+            let screen = crate::movement::get_target_dashboard_screen(self.app_handle.as_ref());
+            let config = crate::movement::get_bubble_physics_config(app);
+            let target_pos = BubbleMovementEngine::calculate_hover_pos(
+                &screen,
+                &config,
+                self.x,
+                self.y,
+                false,
+            );
+            let mid_x = screen.x + screen.width / 2;
+            let is_left_edge = self.x + (self.bubble_size as i32 / 2) < mid_x;
+            let all_bubbles = crate::windows::bubble::get_active_bubble_rects(app, None);
+            let slots = crate::movement::collision::CollisionResolver::resolve_mutual_column_layout(
+                self.account_index,
+                self.y,
+                is_left_edge,
+                &screen,
+                &config,
+                &all_bubbles,
+            );
+            let resolved_y = slots
+                .iter()
+                .find(|s| s.account_index == self.account_index)
+                .map(|s| s.target_y)
+                .unwrap_or(self.y);
+            if self.x != target_pos.x || self.y != resolved_y {
+                self.anim_state.start(self.x, self.y, target_pos.x, resolved_y, 180);
+                unsafe {
+                    SetTimer(self.hwnd, TIMER_ID_SPRING, 16, None);
                 }
+            }
+            for slot in &slots {
+                if slot.account_index == self.account_index {
+                    continue;
+                }
+                let sibling_x = all_bubbles
+                    .iter()
+                    .find(|b| b.account_index == slot.account_index)
+                    .map(|b| b.x)
+                    .unwrap_or(target_pos.x);
+                crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
+                    crate::windows::native_bubble::NativeBubbleAction::AnimateTo {
+                        account_index: slot.account_index,
+                        target_x: sibling_x,
+                        target_y: slot.target_y,
+                        duration_ms: 180,
+                    },
+                );
             }
         }
     }

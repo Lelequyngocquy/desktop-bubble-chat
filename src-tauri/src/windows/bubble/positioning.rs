@@ -1,8 +1,10 @@
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter, Manager, PhysicalPosition};
+use tauri::{AppHandle, Emitter, Manager};
 
-use crate::movement::{BubbleMovementEngine, BubbleRect, ScreenMetrics};
-use super::webview::{get_bubble_window_label, get_or_create_bubble_window, resize_bubble_window};
+use crate::movement::{BubbleMovementEngine, BubbleRect};
+use super::webview::get_bubble_window_label;
+#[cfg(not(target_os = "windows"))]
+use super::webview::{get_or_create_bubble_window, resize_bubble_window};
 
 /// Returns active bubble bounds as BubbleRect list
 pub fn get_active_bubble_rects(
@@ -72,28 +74,78 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
     #[cfg(target_os = "windows")]
     {
         let config = crate::movement::get_bubble_physics_config(app);
-        let monitor = app
-            .get_webview_window("main")
-            .and_then(|m| {
-                if m.is_visible().unwrap_or(false) {
-                    m.current_monitor().ok().flatten()
-                } else {
-                    None
+        let screen = crate::movement::get_target_dashboard_screen(Some(app));
+        let bubble_w = (config.size * screen.scale_factor) as i32;
+        let mut other_bubbles = get_active_bubble_rects(app, None);
+            for obs in extra_obstacles {
+                if !other_bubbles.iter().any(|b| b.account_index == obs.account_index) {
+                    other_bubbles.push(*obs);
                 }
-            })
-            .or_else(|| app.primary_monitor().ok().flatten());
-        if let Some(mon) = monitor {
-            let screen = ScreenMetrics::from_monitor(&mon);
-            let bubble_w = (config.size * screen.scale_factor) as i32;
+            }
             if crate::windows::native_bubble::NativeBubbleManager::global().has_bubble(account_index) {
                 if let Some((x, y, w, _h)) = crate::windows::native_bubble::NativeBubbleManager::global().get_bounds(account_index) {
                     if w != bubble_w as u32 {
                         crate::windows::native_bubble::set_native_bubble_size(account_index, bubble_w as u32);
                     }
+                    let mid_x = screen.x + screen.width / 2;
+                    let is_left_edge = x + (bubble_w / 2) < mid_x;
+                    let layout = crate::movement::CollisionResolver::resolve_mutual_column_layout(
+                        account_index,
+                        y,
+                        is_left_edge,
+                        &screen,
+                        &config,
+                        &other_bubbles,
+                    );
+                    let target_y = layout
+                        .iter()
+                        .find(|s| s.account_index == account_index)
+                        .map(|s| s.target_y)
+                        .unwrap_or(y);
+                    if target_y != y {
+                        crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
+                            crate::windows::native_bubble::NativeBubbleAction::SetPosition {
+                                account_index,
+                                x,
+                                y: target_y,
+                            }
+                        );
+                    }
+                    for slot in layout {
+                        if slot.account_index != account_index {
+                            crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
+                                crate::windows::native_bubble::NativeBubbleAction::AnimateTo {
+                                    account_index: slot.account_index,
+                                    target_x: x,
+                                    target_y: slot.target_y,
+                                    duration_ms: 160,
+                                }
+                            );
+                            crate::windows::native_bubble::manager::update_cached_bubble_bounds(
+                                slot.account_index,
+                                x,
+                                slot.target_y,
+                                bubble_w as u32,
+                                bubble_w as u32,
+                            );
+                            if let Some(cs) = app.try_state::<Arc<crate::state::ChatState>>() {
+                                cs.set_bubble_rect(
+                                    slot.account_index,
+                                    BubbleRect {
+                                        account_index: slot.account_index,
+                                        x,
+                                        y: slot.target_y,
+                                        width: bubble_w,
+                                        height: bubble_w,
+                                    },
+                                );
+                            }
+                        }
+                    }
                     let rect = BubbleRect {
                         account_index,
                         x,
-                        y,
+                        y: target_y,
                         width: bubble_w,
                         height: bubble_w,
                     };
@@ -101,12 +153,6 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
                         chat_state.set_bubble_rect(account_index, rect);
                     }
                     return Ok(rect);
-                }
-            }
-            let mut other_bubbles = get_active_bubble_rects(app, None);
-            for obs in extra_obstacles {
-                if !other_bubbles.iter().any(|b| b.account_index == obs.account_index) {
-                    other_bubbles.push(*obs);
                 }
             }
             let target_pos = BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &other_bubbles);
@@ -144,33 +190,20 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
             }
             return Ok(rect);
         }
-    }
-    let bubble_window = get_or_create_bubble_window(app, account_index)?;
-    let win_label = bubble_window.label().to_string();
-    let config = crate::movement::get_bubble_physics_config(app);
-    resize_bubble_window(&bubble_window, config.size);
-    let monitor = app
-        .get_webview_window("main")
-        .and_then(|m| {
-            if m.is_visible().unwrap_or(false) {
-                m.current_monitor().ok().flatten()
-            } else {
-                None
-            }
-        })
-        .or_else(|| bubble_window.current_monitor().ok().flatten())
-        .or_else(|| app.primary_monitor().ok().flatten());
-    let mut committed_pos = PhysicalPosition { x: 0, y: 0 };
-    let mut bubble_w = 56;
-    if let Some(monitor) = monitor {
+    #[cfg(not(target_os = "windows"))]
+    {
+        let bubble_window = get_or_create_bubble_window(app, account_index)?;
+        let win_label = bubble_window.label().to_string();
+        let config = crate::movement::get_bubble_physics_config(app);
+        resize_bubble_window(&bubble_window, config.size);
+        let screen = crate::movement::get_target_dashboard_screen(Some(app));
         let win_pos = bubble_window.outer_position().unwrap_or_default();
-        let screen = ScreenMetrics::from_monitor(&monitor);
-        bubble_w = (config.size * screen.scale_factor) as i32;
+        let bubble_w = (config.size * screen.scale_factor) as i32;
         let is_visible = bubble_window.is_visible().unwrap_or(false);
         let is_out_of_bounds = win_pos.x < screen.x - bubble_w * 2
             || win_pos.x > screen.x + screen.width + bubble_w
             || (!is_visible && win_pos.x == 0 && win_pos.y == 0);
-        if !is_visible || is_out_of_bounds {
+        let committed_pos = if !is_visible || is_out_of_bounds {
             let mut other_bubbles = get_active_bubble_rects(app, Some(&win_label));
             for obs in extra_obstacles {
                 if !other_bubbles.iter().any(|b| b.account_index == obs.account_index) {
@@ -179,47 +212,47 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
             }
             let target_pos = BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &other_bubbles);
             let _ = bubble_window.set_position(tauri::Position::Physical(target_pos));
-            committed_pos = target_pos;
+            target_pos
         } else {
-            committed_pos = win_pos;
+            win_pos
+        };
+        if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
+            let is_on_top = chat_state.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst);
+            let _ = bubble_window.set_always_on_top(is_on_top);
         }
-    }
-    if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
-        let is_on_top = chat_state.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst);
-        let _ = bubble_window.set_always_on_top(is_on_top);
-    }
-    let _ = bubble_window.show();
-    let _ = bubble_window.unminimize();
-    let rect = BubbleRect {
-        account_index,
-        x: committed_pos.x,
-        y: committed_pos.y,
-        width: bubble_w,
-        height: bubble_w,
-    };
-    if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
-        chat_state.set_bubble_rect(account_index, rect);
-    }
-    let _ = app.emit("bubble-visibility-changed", serde_json::json!({
-        "accountIndex": account_index,
-        "visible": true,
-        "x": committed_pos.x,
-        "y": committed_pos.y
-    }));
-    if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
-        crate::platforms::messenger::windows::preload_messenger_window(
-            app,
+        let _ = bubble_window.show();
+        let _ = bubble_window.unminimize();
+        let rect = BubbleRect {
             account_index,
-            Arc::clone(&chat_state),
-        );
+            x: committed_pos.x,
+            y: committed_pos.y,
+            width: bubble_w,
+            height: bubble_w,
+        };
+        if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
+            chat_state.set_bubble_rect(account_index, rect);
+        }
+        let _ = app.emit("bubble-visibility-changed", serde_json::json!({
+            "accountIndex": account_index,
+            "visible": true,
+            "x": committed_pos.x,
+            "y": committed_pos.y
+        }));
+        if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
+            crate::platforms::messenger::windows::preload_messenger_window(
+                app,
+                account_index,
+                Arc::clone(&chat_state),
+            );
+        }
+        Ok(BubbleRect {
+            account_index,
+            x: committed_pos.x,
+            y: committed_pos.y,
+            width: bubble_w,
+            height: bubble_w,
+        })
     }
-    Ok(BubbleRect {
-        account_index,
-        x: committed_pos.x,
-        y: committed_pos.y,
-        width: bubble_w,
-        height: bubble_w,
-    })
 }
 
 /// Positions and displays bubble for account with collision avoidance
@@ -239,18 +272,16 @@ pub fn tuck_bubble(app: &AppHandle, account_index: Option<u32>) {
         let label = get_bubble_window_label(idx);
         let win = app.get_webview_window(&label);
         if let Some(bubble_window) = win {
-            if let Ok(Some(monitor)) = bubble_window.current_monitor() {
-                let screen = ScreenMetrics::from_monitor(&monitor);
-                let win_pos = bubble_window.outer_position().unwrap_or_default();
-                let tucked_pos = BubbleMovementEngine::calculate_hover_pos(
-                    &screen,
-                    &config,
-                    win_pos.x,
-                    win_pos.y,
-                    false,
-                );
-                let _ = bubble_window.set_position(tauri::Position::Physical(tucked_pos));
-            }
+            let screen = crate::movement::get_target_dashboard_screen(Some(app));
+            let win_pos = bubble_window.outer_position().unwrap_or_default();
+            let tucked_pos = BubbleMovementEngine::calculate_hover_pos(
+                &screen,
+                &config,
+                win_pos.x,
+                win_pos.y,
+                false,
+            );
+            let _ = bubble_window.set_position(tauri::Position::Physical(tucked_pos));
         } else {
             crate::windows::native_bubble::tuck_native_bubble(app, idx);
         }

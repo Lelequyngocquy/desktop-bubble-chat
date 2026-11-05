@@ -12,8 +12,6 @@ pub use renderer::*;
 pub use manager::*;
 #[cfg(target_os = "windows")]
 pub use window::*;
-#[cfg(target_os = "windows")]
-use tauri::Manager;
 
 /// Helper to toggle a native Win32 bubble (delegates to dedicated UI thread).
 #[cfg(target_os = "windows")]
@@ -26,16 +24,12 @@ pub fn toggle_native_bubble_prototype(
         let y_pos = 180 + ((account_index.max(1) - 1) as i32) * 72;
         if let Some(app_handle) = app {
             let config = crate::movement::get_bubble_physics_config(&app_handle);
-            let monitor = app_handle
-                .get_webview_window("main")
-                .and_then(|m| m.current_monitor().ok().flatten())
-                .or_else(|| app_handle.primary_monitor().ok().flatten());
-            let scale = monitor.map(|m| m.scale_factor()).unwrap_or(1.0);
-            let size = (config.size * scale).round() as u32;
+            let screen = crate::movement::get_target_dashboard_screen(Some(&app_handle));
+            let size = (config.size * screen.scale_factor).round() as u32;
             NativeBubbleManager::global().dispatch(NativeBubbleAction::Show {
                 account_index,
-                x: 30,
-                y: y_pos,
+                x: screen.x + 30,
+                y: screen.y + y_pos,
                 size,
                 app: app_handle,
             });

@@ -55,7 +55,7 @@ impl Default for BubblePhysicsConfig {
             appear_ratio: 0.0,
             margin: 12.0,
             taskbar_margin: 60.0,
-            dismiss_margin: 80.0,
+            dismiss_margin: 160.0,
             chat_width: 404.0,
             chat_height: 550.0,
             chat_gap: 8.0,
@@ -79,4 +79,75 @@ pub fn get_bubble_physics_config(app: &tauri::AppHandle) -> BubblePhysicsConfig 
         }
     }
     BubblePhysicsConfig::default()
+}
+
+static TARGET_DASHBOARD_SCREEN: std::sync::RwLock<Option<ScreenMetrics>> = std::sync::RwLock::new(None);
+
+pub fn update_target_dashboard_screen(metrics: ScreenMetrics) -> Option<(ScreenMetrics, ScreenMetrics)> {
+    if let Ok(mut lock) = TARGET_DASHBOARD_SCREEN.write() {
+        if let Some(old) = *lock {
+            if old.x != metrics.x
+                || old.y != metrics.y
+                || old.width != metrics.width
+                || old.height != metrics.height
+                || (old.scale_factor - metrics.scale_factor).abs() > 0.001
+            {
+                *lock = Some(metrics);
+                return Some((old, metrics));
+            }
+        } else {
+            *lock = Some(metrics);
+        }
+    }
+    None
+}
+
+pub fn get_target_dashboard_screen(app: Option<&tauri::AppHandle>) -> ScreenMetrics {
+    if let Ok(lock) = TARGET_DASHBOARD_SCREEN.read() {
+        if let Some(metrics) = *lock {
+            return metrics;
+        }
+    }
+    if let Some(app_handle) = app {
+        use tauri::Manager;
+        if let Some(main_win) = app_handle.get_webview_window("main") {
+            if let Ok(Some(mon)) = main_win.current_monitor() {
+                let screen = ScreenMetrics::from_monitor(&mon);
+                update_target_dashboard_screen(screen);
+                return screen;
+            }
+        }
+        if let Ok(Some(mon)) = app_handle.primary_monitor() {
+            let screen = ScreenMetrics::from_monitor(&mon);
+            update_target_dashboard_screen(screen);
+            return screen;
+        }
+    }
+    #[cfg(target_os = "windows")]
+    {
+        use crate::windows::native_bubble::window::{GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN};
+        let cx = unsafe { GetSystemMetrics(SM_CXSCREEN) };
+        let cy = unsafe { GetSystemMetrics(SM_CYSCREEN) };
+        let screen = ScreenMetrics {
+            x: 0,
+            y: 0,
+            width: if cx > 0 { cx } else { 1920 },
+            height: if cy > 0 { cy } else { 1080 },
+            scale_factor: 1.0,
+        };
+        update_target_dashboard_screen(screen);
+        screen
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let screen = ScreenMetrics {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+            scale_factor: 1.0,
+        };
+        update_target_dashboard_screen(screen);
+        screen
+    }
 }

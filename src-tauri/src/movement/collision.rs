@@ -10,6 +10,13 @@ pub struct BubbleRect {
     pub height: i32,
 }
 
+/// Assigned target Y position for each bubble in a vertical column
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ColumnBubbleSlot {
+    pub account_index: u32,
+    pub target_y: i32,
+}
+
 pub struct CollisionResolver;
 
 impl CollisionResolver {
@@ -20,15 +27,16 @@ impl CollisionResolver {
         !(bottom1 + gap <= y2 || bottom2 + gap <= y1)
     }
 
-    /// Resolves vertical collision between bubbles along the same screen edge
-    pub fn resolve_multi_bubble_collision(
+    /// Resolves mutual vertical layout for all bubbles along the same screen edge.
+    /// Returns target Y for moving bubble and all displaced stationary bubbles.
+    pub fn resolve_mutual_column_layout(
         moving_index: u32,
-        initial_y: i32,
+        desired_y: i32,
         is_left_edge: bool,
         screen: &ScreenMetrics,
         config: &BubblePhysicsConfig,
         all_bubbles: &[BubbleRect],
-    ) -> i32 {
+    ) -> Vec<ColumnBubbleSlot> {
         let scale = screen.scale_factor;
         let bubble_size = (config.size * scale) as i32;
         let gap = (config.gap * scale) as i32;
@@ -37,7 +45,8 @@ impl CollisionResolver {
         let min_y = screen.y + margin;
         let max_y = (screen.y + screen.height - bubble_size - taskbar_margin).max(min_y);
         let mid_x = screen.x + screen.width / 2;
-        let mut same_edge_obstacles: Vec<BubbleRect> = all_bubbles
+        let min_spacing = bubble_size + gap;
+        let same_edge_obstacles: Vec<BubbleRect> = all_bubbles
             .iter()
             .filter(|b| {
                 if b.account_index == moving_index {
@@ -49,39 +58,86 @@ impl CollisionResolver {
             .cloned()
             .collect();
         if same_edge_obstacles.is_empty() {
-            return initial_y.clamp(min_y, max_y);
+            return vec![ColumnBubbleSlot {
+                account_index: moving_index,
+                target_y: desired_y.clamp(min_y, max_y),
+            }];
         }
-        same_edge_obstacles.sort_by_key(|b| b.y);
-        let mut candidate_y = initial_y.clamp(min_y, max_y);
-        for _ in 0..same_edge_obstacles.len() {
-            let mut has_overlap = false;
-            for obs in &same_edge_obstacles {
-                if Self::check_vertical_overlap(candidate_y, bubble_size, obs.y, obs.height, gap) {
-                    has_overlap = true;
-                    let obs_center = obs.y + obs.height / 2;
-                    let cand_center = candidate_y + bubble_size / 2;
-                    if cand_center >= obs_center {
-                        let try_down = obs.y + obs.height + gap;
-                        if try_down <= max_y {
-                            candidate_y = try_down;
-                        } else {
-                            candidate_y = (obs.y - bubble_size - gap).max(min_y);
-                        }
-                    } else {
-                        let try_up = obs.y - bubble_size - gap;
-                        if try_up >= min_y {
-                            candidate_y = try_up;
-                        } else {
-                            candidate_y = (obs.y + obs.height + gap).min(max_y);
-                        }
-                    }
+        let clamped_desired_y = desired_y.clamp(min_y, max_y);
+        let mut items: Vec<(u32, f64, bool)> = Vec::with_capacity(same_edge_obstacles.len() + 1);
+        items.push((moving_index, clamped_desired_y as f64, true));
+        for obs in &same_edge_obstacles {
+            let obs_y = obs.y.clamp(min_y, max_y);
+            let candidate_y = if obs_y == clamped_desired_y {
+                if clamped_desired_y + min_spacing <= max_y {
+                    obs_y as f64 + 0.1
+                } else {
+                    obs_y as f64 - 0.1
+                }
+            } else {
+                obs_y as f64
+            };
+            items.push((obs.account_index, candidate_y, false));
+        }
+        items.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        let n = items.len();
+        let mut positions: Vec<i32> = items.iter().map(|item| item.1.round() as i32).collect();
+        // Pass 1: Forward downward push
+        for i in 1..n {
+            if positions[i] < positions[i - 1] + min_spacing {
+                positions[i] = positions[i - 1] + min_spacing;
+            }
+        }
+        // Pass 2: Upward cascade if bottom boundary exceeded
+        if positions[n - 1] > max_y {
+            positions[n - 1] = max_y;
+            for i in (0..n - 1).rev() {
+                if positions[i] > positions[i + 1] - min_spacing {
+                    positions[i] = positions[i + 1] - min_spacing;
                 }
             }
-            if !has_overlap {
-                break;
+        }
+        // Pass 3: Downward clamp if top boundary exceeded
+        if positions[0] < min_y {
+            positions[0] = min_y;
+            for i in 1..n {
+                if positions[i] < positions[i - 1] + min_spacing {
+                    positions[i] = positions[i - 1] + min_spacing;
+                }
             }
         }
-        candidate_y.clamp(min_y, max_y)
+        items
+            .into_iter()
+            .enumerate()
+            .map(|(i, (idx, _, _))| ColumnBubbleSlot {
+                account_index: idx,
+                target_y: positions[i].clamp(min_y, max_y),
+            })
+            .collect()
+    }
+
+    /// Resolves vertical collision between bubbles along the same screen edge
+    pub fn resolve_multi_bubble_collision(
+        moving_index: u32,
+        initial_y: i32,
+        is_left_edge: bool,
+        screen: &ScreenMetrics,
+        config: &BubblePhysicsConfig,
+        all_bubbles: &[BubbleRect],
+    ) -> i32 {
+        let layout = Self::resolve_mutual_column_layout(
+            moving_index,
+            initial_y,
+            is_left_edge,
+            screen,
+            config,
+            all_bubbles,
+        );
+        layout
+            .iter()
+            .find(|slot| slot.account_index == moving_index)
+            .map(|slot| slot.target_y)
+            .unwrap_or(initial_y)
     }
 
     /// Finds next available vertical slot for newly spawned bubble
@@ -133,5 +189,210 @@ impl CollisionResolver {
             }
         }
         default_y
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_collision_resolution_same_y() {
+        let screen = ScreenMetrics {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+            scale_factor: 1.0,
+        };
+        let config = BubblePhysicsConfig::default();
+        let bubble_size = config.size as i32; // 56
+        let min_spacing = bubble_size + config.gap as i32;
+        let obstacles = vec![
+            BubbleRect {
+                account_index: 1,
+                x: 1906,
+                y: 300,
+                width: bubble_size,
+                height: bubble_size,
+            },
+            BubbleRect {
+                account_index: 2,
+                x: 1800,
+                y: 300,
+                width: bubble_size,
+                height: bubble_size,
+            },
+        ];
+        let layout = CollisionResolver::resolve_mutual_column_layout(
+            2,
+            300,
+            false,
+            &screen,
+            &config,
+            &obstacles,
+        );
+        let b1 = layout.iter().find(|s| s.account_index == 1).unwrap();
+        let b2 = layout.iter().find(|s| s.account_index == 2).unwrap();
+        assert!((b1.target_y - b2.target_y).abs() >= min_spacing);
+    }
+
+    #[test]
+    fn test_mutual_column_layout_same_y() {
+        let screen = ScreenMetrics {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+            scale_factor: 1.0,
+        };
+        let config = BubblePhysicsConfig::default();
+        let bubble_size = config.size as i32; // 56
+        let min_spacing = bubble_size + config.gap as i32; // 68
+        let obstacles = vec![
+            BubbleRect {
+                account_index: 1,
+                x: 1906,
+                y: 300,
+                width: bubble_size,
+                height: bubble_size,
+            },
+        ];
+        let layout = CollisionResolver::resolve_mutual_column_layout(
+            2,
+            300,
+            false,
+            &screen,
+            &config,
+            &obstacles,
+        );
+        assert_eq!(layout.len(), 2);
+        let b2 = layout.iter().find(|s| s.account_index == 2).unwrap();
+        let b1 = layout.iter().find(|s| s.account_index == 1).unwrap();
+        assert_eq!(b2.target_y, 300);
+        assert_eq!(b1.target_y, 300 + min_spacing);
+        assert!((b1.target_y - b2.target_y).abs() >= min_spacing);
+    }
+
+    #[test]
+    fn test_mutual_column_layout_top_boundary() {
+        let screen = ScreenMetrics {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+            scale_factor: 1.0,
+        };
+        let config = BubblePhysicsConfig::default();
+        let bubble_size = config.size as i32;
+        let min_spacing = bubble_size + config.gap as i32;
+        let min_y = screen.y + config.margin as i32;
+        let obstacles = vec![
+            BubbleRect {
+                account_index: 1,
+                x: 1906,
+                y: 15,
+                width: bubble_size,
+                height: bubble_size,
+            },
+        ];
+        let layout = CollisionResolver::resolve_mutual_column_layout(
+            2,
+            15,
+            false,
+            &screen,
+            &config,
+            &obstacles,
+        );
+        assert_eq!(layout.len(), 2);
+        for s in &layout {
+            assert!(s.target_y >= min_y);
+        }
+        let b1 = layout.iter().find(|s| s.account_index == 1).unwrap();
+        let b2 = layout.iter().find(|s| s.account_index == 2).unwrap();
+        assert!((b1.target_y - b2.target_y).abs() >= min_spacing);
+    }
+
+    #[test]
+    fn test_mutual_column_layout_bottom_boundary() {
+        let screen = ScreenMetrics {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+            scale_factor: 1.0,
+        };
+        let config = BubblePhysicsConfig::default();
+        let bubble_size = config.size as i32;
+        let min_spacing = bubble_size + config.gap as i32;
+        let max_y = screen.y + screen.height - bubble_size - config.taskbar_margin as i32;
+        let obstacles = vec![
+            BubbleRect {
+                account_index: 1,
+                x: 1906,
+                y: max_y,
+                width: bubble_size,
+                height: bubble_size,
+            },
+        ];
+        let layout = CollisionResolver::resolve_mutual_column_layout(
+            2,
+            max_y,
+            false,
+            &screen,
+            &config,
+            &obstacles,
+        );
+        assert_eq!(layout.len(), 2);
+        for s in &layout {
+            assert!(s.target_y <= max_y);
+        }
+        let b1 = layout.iter().find(|s| s.account_index == 1).unwrap();
+        let b2 = layout.iter().find(|s| s.account_index == 2).unwrap();
+        assert!((b1.target_y - b2.target_y).abs() >= min_spacing);
+    }
+
+    #[test]
+    fn test_mutual_column_layout_three_bubbles_cascade() {
+        let screen = ScreenMetrics {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+            scale_factor: 1.0,
+        };
+        let config = BubblePhysicsConfig::default();
+        let bubble_size = config.size as i32;
+        let min_spacing = bubble_size + config.gap as i32;
+        let obstacles = vec![
+            BubbleRect {
+                account_index: 1,
+                x: 1906,
+                y: 300,
+                width: bubble_size,
+                height: bubble_size,
+            },
+            BubbleRect {
+                account_index: 3,
+                x: 1906,
+                y: 368,
+                width: bubble_size,
+                height: bubble_size,
+            },
+        ];
+        let layout = CollisionResolver::resolve_mutual_column_layout(
+            2,
+            300,
+            false,
+            &screen,
+            &config,
+            &obstacles,
+        );
+        assert_eq!(layout.len(), 3);
+        let mut sorted_y: Vec<i32> = layout.iter().map(|s| s.target_y).collect();
+        sorted_y.sort();
+        for window in sorted_y.windows(2) {
+            assert!(window[1] - window[0] >= min_spacing);
+        }
     }
 }
