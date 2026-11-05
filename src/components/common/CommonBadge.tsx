@@ -21,7 +21,7 @@ const VARIANT_STYLES: Record<
   },
   secondary: {
     container:
-      "bg-background-surface border border-border text-content-secondary",
+      "bg-background-subtle border border-border text-content-secondary",
     iconColor: "text-content-secondary",
   },
   warning: {

@@ -21,7 +21,7 @@ export const PlatformRoadmap: React.FC = () => {
         {UPCOMING_PLATFORMS.map((p) => (
           <div
             key={p.id}
-            className="h-[86px] p-4 bg-background-surface/65 hover:bg-background-surface/80 border border-border rounded-panel flex items-center gap-3 transition-colors shadow-2xs backdrop-blur-xs"
+            className="h-[86px] p-4 bg-background-surface  hover:bg-background-surface  border border-border rounded-panel flex items-center gap-3 transition-colors shadow-2xs backdrop-blur-xs"
           >
             <AvatarSquareRounded
               size={38}
