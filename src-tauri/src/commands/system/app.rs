@@ -165,47 +165,54 @@ pub fn set_always_on_top(app: AppHandle, enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
+static LAST_OPENED_URL: std::sync::Mutex<Option<(String, std::time::Instant)>> = std::sync::Mutex::new(None);
+
 /// Opens external URL safely using default OS browser
 #[tauri::command]
-pub fn open_external_url(url: String) -> Result<(), String> {
-    if url.starts_with("http://") || url.starts_with("https://") {
-        #[cfg(target_os = "windows")]
-        {
-            use std::ffi::OsStr;
-            use std::os::windows::ffi::OsStrExt;
-            let wide: Vec<u16> = OsStr::new(&url)
-                .encode_wide()
-                .chain(std::iter::once(0))
-                .collect();
-            #[link(name = "shell32")]
-            unsafe extern "system" {
-                fn ShellExecuteW(
-                    hwnd: *mut std::ffi::c_void,
-                    lpOperation: *const u16,
-                    lpFile: *const u16,
-                    lpParameters: *const u16,
-                    lpDirectory: *const u16,
-                    nShowCmd: i32,
-                ) -> isize;
-            }
-            unsafe {
-                ShellExecuteW(
-                    std::ptr::null_mut(),
-                    std::ptr::null(),
-                    wide.as_ptr(),
-                    std::ptr::null(),
-                    std::ptr::null(),
-                    1,
-                );
-            }
-            return Ok(());
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            return Ok(());
-        }
+pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("Invalid URL scheme".into());
     }
-    Err("Invalid URL scheme".into())
+    if let Ok(mut guard) = LAST_OPENED_URL.lock() {
+        if let Some((ref last_url, ref last_time)) = *guard {
+            if last_url == &url && last_time.elapsed() < std::time::Duration::from_millis(1000) {
+                return Ok(());
+            }
+        }
+        *guard = Some((url.clone(), std::time::Instant::now()));
+    }
+    use tauri_plugin_opener::OpenerExt;
+    if app.opener().open_url(&url, None::<&str>).is_ok() {
+        return Ok(());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        use std::ffi::OsStr;
+        use std::os::windows::ffi::OsStrExt;
+        let wide_op: Vec<u16> = OsStr::new("open").encode_wide().chain(std::iter::once(0)).collect();
+        let wide_url: Vec<u16> = OsStr::new(&url).encode_wide().chain(std::iter::once(0)).collect();
+        #[link(name = "shell32")]
+        unsafe extern "system" {
+            fn ShellExecuteW(
+                hwnd: *mut std::ffi::c_void,
+                lpOperation: *const u16,
+                lpFile: *const u16,
+                lpParameters: *const u16,
+                lpDirectory: *const u16,
+                nShowCmd: i32,
+            ) -> isize;
+        }
+        let res = unsafe { ShellExecuteW(std::ptr::null_mut(), wide_op.as_ptr(), wide_url.as_ptr(), std::ptr::null(), std::ptr::null(), 1) };
+        if res > 32 {
+            return Ok(());
+        }
+        let _ = std::process::Command::new("cmd").args(["/c", "start", "", &url]).spawn();
+        return Ok(());
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        return Ok(());
+    }
 }
 
 /// Opens profiles directory in File Explorer
