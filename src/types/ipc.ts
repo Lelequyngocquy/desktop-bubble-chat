@@ -47,6 +47,7 @@ export const IPC_COMMANDS = {
   GET_BUBBLE_DEFAULT_COORDS: "get_bubble_default_coords",
   GET_BUBBLE_HOVER_COORDS: "get_bubble_hover_coords",
   SET_BUBBLE_CONFIG: "set_bubble_config",
+  SET_BUBBLE_POSITION_MODE: "set_bubble_position_mode",
 
   // Messenger Platform Commands
   OPEN_MESSENGER_AUTH: "open_messenger_auth",
@@ -143,9 +144,10 @@ export interface BubbleConfigPayload {
 }
 
 export interface BubbleConfigChangedPayload {
-  size: number;
-  bubbleSize: "sm" | "md" | "lg";
-  tuckRatio: number;
+  size?: number;
+  bubbleSize?: "sm" | "md" | "lg";
+  tuckRatio?: number;
+  bubblePositionMode?: "auto_tuck" | "free";
 }
 
 export interface IncomingMessagePayload {

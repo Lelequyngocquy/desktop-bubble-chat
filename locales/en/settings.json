@@ -41,7 +41,13 @@
     "size_label": "Display Size",
     "small": "Small (48px)",
     "medium": "Medium (56px)",
-    "large": "Large (64px)"
+    "large": "Large (64px)",
+    "position_mode_label": "Positioning Behavior",
+    "position_mode_desc": "Choose how floating chat bubbles behave on your desktop.",
+    "auto_tuck": "Auto-Tuck to Edge",
+    "auto_tuck_desc": "Bubbles automatically dock and tuck into the screen edge when idle",
+    "free": "Free Placement",
+    "free_desc": "Bubbles stay exactly where you place them without tucking into the edge"
   },
   "shortcuts": {
     "title": "Global Shortcuts",

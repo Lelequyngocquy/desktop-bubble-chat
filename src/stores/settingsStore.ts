@@ -5,6 +5,7 @@ import i18n from "../i18n";
 import { IPC_COMMANDS } from "../types/ipc";
 
 export type BubbleSize = "sm" | "md" | "lg";
+export type BubblePositionMode = "auto_tuck" | "free";
 export type AppLanguage = "vi" | "en";
 export type ThemeMode = "light" | "dark" | "system";
 export type CloseWindowAction = "ask" | "hide_to_tray" | "exit_app";
@@ -35,6 +36,7 @@ interface SettingsState {
   isAutoStart: boolean;
   isGlobalShortcutEnabled: boolean;
   bubbleSize: BubbleSize;
+  bubblePositionMode: BubblePositionMode;
   language: AppLanguage;
   isAutoTrimEnabled: boolean;
   themeMode: ThemeMode;
@@ -49,6 +51,7 @@ interface SettingsState {
   setGlobalShortcutEnabled: (enabled: boolean) => void;
   toggleGlobalShortcut: () => void;
   setBubbleSize: (size: BubbleSize) => void;
+  setBubblePositionMode: (mode: BubblePositionMode, skipIpc?: boolean) => void;
   setLanguage: (lang: AppLanguage, skipIpc?: boolean) => void;
   setAutoTrimEnabled: (enabled: boolean, skipIpc?: boolean) => void;
   toggleAutoTrim: () => void;
@@ -64,6 +67,7 @@ export const useSettingsStore = create<SettingsState>()(
       isAutoStart: false,
       isGlobalShortcutEnabled: true,
       bubbleSize: "md",
+      bubblePositionMode: "auto_tuck",
       language: "en",
       isAutoTrimEnabled: true,
       themeMode: "system",
@@ -84,6 +88,12 @@ export const useSettingsStore = create<SettingsState>()(
       setGlobalShortcutEnabled: (enabled) => set({ isGlobalShortcutEnabled: enabled }),
       toggleGlobalShortcut: () => set((state) => ({ isGlobalShortcutEnabled: !state.isGlobalShortcutEnabled })),
       setBubbleSize: (size) => set({ bubbleSize: size }),
+      setBubblePositionMode: (mode, skipIpc = false) => {
+        set({ bubblePositionMode: mode });
+        if (!skipIpc) {
+          invoke(IPC_COMMANDS.SET_BUBBLE_POSITION_MODE, { mode }).catch(() => {});
+        }
+      },
       setLanguage: (lang, skipIpc = false) => {
         set({ language: lang });
         i18n.changeLanguage(lang);
@@ -149,6 +159,9 @@ if (typeof window !== "undefined") {
           }
           if (parsed.state.themeMode) {
             applyThemeMode(parsed.state.themeMode);
+          }
+          if (parsed.state.bubblePositionMode) {
+            useSettingsStore.setState({ bubblePositionMode: parsed.state.bubblePositionMode });
           }
         }
       } catch (err) {

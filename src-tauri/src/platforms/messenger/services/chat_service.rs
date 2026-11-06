@@ -47,18 +47,23 @@ impl ChatService {
             width: chat_w as u32,
             height: chat_h as u32,
         }));
-        let untucked_pos = BubbleMovementEngine::calculate_hover_pos(
-            &screen,
-            &config,
-            bubble_x,
-            bubble_y,
-            true,
-        );
-        if let Some(bw) = &webview_bubble {
-            let _ = bw.set_position(tauri::Position::Physical(untucked_pos));
+        let untucked_pos = if config.is_free_position {
+            tauri::PhysicalPosition { x: bubble_x, y: bubble_y }
         } else {
-            crate::windows::native_bubble::untuck_native_bubble(app, account_index);
-        }
+            let pos = BubbleMovementEngine::calculate_hover_pos(
+                &screen,
+                &config,
+                bubble_x,
+                bubble_y,
+                true,
+            );
+            if let Some(bw) = &webview_bubble {
+                let _ = bw.set_position(tauri::Position::Physical(pos));
+            } else {
+                crate::windows::native_bubble::untuck_native_bubble(app, account_index);
+            }
+            pos
+        };
         let mid_x = screen.x + screen.width / 2;
         let target_x = if untucked_pos.x + bubble_w / 2 >= mid_x {
             untucked_pos.x - chat_w - gap
