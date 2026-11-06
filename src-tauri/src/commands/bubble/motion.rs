@@ -10,6 +10,10 @@ use crate::windows::bubble::{get_active_bubble_rects, get_bubble_window_label, r
 /// Snaps bubble to screen edge with collision avoidance
 #[tauri::command]
 pub fn snap_bubble(app: AppHandle, account_index: Option<u32>) -> Result<(), String> {
+    let config = get_bubble_physics_config(&app);
+    if config.is_free_position {
+        return Ok(());
+    }
     let idx = account_index.unwrap_or(1);
     #[cfg(target_os = "windows")]
     {
@@ -159,6 +163,32 @@ pub fn set_bubble_config(
             "size": config.size,
             "bubbleSize": size_str,
             "tuckRatio": config.tuck_ratio,
+        }),
+    );
+    Ok(())
+}
+
+/// Sets bubble position mode: "auto_tuck" (default) or "free"
+#[tauri::command]
+pub fn set_bubble_position_mode(
+    app: AppHandle,
+    mode: String,
+) -> Result<(), String> {
+    let is_free = mode == "free";
+    if let Some(state) = app.try_state::<BubbleConfigState>() {
+        if let Ok(mut guard) = state.0.write() {
+            guard.is_free_position = is_free;
+        }
+    }
+    if let Some(chat_state) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
+        chat_state.update_user_config(&app, |c| {
+            c.bubble_position_mode = mode.clone();
+        });
+    }
+    let _ = app.emit(
+        "bubble-config-changed",
+        serde_json::json!({
+            "bubblePositionMode": mode,
         }),
     );
     Ok(())

@@ -87,6 +87,43 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
                     if w != bubble_w as u32 {
                         crate::windows::native_bubble::set_native_bubble_size(account_index, bubble_w as u32);
                     }
+                    if config.is_free_position {
+                        let (target_x, target_y) = crate::movement::CollisionResolver::resolve_2d_free_collision(
+                            account_index,
+                            x,
+                            y,
+                            &screen,
+                            &config,
+                            &other_bubbles,
+                        );
+                        if target_x != x || target_y != y {
+                            crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
+                                crate::windows::native_bubble::NativeBubbleAction::SetPosition {
+                                    account_index,
+                                    x: target_x,
+                                    y: target_y,
+                                }
+                            );
+                            crate::windows::native_bubble::manager::update_cached_bubble_bounds(
+                                account_index,
+                                target_x,
+                                target_y,
+                                bubble_w as u32,
+                                bubble_w as u32,
+                            );
+                        }
+                        let rect = BubbleRect {
+                            account_index,
+                            x: target_x,
+                            y: target_y,
+                            width: bubble_w,
+                            height: bubble_w,
+                        };
+                        if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
+                            chat_state.set_bubble_rect(account_index, rect);
+                        }
+                        return Ok(rect);
+                    }
                     let mid_x = screen.x + screen.width / 2;
                     let is_left_edge = x + (bubble_w / 2) < mid_x;
                     let layout = crate::movement::CollisionResolver::resolve_mutual_column_layout(
@@ -155,7 +192,22 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
                     return Ok(rect);
                 }
             }
-            let target_pos = BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &other_bubbles);
+            let target_pos = if config.is_free_position {
+                let margin = (config.margin * screen.scale_factor) as i32;
+                let default_x = screen.x + margin + (account_index.saturating_sub(1) as i32) * (bubble_w + (config.gap * screen.scale_factor) as i32);
+                let default_y = screen.y + margin + 100;
+                let (resolved_x, resolved_y) = crate::movement::CollisionResolver::resolve_2d_free_collision(
+                    account_index,
+                    default_x,
+                    default_y,
+                    &screen,
+                    &config,
+                    &other_bubbles,
+                );
+                tauri::PhysicalPosition { x: resolved_x, y: resolved_y }
+            } else {
+                BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &other_bubbles)
+            };
             crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
                 crate::windows::native_bubble::NativeBubbleAction::Show {
                     account_index,
@@ -210,7 +262,22 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
                     other_bubbles.push(*obs);
                 }
             }
-            let target_pos = BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &other_bubbles);
+            let target_pos = if config.is_free_position {
+                let margin = (config.margin * screen.scale_factor) as i32;
+                let default_x = screen.x + margin + (account_index.saturating_sub(1) as i32) * (bubble_w + (config.gap * screen.scale_factor) as i32);
+                let default_y = screen.y + margin + 100;
+                let (resolved_x, resolved_y) = crate::movement::CollisionResolver::resolve_2d_free_collision(
+                    account_index,
+                    default_x,
+                    default_y,
+                    &screen,
+                    &config,
+                    &other_bubbles,
+                );
+                tauri::PhysicalPosition { x: resolved_x, y: resolved_y }
+            } else {
+                BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &other_bubbles)
+            };
             let _ = bubble_window.set_position(tauri::Position::Physical(target_pos));
             target_pos
         } else {
@@ -262,11 +329,14 @@ pub fn ensure_bubble_positioned_and_visible(app: &AppHandle, account_index: u32)
 
 /// Tucks floating bubbles into screen edge
 pub fn tuck_bubble(app: &AppHandle, account_index: Option<u32>) {
+    let config = crate::movement::get_bubble_physics_config(app);
+    if config.is_free_position {
+        return;
+    }
     let indices: Vec<u32> = match account_index {
         Some(idx) => vec![idx],
         None => (1..=5).collect(),
     };
-    let config = crate::movement::get_bubble_physics_config(app);
     for idx in indices {
         crate::utils::trim_controller::schedule_auto_trim_on_tuck(idx, app.clone());
         let label = get_bubble_window_label(idx);
