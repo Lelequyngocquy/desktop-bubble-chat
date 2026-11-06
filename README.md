@@ -43,9 +43,9 @@
 
 Ready-to-use installer for **Windows 10 / 11 (64-bit)**:
 
-[![Download for Windows](https://img.shields.io/badge/Download-v0.3.1%20(Installer%20.exe)-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v0.3.1/DesktopBubbleChat_0.3.1_x64-setup.exe)
+[![Download for Windows](<https://img.shields.io/badge/Download-v0.4.0%20(Installer%20.exe)-0078D6?style=for-the-badge&logo=windows&logoColor=white>)](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v0.4.0/DesktopBubbleChat_0.4.0_x64-setup.exe)
 
-- **Direct Download**: [DesktopBubbleChat_0.3.1_x64-setup.exe](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v0.3.1/DesktopBubbleChat_0.3.1_x64-setup.exe)
+- **Direct Download**: [DesktopBubbleChat_0.4.0_x64-setup.exe](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v0.4.0/DesktopBubbleChat_0.4.0_x64-setup.exe)
 - **All Releases & Changelog**: [GitHub Releases](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases)
 
 ---

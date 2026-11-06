@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Settings2,
   HelpCircle,
+  Sparkles,
 } from "lucide-react";
 import { useNavigationStore } from "../../stores/navigationStore";
 import {
@@ -24,7 +25,7 @@ import { NAVIGATION_ITEMS } from "../../config";
 import { AvatarCircle } from "../common";
 
 export const Sidebar: React.FC = () => {
-  const { t } = useTranslation(["common", "dashboard"]);
+  const { t } = useTranslation(["common", "dashboard", "settings"]);
   const activeTab = useNavigationStore((s) => s.activeTab);
   const setActiveTab = useNavigationStore((s) => s.setActiveTab);
   const conversations = useConversationStore((s) => s.conversations);
@@ -33,22 +34,37 @@ export const Sidebar: React.FC = () => {
   const systemUserInitials = useSystemUserStore((s) => s.systemUserInitials);
   const updateStatus = useUpdateStore((s) => s.status);
   const currentVersion = useUpdateStore((s) => s.currentVersion);
+  const availableVersion = useUpdateStore((s) => s.availableVersion);
   const currentLanguage = useSettingsStore((s) => s.language);
   const setLanguage = useSettingsStore((s) => s.setLanguage);
   const hasUpdate =
     updateStatus === "available" ||
     updateStatus === "downloading" ||
     updateStatus === "downloaded";
-  const navIconMap: Record<NavigationItemConfig["iconName"], React.ReactNode> = {
-    Home: <Home className="w-[18px] h-[18px]" />,
-    Unplug: <Unplug className="w-[18px] h-[18px]" />,
-    MessageSquare: <MessageSquare className="w-[18px] h-[18px]" />,
-    Bell: <Bell className="w-[18px] h-[18px]" />,
-    Activity: <Activity className="w-[18px] h-[18px]" />,
-    Settings2: <Settings2 className="w-[18px] h-[18px]" />,
-    HelpCircle: <HelpCircle className="w-[18px] h-[18px]" />,
+
+  const handleNavigateToUpdate = () => {
+    setActiveTab("settings");
+    setTimeout(() => {
+      const section = document.getElementById("section-update");
+      if (section) {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 100);
   };
-  const totalUnread = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+  const navIconMap: Record<NavigationItemConfig["iconName"], React.ReactNode> =
+    {
+      Home: <Home className="w-[18px] h-[18px]" />,
+      Unplug: <Unplug className="w-[18px] h-[18px]" />,
+      MessageSquare: <MessageSquare className="w-[18px] h-[18px]" />,
+      Bell: <Bell className="w-[18px] h-[18px]" />,
+      Activity: <Activity className="w-[18px] h-[18px]" />,
+      Settings2: <Settings2 className="w-[18px] h-[18px]" />,
+      HelpCircle: <HelpCircle className="w-[18px] h-[18px]" />,
+    };
+  const totalUnread = conversations.reduce(
+    (acc, c) => acc + (c.unreadCount || 0),
+    0,
+  );
   const getBadgeForTab = (id: NavTab): number | string | undefined => {
     switch (id) {
       case "connections":
@@ -93,9 +109,6 @@ export const Sidebar: React.FC = () => {
       id: "settings",
       label: t("dashboard:navigation.settings"),
       icon: <Settings2 className="w-[18px] h-[18px]" />,
-      badge: hasUpdate ? (
-        <span className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-xs" />
-      ) : undefined,
     },
     {
       id: "help",
@@ -182,7 +195,42 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Bottom section: Background service, Secondary Nav, Language Switcher & Version */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
+        {hasUpdate && (
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={handleNavigateToUpdate}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleNavigateToUpdate();
+              }
+            }}
+            className="bg-sidebar-card border border-sidebar-cardBorder hover:border-primary/50 dark:hover:border-primary/50 rounded-panel p-[14px] flex flex-col gap-2 cursor-pointer transition-all shadow-xs group"
+            title={t("settings:scroll_to_update")}
+          >
+            <div className="flex items-center justify-between text-content-primary">
+              <div className="flex items-center gap-2 min-w-0">
+                <Sparkles className="w-4 h-4 text-primary shrink-0" />
+                <span className="text-small font-medium leading-none truncate">
+                  {t("common:update_widget_title")}
+                </span>
+              </div>
+              <span className="px-1.5 py-0.5 bg-primary text-white text-[10px] font-bold rounded-pill animate-pulse leading-none shadow-xs shrink-0">
+                (new)
+              </span>
+            </div>
+            <p className="text-caption text-content-secondary leading-snug m-0 group-hover:text-content-primary transition-colors">
+              {availableVersion
+                ? t("common:update_widget_desc_ver", {
+                    version: availableVersion,
+                  })
+                : t("common:update_widget_desc")}
+            </p>
+          </div>
+        )}
+
         {/* Background Service Status Card */}
         <div className="bg-sidebar-card border border-sidebar-cardBorder rounded-panel p-[14px] flex flex-col gap-2">
           <div className="flex items-center gap-2 text-content-primary">
@@ -272,16 +320,11 @@ export const Sidebar: React.FC = () => {
 
         {/* App Version */}
         <div
-          onClick={() => setActiveTab("settings")}
+          onClick={handleNavigateToUpdate}
           className="pt-1 text-caption text-content-muted hover:text-primary cursor-pointer transition-colors flex items-center justify-center gap-1.5"
           title="Open Settings & Updates"
         >
           <span>DesktopBubbleChat v{currentVersion}</span>
-          {hasUpdate && (
-            <span className="px-1.5 py-0.5 bg-primary text-white text-[10px] font-bold rounded-pill animate-pulse leading-none shadow-xs">
-              {t("common:new_badge")}
-            </span>
-          )}
         </div>
       </div>
     </aside>
