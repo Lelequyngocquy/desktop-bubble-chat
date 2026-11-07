@@ -107,6 +107,12 @@
     "refresh_notes_tooltip": "Làm mới nội dung ghi chú từ GitHub",
     "loading_notes": "Đang tải thông tin bản phát hành thực tế từ GitHub...",
     "notes_error": "Không thể kết nối đến GitHub để lấy thông tin phát hành.",
-    "no_notes": "Chưa có dữ liệu phát hành. Nhấn 'Làm mới ghi chú' để tải từ GitHub."
+    "no_notes": "Chưa có dữ liệu phát hành. Nhấn 'Làm mới ghi chú' để tải từ GitHub.",
+    "release_history": "Lịch sử cập nhật các phiên bản",
+    "latest_badge": "Mới nhất",
+    "current_badge": "Hiện tại",
+    "all_releases_count": "{{count}} phiên bản",
+    "collapse_tip": "Nhấp để mở rộng hoặc thu gọn ghi chú",
+    "open_in_github": "Mở trang release này trên GitHub"
   }
 }

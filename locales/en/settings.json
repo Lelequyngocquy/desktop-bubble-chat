@@ -107,6 +107,12 @@
     "refresh_notes_tooltip": "Refresh release notes from GitHub",
     "loading_notes": "Loading release notes from GitHub...",
     "notes_error": "Failed to connect to GitHub for release notes.",
-    "no_notes": "No release notes available. Click 'Refresh Notes' to fetch from GitHub."
+    "no_notes": "No release notes available. Click 'Refresh Notes' to fetch from GitHub.",
+    "release_history": "Version Release History",
+    "latest_badge": "Latest",
+    "current_badge": "Current",
+    "all_releases_count": "{{count}} releases",
+    "collapse_tip": "Click to expand or collapse notes",
+    "open_in_github": "Open this release on GitHub"
   }
 }
