@@ -42,6 +42,10 @@ scripts/*
 !scripts/start.ps1
 !scripts/check_env.ps1
 !scripts/status.ps1
+!scripts/build.ps1
+!scripts/stop.ps1
+!scripts/*.mjs
+!scripts/*.json
 tests/
 docs/
 

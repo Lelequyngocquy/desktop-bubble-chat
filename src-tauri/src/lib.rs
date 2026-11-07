@@ -60,13 +60,14 @@ pub fn run() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(move |app_handle, shortcut, event| {
                     if event.state() == ShortcutState::Pressed {
-                        if let Ok(target) = "Ctrl+Shift+M".parse::<Shortcut>() {
-                            if shortcut == &target {
-                                let handle = app_handle.clone();
-                                tauri::async_runtime::spawn(async move {
-                                    commands::toggle_all_bubbles_impl(&handle, None, None).await;
-                                });
-                            }
+                        let is_match = "Ctrl+Shift+M".parse::<Shortcut>().map(|s| &s == shortcut).unwrap_or(false)
+                            || "CommandOrControl+Shift+M".parse::<Shortcut>().map(|s| &s == shortcut).unwrap_or(false)
+                            || "Super+Shift+M".parse::<Shortcut>().map(|s| &s == shortcut).unwrap_or(false);
+                        if is_match {
+                            let handle = app_handle.clone();
+                            tauri::async_runtime::spawn(async move {
+                                commands::toggle_all_bubbles_impl(&handle, None, None).await;
+                            });
                         }
                     }
                 })
@@ -177,9 +178,9 @@ pub fn run() {
             platforms::messenger::daemons::start_hover_and_autoclose_monitor(handle.clone(), Arc::clone(&chat_state_clone));
             utils::trim_controller::start_idle_trim_sweeper(handle.clone());
             utils::update_notifier::start_background_update_notifier(handle.clone());
-            if let Ok(shortcut) = "Ctrl+Shift+M".parse::<Shortcut>() {
-                if let Err(err) = app.global_shortcut().register(shortcut) {
-                    eprintln!("[Global Shortcut] Failed to register Ctrl+Shift+M: {}", err);
+            for sc in ["Ctrl+Shift+M", "CommandOrControl+Shift+M"] {
+                if let Ok(shortcut) = sc.parse::<Shortcut>() {
+                    let _ = app.global_shortcut().register(shortcut);
                 }
             }
             let _ = tray::update_tray_menu(&handle);

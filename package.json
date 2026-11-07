@@ -8,12 +8,11 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "app:start": "powershell -ExecutionPolicy Bypass -File scripts/start.ps1",
-    "app:stop": "powershell -ExecutionPolicy Bypass -File scripts/stop.ps1",
-    "app:build": "powershell -ExecutionPolicy Bypass -File scripts/build.ps1",
-    "app:check": "powershell -ExecutionPolicy Bypass -File scripts/check_env.ps1",
-    "app:perf": "powershell -ExecutionPolicy Bypass -File scripts/status.ps1",
-    "app:version": "powershell -ExecutionPolicy Bypass -File scripts/versioning.ps1",
+    "app:start": "node scripts/start.mjs",
+    "app:stop": "node scripts/stop.mjs",
+    "app:build": "node scripts/build.mjs",
+    "app:check": "node scripts/check-env.mjs",
+    "app:perf": "node scripts/status.mjs",
     "test:e2e": "node tests/e2e/run-appium-check.js"
   },
   "dependencies": {

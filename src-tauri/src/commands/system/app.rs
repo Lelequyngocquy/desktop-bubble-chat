@@ -223,43 +223,37 @@ pub fn open_profiles_folder(app: AppHandle) -> Result<(), String> {
     if !profiles_dir.exists() {
         let _ = std::fs::create_dir_all(&profiles_dir);
     }
+    use tauri_plugin_opener::OpenerExt;
+    if app.opener().open_path(profiles_dir.to_string_lossy().to_string(), None::<&str>).is_ok() {
+        return Ok(());
+    }
     #[cfg(target_os = "windows")]
     {
         use std::ffi::OsStr;
         use std::os::windows::ffi::OsStrExt;
         let path_str = profiles_dir.to_string_lossy().to_string();
-        let wide: Vec<u16> = OsStr::new(&path_str)
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect();
-        let op_open: Vec<u16> = OsStr::new("open")
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect();
+        let wide: Vec<u16> = OsStr::new(&path_str).encode_wide().chain(std::iter::once(0)).collect();
+        let op_open: Vec<u16> = OsStr::new("open").encode_wide().chain(std::iter::once(0)).collect();
         #[link(name = "shell32")]
         unsafe extern "system" {
-            fn ShellExecuteW(
-                hwnd: *mut std::ffi::c_void,
-                lpOperation: *const u16,
-                lpFile: *const u16,
-                lpParameters: *const u16,
-                lpDirectory: *const u16,
-                nShowCmd: i32,
-            ) -> isize;
+            fn ShellExecuteW(hwnd: *mut std::ffi::c_void, lpOperation: *const u16, lpFile: *const u16, lpParameters: *const u16, lpDirectory: *const u16, nShowCmd: i32) -> isize;
         }
         unsafe {
-            ShellExecuteW(
-                std::ptr::null_mut(),
-                op_open.as_ptr(),
-                wide.as_ptr(),
-                std::ptr::null(),
-                std::ptr::null(),
-                1,
-            );
+            ShellExecuteW(std::ptr::null_mut(), op_open.as_ptr(), wide.as_ptr(), std::ptr::null(), std::ptr::null(), 1);
         }
         Ok(())
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open").arg(&profiles_dir).spawn();
+        Ok(())
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let _ = std::process::Command::new("xdg-open").arg(&profiles_dir).spawn();
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     {
         Ok(())
     }

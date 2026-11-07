@@ -1,4 +1,4 @@
-﻿use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 /// Trims working set memory of current process
 pub fn trim_current_process_working_set() {
@@ -114,9 +114,9 @@ pub fn destroy_or_hibernate_main_window(app: &AppHandle) {
     if should_notify {
         use tauri_plugin_notification::NotificationExt;
         let (title, body) = if locale == "vi" {
-            ("DesktopBubbleChat đang chạy ngầm", "Ứng dụng vẫn đang nhận tin nhắn trong khay hệ thống. Bấm vào biểu tượng hoặc phím tắt để mở lại.")
+            ("DesktopBubbleChat đang chạy ngầm", "Ứng dụng vẫn đang nhận tin nhắn trong khay hệ thống. Bấm vào biểu tượng hoặc phím tắt (Ctrl+Shift+M / ⌘⇧M) để mở lại.")
         } else {
-            ("DesktopBubbleChat is running in background", "The app is still receiving messages in system tray. Click the tray icon or use shortcut to reopen.")
+            ("DesktopBubbleChat is running in background", "The app is still receiving messages in system tray. Click the tray icon or use shortcut (Ctrl+Shift+M / ⌘⇧M) to reopen.")
         };
         let _ = app.notification().builder().title(title).body(body).show();
     }
