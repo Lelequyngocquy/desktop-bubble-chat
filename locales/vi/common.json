@@ -24,7 +24,7 @@
   "status_running": "Đang chạy",
   "status_stopped": "Đã dừng",
   "running_in_background": "Đang chạy nền",
-  "running_in_background_desc": "Đóng cửa sổ vẫn sẽ giữ ứng dụng hoạt động.",
+  "running_in_background_desc": "Đóng cửa sổ vẫn sẽ giữ ứng dụng hoạt động và giúp tối ưu tài nguyên sử dụng.",
   "update_widget_title": "Cập nhật ứng dụng",
   "update_widget_desc": "Đã có bản cập nhật mới. Nhấn để cập nhật ngay.",
   "update_widget_desc_ver": "Phiên bản v{{version}} đã sẵn sàng. Nhấn để cập nhật.",
