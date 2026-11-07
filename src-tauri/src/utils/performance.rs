@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
@@ -82,40 +82,58 @@ pub fn collect_performance_snapshot(
     );
     let host_pid = std::process::id();
     let cpu_cores = sys.cpus().len() as u32;
-    let mut app_pids = HashSet::new();
-    app_pids.insert(host_pid);
+    let mut process_account_map: HashMap<u32, u32> = HashMap::new();
+    for (pid, process) in sys.processes() {
+        let p_name = process.name().to_string_lossy().to_lowercase();
+        if !p_name.contains("msedgewebview2") {
+            continue;
+        }
+        let pid_u32 = pid.as_u32();
+        let is_direct_child = process.parent().map(|p| p.as_u32() == host_pid).unwrap_or(false);
+        let cmd_joined = process.cmd().iter().map(|c| c.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
+        let is_broker = is_direct_child || cmd_joined.contains("--embedded-browser-webview=1") || (cmd_joined.contains("com.desktopbubblechat.app") && !cmd_joined.contains("--type="));
+        if is_broker {
+            let mut detected_acc = 0;
+            for idx in 1..=5 {
+                if cmd_joined.contains(&format!("messenger_{:02}", idx)) || cmd_joined.contains(&format!("messenger_{}", idx)) {
+                    detected_acc = idx;
+                    break;
+                }
+            }
+            process_account_map.insert(pid_u32, detected_acc);
+        }
+    }
     let mut added_more = true;
     while added_more {
         added_more = false;
         for (pid, process) in sys.processes() {
             let pid_u32 = pid.as_u32();
-            if app_pids.contains(&pid_u32) {
-                continue;
-            }
-            let is_child_of_app = process
-                .parent()
-                .map(|p| app_pids.contains(&p.as_u32()))
-                .unwrap_or(false);
-            if is_child_of_app {
-                app_pids.insert(pid_u32);
-                added_more = true;
+            if process_account_map.contains_key(&pid_u32) {
                 continue;
             }
             let p_name = process.name().to_string_lossy().to_lowercase();
-            if p_name.contains("msedgewebview2") || p_name.contains("desktopbubblechat") {
-                let cmd_joined = process
-                    .cmd()
-                    .iter()
-                    .map(|c| c.to_string_lossy())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-                    .to_lowercase();
-                if cmd_joined.contains("com.desktopbubblechat.app")
-                    || cmd_joined.contains("desktopbubblechat")
-                {
-                    app_pids.insert(pid_u32);
+            if !p_name.contains("msedgewebview2") {
+                continue;
+            }
+            if let Some(parent) = process.parent() {
+                let parent_u32 = parent.as_u32();
+                if let Some(&acc) = process_account_map.get(&parent_u32) {
+                    process_account_map.insert(pid_u32, acc);
                     added_more = true;
+                    continue;
                 }
+            }
+            let cmd_joined = process.cmd().iter().map(|c| c.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
+            if cmd_joined.contains("com.desktopbubblechat.app") || cmd_joined.contains("desktopbubblechat") {
+                let mut detected_acc = 0;
+                for idx in 1..=5 {
+                    if cmd_joined.contains(&format!("messenger_{:02}", idx)) || cmd_joined.contains(&format!("messenger_{}", idx)) {
+                        detected_acc = idx;
+                        break;
+                    }
+                }
+                process_account_map.insert(pid_u32, detected_acc);
+                added_more = true;
             }
         }
     }
@@ -125,75 +143,37 @@ pub fn collect_performance_snapshot(
     let mut total_ram_mb = 0.0;
     let mut total_cpu_percent = 0.0;
     let mut active_accounts = HashSet::new();
-    for pid_u32 in &app_pids {
-        let pid_obj = Pid::from_u32(*pid_u32);
+    if let Some(proc) = sys.processes().get(&Pid::from_u32(host_pid)) {
+        let working_set_mb = (proc.memory() as f64) / (1024.0 * 1024.0);
+        let cpu_percent = proc.cpu_usage() as f64;
+        total_ram_mb += working_set_mb;
+        total_cpu_percent += cpu_percent;
+        host_ram_mb += working_set_mb;
+        items.push(ProcessMetricItem {
+            pid: host_pid,
+            name: "Rust Core (Host & Native Bubbles)".to_string(),
+            category: "host".to_string(),
+            account_index: None,
+            account_name: None,
+            working_set_mb: (working_set_mb * 100.0).round() / 100.0,
+            cpu_percent: (cpu_percent * 10.0).round() / 10.0,
+            is_suspended: false,
+        });
+    }
+    for (&pid_u32, &acc_idx) in &process_account_map {
+        let pid_obj = Pid::from_u32(pid_u32);
         if let Some(proc) = sys.processes().get(&pid_obj) {
             let working_set_mb = (proc.memory() as f64) / (1024.0 * 1024.0);
             let cpu_percent = proc.cpu_usage() as f64;
             total_ram_mb += working_set_mb;
             total_cpu_percent += cpu_percent;
-            if *pid_u32 == host_pid {
-                host_ram_mb += working_set_mb;
+            let cmd_str = proc.cmd().iter().map(|c| c.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
+            if cmd_str.contains("--type=gpu-process") {
                 items.push(ProcessMetricItem {
-                    pid: *pid_u32,
-                    name: "Rust Core (Host & Native Bubbles)".to_string(),
-                    category: "host".to_string(),
-                    account_index: None,
-                    account_name: None,
-                    working_set_mb: (working_set_mb * 100.0).round() / 100.0,
-                    cpu_percent: (cpu_percent * 10.0).round() / 10.0,
-                    is_suspended: false,
-                });
-                continue;
-            }
-            let cmd_str = proc
-                .cmd()
-                .iter()
-                .map(|c| c.to_string_lossy())
-                .collect::<Vec<_>>()
-                .join(" ")
-                .to_lowercase();
-            let mut detected_account_index = None;
-            for idx in 1..=5 {
-                let pattern_padded = format!("messenger_{:02}", idx);
-                let pattern_single = format!("messenger_{}", idx);
-                if cmd_str.contains(&pattern_padded) || cmd_str.contains(&pattern_single) {
-                    detected_account_index = Some(idx);
-                    break;
-                }
-            }
-            if let Some(acc_idx) = detected_account_index {
-                active_accounts.insert(acc_idx);
-                let acc_name = chat_state.get_account_auth(acc_idx).map(|info| {
-                    if info.name.trim().is_empty() {
-                        format!("Account {:02}", acc_idx)
-                    } else {
-                        info.name
-                    }
-                });
-                let sub_type = if cmd_str.contains("--type=renderer") {
-                    "Renderer"
-                } else if cmd_str.contains("--type=utility") {
-                    "Utility"
-                } else {
-                    "Browser"
-                };
-                items.push(ProcessMetricItem {
-                    pid: *pid_u32,
-                    name: format!("Messenger {:02} ({})", acc_idx, sub_type),
-                    category: "messenger".to_string(),
-                    account_index: Some(acc_idx),
-                    account_name: acc_name,
-                    working_set_mb: (working_set_mb * 100.0).round() / 100.0,
-                    cpu_percent: (cpu_percent * 10.0).round() / 10.0,
-                    is_suspended: false,
-                });
-            } else if cmd_str.contains("--type=gpu-process") {
-                items.push(ProcessMetricItem {
-                    pid: *pid_u32,
+                    pid: pid_u32,
                     name: "GPU Acceleration (Direct3D)".to_string(),
                     category: "gpu".to_string(),
-                    account_index: None,
+                    account_index: if acc_idx > 0 { Some(acc_idx) } else { None },
                     account_name: None,
                     working_set_mb: (working_set_mb * 100.0).round() / 100.0,
                     cpu_percent: (cpu_percent * 10.0).round() / 10.0,
@@ -210,10 +190,10 @@ pub fn collect_performance_snapshot(
                     "Utility Broker Service"
                 };
                 items.push(ProcessMetricItem {
-                    pid: *pid_u32,
+                    pid: pid_u32,
                     name: name.to_string(),
                     category: "utility".to_string(),
-                    account_index: None,
+                    account_index: if acc_idx > 0 { Some(acc_idx) } else { None },
                     account_name: None,
                     working_set_mb: (working_set_mb * 100.0).round() / 100.0,
                     cpu_percent: (cpu_percent * 10.0).round() / 10.0,
@@ -221,24 +201,46 @@ pub fn collect_performance_snapshot(
                 });
             } else if cmd_str.contains("--type=crashpad-handler") {
                 items.push(ProcessMetricItem {
-                    pid: *pid_u32,
+                    pid: pid_u32,
                     name: "Crashpad Handler".to_string(),
                     category: "utility".to_string(),
-                    account_index: None,
+                    account_index: if acc_idx > 0 { Some(acc_idx) } else { None },
                     account_name: None,
+                    working_set_mb: (working_set_mb * 100.0).round() / 100.0,
+                    cpu_percent: (cpu_percent * 10.0).round() / 10.0,
+                    is_suspended: false,
+                });
+            } else if acc_idx > 0 {
+                active_accounts.insert(acc_idx);
+                let acc_name = chat_state.get_account_auth(acc_idx).map(|info| {
+                    if info.name.trim().is_empty() {
+                        format!("Account {:02}", acc_idx)
+                    } else {
+                        info.name
+                    }
+                });
+                let is_renderer = cmd_str.contains("--type=renderer") || proc.parent().map(|p| p.as_u32() != host_pid).unwrap_or(false);
+                let sub_type = if is_renderer { "Renderer" } else { "Broker" };
+                items.push(ProcessMetricItem {
+                    pid: pid_u32,
+                    name: format!("Messenger {:02} ({})", acc_idx, sub_type),
+                    category: "messenger".to_string(),
+                    account_index: Some(acc_idx),
+                    account_name: acc_name,
                     working_set_mb: (working_set_mb * 100.0).round() / 100.0,
                     cpu_percent: (cpu_percent * 10.0).round() / 10.0,
                     is_suspended: false,
                 });
             } else {
                 dashboard_ram_mb += working_set_mb;
-                let name = if cmd_str.contains("--type=renderer") {
+                let is_renderer = cmd_str.contains("--type=renderer") || proc.parent().map(|p| p.as_u32() != host_pid).unwrap_or(false);
+                let name = if is_renderer {
                     "Dashboard Web Renderer"
                 } else {
                     "Dashboard Main Window"
                 };
                 items.push(ProcessMetricItem {
-                    pid: *pid_u32,
+                    pid: pid_u32,
                     name: name.to_string(),
                     category: "dashboard".to_string(),
                     account_index: None,
@@ -337,6 +339,10 @@ pub fn trim_all_app_processes_memory(_app: &AppHandle) -> f64 {
                 if app_pids.contains(&pid_u32) {
                     continue;
                 }
+                let p_name = process.name().to_string_lossy().to_lowercase();
+                if !p_name.contains("msedgewebview2") && !p_name.contains("desktopbubblechat") && !p_name.contains("desktop-bubble-chat") {
+                    continue;
+                }
                 if process
                     .parent()
                     .map(|p| app_pids.contains(&p.as_u32()))
@@ -388,6 +394,10 @@ pub fn get_account_process_pids(account_index: u32) -> Vec<u32> {
             ProcessRefreshKind::nothing().with_cmd(UpdateKind::OnlyIfNotSet),
         );
         for (pid, proc) in sys.processes() {
+            let p_name = proc.name().to_string_lossy().to_lowercase();
+            if !p_name.contains("msedgewebview2") {
+                continue;
+            }
             let cmd_str = proc
                 .cmd()
                 .iter()
@@ -405,6 +415,10 @@ pub fn get_account_process_pids(account_index: u32) -> Vec<u32> {
             for (pid, proc) in sys.processes() {
                 let pid_u32 = pid.as_u32();
                 if pids.contains(&pid_u32) {
+                    continue;
+                }
+                let p_name = proc.name().to_string_lossy().to_lowercase();
+                if !p_name.contains("msedgewebview2") {
                     continue;
                 }
                 if let Some(parent) = proc.parent() {
