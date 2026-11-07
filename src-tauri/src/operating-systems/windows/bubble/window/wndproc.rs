@@ -1,4 +1,4 @@
-use std::sync::Arc;
+﻿use std::sync::Arc;
 use tauri::{Manager, PhysicalPosition};
 
 use super::ffi::*;
