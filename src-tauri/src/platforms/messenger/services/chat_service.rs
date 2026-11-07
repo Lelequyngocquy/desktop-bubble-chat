@@ -144,6 +144,7 @@ impl ChatService {
         Self::dock_chat_window(app, &chat_window, idx);
         let _ = chat_window.eval(MESSENGER_INJECT_SCRIPT);
         state.clear_unread_count(idx);
+        state.clear_recent_messages_for_account(idx);
         crate::windows::native_bubble::set_native_bubble_unread_count(idx, 0);
         let _ = app.emit("badge-updated", serde_json::json!({
             "accountIndex": idx,

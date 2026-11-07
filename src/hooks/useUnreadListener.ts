@@ -87,6 +87,9 @@ export const useUnreadListener = () => {
                 if (!isNaN(idx)) {
                   useMessengerStore.getState().setAccountUnreadCount(idx, cnt);
                   prevUnreadMap.current.set(idx, cnt);
+                  if (cnt <= 0) {
+                    useConversationStore.getState().clearAccountConversations(idx);
+                  }
                 }
               });
             }
@@ -111,6 +114,9 @@ export const useUnreadListener = () => {
             count = event.payload;
           }
           useMessengerStore.getState().setAccountUnreadCount(idx, count);
+          if (count <= 0) {
+            useConversationStore.getState().clearAccountConversations(idx);
+          }
           const prev = prevUnreadMap.current.get(idx) ?? 0;
           if (!isInitialGracePeriod.current && count > prev) {
             useMessengerStore.getState().triggerAccountPulse(idx);

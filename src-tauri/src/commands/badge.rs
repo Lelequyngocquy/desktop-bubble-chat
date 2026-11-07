@@ -7,10 +7,15 @@ use crate::state::ChatState;
 #[tauri::command]
 pub fn update_unread_badge(
     app: AppHandle,
+    state: State<'_, Arc<ChatState>>,
     count: u32,
     account_index: Option<u32>,
 ) -> Result<(), String> {
     let idx = account_index.unwrap_or(1);
+    state.set_unread_count(idx, count);
+    if count == 0 {
+        state.clear_recent_messages_for_account(idx);
+    }
     crate::windows::native_bubble::set_native_bubble_unread_count(idx, count);
     let _ = app.emit("badge-updated", serde_json::json!({
         "accountIndex": idx,
@@ -23,10 +28,15 @@ pub fn update_unread_badge(
 #[tauri::command]
 pub fn set_badge_count(
     app: AppHandle,
+    state: State<'_, Arc<ChatState>>,
     count: u32,
     account_index: Option<u32>,
 ) -> Result<(), String> {
     let idx = account_index.unwrap_or(1);
+    state.set_unread_count(idx, count);
+    if count == 0 {
+        state.clear_recent_messages_for_account(idx);
+    }
     crate::windows::native_bubble::set_native_bubble_unread_count(idx, count);
     let _ = app.emit("badge-updated", serde_json::json!({
         "accountIndex": idx,

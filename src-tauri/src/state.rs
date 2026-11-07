@@ -344,6 +344,13 @@ impl ChatState {
             Vec::new()
         }
     }
+
+    /// Clears recent messages for a specific account
+    pub fn clear_recent_messages_for_account(&self, account_index: u32) {
+        if let Ok(mut list) = self.recent_messages.lock() {
+            list.retain(|m| m.account_index != account_index);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -385,5 +392,33 @@ mod tests {
         let all_msgs = state.get_recent_messages(None);
         assert_eq!(all_msgs.len(), 20);
         assert_eq!(all_msgs[0].sender_name, "Sender 24");
+    }
+
+    #[test]
+    fn test_clear_recent_messages_for_account() {
+        let state = ChatState::default();
+        let msg1 = IncomingMessage {
+            account_index: 1,
+            sender_name: "Alice".into(),
+            body: "Msg 1".into(),
+            avatar_url: "".into(),
+            thread_id: "t_1".into(),
+            timestamp: 10000,
+        };
+        let msg2 = IncomingMessage {
+            account_index: 2,
+            sender_name: "Bob".into(),
+            body: "Msg 2".into(),
+            avatar_url: "".into(),
+            thread_id: "t_2".into(),
+            timestamp: 10100,
+        };
+        state.add_recent_message(msg1);
+        state.add_recent_message(msg2);
+        assert_eq!(state.get_recent_messages(None).len(), 2);
+        state.clear_recent_messages_for_account(1);
+        let remaining = state.get_recent_messages(None);
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].account_index, 2);
     }
 }
