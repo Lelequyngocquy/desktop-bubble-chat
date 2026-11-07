@@ -1,6 +1,8 @@
 # DesktopBubbleChat
 
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6?style=flat-square)](https://github.com/Lelequyngocquy/desktop-bubble-chat)
+[![Windows](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](#download)
+[![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white)](#download)
+[![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](#download)
 [![Tauri v2](https://img.shields.io/badge/Tauri-v2.0-24C8DB?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app/)
 [![React 19](https://img.shields.io/badge/React-19.1-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -50,11 +52,24 @@ Official production release **v1.0.0** packages:
 | Operating System | Package Format | Download Link | Architecture |
 | :--- | :--- | :--- | :--- |
 | **Windows 10 / 11** | Installer `.exe` | [DesktopBubbleChat_1.0.0_x64-setup.exe](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_x64-setup.exe) | x86_64 |
-| **Windows 10 / 11** | MSI Package `.msi` | [DesktopBubbleChat_1.0.0_x64_en-US.msi](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_x64_en-US.msi) | x86_64 |
-| **macOS (Apple Silicon)** | Disk Image `.dmg` | [DesktopBubbleChat_1.0.0_aarch64.dmg](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_aarch64.dmg) | M1/M2/M3/M4 |
-| **macOS (Intel)** | Disk Image `.dmg` | [DesktopBubbleChat_1.0.0_x64.dmg](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_x64.dmg) | x86_64 |
-| **Linux (Debian/Ubuntu)** | Package `.deb` | [desktop-bubble-chat_1.0.0_amd64.deb](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/desktop-bubble-chat_1.0.0_amd64.deb) | x86_64 |
-| **Linux (All Distros)** | Portable `.AppImage` | [DesktopBubbleChat_1.0.0_amd64.AppImage](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_amd64.AppImage) | x86_64 |
+| **macOS (Apple Silicon)** | Disk Image `.dmg` | [DesktopBubbleChat_1.0.0_aarch64.dmg](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_aarch64.dmg) | M1/M2/M3/M4 (`aarch64`) |
+| **Linux (Debian/Ubuntu)** | Package `.deb` | [desktop-bubble-chat_1.0.0_amd64.deb](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/desktop-bubble-chat_1.0.0_amd64.deb) | x86_64 (`amd64`) |
+| **Linux (Fedora/RHEL)** | Package `.rpm` | [DesktopBubbleChat-1.0.0-1.x86_64.rpm](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat-1.0.0-1.x86_64.rpm) | x86_64 |
+| **Linux (All Distros)** | Portable `.AppImage` | [DesktopBubbleChat_1.0.0_amd64.AppImage](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_amd64.AppImage) | x86_64 (`amd64`) |
+
+<details>
+<summary><b>SHA-256 Checksums & Signatures</b></summary>
+
+```text
+2a2e106933967d74194a39e504e06a9ccb6628524b4b37a6d445a4f09705cfd8  DesktopBubbleChat_1.0.0_x64-setup.exe
+28eeb31a019bbde895863750342815bf001364a19d20022c80e6223a67026800  DesktopBubbleChat_1.0.0_aarch64.dmg
+16465999ab7eff2794a1f5bbcb353f7f6666384fcd5b2174c0fce5b0ff117151  desktop-bubble-chat_1.0.0_amd64.deb
+1dbde9b6cd77007cc24001098325e0162dd85035ff6f6a24b23cf329a89e0b3c  DesktopBubbleChat-1.0.0-1.x86_64.rpm
+36f5923b6771085a06a251df2b61619d6c523901b83139efb0d1f7f4602490ec  DesktopBubbleChat_1.0.0_amd64.AppImage
+cc0fc815786d30ac83e88c0d63b1505cc7edec8bebaa354089b835982b3d9488  DesktopBubbleChat_1.0.0_aarch64.app.tar.gz
+```
+
+</details>
 
 **All Releases & Changelog**: [GitHub Releases](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases)
 
@@ -88,12 +103,16 @@ Guide for users installing pre-compiled releases on their desktop:
   chmod +x DesktopBubbleChat_1.0.0_amd64.AppImage
   ./DesktopBubbleChat_1.0.0_amd64.AppImage
   ```
-- **Installing `.deb` Package**:
+- **Installing `.deb` Package (Debian / Ubuntu / Mint)**:
   Install using `apt` so package dependencies are automatically resolved:
   ```bash
   sudo apt install ./desktop-bubble-chat_1.0.0_amd64.deb
   ```
   *(If installed via `dpkg -i` and dependencies are missing, run `sudo apt-get install -f` to repair).*
+- **Installing `.rpm` Package (Fedora / RHEL / openSUSE)**:
+  ```bash
+  sudo dnf install ./DesktopBubbleChat-1.0.0-1.x86_64.rpm
+  ```
 - **GNOME Shell System Tray Icon**:
   Default GNOME Shell hides standard tray icons. To display the DesktopBubbleChat tray icon:
   ```bash

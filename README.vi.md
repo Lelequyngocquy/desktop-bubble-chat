@@ -1,6 +1,8 @@
 # DesktopBubbleChat
 
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6?style=flat-square)](https://github.com/Lelequyngocquy/desktop-bubble-chat)
+[![Windows](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](#tải-về--cài-đặt)
+[![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white)](#tải-về--cài-đặt)
+[![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](#tải-về--cài-đặt)
 [![Tauri v2](https://img.shields.io/badge/Tauri-v2.0-24C8DB?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app/)
 [![React 19](https://img.shields.io/badge/React-19.1-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -50,11 +52,24 @@ Các gói phát hành chính thức phiên bản **v1.0.0**:
 | Hệ điều hành | Định dạng gói | Liên kết tải về | Kiến trúc |
 | :--- | :--- | :--- | :--- |
 | **Windows 10 / 11** | Bộ cài đặt `.exe` | [DesktopBubbleChat_1.0.0_x64-setup.exe](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_x64-setup.exe) | x86_64 |
-| **Windows 10 / 11** | Gói cài MSI `.msi` | [DesktopBubbleChat_1.0.0_x64_en-US.msi](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_x64_en-US.msi) | x86_64 |
-| **macOS (Apple Silicon)** | Ảnh đĩa `.dmg` | [DesktopBubbleChat_1.0.0_aarch64.dmg](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_aarch64.dmg) | M1/M2/M3/M4 |
-| **macOS (Intel)** | Ảnh đĩa `.dmg` | [DesktopBubbleChat_1.0.0_x64.dmg](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_x64.dmg) | x86_64 |
-| **Linux (Debian/Ubuntu)** | Gói cài `.deb` | [desktop-bubble-chat_1.0.0_amd64.deb](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/desktop-bubble-chat_1.0.0_amd64.deb) | x86_64 |
-| **Linux (Mọi Distro)** | Gói chạy trực tiếp `.AppImage` | [DesktopBubbleChat_1.0.0_amd64.AppImage](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_amd64.AppImage) | x86_64 |
+| **macOS (Apple Silicon)** | Ảnh đĩa `.dmg` | [DesktopBubbleChat_1.0.0_aarch64.dmg](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_aarch64.dmg) | M1/M2/M3/M4 (`aarch64`) |
+| **Linux (Debian/Ubuntu)** | Gói cài `.deb` | [desktop-bubble-chat_1.0.0_amd64.deb](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/desktop-bubble-chat_1.0.0_amd64.deb) | x86_64 (`amd64`) |
+| **Linux (Fedora/RHEL)** | Gói cài `.rpm` | [DesktopBubbleChat-1.0.0-1.x86_64.rpm](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat-1.0.0-1.x86_64.rpm) | x86_64 |
+| **Linux (Mọi Distro)** | Gói chạy trực tiếp `.AppImage` | [DesktopBubbleChat_1.0.0_amd64.AppImage](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_amd64.AppImage) | x86_64 (`amd64`) |
+
+<details>
+<summary><b>Mã băm SHA-256 & Chữ ký số kiểm tra toàn vẹn</b></summary>
+
+```text
+2a2e106933967d74194a39e504e06a9ccb6628524b4b37a6d445a4f09705cfd8  DesktopBubbleChat_1.0.0_x64-setup.exe
+28eeb31a019bbde895863750342815bf001364a19d20022c80e6223a67026800  DesktopBubbleChat_1.0.0_aarch64.dmg
+16465999ab7eff2794a1f5bbcb353f7f6666384fcd5b2174c0fce5b0ff117151  desktop-bubble-chat_1.0.0_amd64.deb
+1dbde9b6cd77007cc24001098325e0162dd85035ff6f6a24b23cf329a89e0b3c  DesktopBubbleChat-1.0.0-1.x86_64.rpm
+36f5923b6771085a06a251df2b61619d6c523901b83139efb0d1f7f4602490ec  DesktopBubbleChat_1.0.0_amd64.AppImage
+cc0fc815786d30ac83e88c0d63b1505cc7edec8bebaa354089b835982b3d9488  DesktopBubbleChat_1.0.0_aarch64.app.tar.gz
+```
+
+</details>
 
 **Tất cả phiên bản & Lịch sử cập nhật**: [GitHub Releases](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases)
 
@@ -87,12 +102,16 @@ Hướng dẫn dành cho người dùng cài đặt các gói ứng dụng đã 
   chmod +x DesktopBubbleChat_1.0.0_amd64.AppImage
   ./DesktopBubbleChat_1.0.0_amd64.AppImage
   ```
-- **Cài đặt gói `.deb`**:
+- **Cài đặt gói `.deb` (Debian / Ubuntu / Linux Mint)**:
   Nên dùng lệnh `apt` để tự động kéo các gói phụ thuộc cần thiết:
   ```bash
   sudo apt install ./desktop-bubble-chat_1.0.0_amd64.deb
   ```
   *(Nếu đã lỡ cài bằng `dpkg -i` và báo thiếu phụ thuộc, gõ lệnh `sudo apt-get install -f` để khắc phục).*
+- **Cài đặt gói `.rpm` (Fedora / RHEL / openSUSE)**:
+  ```bash
+  sudo dnf install ./DesktopBubbleChat-1.0.0-1.x86_64.rpm
+  ```
 - **Biểu tượng Khay hệ thống GNOME**:
   Giao diện GNOME Shell mặc định ẩn khay hệ thống. Để hiển thị icon trên thanh Top bar Ubuntu/GNOME:
   ```bash
