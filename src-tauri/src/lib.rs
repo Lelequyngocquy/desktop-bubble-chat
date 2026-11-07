@@ -205,6 +205,15 @@ pub fn run() {
             tauri::RunEvent::Exit => {
                 std::process::exit(0);
             }
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen { .. } => {
+                let _ = presentation::main_window::get_or_create_main_window(app_handle);
+                if let Some(main_win) = app_handle.get_webview_window("main") {
+                    let _ = main_win.unminimize();
+                    let _ = main_win.show();
+                    let _ = main_win.set_focus();
+                }
+            }
             _ => {}
         }
     });
