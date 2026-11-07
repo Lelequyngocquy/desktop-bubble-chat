@@ -71,12 +71,12 @@ html.dark {
   --color-bg-app: #0b0f19;
   --color-bg-workspace: #111827;
   --color-bg-surface: #1c293d;
-  --color-bg-subtle: #29364d;
+  --color-bg-subtle: #27354f;
 
   /* Typography & Content (Restful dark grays, no glowing glare) */
   --color-text-primary: #f8fafc;
   --color-text-secondary: #b4c8e3;
-  --color-text-muted: rgb(140, 153, 172);
+  --color-text-muted: rgb(186, 203, 227);
   --color-text-inverse: #ffffff;
 
   /* Borders & Dividers (Subdued dark gray, no bright glowing edges) */
@@ -85,8 +85,8 @@ html.dark {
   --color-border-focus: #3b82f6;
 
   /* Primary Accent */
-  --color-primary-main: #2d7dff;
-  --color-primary-foreground: #60a5fa;
+  --color-primary-main: #447fdd;
+  --color-primary-foreground: #447fdd;
   --color-primary-subtle: rgba(45, 125, 255, 0.15);
 
   /* Functional Status Colors */
