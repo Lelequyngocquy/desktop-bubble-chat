@@ -39,6 +39,7 @@ pub struct ChatState {
     pub recent_messages: Mutex<Vec<IncomingMessage>>,
     pub muted_accounts: Mutex<HashSet<u32>>,
     pub user_config: Mutex<crate::utils::user_cache::AppUserConfig>,
+    pub has_shown_tray_notification: AtomicBool,
 }
 
 impl Default for ChatState {
@@ -64,6 +65,7 @@ impl Default for ChatState {
             recent_messages: Mutex::new(Vec::new()),
             muted_accounts: Mutex::new(HashSet::new()),
             user_config: Mutex::new(crate::utils::user_cache::AppUserConfig::default()),
+            has_shown_tray_notification: AtomicBool::new(false),
         }
     }
 }
@@ -351,11 +353,24 @@ impl ChatState {
             list.retain(|m| m.account_index != account_index);
         }
     }
+
+    /// Marks tray notification as shown once per session
+    pub fn mark_tray_notification_shown(&self) -> bool {
+        self.has_shown_tray_notification.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_tray_notification_flag_one_shot() {
+        let state = ChatState::default();
+        assert!(state.mark_tray_notification_shown());
+        assert!(!state.mark_tray_notification_shown());
+        assert!(!state.mark_tray_notification_shown());
+    }
 
     #[test]
     fn test_incoming_message_deduplication_and_limit() {

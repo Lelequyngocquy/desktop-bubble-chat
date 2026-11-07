@@ -97,9 +97,14 @@ pub async fn open_thread(
     account_index: Option<u32>,
 ) -> Result<(), String> {
     let idx = account_index.unwrap_or(1);
+    let is_connected = state.get_account_auth(idx).map(|a| a.connected).unwrap_or(false);
+    if !is_connected || state.is_account_suspended(idx) {
+        return Err(format!("Account {} is not active or connected", idx));
+    }
     ChatService::open_chat(&app, &state, idx)?;
-    let chat_label = format!("chat-{:02}", idx);
-    if let Some(chat_window) = app.get_webview_window(&chat_label) {
+    let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
+    let chat_win = app.get_webview_window(&chat_label).or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
+    if let Some(chat_window) = chat_win {
         let clean_id = thread_id.trim();
         if !clean_id.is_empty() && !clean_id.starts_with("sender-") {
             let url = format!("https://www.messenger.com/t/{}", clean_id);

@@ -103,9 +103,13 @@ pub fn relocate_bubbles_to_screen(
 
 /// Destroys or hibernates main dashboard window to reach 0 MB UI RAM
 pub fn destroy_or_hibernate_main_window(app: &AppHandle) {
+    let mut should_notify = false;
+    let mut locale = "en".to_string();
     if let Some(state) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
         if !state.is_explicit_exit.load(std::sync::atomic::Ordering::SeqCst) {
             state.update_user_config(app, |c| c.is_dashboard_open = false);
+            should_notify = state.mark_tray_notification_shown();
+            locale = state.get_user_config().current_locale().to_string();
         }
     }
     if let Some(main_window) = app.get_webview_window("main") {
@@ -118,6 +122,15 @@ pub fn destroy_or_hibernate_main_window(app: &AppHandle) {
         #[cfg(target_os = "windows")]
         trim_current_process_working_set();
         let _ = crate::tray::update_tray_menu(app);
+    }
+    if should_notify {
+        use tauri_plugin_notification::NotificationExt;
+        let (title, body) = if locale == "vi" {
+            ("DesktopBubbleChat đang chạy ngầm", "Ứng dụng vẫn đang nhận tin nhắn trong khay hệ thống. Bấm vào biểu tượng hoặc phím tắt để mở lại.")
+        } else {
+            ("DesktopBubbleChat is running in background", "The app is still receiving messages in system tray. Click the tray icon or use shortcut to reopen.")
+        };
+        let _ = app.notification().builder().title(title).body(body).show();
     }
 }
 

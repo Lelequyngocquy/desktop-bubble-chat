@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useConversationStore } from "../../stores/conversationStore";
-import { messengerService } from "../../platforms/messenger";
+import { messengerService, useMessengerStore } from "../../platforms/messenger";
 import { TabHeader } from "../common";
 import { Conversation } from "../../types/conversation";
 import {
@@ -13,6 +13,7 @@ import { ClearNotificationsDialog } from "./dialogs";
 
 export const NotificationsWorkspace: React.FC = () => {
   const { t } = useTranslation("dashboard");
+  const accounts = useMessengerStore((s) => s.accounts);
   const conversations = useConversationStore((s) => s.conversations);
   const setConversations = useConversationStore((s) => s.setConversations);
   const markConversationRead = useConversationStore((s) => s.markConversationRead);
@@ -29,8 +30,15 @@ export const NotificationsWorkspace: React.FC = () => {
     setConversations([]);
   };
   const handleOpenNotification = (item: Conversation) => {
+    const accountIdx = item.accountIndex || 1;
+    const accountId = `messenger-${accountIdx.toString().padStart(2, "0")}`;
+    const targetAccount = accounts.find((a) => a.id === accountId);
+    if (!targetAccount || !targetAccount.isConnected) {
+      removeConversation(item.id);
+      return;
+    }
     markConversationRead(item.id);
-    messengerService.openThread(item.threadId || item.id, item.accountIndex || 1);
+    messengerService.openThread(item.threadId || item.id, accountIdx).catch(() => {});
   };
   return (
     <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden select-none">

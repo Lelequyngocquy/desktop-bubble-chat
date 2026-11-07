@@ -23,14 +23,19 @@ export const ActiveChatHeads: React.FC = () => {
     (s) => s.markConversationRead,
   );
   const isMessengerConnected = useMessengerStore(selectIsMessengerConnected);
+  const accounts = useMessengerStore((s) => s.accounts);
   const setActiveTab = useNavigationStore((s) => s.setActiveTab);
   const pinnedCount = conversations.filter((c) => c.isPinned).length;
   const handleOpenConversation = (item: Conversation) => {
+    const accountIdx = item.accountIndex || 1;
+    const accountId = `messenger-${accountIdx.toString().padStart(2, "0")}`;
+    const targetAccount = accounts.find((a) => a.id === accountId);
+    if (!targetAccount || !targetAccount.isConnected) {
+      removeConversation(item.id);
+      return;
+    }
     markConversationRead(item.id);
-    messengerService.openThread(
-      item.threadId || item.id,
-      item.accountIndex || 1,
-    );
+    messengerService.openThread(item.threadId || item.id, accountIdx).catch(() => {});
   };
 
   return (
