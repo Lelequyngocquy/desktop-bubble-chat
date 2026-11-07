@@ -15,37 +15,34 @@ pub fn snap_bubble(app: AppHandle, account_index: Option<u32>) -> Result<(), Str
         return Ok(());
     }
     let idx = account_index.unwrap_or(1);
-    #[cfg(target_os = "windows")]
-    {
-        if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx) {
-            if let Some((cur_x, cur_y, _, _)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
-                let screen = crate::movement::get_target_dashboard_screen(Some(&app));
-                let config = get_bubble_physics_config(&app);
-                let all_bubbles = get_active_bubble_rects(&app, None);
-                let snap = BubbleMovementEngine::calculate_snap(
-                    &screen,
-                    &config,
-                    PhysicalPosition { x: cur_x, y: cur_y },
-                    idx,
-                    &all_bubbles,
-                );
-                if snap.should_dismiss {
-                    let app_clone = app.clone();
-                    tauri::async_runtime::spawn(async move {
-                        let _ = super::lifecycle::toggle_bubble(app_clone, false, Some(idx)).await;
-                    });
-                    return Ok(());
-                }
-                crate::operating_systems::current::bubble::NativeBubbleManager::global().dispatch(
-                    crate::operating_systems::current::bubble::NativeBubbleAction::AnimateTo {
-                        account_index: idx,
-                        target_x: snap.target_x,
-                        target_y: snap.target_y,
-                        duration_ms: 160,
-                    }
-                );
+    if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx) {
+        if let Some((cur_x, cur_y, _, _)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
+            let screen = crate::movement::get_target_dashboard_screen(Some(&app));
+            let config = get_bubble_physics_config(&app);
+            let all_bubbles = get_active_bubble_rects(&app, None);
+            let snap = BubbleMovementEngine::calculate_snap(
+                &screen,
+                &config,
+                PhysicalPosition { x: cur_x, y: cur_y },
+                idx,
+                &all_bubbles,
+            );
+            if snap.should_dismiss {
+                let app_clone = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = super::lifecycle::toggle_bubble(app_clone, false, Some(idx)).await;
+                });
                 return Ok(());
             }
+            crate::operating_systems::current::bubble::NativeBubbleManager::global().dispatch(
+                crate::operating_systems::current::bubble::NativeBubbleAction::AnimateTo {
+                    account_index: idx,
+                    target_x: snap.target_x,
+                    target_y: snap.target_y,
+                    duration_ms: 160,
+                }
+            );
+            return Ok(());
         }
     }
     let label = get_bubble_window_label(idx);
@@ -132,22 +129,19 @@ pub fn set_bubble_config(
             }
         }
     }
-    #[cfg(target_os = "windows")]
-    {
-        let screen = crate::movement::get_target_dashboard_screen(Some(&app));
-        let bubble_size_px = (config.size * screen.scale_factor).round() as u32;
-        for idx in 1..=5 {
-            if crate::operating_systems::current::bubble::has_native_bubble(idx) {
-                crate::operating_systems::current::bubble::set_native_bubble_size(idx, bubble_size_px);
-                if let Some(chat_state) = app.try_state::<Arc<ChatState>>() {
-                    if let Some(mut rect) = chat_state.get_bubble_rect(idx) {
-                        rect.width = bubble_size_px as i32;
-                        rect.height = bubble_size_px as i32;
-                        chat_state.set_bubble_rect(idx, rect);
-                    }
+    let screen = crate::movement::get_target_dashboard_screen(Some(&app));
+    let bubble_size_px = (config.size * screen.scale_factor).round() as u32;
+    for idx in 1..=5 {
+        if crate::operating_systems::current::bubble::has_native_bubble(idx) {
+            crate::operating_systems::current::bubble::set_native_bubble_size(idx, bubble_size_px);
+            if let Some(chat_state) = app.try_state::<Arc<ChatState>>() {
+                if let Some(mut rect) = chat_state.get_bubble_rect(idx) {
+                    rect.width = bubble_size_px as i32;
+                    rect.height = bubble_size_px as i32;
+                    chat_state.set_bubble_rect(idx, rect);
                 }
-                let _ = snap_bubble(app.clone(), Some(idx));
             }
+            let _ = snap_bubble(app.clone(), Some(idx));
         }
     }
     let size_str = if config.size <= 50.0 {

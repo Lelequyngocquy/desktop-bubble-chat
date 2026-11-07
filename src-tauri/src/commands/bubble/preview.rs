@@ -7,17 +7,9 @@ pub fn toggle_native_bubble_preview(
     account_index: Option<u32>,
     visible: Option<bool>,
 ) -> Result<bool, String> {
-    #[cfg(target_os = "windows")]
-    {
-        let idx = account_index.unwrap_or(1);
-        let vis = visible.unwrap_or(true);
-        crate::operating_systems::current::bubble::toggle_native_bubble_prototype(Some(app), idx, vis)
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let _ = app;
-        Err("Native bubble only supported on Windows".into())
-    }
+    let idx = account_index.unwrap_or(1);
+    let vis = visible.unwrap_or(true);
+    crate::operating_systems::current::bubble::toggle_native_bubble_prototype(Some(app), idx, vis)
 }
 
 /// Command to test native bubble pulse animation
@@ -25,17 +17,9 @@ pub fn toggle_native_bubble_preview(
 pub fn trigger_native_bubble_pulse_preview(
     account_index: Option<u32>,
 ) -> Result<bool, String> {
-    #[cfg(target_os = "windows")]
-    {
-        let idx = account_index.unwrap_or(1);
-        crate::operating_systems::current::bubble::trigger_native_bubble_pulse(idx);
-        Ok(true)
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let _ = account_index;
-        Err("Native bubble only supported on Windows".into())
-    }
+    let idx = account_index.unwrap_or(1);
+    crate::operating_systems::current::bubble::trigger_native_bubble_pulse(idx);
+    Ok(true)
 }
 
 /// Command to test setting native bubble unread badge count
@@ -44,17 +28,9 @@ pub fn set_native_bubble_badge_preview(
     account_index: Option<u32>,
     count: u32,
 ) -> Result<bool, String> {
-    #[cfg(target_os = "windows")]
-    {
-        let idx = account_index.unwrap_or(1);
-        crate::operating_systems::current::bubble::set_native_bubble_unread_count(idx, count);
-        Ok(true)
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let _ = (account_index, count);
-        Err("Native bubble only supported on Windows".into())
-    }
+    let idx = account_index.unwrap_or(1);
+    crate::operating_systems::current::bubble::set_native_bubble_unread_count(idx, count);
+    Ok(true)
 }
 
 /// Command to test native bubble tuck animation
@@ -63,17 +39,9 @@ pub fn tuck_native_bubble_preview(
     app: AppHandle,
     account_index: Option<u32>,
 ) -> Result<bool, String> {
-    #[cfg(target_os = "windows")]
-    {
-        let idx = account_index.unwrap_or(1);
-        crate::operating_systems::current::bubble::tuck_native_bubble(&app, idx);
-        Ok(true)
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let _ = (app, account_index);
-        Err("Native bubble only supported on Windows".into())
-    }
+    let idx = account_index.unwrap_or(1);
+    crate::operating_systems::current::bubble::tuck_native_bubble(&app, idx);
+    Ok(true)
 }
 
 /// Command to test native bubble untuck animation
@@ -82,15 +50,7 @@ pub fn untuck_native_bubble_preview(
     app: AppHandle,
     account_index: Option<u32>,
 ) -> Result<bool, String> {
-    #[cfg(target_os = "windows")]
-    {
-        let idx = account_index.unwrap_or(1);
-        crate::operating_systems::current::bubble::untuck_native_bubble(&app, idx);
-        Ok(true)
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let _ = (app, account_index);
-        Err("Native bubble only supported on Windows".into())
-    }
+    let idx = account_index.unwrap_or(1);
+    crate::operating_systems::current::bubble::untuck_native_bubble(&app, idx);
+    Ok(true)
 }

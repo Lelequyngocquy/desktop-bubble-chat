@@ -13,11 +13,8 @@ pub fn get_bubble_position(
     account_index: Option<u32>,
 ) -> Result<PhysicalPosition<i32>, String> {
     let idx = account_index.unwrap_or(1);
-    #[cfg(target_os = "windows")]
-    {
-        if let Some((x, y, _, _)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
-            return Ok(PhysicalPosition { x, y });
-        }
+    if let Some((x, y, _, _)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
+        return Ok(PhysicalPosition { x, y });
     }
     if let Some(cs) = app.try_state::<Arc<ChatState>>() {
         if let Some(rect) = cs.get_bubble_rect(idx) {
@@ -56,20 +53,17 @@ pub fn get_all_bubble_positions(app: AppHandle) -> Result<Vec<BubblePositionDto>
         .and_then(|s| s.active_bubble_rects.lock().ok().map(|g| g.clone()))
         .unwrap_or_default();
     for idx in 1..=5 {
-        #[cfg(target_os = "windows")]
-        {
-            if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx) {
-                if let Some((x, y, w, h)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
-                    list.push(BubblePositionDto {
-                        account_index: idx,
-                        x,
-                        y,
-                        width: w,
-                        height: h,
-                        is_visible: true,
-                    });
-                    continue;
-                }
+        if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx) {
+            if let Some((x, y, w, h)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
+                list.push(BubblePositionDto {
+                    account_index: idx,
+                    x,
+                    y,
+                    width: w,
+                    height: h,
+                    is_visible: true,
+                });
+                continue;
             }
         }
         if let Some(sr) = state_rects.get(&idx) {
