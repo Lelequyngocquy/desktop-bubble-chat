@@ -29,7 +29,7 @@
     "notifications": "Thông báo desktop & Âm thanh",
     "notifications_desc": "Phát âm thanh bong bóng nhẹ và hiển thị thông báo toast khi có tin nhắn mới",
     "auto_trim": "Tự Động Thu Hồi RAM",
-    "auto_trim_desc": "Tự động tối ưu giải phóng RAM khi bong bóng thụt vào mép hoặc 2 giây sau khi nhận tin nhắn",
+    "auto_trim_desc": "Tự động tối ưu giải phóng RAM khi bong bóng thụt vào mép hoặc 5 giây sau khi nhận tin nhắn",
     "close_action": "Thao tác khi đóng Dashboard [X]",
     "close_action_desc": "Hành động được thực hiện khi nhấn nút [X] ở thanh tiêu đề Bảng điều khiển",
     "close_action_ask": "Luôn hỏi mỗi lần đóng",

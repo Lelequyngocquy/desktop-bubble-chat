@@ -23,7 +23,7 @@
   "item1_desc": "Each account runs in an isolated WebView2 profile. No shared cookies or interfering sessions.",
   "item2_title": "2. Distinct Color Coding",
   "item2_desc": "The system automatically assigns distinct theme colors so you never mix up accounts.",
-  "item3_title": "3. 1-Click Fast Switch",
+  "item3_title": "3. Hover Fast Switch",
   "item3_desc": "Point your cursor directly at a bubble or click Open Chat (Connections page) to summon its chat window immediately.",
   "settings_hint": "You can change bubble sizes or customize global shortcuts in Settings.",
   "feedback_title": "Send Feedback to Developers",

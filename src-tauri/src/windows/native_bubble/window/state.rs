@@ -172,7 +172,9 @@ impl BubbleWindowState {
     /// Triggers spring animation to untuck from edge (180ms ease-out cubic).
     pub fn untuck(&mut self) {
         crate::utils::trim_controller::cancel_auto_trim(self.account_index);
+        crate::utils::trim_controller::record_user_interaction(self.account_index);
         if let Some(app) = &self.app_handle {
+            crate::platforms::messenger::windows::set_chat_window_memory_target(app, self.account_index, false);
             let config = crate::movement::get_bubble_physics_config(app);
             if config.is_free_position {
                 return;

@@ -35,6 +35,11 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                 state.is_dragging = true;
                 state.has_dragged = false;
                 state.drag_start_win = POINT { x: state.x, y: state.y };
+                crate::utils::trim_controller::record_user_interaction(state.account_index);
+                if let Some(app) = state.app_handle.as_ref() {
+                    crate::platforms::messenger::windows::set_chat_window_memory_target(app, state.account_index, false);
+                    crate::utils::trim_controller::cancel_auto_trim(state.account_index);
+                }
             }
             0
         }
@@ -89,7 +94,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                         }
                     }
                 } else if !state.is_hovered {
-                    // Mouse enter: untuck
+                    // Mouse enter: pre-warm webview and untuck
                     state.is_hovered = true;
                     unsafe {
                         KillTimer(hwnd, TIMER_ID_HOVER_LEAVE);
@@ -102,6 +107,11 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                         TrackMouseEvent(&mut tme);
                     }
                     state.update_layered_buffer();
+                    crate::utils::trim_controller::record_user_interaction(state.account_index);
+                    if let Some(app) = state.app_handle.as_ref() {
+                        crate::platforms::messenger::windows::set_chat_window_memory_target(app, state.account_index, false);
+                        crate::utils::trim_controller::cancel_auto_trim(state.account_index);
+                    }
                     let is_free = state.app_handle.as_ref()
                         .map(|app| crate::movement::get_bubble_physics_config(app).is_free_position)
                         .unwrap_or(false);

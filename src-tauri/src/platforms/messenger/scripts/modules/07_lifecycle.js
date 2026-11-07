@@ -15,8 +15,15 @@ if (!window.__FOCUS_INTERCEPTOR_INSTALLED__) {
       if (window.__isWindowFocused === false) return false;
       return originalHasFocus();
     };
-    window.addEventListener("focus", () => { window.__isWindowFocused = true; });
-    window.addEventListener("blur", () => { window.__isWindowFocused = false; });
+    function updateFocusState(focused) {
+      window.__isWindowFocused = focused;
+      if (document.body) {
+        document.body.classList.toggle("app-window-unfocused", !focused);
+      }
+    }
+    window.addEventListener("focus", () => { updateFocusState(true); });
+    window.addEventListener("blur", () => { updateFocusState(false); });
+    document.addEventListener("visibilitychange", () => { updateFocusState(!document.hidden); });
   } catch (e) {}
 }
 
@@ -53,9 +60,9 @@ logDebug("LIFECYCLE-BOOT", ">>> BẮT ĐẦU KHỞI CHẠY HỆ THỐNG MESSENGE
   readyState: document.readyState,
 }, "info");
 
-// 1. Khởi động bộ giám sát thích ứng (Auth & URL Enforce)
-runAdaptiveInterval(checkAndReportAuth, 500, 4000);
-runAdaptiveInterval(enforceMessengerUrl, 500, 5000);
+// 1. Khởi động bộ giám sát thích ứng (Auth & URL Enforce) với chu kỳ giãn cách khi ẩn (15s & 30s)
+runAdaptiveInterval(checkAndReportAuth, 500, 15000);
+runAdaptiveInterval(enforceMessengerUrl, 500, 30000);
 
 // 2. Khởi động các module phụ thuộc vào DOM
 function bootstrapMessengerModules() {

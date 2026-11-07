@@ -267,6 +267,8 @@ impl NativeBubbleManager {
                                     }
                                     NativeBubbleAction::Untuck { account_index, app } => {
                                         crate::utils::trim_controller::cancel_auto_trim(account_index);
+                                        crate::utils::trim_controller::record_user_interaction(account_index);
+                                        crate::platforms::messenger::windows::set_chat_window_memory_target(&app, account_index, false);
                                         let config = crate::movement::get_bubble_physics_config(&app);
                                         if config.is_free_position {
                                             continue;
