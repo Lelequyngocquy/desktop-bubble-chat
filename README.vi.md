@@ -43,9 +43,9 @@
 
 Bộ cài đặt sẵn cho **Windows 10 / 11 (64-bit)**:
 
-[![Tải xuống cho Windows](<https://img.shields.io/badge/T%E1%BA%A3i%20xu%E1%BB%91ng-v0.4.0%20(Installer%20.exe)-0078D6?style=for-the-badge&logo=windows&logoColor=white>)](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v0.4.0/DesktopBubbleChat_0.4.0_x64-setup.exe)
+[![Tải xuống cho Windows](<https://img.shields.io/badge/T%E1%BA%A3i%20xu%E1%BB%91ng-v0.5.2%20(Installer%20.exe)-0078D6?style=for-the-badge&logo=windows&logoColor=white>)](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v0.5.2/DesktopBubbleChat_0.5.2_x64-setup.exe)
 
-- **Tải trực tiếp**: [DesktopBubbleChat_0.4.0_x64-setup.exe](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v0.4.0/DesktopBubbleChat_0.4.0_x64-setup.exe)
+- **Tải trực tiếp**: [DesktopBubbleChat_0.5.2_x64-setup.exe](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v0.5.2/DesktopBubbleChat_0.5.2_x64-setup.exe)
 - **Tất cả phiên bản & Lịch sử cập nhật**: [GitHub Releases](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases)
 
 ---
