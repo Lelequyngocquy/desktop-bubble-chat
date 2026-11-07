@@ -422,7 +422,7 @@ pub fn get_account_process_pids(account_index: u32) -> Vec<u32> {
                     continue;
                 }
                 let p_name = proc.name().to_string_lossy().to_lowercase();
-                if !p_name.contains("msedgewebview2") {
+                if !crate::operating_systems::current::MemoryOptimizer::is_webview_process(&p_name) {
                     continue;
                 }
                 if let Some(parent) = proc.parent() {
@@ -437,37 +437,7 @@ pub fn get_account_process_pids(account_index: u32) -> Vec<u32> {
     pids.into_iter().collect()
 }
 
-#[cfg(target_os = "windows")]
+/// Trims memory working set of target process
 pub fn trim_single_process_working_set(pid: u32) {
-    #[link(name = "kernel32")]
-    unsafe extern "system" {
-        fn OpenProcess(
-            dwDesiredAccess: u32,
-            bInheritHandle: i32,
-            dwProcessId: u32,
-        ) -> *mut std::ffi::c_void;
-        fn CloseHandle(hObject: *mut std::ffi::c_void) -> i32;
-        fn SetProcessWorkingSetSize(
-            hProcess: *mut std::ffi::c_void,
-            dwMinimumWorkingSetSize: usize,
-            dwMaximumWorkingSetSize: usize,
-        ) -> i32;
-        fn GetCurrentProcess() -> *mut std::ffi::c_void;
-    }
-    const PROCESS_SET_QUOTA: u32 = 0x0100;
-    const PROCESS_QUERY_INFORMATION: u32 = 0x0400;
-    unsafe {
-        if pid == std::process::id() {
-            SetProcessWorkingSetSize(GetCurrentProcess(), usize::MAX, usize::MAX);
-        } else {
-            let handle = OpenProcess(PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION, 0, pid);
-            if !handle.is_null() {
-                SetProcessWorkingSetSize(handle, usize::MAX, usize::MAX);
-                CloseHandle(handle);
-            }
-        }
-    }
+    crate::operating_systems::current::MemoryOptimizer::trim_single_process_working_set(pid);
 }
-
-#[cfg(not(target_os = "windows"))]
-pub fn trim_single_process_working_set(_pid: u32) {}

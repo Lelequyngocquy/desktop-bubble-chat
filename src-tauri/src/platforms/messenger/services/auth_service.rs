@@ -8,7 +8,7 @@ use crate::platforms::messenger::windows::{
     get_or_create_messenger_window, hide_all_other_messenger_windows,
 };
 use crate::state::ChatState;
-use crate::windows::bubble::{ensure_bubble_positioned_and_visible, get_bubble_window_label};
+use crate::presentation::bubble::{ensure_bubble_positioned_and_visible, get_bubble_window_label};
 
 pub struct AuthService;
 

@@ -127,7 +127,7 @@ pub fn get_target_dashboard_screen(app: Option<&tauri::AppHandle>) -> ScreenMetr
     }
     #[cfg(target_os = "windows")]
     {
-        use crate::windows::native_bubble::window::{GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN};
+        use crate::operating_systems::windows::bubble::window::{GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN};
         let cx = unsafe { GetSystemMetrics(SM_CXSCREEN) };
         let cy = unsafe { GetSystemMetrics(SM_CYSCREEN) };
         let screen = ScreenMetrics {

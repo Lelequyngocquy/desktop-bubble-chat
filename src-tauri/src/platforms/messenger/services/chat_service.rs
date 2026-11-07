@@ -7,7 +7,7 @@ use crate::platforms::messenger::windows::{
     get_messenger_window_label, get_or_create_messenger_window, hide_all_other_messenger_windows,
 };
 use crate::state::ChatState;
-use crate::windows::bubble::{get_bubble_window_label, tuck_bubble};
+use crate::presentation::bubble::{get_bubble_window_label, tuck_bubble};
 
 pub struct ChatService;
 
@@ -15,7 +15,7 @@ impl ChatService {
     /// Docks Messenger chat window next to the corresponding bubble
     pub fn dock_chat_window(app: &AppHandle, chat_window: &tauri::WebviewWindow, account_index: u32) {
         #[cfg(target_os = "windows")]
-        let native_bounds = crate::windows::native_bubble::NativeBubbleManager::global().get_bounds(account_index);
+        let native_bounds = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(account_index);
         #[cfg(not(target_os = "windows"))]
         let native_bounds: Option<(i32, i32, u32, u32)> = None;
         let bubble_label = get_bubble_window_label(account_index);
@@ -60,7 +60,7 @@ impl ChatService {
             if let Some(bw) = &webview_bubble {
                 let _ = bw.set_position(tauri::Position::Physical(pos));
             } else {
-                crate::windows::native_bubble::untuck_native_bubble(app, account_index);
+                crate::operating_systems::current::bubble::untuck_native_bubble(app, account_index);
             }
             pos
         };
@@ -102,7 +102,7 @@ impl ChatService {
         let is_bubble_already_active = {
             #[cfg(target_os = "windows")]
             {
-                crate::windows::native_bubble::NativeBubbleManager::global().has_bubble(idx)
+                crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx)
             }
             #[cfg(not(target_os = "windows"))]
             {
@@ -145,7 +145,7 @@ impl ChatService {
         let _ = chat_window.eval(MESSENGER_INJECT_SCRIPT);
         state.clear_unread_count(idx);
         state.clear_recent_messages_for_account(idx);
-        crate::windows::native_bubble::set_native_bubble_unread_count(idx, 0);
+        crate::operating_systems::current::bubble::set_native_bubble_unread_count(idx, 0);
         let _ = app.emit("badge-updated", serde_json::json!({
             "accountIndex": idx,
             "count": 0

@@ -21,7 +21,7 @@ export const QuickTipsSection: React.FC = () => {
         <TipCard
           icon={<Keyboard className="w-5 h-5" />}
           title={t("shortcut_title")}
-          badge="Ctrl + Shift + M"
+          badge="Ctrl + Shift + M / ⌘ + Shift + M"
           description={t("shortcut_desc")}
         />
       </div>

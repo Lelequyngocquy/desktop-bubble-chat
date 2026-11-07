@@ -1,10 +1,13 @@
 pub mod commands;
+pub mod core;
 pub mod movement;
+#[path = "operating-systems/mod.rs"]
+pub mod operating_systems;
 pub mod platforms;
 pub mod state;
 pub mod tray;
 pub mod utils;
-pub mod windows;
+pub mod presentation;
 
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -27,7 +30,7 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             println!("\x1b[33m[SingleInstance] Second instance launch detected -> Focusing primary instance...\x1b[0m");
             let handle = app.clone();
-            let _ = crate::windows::main_window::get_or_create_main_window(&handle);
+            let _ = crate::presentation::main_window::get_or_create_main_window(&handle);
             if let Some(main_win) = app.get_webview_window("main") {
                 let _ = main_win.unminimize();
                 let _ = main_win.show();
@@ -57,13 +60,14 @@ pub fn run() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(move |app_handle, shortcut, event| {
                     if event.state() == ShortcutState::Pressed {
-                        if let Ok(target) = "Ctrl+Shift+M".parse::<Shortcut>() {
-                            if shortcut == &target {
-                                let handle = app_handle.clone();
-                                tauri::async_runtime::spawn(async move {
-                                    commands::toggle_all_bubbles_impl(&handle, None, None).await;
-                                });
-                            }
+                        let is_match = "Ctrl+Shift+M".parse::<Shortcut>().map(|s| &s == shortcut).unwrap_or(false)
+                            || "CommandOrControl+Shift+M".parse::<Shortcut>().map(|s| &s == shortcut).unwrap_or(false)
+                            || "Super+Shift+M".parse::<Shortcut>().map(|s| &s == shortcut).unwrap_or(false);
+                        if is_match {
+                            let handle = app_handle.clone();
+                            tauri::async_runtime::spawn(async move {
+                                commands::toggle_all_bubbles_impl(&handle, None, None).await;
+                            });
                         }
                     }
                 })
@@ -147,8 +151,8 @@ pub fn run() {
             }
             chat_state_clone.is_always_on_top.store(initial_config.is_always_on_top, Ordering::SeqCst);
             #[cfg(target_os = "windows")]
-            crate::windows::native_bubble::set_native_bubble_always_on_top(initial_config.is_always_on_top);
-            windows::main_window::setup_main_window(&handle);
+            crate::operating_systems::current::bubble::set_native_bubble_always_on_top(initial_config.is_always_on_top);
+            presentation::main_window::setup_main_window(&handle);
             println!("[Startup] Restoring active bubbles from cache: {:?}", initial_config.active_bubble_accounts);
             let mut committed_rects: Vec<movement::BubbleRect> = Vec::new();
             for &idx in &initial_config.active_bubble_accounts {
@@ -164,19 +168,19 @@ pub fn run() {
             }
             if initial_config.is_dashboard_open {
                 println!("[Startup] Dashboard configured ON -> Showing Dashboard");
-                let _ = windows::main_window::get_or_create_main_window(&handle);
+                let _ = presentation::main_window::get_or_create_main_window(&handle);
             } else {
                 println!("[Startup] Dashboard configured OFF -> Hibernating Dashboard");
-                windows::main_window::destroy_or_hibernate_main_window(&handle);
+                presentation::main_window::destroy_or_hibernate_main_window(&handle);
             }
             platforms::messenger::windows::setup_chat_window(&handle, Arc::clone(&chat_state_clone));
             platforms::messenger::daemons::start_auth_watcher(handle.clone(), Arc::clone(&chat_state_clone));
             platforms::messenger::daemons::start_hover_and_autoclose_monitor(handle.clone(), Arc::clone(&chat_state_clone));
             utils::trim_controller::start_idle_trim_sweeper(handle.clone());
             utils::update_notifier::start_background_update_notifier(handle.clone());
-            if let Ok(shortcut) = "Ctrl+Shift+M".parse::<Shortcut>() {
-                if let Err(err) = app.global_shortcut().register(shortcut) {
-                    eprintln!("[Global Shortcut] Failed to register Ctrl+Shift+M: {}", err);
+            for sc in ["Ctrl+Shift+M", "CommandOrControl+Shift+M"] {
+                if let Ok(shortcut) = sc.parse::<Shortcut>() {
+                    let _ = app.global_shortcut().register(shortcut);
                 }
             }
             let _ = tray::update_tray_menu(&handle);
@@ -201,6 +205,15 @@ pub fn run() {
             }
             tauri::RunEvent::Exit => {
                 std::process::exit(0);
+            }
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen { .. } => {
+                let _ = presentation::main_window::get_or_create_main_window(app_handle);
+                if let Some(main_win) = app_handle.get_webview_window("main") {
+                    let _ = main_win.unminimize();
+                    let _ = main_win.show();
+                    let _ = main_win.set_focus();
+                }
             }
             _ => {}
         }

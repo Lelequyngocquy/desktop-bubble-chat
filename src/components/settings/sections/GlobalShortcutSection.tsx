@@ -25,7 +25,7 @@ export const GlobalShortcutSection: React.FC<GlobalShortcutSectionProps> = ({
               {t("settings:shortcuts.toggle_label")}
             </span>
             <span className="px-2 py-0.5 bg-background-app border border-border rounded-xs text-caption font-mono text-content-primary font-semibold">
-              Ctrl + Shift + M
+              Ctrl + Shift + M / ⌘ + Shift + M
             </span>
           </div>
           <span className="text-caption text-content-secondary">

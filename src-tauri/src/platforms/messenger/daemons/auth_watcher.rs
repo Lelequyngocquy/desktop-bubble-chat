@@ -6,7 +6,7 @@ use crate::platforms::messenger::parser::parse_unread_from_title;
 use crate::platforms::messenger::verifier::is_window_logged_in;
 use crate::platforms::messenger::windows::get_messenger_window_label;
 use crate::state::ChatState;
-use crate::windows::bubble::ensure_bubble_positioned_and_visible;
+use crate::presentation::bubble::ensure_bubble_positioned_and_visible;
 
 /// Daemon thread monitoring real-time Messenger login state and unread message counts
 pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
@@ -113,10 +113,10 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                             if count != prev_count {
                                 unread_map.insert(idx, count);
                                 if count > prev_count {
-                                    crate::windows::native_bubble::trigger_native_bubble_pulse(idx);
+                                    crate::operating_systems::current::bubble::trigger_native_bubble_pulse(idx);
                                 }
                                 chat_state.set_unread_count(idx, count);
-                                crate::windows::native_bubble::set_native_bubble_unread_count(idx, count);
+                                crate::operating_systems::current::bubble::set_native_bubble_unread_count(idx, count);
                                 let _ = app_handle.emit("badge-updated", serde_json::json!({
                                     "accountIndex": idx,
                                     "count": count

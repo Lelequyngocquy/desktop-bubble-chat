@@ -20,7 +20,7 @@ pub fn get_available_account_indices(app_handle: &AppHandle) -> Vec<u32> {
 pub fn is_bubble_visible(app_handle: &AppHandle, account_index: u32) -> bool {
     #[cfg(target_os = "windows")]
     {
-        if crate::windows::native_bubble::has_native_bubble(account_index) {
+        if crate::operating_systems::current::bubble::has_native_bubble(account_index) {
             return true;
         }
     }
@@ -64,8 +64,8 @@ pub fn is_main_window_open(app_handle: &AppHandle) -> bool {
 /// Toggles main dashboard window from tray
 pub fn toggle_main_window(app_handle: &AppHandle) {
     if is_main_window_open(app_handle) {
-        crate::windows::main_window::destroy_or_hibernate_main_window(app_handle);
+        crate::presentation::main_window::destroy_or_hibernate_main_window(app_handle);
     } else {
-        let _ = crate::windows::main_window::get_or_create_main_window(app_handle);
+        let _ = crate::presentation::main_window::get_or_create_main_window(app_handle);
     }
 }

@@ -4,7 +4,7 @@ use tauri::{AppHandle, Manager, PhysicalPosition};
 use super::dto::{BubblePositionDto, SnapCoordsDto};
 use crate::movement::{get_bubble_physics_config, BubbleMovementEngine, BubbleRect};
 use crate::state::ChatState;
-use crate::windows::bubble::{get_active_bubble_rects, get_bubble_window_label};
+use crate::presentation::bubble::{get_active_bubble_rects, get_bubble_window_label};
 
 /// Returns current position of a specified bubble
 #[tauri::command]
@@ -15,7 +15,7 @@ pub fn get_bubble_position(
     let idx = account_index.unwrap_or(1);
     #[cfg(target_os = "windows")]
     {
-        if let Some((x, y, _, _)) = crate::windows::native_bubble::NativeBubbleManager::global().get_bounds(idx) {
+        if let Some((x, y, _, _)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
             return Ok(PhysicalPosition { x, y });
         }
     }
@@ -58,8 +58,8 @@ pub fn get_all_bubble_positions(app: AppHandle) -> Result<Vec<BubblePositionDto>
     for idx in 1..=5 {
         #[cfg(target_os = "windows")]
         {
-            if crate::windows::native_bubble::NativeBubbleManager::global().has_bubble(idx) {
-                if let Some((x, y, w, h)) = crate::windows::native_bubble::NativeBubbleManager::global().get_bounds(idx) {
+            if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx) {
+                if let Some((x, y, w, h)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
                     list.push(BubblePositionDto {
                         account_index: idx,
                         x,

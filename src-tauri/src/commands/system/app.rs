@@ -29,13 +29,13 @@ pub fn toggle_maximize_main_window(app: AppHandle) -> Result<bool, String> {
 /// Hides main dashboard window to system tray (triggers hibernation)
 #[tauri::command]
 pub fn hide_main_window(app: AppHandle) {
-    crate::windows::main_window::destroy_or_hibernate_main_window(&app);
+    crate::presentation::main_window::destroy_or_hibernate_main_window(&app);
 }
 
 /// Shows or recreates main dashboard window
 #[tauri::command]
 pub fn show_main_window(app: AppHandle) {
-    let _ = crate::windows::main_window::get_or_create_main_window(&app);
+    let _ = crate::presentation::main_window::get_or_create_main_window(&app);
 }
 
 /// Updates system tray menu status from frontend/store
@@ -146,7 +146,7 @@ pub fn set_always_on_top(app: AppHandle, enabled: bool) -> Result<(), String> {
         let _ = main_win.set_always_on_top(false);
     }
     #[cfg(target_os = "windows")]
-    crate::windows::native_bubble::set_native_bubble_always_on_top(enabled);
+    crate::operating_systems::current::bubble::set_native_bubble_always_on_top(enabled);
     for idx in 1..=5 {
         let bubble_label = format!("bubble-{:02}", idx);
         if let Some(w) = app.get_webview_window(&bubble_label) {
@@ -223,43 +223,37 @@ pub fn open_profiles_folder(app: AppHandle) -> Result<(), String> {
     if !profiles_dir.exists() {
         let _ = std::fs::create_dir_all(&profiles_dir);
     }
+    use tauri_plugin_opener::OpenerExt;
+    if app.opener().open_path(profiles_dir.to_string_lossy().to_string(), None::<&str>).is_ok() {
+        return Ok(());
+    }
     #[cfg(target_os = "windows")]
     {
         use std::ffi::OsStr;
         use std::os::windows::ffi::OsStrExt;
         let path_str = profiles_dir.to_string_lossy().to_string();
-        let wide: Vec<u16> = OsStr::new(&path_str)
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect();
-        let op_open: Vec<u16> = OsStr::new("open")
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect();
+        let wide: Vec<u16> = OsStr::new(&path_str).encode_wide().chain(std::iter::once(0)).collect();
+        let op_open: Vec<u16> = OsStr::new("open").encode_wide().chain(std::iter::once(0)).collect();
         #[link(name = "shell32")]
         unsafe extern "system" {
-            fn ShellExecuteW(
-                hwnd: *mut std::ffi::c_void,
-                lpOperation: *const u16,
-                lpFile: *const u16,
-                lpParameters: *const u16,
-                lpDirectory: *const u16,
-                nShowCmd: i32,
-            ) -> isize;
+            fn ShellExecuteW(hwnd: *mut std::ffi::c_void, lpOperation: *const u16, lpFile: *const u16, lpParameters: *const u16, lpDirectory: *const u16, nShowCmd: i32) -> isize;
         }
         unsafe {
-            ShellExecuteW(
-                std::ptr::null_mut(),
-                op_open.as_ptr(),
-                wide.as_ptr(),
-                std::ptr::null(),
-                std::ptr::null(),
-                1,
-            );
+            ShellExecuteW(std::ptr::null_mut(), op_open.as_ptr(), wide.as_ptr(), std::ptr::null(), std::ptr::null(), 1);
         }
         Ok(())
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open").arg(&profiles_dir).spawn();
+        Ok(())
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let _ = std::process::Command::new("xdg-open").arg(&profiles_dir).spawn();
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     {
         Ok(())
     }

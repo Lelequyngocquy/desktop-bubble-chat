@@ -5,7 +5,7 @@ use super::dto::TransitionLockGuard;
 use crate::movement::BubbleRect;
 use crate::platforms::messenger::windows::get_messenger_window_label;
 use crate::state::ChatState;
-use crate::windows::bubble::{
+use crate::presentation::bubble::{
     ensure_bubble_positioned_and_visible, ensure_bubble_positioned_and_visible_with_extra,
     get_bubble_window_label,
 };
@@ -30,15 +30,15 @@ pub fn suspend_account_bubble_and_chat(app: &AppHandle, account_index: u32) {
         let _ = cw.destroy();
     }
     #[cfg(target_os = "windows")]
-    crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
-        crate::windows::native_bubble::NativeBubbleAction::Hide { account_index: idx }
+    crate::operating_systems::current::bubble::NativeBubbleManager::global().dispatch(
+        crate::operating_systems::current::bubble::NativeBubbleAction::Hide { account_index: idx }
     );
     if let Some(bw) = app.get_webview_window(&bubble_label) {
         let _ = bw.hide();
         let _ = bw.destroy();
     }
     #[cfg(target_os = "windows")]
-    crate::windows::main_window::trim_current_process_working_set();
+    crate::presentation::main_window::trim_current_process_working_set();
     let _ = app.emit("bubble-visibility-changed", serde_json::json!({
         "accountIndex": idx,
         "visible": false

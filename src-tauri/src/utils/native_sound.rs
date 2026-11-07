@@ -1,19 +1,6 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 
-#[cfg(target_os = "windows")]
-#[link(name = "winmm")]
-unsafe extern "system" {
-    fn PlaySoundW(psz_sound: *const u16, hmod: usize, fdw_sound: u32) -> i32;
-}
-
-#[cfg(target_os = "windows")]
-const SND_ASYNC: u32 = 0x0001;
-#[cfg(target_os = "windows")]
-const SND_NODEFAULT: u32 = 0x0002;
-#[cfg(target_os = "windows")]
-const SND_MEMORY: u32 = 0x0004;
-
 static LAST_PLAY_TIME: AtomicU64 = AtomicU64::new(0);
 const THROTTLE_MS: u64 = 1500;
 
@@ -66,15 +53,6 @@ pub fn play_bubble_pop() {
         return;
     }
     LAST_PLAY_TIME.store(now, Ordering::Relaxed);
-    #[cfg(target_os = "windows")]
-    {
-        let wav = BUBBLE_WAV_CACHE.get_or_init(generate_bubble_pop_wav);
-        unsafe {
-            let _ = PlaySoundW(
-                wav.as_ptr() as *const u16,
-                0,
-                SND_MEMORY | SND_ASYNC | SND_NODEFAULT,
-            );
-        }
-    }
+    let wav = BUBBLE_WAV_CACHE.get_or_init(generate_bubble_pop_wav);
+    crate::operating_systems::current::SoundPlayer::play_wav(wav);
 }
