@@ -56,8 +56,14 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                 }
                 api.prevent_close();
                 state_clone.set_window_auth_mode(&win_label, false);
+                let _ = chat_clone.eval("window.__IS_AUTH_MODE__ = false;");
                 let _ = chat_clone.set_decorations(false);
                 let _ = chat_clone.set_skip_taskbar(true);
+                if !state_clone.get_account_auth(idx).as_ref().map(|a| a.connected).unwrap_or(false) {
+                    if let Ok(clean_url) = tauri::Url::parse(MESSENGER_BASE_URL) {
+                        let _ = chat_clone.navigate(clean_url);
+                    }
+                }
                 let _ = app_handle.emit("messenger-auth-closed", serde_json::json!({ "label": &win_label }));
                 let _ = ChatService::hide_chat(&app_handle, idx);
             }
@@ -189,6 +195,8 @@ pub fn get_or_create_messenger_window(
         }
     })
     .on_page_load(move |win, payload| {
+        let in_auth = state_page_load.is_window_in_auth_mode(win.label());
+        let _ = win.eval(&format!("window.__IS_AUTH_MODE__ = {};", in_auth));
         if let tauri::webview::PageLoadEvent::Finished = payload.event() {
             state_page_load.set_chat_ready(account_index, true);
             println!("\x1b[32m[BE - Window] Webview Messenger {:02} preloading finished (Ready)!\x1b[0m", account_index);

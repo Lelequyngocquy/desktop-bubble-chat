@@ -41,8 +41,8 @@ impl AuthService {
         let _ = chat_window.set_decorations(true);
         let _ = chat_window.set_skip_taskbar(false);
         let _ = chat_window.set_size(tauri::Size::Logical(tauri::LogicalSize {
-            width: 560.0,
-            height: 720.0,
+            width: 680.0,
+            height: 820.0,
         }));
         let _ = chat_window.center();
         let _ = chat_window.unminimize();
@@ -60,7 +60,7 @@ impl AuthService {
             }
         }
         let init_code = format!(
-            "window.__ACCOUNT_INDEX__ = {};\n{}",
+            "window.__ACCOUNT_INDEX__ = {};\nwindow.__IS_AUTH_MODE__ = true;\n{}",
             idx,
             MESSENGER_INJECT_SCRIPT
         );
@@ -199,13 +199,14 @@ impl AuthService {
             if let Some(win) = app.get_webview_window(&label) {
                 if let Ok(curr_url) = win.url() {
                     let u = curr_url.to_string();
-                    if u.contains("facebook.com") {
-                        println!("[BE - Auth] report_auth_status: On Facebook URL ('{}'), redirecting to https://www.messenger.com/", u);
+                    if u.contains("facebook.com") || u.contains("meta.com") {
+                        println!("[BE - Auth] report_auth_status: On Meta URL ('{}'), redirecting to https://www.messenger.com/", u);
                         if let Ok(target) = tauri::Url::parse("https://www.messenger.com/") {
                             let _ = win.navigate(target);
                         }
                     }
                 }
+                let _ = win.eval("window.__IS_AUTH_MODE__ = false;");
                 let _ = win.set_title("Messenger");
                 let _ = win.hide();
                 let _ = win.set_decorations(false);
@@ -219,6 +220,10 @@ impl AuthService {
                 "visible": false,
                 "windowLabel": &label
             }));
+        } else {
+            if let Some(win) = app.get_webview_window(&label) {
+                let _ = win.eval("window.__IS_AUTH_MODE__ = true;");
+            }
         }
         let _ = app.emit("messenger-auth-status", serde_json::json!({
             "accountIndex": idx,

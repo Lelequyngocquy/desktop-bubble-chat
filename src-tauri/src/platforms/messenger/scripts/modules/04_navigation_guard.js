@@ -1,26 +1,65 @@
 // ============================================================================
 // MODULE 03: NAVIGATION GUARD & EXTERNAL LINK INTERCEPTOR
 // ============================================================================
-// Nhiệm vụ:
-// 1. Bảo vệ điều hướng: Luôn giữ Webview ở trang messenger.com, ngăn văng về facebook.com khi đã đăng nhập.
-// 2. Chặn window.open mở cửa sổ popup lạ, điều hướng link ngoài sang trình duyệt mặc định hệ thống.
-// 3. Đánh chặn sự kiện click thẻ <a> chuyển hướng ngoài domain để gọi Tauri open_external_url.
+// 1. Manages lifecycle routing between Auth Mode and Chat Mode
+// 2. Intercepts external URLs and redirects them to default system browser
+// 3. Preserves internal chat routing: /t/, /e2ee/, /media/, /stories/, blob:, data:
 
 /**
- * Ensures URL remains on messenger.com if valid session exists
+ * Checks whether current webview window is explicitly in authentication mode
+ * @returns {boolean} True if in Auth Mode
+ */
+function isAuthMode() {
+  return Boolean(window.__IS_AUTH_MODE__);
+}
+
+/**
+ * Verifies if destination URL belongs to Meta authentication and SSO domains
+ * @param {string} rawUrl Destination URL
+ * @returns {boolean} True if within Meta auth ecosystem
+ */
+function isMetaAuthDomain(rawUrl) {
+  if (!rawUrl) return false;
+  try {
+    const origin = typeof window !== "undefined" && window.location ? window.location.origin : "https://www.messenger.com";
+    const parsed = new URL(rawUrl, origin);
+    const h = parsed.hostname.toLowerCase();
+    return (
+      h.endsWith("messenger.com") ||
+      h.endsWith("facebook.com") ||
+      h.endsWith("meta.com") ||
+      h.endsWith("fbcdn.net") ||
+      h.endsWith("facebook.net") ||
+      h.endsWith("workplace.com") ||
+      h.includes("challenges.cloudflare.com")
+    );
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * Ensures URL remains on messenger.com in Chat Mode, detecting session expiration
+ * @returns {boolean} True if redirected back to Messenger
  */
 function enforceMessengerUrl() {
   try {
+    if (isAuthMode()) return false;
     const host = window.location.hostname || "";
     const href = window.location.href || "";
     if (!host || href === "about:blank") return false;
+    const uid = typeof getFacebookUserId === "function" ? getFacebookUserId() : null;
     if (host.includes("facebook.com") && !href.includes("checkpoint") && !href.includes("/login")) {
-      const uid = getFacebookUserId();
       if (uid) {
         logDebug("NAV-ENFORCE", `Redirecting back to Messenger from: ${href}`, null, "warn");
         window.location.replace(TARGET_MESSENGER_URL);
         return true;
       }
+    }
+    if ((host.includes("facebook.com") || href.includes("/login")) && !uid) {
+      logDebug("NAV-EXPIRED", `Detected unauthenticated session in chat mode: ${href}`, null, "warn");
+      const accountIdx = window.__ACCOUNT_INDEX__ || 1;
+      invokeTauri("report_auth_status", { connected: false, name: "", accountIndex: accountIdx }).catch(() => {});
     }
   } catch (e) {
     logDebug("NAV-ERR", `Error in enforceMessengerUrl: ${e}`, null, "warn");
@@ -30,8 +69,10 @@ function enforceMessengerUrl() {
 
 /**
  * Checks if user is authenticated and on active Messenger chat interface
+ * @returns {boolean} True if session is active
  */
 function isUserLoggedIn() {
+  if (isAuthMode()) return false;
   const uid = typeof getFacebookUserId === "function" ? getFacebookUserId() : null;
   const host = typeof window !== "undefined" && window.location ? (window.location.hostname || "") : "";
   const path = typeof window !== "undefined" && window.location ? (window.location.pathname || "") : "";
@@ -43,6 +84,8 @@ function isUserLoggedIn() {
 
 /**
  * Extracts target clean URL from Meta Link Shim if present
+ * @param {string} rawUrl Wrapped or direct URL
+ * @returns {string} Decoded destination URL
  */
 function extractDestinationUrl(rawUrl) {
   if (!rawUrl) return "";
@@ -60,18 +103,21 @@ function extractDestinationUrl(rawUrl) {
 }
 
 /**
- * Determines whether URL represents internal Messenger chat routing
+ * Determines whether URL represents internal Messenger chat routing or media
+ * @param {string} rawUrl Target navigation URL
+ * @returns {boolean} True if safe internal chat navigation
  */
 function isInternalChatNavigation(rawUrl) {
   if (!rawUrl) return false;
   const str = String(rawUrl).trim();
-  if (str.startsWith("#") || str.startsWith("javascript:")) return true;
+  if (str.startsWith("#") || str.startsWith("javascript:") || str.startsWith("blob:") || str.startsWith("data:")) return true;
   try {
     const origin = typeof window !== "undefined" && window.location ? window.location.origin : "https://www.messenger.com";
     const parsed = new URL(str, origin);
+    if (parsed.protocol === "blob:" || parsed.protocol === "data:") return true;
     if (!parsed.hostname.includes("messenger.com")) return false;
     const path = parsed.pathname || "";
-    return path.startsWith("/t/") || path.startsWith("/e2ee/") || path === "/new" || path === "/" || path === "";
+    return path.startsWith("/t/") || path.startsWith("/e2ee/") || path.startsWith("/media") || path.startsWith("/stories") || path === "/new" || path === "/" || path === "";
   } catch (e) {
     return false;
   }
@@ -81,7 +127,8 @@ let lastOpenedUrl = "";
 let lastOpenedTime = 0;
 
 /**
- * Opens external URL safely using Tauri opener plugin or fallback command with deduplication
+ * Opens external URL safely using Tauri opener plugin with debouncing
+ * @param {string} targetUrl Target destination URL
  */
 function openUrlInDefaultBrowser(targetUrl) {
   if (!targetUrl) return;
@@ -113,6 +160,14 @@ function openUrlInDefaultBrowser(targetUrl) {
     window.open = function (openUrl) {
       if (!openUrl) return null;
       const urlStr = String(openUrl);
+      if (isAuthMode()) {
+        if (isMetaAuthDomain(urlStr)) {
+          window.location.href = urlStr;
+          return window;
+        }
+        openUrlInDefaultBrowser(urlStr);
+        return null;
+      }
       if (isUserLoggedIn()) {
         if (isInternalChatNavigation(urlStr)) {
           window.location.href = urlStr;
@@ -121,13 +176,10 @@ function openUrlInDefaultBrowser(targetUrl) {
         openUrlInDefaultBrowser(urlStr);
         return null;
       }
-      try {
-        const parsed = new URL(urlStr, window.location.origin);
-        if (parsed.hostname.includes("messenger.com") || parsed.hostname.includes("facebook.com") || parsed.hostname.includes("meta.com")) {
-          window.location.href = urlStr;
-          return window;
-        }
-      } catch (e) {}
+      if (isMetaAuthDomain(urlStr)) {
+        window.location.href = urlStr;
+        return window;
+      }
       openUrlInDefaultBrowser(urlStr);
       return null;
     };
@@ -135,7 +187,6 @@ function openUrlInDefaultBrowser(targetUrl) {
   } catch (e) {
     logDebug("NAV-INIT", `Error installing window.open interceptor: ${e}`, null, "warn");
   }
-
   document.addEventListener(
     "click",
     function (e) {
@@ -144,6 +195,14 @@ function openUrlInDefaultBrowser(targetUrl) {
       const rawHref = anchor.getAttribute("href") || anchor.getAttribute("data-href") || anchor.href;
       const href = typeof rawHref === "string" ? rawHref : (rawHref && rawHref.baseVal ? rawHref.baseVal : String(rawHref || ""));
       if (!href || href.startsWith("javascript:") || href.startsWith("#")) return;
+      if (isAuthMode()) {
+        if (isMetaAuthDomain(href)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        openUrlInDefaultBrowser(href);
+        return;
+      }
       if (isUserLoggedIn()) {
         if (isInternalChatNavigation(href)) return;
         e.preventDefault();
@@ -152,14 +211,11 @@ function openUrlInDefaultBrowser(targetUrl) {
         openUrlInDefaultBrowser(href);
         return;
       }
-      try {
-        const parsed = new URL(href, window.location.origin);
-        if (parsed.hostname.includes("messenger.com") || parsed.hostname.includes("facebook.com") || parsed.hostname.includes("meta.com")) return;
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        openUrlInDefaultBrowser(href);
-      } catch (err) {}
+      if (isMetaAuthDomain(href)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      openUrlInDefaultBrowser(href);
     },
     true
   );
@@ -167,5 +223,5 @@ function openUrlInDefaultBrowser(targetUrl) {
 })();
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { isUserLoggedIn, extractDestinationUrl, isInternalChatNavigation };
+  module.exports = { isUserLoggedIn, extractDestinationUrl, isInternalChatNavigation, isMetaAuthDomain, isAuthMode };
 }

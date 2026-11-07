@@ -27,16 +27,27 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                     let win_label = chat_window.label().to_string();
                     let auth_info = chat_state.get_account_auth(idx);
                     let state_logged_in = auth_info.as_ref().map(|a| a.connected).unwrap_or(false);
-                    let (win_logged_in, win_user_name) = if state_logged_in {
-                        (true, String::new())
+                    let (win_logged_in, win_user_name) = is_window_logged_in(&chat_window);
+                    let is_logged_in = if state_logged_in {
+                        if let Ok(curr_url) = chat_window.url() {
+                            let u = curr_url.to_string();
+                            if u.contains("messenger.com/login") || (u.contains("facebook.com/login") && !win_logged_in) {
+                                false
+                            } else {
+                                true
+                            }
+                        } else {
+                            true
+                        }
                     } else {
-                        is_window_logged_in(&chat_window)
+                        win_logged_in
                     };
-                    let is_logged_in = state_logged_in || win_logged_in;
-                    let user_name = if state_logged_in {
+                    let user_name = if !win_user_name.is_empty() {
+                        win_user_name
+                    } else if state_logged_in {
                         auth_info.as_ref().map(|a| a.name.clone()).unwrap_or_default()
                     } else {
-                        win_user_name
+                        String::new()
                     };
                     let was_logged = *logged_in_map.get(&idx).unwrap_or(&false);
                     if is_logged_in != was_logged {
@@ -49,12 +60,13 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                             );
                             if let Ok(curr_url) = chat_window.url() {
                                 let u = curr_url.to_string();
-                                if u.contains("facebook.com") {
+                                if u.contains("facebook.com") || u.contains("meta.com") {
                                     if let Ok(target) = tauri::Url::parse("https://www.messenger.com/") {
                                         let _ = chat_window.navigate(target);
                                     }
                                 }
                             }
+                            let _ = chat_window.eval("window.__IS_AUTH_MODE__ = false;");
                             if chat_state.is_window_in_auth_mode(&win_label) {
                                 chat_state.set_window_auth_mode(&win_label, false);
                                 let _ = chat_window.hide();
@@ -69,6 +81,7 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                             }
                         } else {
                             chat_state.clear_account_auth(idx);
+                            let _ = chat_window.eval("window.__IS_AUTH_MODE__ = true;");
                         }
                         let _ = app_handle.emit("messenger-auth-status", serde_json::json!({
                             "accountIndex": idx,
