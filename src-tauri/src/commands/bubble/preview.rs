@@ -11,7 +11,7 @@ pub fn toggle_native_bubble_preview(
     {
         let idx = account_index.unwrap_or(1);
         let vis = visible.unwrap_or(true);
-        crate::windows::native_bubble::toggle_native_bubble_prototype(Some(app), idx, vis)
+        crate::operating_systems::current::bubble::toggle_native_bubble_prototype(Some(app), idx, vis)
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -28,7 +28,7 @@ pub fn trigger_native_bubble_pulse_preview(
     #[cfg(target_os = "windows")]
     {
         let idx = account_index.unwrap_or(1);
-        crate::windows::native_bubble::trigger_native_bubble_pulse(idx);
+        crate::operating_systems::current::bubble::trigger_native_bubble_pulse(idx);
         Ok(true)
     }
     #[cfg(not(target_os = "windows"))]
@@ -47,7 +47,7 @@ pub fn set_native_bubble_badge_preview(
     #[cfg(target_os = "windows")]
     {
         let idx = account_index.unwrap_or(1);
-        crate::windows::native_bubble::set_native_bubble_unread_count(idx, count);
+        crate::operating_systems::current::bubble::set_native_bubble_unread_count(idx, count);
         Ok(true)
     }
     #[cfg(not(target_os = "windows"))]
@@ -66,7 +66,7 @@ pub fn tuck_native_bubble_preview(
     #[cfg(target_os = "windows")]
     {
         let idx = account_index.unwrap_or(1);
-        crate::windows::native_bubble::tuck_native_bubble(&app, idx);
+        crate::operating_systems::current::bubble::tuck_native_bubble(&app, idx);
         Ok(true)
     }
     #[cfg(not(target_os = "windows"))]
@@ -85,7 +85,7 @@ pub fn untuck_native_bubble_preview(
     #[cfg(target_os = "windows")]
     {
         let idx = account_index.unwrap_or(1);
-        crate::windows::native_bubble::untuck_native_bubble(&app, idx);
+        crate::operating_systems::current::bubble::untuck_native_bubble(&app, idx);
         Ok(true)
     }
     #[cfg(not(target_os = "windows"))]

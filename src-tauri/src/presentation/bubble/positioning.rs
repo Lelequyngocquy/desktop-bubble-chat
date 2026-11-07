@@ -1,4 +1,4 @@
-use std::sync::Arc;
+﻿use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::movement::{BubbleMovementEngine, BubbleRect};
@@ -25,8 +25,8 @@ pub fn get_active_bubble_rects(
         }
         #[cfg(target_os = "windows")]
         {
-            if crate::windows::native_bubble::NativeBubbleManager::global().has_bubble(idx) {
-                if let Some((x, y, w, h)) = crate::windows::native_bubble::NativeBubbleManager::global().get_bounds(idx) {
+            if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx) {
+                if let Some((x, y, w, h)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
                     rects.push(BubbleRect {
                         account_index: idx,
                         x,
@@ -91,10 +91,10 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
                     other_bubbles.push(*obs);
                 }
             }
-            if crate::windows::native_bubble::NativeBubbleManager::global().has_bubble(account_index) {
-                if let Some((x, y, w, _h)) = crate::windows::native_bubble::NativeBubbleManager::global().get_bounds(account_index) {
+            if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(account_index) {
+                if let Some((x, y, w, _h)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(account_index) {
                     if w != bubble_w as u32 {
-                        crate::windows::native_bubble::set_native_bubble_size(account_index, bubble_w as u32);
+                        crate::operating_systems::current::bubble::set_native_bubble_size(account_index, bubble_w as u32);
                     }
                     if config.is_free_position {
                         let (target_x, target_y) = crate::movement::CollisionResolver::resolve_2d_free_collision(
@@ -106,14 +106,14 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
                             &other_bubbles,
                         );
                         if target_x != x || target_y != y {
-                            crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
-                                crate::windows::native_bubble::NativeBubbleAction::SetPosition {
+                            crate::operating_systems::current::bubble::NativeBubbleManager::global().dispatch(
+                                crate::operating_systems::current::bubble::NativeBubbleAction::SetPosition {
                                     account_index,
                                     x: target_x,
                                     y: target_y,
                                 }
                             );
-                            crate::windows::native_bubble::manager::update_cached_bubble_bounds(
+                            crate::operating_systems::current::bubble::manager::update_cached_bubble_bounds(
                                 account_index,
                                 target_x,
                                 target_y,
@@ -149,8 +149,8 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
                         .map(|s| s.target_y)
                         .unwrap_or(y);
                     if target_y != y {
-                        crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
-                            crate::windows::native_bubble::NativeBubbleAction::SetPosition {
+                        crate::operating_systems::current::bubble::NativeBubbleManager::global().dispatch(
+                            crate::operating_systems::current::bubble::NativeBubbleAction::SetPosition {
                                 account_index,
                                 x,
                                 y: target_y,
@@ -159,15 +159,15 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
                     }
                     for slot in layout {
                         if slot.account_index != account_index {
-                            crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
-                                crate::windows::native_bubble::NativeBubbleAction::AnimateTo {
+                            crate::operating_systems::current::bubble::NativeBubbleManager::global().dispatch(
+                                crate::operating_systems::current::bubble::NativeBubbleAction::AnimateTo {
                                     account_index: slot.account_index,
                                     target_x: x,
                                     target_y: slot.target_y,
                                     duration_ms: 160,
                                 }
                             );
-                            crate::windows::native_bubble::manager::update_cached_bubble_bounds(
+                            crate::operating_systems::current::bubble::manager::update_cached_bubble_bounds(
                                 slot.account_index,
                                 x,
                                 slot.target_y,
@@ -217,8 +217,8 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
             } else {
                 BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &other_bubbles)
             };
-            crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
-                crate::windows::native_bubble::NativeBubbleAction::Show {
+            crate::operating_systems::current::bubble::NativeBubbleManager::global().dispatch(
+                crate::operating_systems::current::bubble::NativeBubbleAction::Show {
                     account_index,
                     x: target_pos.x,
                     y: target_pos.y,
@@ -362,7 +362,7 @@ pub fn tuck_bubble(app: &AppHandle, account_index: Option<u32>) {
             );
             let _ = bubble_window.set_position(tauri::Position::Physical(tucked_pos));
         } else {
-            crate::windows::native_bubble::tuck_native_bubble(app, idx);
+            crate::operating_systems::current::bubble::tuck_native_bubble(app, idx);
         }
     }
 }

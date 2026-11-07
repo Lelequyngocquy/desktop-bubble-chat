@@ -1,10 +1,13 @@
 pub mod commands;
+pub mod core;
 pub mod movement;
+#[path = "operating-systems/mod.rs"]
+pub mod operating_systems;
 pub mod platforms;
 pub mod state;
 pub mod tray;
 pub mod utils;
-pub mod windows;
+pub mod presentation;
 
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -27,7 +30,7 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             println!("\x1b[33m[SingleInstance] Second instance launch detected -> Focusing primary instance...\x1b[0m");
             let handle = app.clone();
-            let _ = crate::windows::main_window::get_or_create_main_window(&handle);
+            let _ = crate::presentation::main_window::get_or_create_main_window(&handle);
             if let Some(main_win) = app.get_webview_window("main") {
                 let _ = main_win.unminimize();
                 let _ = main_win.show();
@@ -147,8 +150,8 @@ pub fn run() {
             }
             chat_state_clone.is_always_on_top.store(initial_config.is_always_on_top, Ordering::SeqCst);
             #[cfg(target_os = "windows")]
-            crate::windows::native_bubble::set_native_bubble_always_on_top(initial_config.is_always_on_top);
-            windows::main_window::setup_main_window(&handle);
+            crate::operating_systems::current::bubble::set_native_bubble_always_on_top(initial_config.is_always_on_top);
+            presentation::main_window::setup_main_window(&handle);
             println!("[Startup] Restoring active bubbles from cache: {:?}", initial_config.active_bubble_accounts);
             let mut committed_rects: Vec<movement::BubbleRect> = Vec::new();
             for &idx in &initial_config.active_bubble_accounts {
@@ -164,10 +167,10 @@ pub fn run() {
             }
             if initial_config.is_dashboard_open {
                 println!("[Startup] Dashboard configured ON -> Showing Dashboard");
-                let _ = windows::main_window::get_or_create_main_window(&handle);
+                let _ = presentation::main_window::get_or_create_main_window(&handle);
             } else {
                 println!("[Startup] Dashboard configured OFF -> Hibernating Dashboard");
-                windows::main_window::destroy_or_hibernate_main_window(&handle);
+                presentation::main_window::destroy_or_hibernate_main_window(&handle);
             }
             platforms::messenger::windows::setup_chat_window(&handle, Arc::clone(&chat_state_clone));
             platforms::messenger::daemons::start_auth_watcher(handle.clone(), Arc::clone(&chat_state_clone));

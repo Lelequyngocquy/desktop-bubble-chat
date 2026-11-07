@@ -6,7 +6,7 @@ use crate::platforms::messenger::services::ChatService;
 use crate::platforms::messenger::windows::get_messenger_window_label;
 use crate::state::ChatState;
 use crate::utils::win32::{is_cursor_over_bubble, is_cursor_over_window, is_lbutton_down};
-use crate::windows::bubble::get_bubble_window_label;
+use crate::presentation::bubble::get_bubble_window_label;
 
 /// Daemon thread: Hover 0.1s over bubble to open chat, auto-close when cursor leaves both chat and bubble
 pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatState>) {
@@ -30,7 +30,7 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                             detected_hover_bubble = Some(idx);
                             break;
                         }
-                    } else if crate::windows::native_bubble::is_cursor_over_native_bubble(idx) {
+                    } else if crate::operating_systems::current::bubble::is_cursor_over_native_bubble(idx) {
                         detected_hover_bubble = Some(idx);
                         break;
                     }
@@ -55,7 +55,7 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                     current_hover_bubble = Some(hovered_idx);
                     hover_start = Some(Instant::now());
                     already_opened_for_hover = false;
-                    crate::windows::native_bubble::untuck_native_bubble(&app, hovered_idx);
+                    crate::operating_systems::current::bubble::untuck_native_bubble(&app, hovered_idx);
                 }
             } else {
                 current_hover_bubble = None;
@@ -84,7 +84,7 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                     let over_bubble = app
                         .get_webview_window(&bubble_label)
                         .map(|b| is_cursor_over_bubble(&b))
-                        .unwrap_or_else(|| crate::windows::native_bubble::is_cursor_over_native_bubble(active_idx));
+                        .unwrap_or_else(|| crate::operating_systems::current::bubble::is_cursor_over_native_bubble(active_idx));
                     if over_chat || over_bubble {
                         outside_open_chat_start = None;
                     } else {
@@ -95,7 +95,7 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                             Some(start_time) => {
                                 if start_time.elapsed() >= Duration::from_millis(300) {
                                     let _ = ChatService::hide_chat(&app, active_idx);
-                                    crate::windows::native_bubble::tuck_native_bubble(&app, active_idx);
+                                    crate::operating_systems::current::bubble::tuck_native_bubble(&app, active_idx);
                                     outside_open_chat_start = None;
                                 }
                             }

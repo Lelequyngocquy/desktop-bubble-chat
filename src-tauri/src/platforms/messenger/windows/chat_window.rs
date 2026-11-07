@@ -9,7 +9,7 @@ use crate::platforms::messenger::services::ChatService;
 use crate::state::ChatState;
 use crate::utils::time::now_millis;
 use crate::utils::win32::{is_cursor_over_bubble, is_cursor_over_window};
-use crate::windows::bubble::{get_bubble_window_label, tuck_bubble};
+use crate::presentation::bubble::{get_bubble_window_label, tuck_bubble};
 
 /// Returns window label for a Messenger account index (e.g. chat-messenger-01)
 pub fn get_messenger_window_label(account_index: u32) -> String {
@@ -37,7 +37,7 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                         .unwrap_or_else(|| {
                             #[cfg(target_os = "windows")]
                             {
-                                crate::windows::native_bubble::is_cursor_over_native_bubble(idx)
+                                crate::operating_systems::current::bubble::is_cursor_over_native_bubble(idx)
                             }
                             #[cfg(not(target_os = "windows"))]
                             false
@@ -163,7 +163,7 @@ pub fn get_or_create_messenger_window(
         let _ = win.set_title(&title);
         if count != prev {
             state_title.set_unread_count(account_index, count);
-            crate::windows::native_bubble::set_native_bubble_unread_count(account_index, count);
+            crate::operating_systems::current::bubble::set_native_bubble_unread_count(account_index, count);
             if count > prev && count > 0 {
                 let display_title = format!("New message for Messenger {:02}", account_index);
                 let account_tag = format!("M{:02}", account_index);
@@ -264,30 +264,9 @@ pub fn get_or_create_messenger_window(
     }
 }
 
-/// Adjusts WebView2 memory usage target level (Low vs Normal)
-#[cfg(target_os = "windows")]
+/// Adjusts WebView memory usage target level
 pub fn set_webview_memory_target_level(window: &tauri::WebviewWindow, is_low: bool) {
-    let _ = window.with_webview(move |webview| {
-        unsafe {
-            use webview2_com::Microsoft::Web::WebView2::Win32::{
-                ICoreWebView2_19,
-                COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW,
-                COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL,
-            };
-            use windows_core::Interface;
-            let controller = webview.controller();
-            if let Ok(core_webview) = controller.CoreWebView2() {
-                if let Ok(webview_19) = core_webview.cast::<ICoreWebView2_19>() {
-                    let level = if is_low {
-                        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW
-                    } else {
-                        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL
-                    };
-                    let _ = webview_19.SetMemoryUsageTargetLevel(level);
-                }
-            }
-        }
-    });
+    crate::operating_systems::current::MemoryOptimizer::set_webview_memory_target_level(window, is_low);
 }
 
 #[cfg(not(target_os = "windows"))]

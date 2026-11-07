@@ -16,7 +16,7 @@ pub fn update_unread_badge(
     if count == 0 {
         state.clear_recent_messages_for_account(idx);
     }
-    crate::windows::native_bubble::set_native_bubble_unread_count(idx, count);
+    crate::operating_systems::current::bubble::set_native_bubble_unread_count(idx, count);
     let _ = app.emit("badge-updated", serde_json::json!({
         "accountIndex": idx,
         "count": count
@@ -37,7 +37,7 @@ pub fn set_badge_count(
     if count == 0 {
         state.clear_recent_messages_for_account(idx);
     }
-    crate::windows::native_bubble::set_native_bubble_unread_count(idx, count);
+    crate::operating_systems::current::bubble::set_native_bubble_unread_count(idx, count);
     let _ = app.emit("badge-updated", serde_json::json!({
         "accountIndex": idx,
         "count": count

@@ -59,7 +59,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                         let new_y = state.drag_start_win.y + dy;
                         state.x = new_x;
                         state.y = new_y;
-                        crate::windows::native_bubble::manager::update_cached_bubble_bounds(
+                        crate::operating_systems::windows::bubble::manager::update_cached_bubble_bounds(
                             state.account_index,
                             new_x,
                             new_y,
@@ -167,7 +167,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                                 if should_dismiss {
                                     (state.x, state.y, true, Vec::new())
                                 } else {
-                                    let all_bubbles = crate::windows::bubble::get_active_bubble_rects(app, None);
+                                    let all_bubbles = crate::presentation::bubble::get_active_bubble_rects(app, None);
                                     let (target_x, target_y) = crate::movement::CollisionResolver::resolve_2d_free_collision(
                                         state.account_index,
                                         state.x,
@@ -191,7 +191,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                                     (target_x, target_y, false, Vec::new())
                                 }
                             } else {
-                                let all_bubbles = crate::windows::bubble::get_active_bubble_rects(app, None);
+                                let all_bubbles = crate::presentation::bubble::get_active_bubble_rects(app, None);
                                 let snap = BubbleMovementEngine::calculate_mutual_snap(
                                     &screen,
                                     &config,
@@ -236,7 +236,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                                 });
                             }
                         } else {
-                            crate::windows::native_bubble::manager::update_cached_bubble_bounds(
+                            crate::operating_systems::windows::bubble::manager::update_cached_bubble_bounds(
                                 state.account_index,
                                 target_x,
                                 target_y,
@@ -253,15 +253,15 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                                 let bubble_w = (config.size * screen.scale_factor) as i32;
                                 for slot in displaced_slots {
                                     if slot.account_index != state.account_index {
-                                        crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
-                                            crate::windows::native_bubble::NativeBubbleAction::AnimateTo {
+                                        crate::operating_systems::windows::bubble::NativeBubbleManager::global().dispatch(
+                                            crate::operating_systems::windows::bubble::NativeBubbleAction::AnimateTo {
                                                 account_index: slot.account_index,
                                                 target_x,
                                                 target_y: slot.target_y,
                                                 duration_ms: 160,
                                             }
                                         );
-                                        crate::windows::native_bubble::manager::update_cached_bubble_bounds(
+                                        crate::operating_systems::windows::bubble::manager::update_cached_bubble_bounds(
                                             slot.account_index,
                                             target_x,
                                             slot.target_y,
@@ -310,7 +310,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                     if let Some((cur_x, cur_y, is_finished)) = state.anim_state.step() {
                         state.x = cur_x;
                         state.y = cur_y;
-                        crate::windows::native_bubble::manager::update_cached_bubble_bounds(
+                        crate::operating_systems::windows::bubble::manager::update_cached_bubble_bounds(
                             state.account_index,
                             cur_x,
                             cur_y,

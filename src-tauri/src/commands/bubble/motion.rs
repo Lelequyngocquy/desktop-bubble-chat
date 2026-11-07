@@ -5,7 +5,7 @@ use crate::movement::{
     get_bubble_physics_config, BubbleConfigState, BubbleMovementEngine, BubbleRect,
 };
 use crate::state::ChatState;
-use crate::windows::bubble::{get_active_bubble_rects, get_bubble_window_label, resize_bubble_window};
+use crate::presentation::bubble::{get_active_bubble_rects, get_bubble_window_label, resize_bubble_window};
 
 /// Snaps bubble to screen edge with collision avoidance
 #[tauri::command]
@@ -17,8 +17,8 @@ pub fn snap_bubble(app: AppHandle, account_index: Option<u32>) -> Result<(), Str
     let idx = account_index.unwrap_or(1);
     #[cfg(target_os = "windows")]
     {
-        if crate::windows::native_bubble::NativeBubbleManager::global().has_bubble(idx) {
-            if let Some((cur_x, cur_y, _, _)) = crate::windows::native_bubble::NativeBubbleManager::global().get_bounds(idx) {
+        if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx) {
+            if let Some((cur_x, cur_y, _, _)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
                 let screen = crate::movement::get_target_dashboard_screen(Some(&app));
                 let config = get_bubble_physics_config(&app);
                 let all_bubbles = get_active_bubble_rects(&app, None);
@@ -36,8 +36,8 @@ pub fn snap_bubble(app: AppHandle, account_index: Option<u32>) -> Result<(), Str
                     });
                     return Ok(());
                 }
-                crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
-                    crate::windows::native_bubble::NativeBubbleAction::AnimateTo {
+                crate::operating_systems::current::bubble::NativeBubbleManager::global().dispatch(
+                    crate::operating_systems::current::bubble::NativeBubbleAction::AnimateTo {
                         account_index: idx,
                         target_x: snap.target_x,
                         target_y: snap.target_y,
@@ -137,8 +137,8 @@ pub fn set_bubble_config(
         let screen = crate::movement::get_target_dashboard_screen(Some(&app));
         let bubble_size_px = (config.size * screen.scale_factor).round() as u32;
         for idx in 1..=5 {
-            if crate::windows::native_bubble::has_native_bubble(idx) {
-                crate::windows::native_bubble::set_native_bubble_size(idx, bubble_size_px);
+            if crate::operating_systems::current::bubble::has_native_bubble(idx) {
+                crate::operating_systems::current::bubble::set_native_bubble_size(idx, bubble_size_px);
                 if let Some(chat_state) = app.try_state::<Arc<ChatState>>() {
                     if let Some(mut rect) = chat_state.get_bubble_rect(idx) {
                         rect.width = bubble_size_px as i32;

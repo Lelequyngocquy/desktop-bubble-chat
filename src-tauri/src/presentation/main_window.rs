@@ -1,20 +1,8 @@
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+﻿use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
-/// Trims working set memory of current process to standby/paging list
-#[cfg(target_os = "windows")]
+/// Trims working set memory of current process
 pub fn trim_current_process_working_set() {
-    unsafe {
-        #[link(name = "kernel32")]
-        unsafe extern "system" {
-            fn GetCurrentProcess() -> *mut std::ffi::c_void;
-            fn SetProcessWorkingSetSize(
-                hProcess: *mut std::ffi::c_void,
-                dwMinimumWorkingSetSize: usize,
-                dwMaximumWorkingSetSize: usize,
-            ) -> i32;
-        }
-        SetProcessWorkingSetSize(GetCurrentProcess(), usize::MAX, usize::MAX);
-    }
+    crate::operating_systems::current::MemoryOptimizer::trim_current_process_working_set();
 }
 
 /// Checks if Win32 HWND is valid in OS
@@ -47,8 +35,8 @@ pub fn relocate_bubbles_to_screen(
     for idx in 1..=5 {
         #[cfg(target_os = "windows")]
         {
-            if crate::windows::native_bubble::has_native_bubble(idx) {
-                if let Some((cur_x, cur_y, _, _)) = crate::windows::native_bubble::NativeBubbleManager::global().get_bounds(idx) {
+            if crate::operating_systems::current::bubble::has_native_bubble(idx) {
+                if let Some((cur_x, cur_y, _, _)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
                     let is_left = cur_x + (bubble_w / 2) < old_screen.x + (old_screen.width / 2);
                     let rel_y_ratio = if old_screen.height > 0 {
                         (cur_y - old_screen.y) as f64 / old_screen.height as f64
@@ -62,15 +50,15 @@ pub fn relocate_bubbles_to_screen(
                     } else {
                         new_screen.x + new_screen.width - bubble_w
                     };
-                    crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
-                        crate::windows::native_bubble::NativeBubbleAction::AnimateTo {
+                    crate::operating_systems::current::bubble::NativeBubbleManager::global().dispatch(
+                        crate::operating_systems::current::bubble::NativeBubbleAction::AnimateTo {
                             account_index: idx,
                             target_x,
                             target_y: clamped_y,
                             duration_ms: 200,
                         },
                     );
-                    crate::windows::native_bubble::manager::update_cached_bubble_bounds(
+                    crate::operating_systems::current::bubble::manager::update_cached_bubble_bounds(
                         idx,
                         target_x,
                         clamped_y,
@@ -92,7 +80,7 @@ pub fn relocate_bubbles_to_screen(
                 }
             }
         }
-        let label = crate::windows::bubble::get_bubble_window_label(idx);
+        let label = crate::presentation::bubble::get_bubble_window_label(idx);
         if let Some(bubble_win) = app.get_webview_window(&label) {
             if bubble_win.is_visible().unwrap_or(false) {
                 let _ = crate::commands::bubble::snap_bubble(app.clone(), Some(idx));

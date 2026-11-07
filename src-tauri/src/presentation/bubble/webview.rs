@@ -1,4 +1,4 @@
-use std::sync::Arc;
+﻿use std::sync::Arc;
 use tauri::{AppHandle, Manager};
 
 #[cfg(target_os = "windows")]

@@ -29,13 +29,13 @@ pub fn toggle_maximize_main_window(app: AppHandle) -> Result<bool, String> {
 /// Hides main dashboard window to system tray (triggers hibernation)
 #[tauri::command]
 pub fn hide_main_window(app: AppHandle) {
-    crate::windows::main_window::destroy_or_hibernate_main_window(&app);
+    crate::presentation::main_window::destroy_or_hibernate_main_window(&app);
 }
 
 /// Shows or recreates main dashboard window
 #[tauri::command]
 pub fn show_main_window(app: AppHandle) {
-    let _ = crate::windows::main_window::get_or_create_main_window(&app);
+    let _ = crate::presentation::main_window::get_or_create_main_window(&app);
 }
 
 /// Updates system tray menu status from frontend/store
@@ -146,7 +146,7 @@ pub fn set_always_on_top(app: AppHandle, enabled: bool) -> Result<(), String> {
         let _ = main_win.set_always_on_top(false);
     }
     #[cfg(target_os = "windows")]
-    crate::windows::native_bubble::set_native_bubble_always_on_top(enabled);
+    crate::operating_systems::current::bubble::set_native_bubble_always_on_top(enabled);
     for idx in 1..=5 {
         let bubble_label = format!("bubble-{:02}", idx);
         if let Some(w) = app.get_webview_window(&bubble_label) {
