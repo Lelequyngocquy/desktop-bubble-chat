@@ -1,31 +1,35 @@
 # DesktopBubbleChat
 
-[![Platform](<https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(x64)-0078D6?style=flat-square&logo=windows>)](https://www.microsoft.com/windows)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6?style=flat-square)](https://github.com/Lelequyngocquy/desktop-bubble-chat)
 [![Tauri v2](https://img.shields.io/badge/Tauri-v2.0-24C8DB?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app/)
 [![React 19](https://img.shields.io/badge/React-19.1-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Rust 2024](https://img.shields.io/badge/Rust-2024%20Edition-DEA584?style=flat-square&logo=rust&logoColor=black)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-> Extensible, high-performance floating chat heads for Windows Desktop featuring pluggable multi-platform messaging, hardware-accelerated Win32 + Skia vector avatars, intelligent 4-tier RAM trimming, physics-driven edge docking, and zero-click interactions.
+> Extensible, high-performance floating chat heads for Desktop (Windows, macOS, Linux) featuring pluggable multi-platform messaging, hardware-accelerated vector avatars, intelligent 4-tier RAM trimming, physics-driven edge docking, and zero-click interactions.
 
 **English** | [Tiếng Việt](README.vi.md)
 
 ---
 
-**DesktopBubbleChat** brings the fluid, non-intrusive mobile chat head experience to Windows 10 and 11 across multiple messaging networks. Built with **Tauri v2**, **React 19**, **TypeScript**, and a native **Rust (Win32 + Skia)** core, it decouples windowing, physics, and rendering from platform adapters. It runs concurrent isolated profiles inside dedicated Microsoft WebView2 sandboxes while keeping memory overhead exceptionally low via automated working-set trimming.
+**DesktopBubbleChat** brings the fluid, non-intrusive mobile chat head experience to **Windows**, **macOS**, and **Linux** across multiple messaging networks. Built with **Tauri v2**, **React 19**, **TypeScript**, and a native **Rust (Hardware & OS Abstraction Layer)** core, it decouples windowing, physics, and rendering from platform adapters. It runs concurrent isolated profiles inside dedicated Webview sandboxes while keeping memory overhead exceptionally low via automated working-set trimming.
 
 ### Table of Contents
 
 - [Demo](#demo)
-- [Download](#download)
+- [Download & Installation](#download)
+  - [Pre-built Packages](#download)
+  - [OS Installation Notes & User Troubleshooting](#os-installation-notes--user-troubleshooting)
 - [Key Features](#key-features)
 - [Architecture Overview](#architecture-overview)
 - [Roadmap](#roadmap)
-- [Getting Started](#getting-started)
+- [Getting Started (Building from Source)](#getting-started-building-from-source)
+  - [Prerequisites](#prerequisites)
+  - [Installation & Setup](#installation--setup)
+  - [Developer Troubleshooting](#developer-troubleshooting)
 - [Usage & Shortcuts](#usage--shortcuts)
 - [Security Model](#security-model)
-- [Troubleshooting](#troubleshooting)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
 - [Disclaimer](#disclaimer)
@@ -41,32 +45,86 @@
 
 ## Download
 
-Ready-to-use installer for **Windows 10 / 11 (64-bit)**:
+Official production release **v1.0.0** packages:
 
-[![Download for Windows](<https://img.shields.io/badge/Download-v0.5.2%20(Installer%20.exe)-0078D6?style=for-the-badge&logo=windows&logoColor=white>)](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v0.5.2/DesktopBubbleChat_0.5.2_x64-setup.exe)
-
-**Direct Download**: [DesktopBubbleChat_0.5.2_x64-setup.exe](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v0.5.2/DesktopBubbleChat_0.5.2_x64-setup.exe)
+| Operating System | Package Format | Download Link | Architecture |
+| :--- | :--- | :--- | :--- |
+| **Windows 10 / 11** | Installer `.exe` | [DesktopBubbleChat_1.0.0_x64-setup.exe](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_x64-setup.exe) | x86_64 |
+| **Windows 10 / 11** | MSI Package `.msi` | [DesktopBubbleChat_1.0.0_x64_en-US.msi](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_x64_en-US.msi) | x86_64 |
+| **macOS (Apple Silicon)** | Disk Image `.dmg` | [DesktopBubbleChat_1.0.0_aarch64.dmg](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_aarch64.dmg) | M1/M2/M3/M4 |
+| **macOS (Intel)** | Disk Image `.dmg` | [DesktopBubbleChat_1.0.0_x64.dmg](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_x64.dmg) | x86_64 |
+| **Linux (Debian/Ubuntu)** | Package `.deb` | [desktop-bubble-chat_1.0.0_amd64.deb](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/desktop-bubble-chat_1.0.0_amd64.deb) | x86_64 |
+| **Linux (All Distros)** | Portable `.AppImage` | [DesktopBubbleChat_1.0.0_amd64.AppImage](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/download/v1.0.0/DesktopBubbleChat_1.0.0_amd64.AppImage) | x86_64 |
 
 **All Releases & Changelog**: [GitHub Releases](https://github.com/Lelequyngocquy/desktop-bubble-chat/releases)
+
+### OS Installation Notes & User Troubleshooting
+
+Guide for users installing pre-compiled releases on their desktop:
+
+#### 🪟 Windows
+- **SmartScreen Warning**: If Windows Defender SmartScreen displays *"Windows protected your PC"* (common for new open-source binaries without an expensive EV certificate), click **"More info"** and choose **"Run anyway"**.
+- **WebView2 Evergreen Runtime**: Pre-installed on Windows 10/11. If running on a stripped or legacy Windows edition, download and install the official [Microsoft Edge WebView2 Evergreen Bootstrapper](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+
+#### 🍎 macOS
+- **Gatekeeper / "App Damaged" Warning**:
+  Because binary releases are not notarized with a paid Apple Developer ID, macOS Gatekeeper may block launch or warn:
+  > *"DesktopBubbleChat is damaged and can’t be opened. You should move it to the Trash."*
+
+  To clear the quarantine attribute and allow DesktopBubbleChat to run, open **Terminal** and execute:
+  ```bash
+  xattr -cr /Applications/DesktopBubbleChat.app
+  ```
+- **Accessibility & Hover Tracking Permissions**:
+  To enable seamless mouse hover slide-out and the global shortcut across all desktop spaces:
+  1. Open **System Settings** > **Privacy & Security** > **Accessibility**.
+  2. Toggle **DesktopBubbleChat** to **ON**.
+
+#### 🐧 Linux
+- **Running `.AppImage` on Ubuntu 22.04+ (FUSE 2 requirement)**:
+  Modern Ubuntu versions do not ship `libfuse2` by default. If double-clicking the `.AppImage` does not launch:
+  ```bash
+  sudo apt update && sudo apt install libfuse2
+  chmod +x DesktopBubbleChat_1.0.0_amd64.AppImage
+  ./DesktopBubbleChat_1.0.0_amd64.AppImage
+  ```
+- **Installing `.deb` Package**:
+  Install using `apt` so package dependencies are automatically resolved:
+  ```bash
+  sudo apt install ./desktop-bubble-chat_1.0.0_amd64.deb
+  ```
+  *(If installed via `dpkg -i` and dependencies are missing, run `sudo apt-get install -f` to repair).*
+- **GNOME Shell System Tray Icon**:
+  Default GNOME Shell hides standard tray icons. To display the DesktopBubbleChat tray icon:
+  ```bash
+  sudo apt install gnome-shell-extension-appindicator
+  ```
+  *(Note: DesktopBubbleChat features **Smart Minimize** and an in-bubble settings menu, so the app remains fully operable even without a system tray extension).*
 
 
 ---
 
 ### Key Features
 
-- **Pure Rust Win32 + Skia Vector Avatars**:
-  - Floating bubbles are **100% native Win32 Layered Windows** rendered on a dedicated thread with the **Tiny-Skia 2D vector engine**.
-  - Zero WebView overhead for bubbles: no black borders, no GPU composition lag, perfect transparency, and sub-pixel anti-aliasing.
-  - Interactive spring physics animation at 60 FPS.
+- **Cross-Platform Native Vector Avatars & Floating Window Engine**:
+  - Floating bubbles are **native, borderless, transparent OS windows** rendered via hardware-accelerated vector graphics (**Tiny-Skia 2D vector engine** and native OS windowing).
+  - **Windows**: Dedicated Win32 layered windows with per-pixel alpha, sub-pixel anti-aliasing, and raw Skia rendering.
+  - **macOS**: Native Cocoa transparent `NSWindow` integration with Retina-crisp vector scaling.
+  - **Linux**: Native GTK / X11-Wayland transparent window composition with compositor fallbacks.
+  - Zero Webview overhead for bubbles: no black borders, no compositor lag, and silky-smooth 60 FPS spring physics.
+- **Adaptive Desktop UI & Native TitleBar**:
+  - **macOS Traffic Lights**: Native top-left traffic lights (Close, Minimize, Maximize) with hover symbols, centered window title and branding, mimicking first-class macOS apps.
+  - **Windows & Linux Controls**: Fluent rectangular action buttons on the top-right matching platform desktop conventions.
+  - **System Typography**: Automatically adopts native system fonts (Apple SF Pro on macOS, Segoe UI Variable on Windows, Ubuntu / Noto Sans on Linux).
 - **Intelligent 4-Tier Auto-Trim Memory Management**:
-  - Automatically manages Windows Virtual Memory via `SetProcessWorkingSetSize` across host and WebView2 process trees.
-  - **Dynamic WebView2 Memory Target Level**: Automatically toggles `ICoreWebView2_19::SetMemoryUsageTargetLevel` between `Low` (when tucked or idle) and `Normal` (when active) to force Chromium to purge its V8 JavaScript heap, decode caches, and font buffers.
-  - **Stripped Chromium Background Services & Process Limiter**: Injected Chromium startup flags (`--renderer-process-limit=1`, `--disable-features=Translate,OptimizationHints,CalculateNativeWinOcclusion,...`, `--disable-3d-apis`, strict cache limits) and trimmed `CoreWebView2Settings` (disabled status bar, autofill, zoom, and swipe navigation) to completely eliminate redundant Chromium background processes and bloatware strictly unneeded when only running Messenger.
+  - Automatically manages Virtual Memory across host and Webview processes (`SetProcessWorkingSetSize` on Windows, POSIX memory recycling & process lifecycle management on macOS/Linux).
+  - **Dynamic Webview Memory Target Level**: Automatically toggles memory usage target level between `Low` (when tucked or idle) and `Normal` (when active) to force Chromium / WebKit to purge V8 JavaScript heap, decode caches, and font buffers.
+  - **Stripped Webview Background Services & Process Limiter**: Injected startup flags (`--renderer-process-limit=1`, `--disable-features=Translate,OptimizationHints,CalculateNativeWinOcclusion,...`, `--disable-3d-apis`, strict cache limits) and stripped Webview settings to completely eliminate redundant background processes.
   - **4 automated triggers**: 3s after bubble tucks, 2s after receiving an unread message, 5s after session preload finishes, and an idle sweeper every 5 minutes.
   - **Dynamic Dashboard Destruction**: Closing or minimizing the main dashboard destroys its window down to **0 MB RAM** (only background headless message workers persist).
   - Trims total RAM footprint from typical 500–700 MB down to **80–140 MB**.
 - **Real-Time Performance Dashboard**:
-  - Live per-process RAM breakdown (Host Rust, Dashboard UI, WebView2 instances, GPU processes).
+  - Live per-process RAM breakdown (Host Rust, Dashboard UI, Webview instances, GPU processes).
   - Single-click manual memory flush ("Trim Memory") with live recovery metric.
 - **Auto-Seen Prevention & Background Shield**:
   - Overrides `document.hasFocus()` and mocks DOM blur on window hide to prevent Meta Messenger Web from auto-marking unread messages as "Seen" while the chat window is hidden.
@@ -88,8 +146,9 @@ Ready-to-use installer for **Windows 10 / 11 (64-bit)**:
   - **Bilingual Interface**: Full English and Vietnamese support with runtime reactive switching.
   - **Customizable Bubble Size**: Small (48px), Medium (56px), and Large (64px).
   - **Configurable Close Action**: Ask each time, hide to tray, or exit completely.
-  - **Global Hotkey (`Ctrl + Shift + M`)**: Instant toggle for all floating bubbles.
-  - **Native Notifications & Audio**: Windows Action Center toasts + per-account audio muting.
+  - **Dual Global Hotkey (`Ctrl + Shift + M / ⌘ + Shift + M`)**: Instant toggle for all floating bubbles across Windows, macOS, and Linux.
+  - **Native Notifications & Audio**: Native OS notifications (Windows Action Center, macOS Notification Center, Linux Freedesktop) + per-account audio muting.
+  - **Cross-Platform Profile Access**: One-click "Open Data Folder" opens user profile storage in the native file manager (Explorer, Finder, or file manager on Linux).
 
 ---
 
@@ -98,28 +157,29 @@ Ready-to-use installer for **Windows 10 / 11 (64-bit)**:
 ```mermaid
 flowchart TD
     subgraph Frontend["Frontend Layer - Dashboard (React 19 + TypeScript + Zustand)"]
-        UI["Main Dashboard Window (Dynamic Lifecycle)"]
-        STORE["Zustand SSOT Stores (Settings, Window, Messenger)"]
-        SERVICES["Frontend Services (windowService, messengerService, ...)"]
+        UI["Main Dashboard Window (Dynamic Lifecycle & Adaptive TitleBar)"]
+        STORE["Zustand SSOT Stores (Settings, Window, Performance, Messenger)"]
+        SERVICES["Frontend Services (windowService, systemService, messengerService)"]
         FE_PLUG["Platform UI & Settings Adapters"]
     end
 
     subgraph IPC["Tauri v2 IPC Bridge"]
         INVOKE["Tauri Commands (Typed IPC Contracts)"]
-        EVENTS["Tauri Central Event Bus (useUnreadListener)"]
+        EVENTS["Tauri Central Event Bus (useUnreadListener, useAutoUpdater)"]
     end
 
-    subgraph Backend["Backend Layer (Rust 2024 Core)"]
+    subgraph Backend["Backend Layer (Rust 2024 Cross-Platform Core)"]
         STATE["ChatState (Thread-Safe SSOT)"]
         TRIM["AutoTrimController (4-Tier Working Set Optimizer)"]
         ENGINE["BubbleMovementEngine (Snap / Tuck / Collision)"]
-        SKIA["Native Skia Bubble Engine (Win32 HWND + Raw Skia)"]
+        OS_HAL["OS Abstraction Layer (operating-systems/windows, macos, linux)"]
         BE_PLUG["Platform Watchers & Auth Daemons"]
     end
 
-    subgraph OS["Windows 10 / 11 Operating System"]
-        WIN32["Win32 APIs (SetProcessWorkingSetSize, Layered Window)"]
-        WV2["Microsoft Edge WebView2 (Isolated Account Profiles)"]
+    subgraph OS["Cross-Platform Operating Systems (Windows, macOS, Linux)"]
+        NATIVE_WIN["Native Windowing (Win32 / Cocoa NSWindow / GTK3 Compositor)"]
+        NATIVE_MEM["OS Memory Optimization (SetProcessWorkingSetSize / POSIX Recycling)"]
+        WEBVIEWS["Isolated Webviews (WebView2 / WKWebView / WebKitGTK)"]
     end
 
     UI --> STORE
@@ -129,13 +189,14 @@ flowchart TD
 
     INVOKE --> STATE
     INVOKE --> ENGINE
+    INVOKE --> OS_HAL
     INVOKE --> BE_PLUG
 
     BE_PLUG --> TRIM
-    TRIM --> WIN32
-    ENGINE --> WIN32
-    SKIA --> WIN32
-    BE_PLUG --> WV2
+    TRIM --> NATIVE_MEM
+    ENGINE --> NATIVE_WIN
+    OS_HAL --> NATIVE_WIN
+    BE_PLUG --> WEBVIEWS
 ```
 
 <details>
@@ -144,27 +205,28 @@ flowchart TD
 ```text
 DesktopBubbleChat/
 ├── locales/                    # Bilingual i18n translation resources (en/, vi/)
-├── scripts/                    # Automation scripts (check_env.ps1, start.ps1, status.ps1)
+├── scripts/                    # Cross-platform Node.js automation (start, stop, build, status, check-env)
 ├── src/                        # Frontend Application (React 19 + TypeScript + Tailwind)
-│   ├── components/             # Dashboard views, title bar, settings sections & UI primitives
+│   ├── components/             # Dashboard views, adaptive TitleBar, settings sections & UI primitives
 │   ├── hooks/                  # Global listeners (useUnreadListener, useAutoUpdater, ...)
 │   ├── i18n/                   # i18next runtime initialization & reactive language switching
 │   ├── platforms/              # Modular Frontend Platform Adapters (e.g. messenger/)
 │   ├── stores/                 # Zustand state stores (settings, window, performance, ...)
 │   ├── services/               # windowService, systemService, messengerService, ...
 │   └── types/                  # Typed IPC contracts, domain models, and performance types
-├── src-tauri/                  # Rust Backend Core & Native OS Integration
+├── src-tauri/                  # Rust Backend Core & Multi-OS Integration
 │   ├── capabilities/           # Tauri v2 security ACL policies
 │   ├── src/
 │   │   ├── commands/           # IPC command handlers (bubble, system, platforms)
+│   │   ├── core/               # Domain state, models, and business logic
 │   │   ├── movement/           # Physics engine, snap calculations & collision resolver
+│   │   ├── operating-systems/  # OS-specific implementations (windows/, macos/, linux/)
 │   │   ├── platforms/          # Platform adapters (auth watchers, scrapers, lifecycle)
+│   │   ├── presentation/       # Window creation & presentation (main, bubble, chat)
 │   │   ├── tray/               # System tray setup & dynamic context menus
-│   │   ├── utils/              # Memory trimming (AutoTrimController), win32, user_cache
-│   │   ├── windows/            # Skia rendering engine & Win32 native window management
-│   │   └── state.rs            # Centralized thread-safe app state
+│   │   └── utils/              # Memory trimming (AutoTrimController), user_cache, paths
 │   ├── Cargo.toml              # Rust dependencies manifest
-│   └── tauri.conf.json         # Tauri v2 configuration
+│   └── tauri.conf.json         # Tauri v2 multi-OS configuration
 └── package.json
 ```
 
@@ -174,24 +236,47 @@ DesktopBubbleChat/
 
 ### Roadmap
 
-| Platform               | Integration Type                   | Multi-Account Support             | Status        |
-| :--------------------- | :--------------------------------- | :-------------------------------- | :------------ |
-| **Facebook Messenger** | Isolated WebView2 + Native Daemons | Up to 5 Accounts (Profiles 01–05) | **Available** |
-| **Telegram**           | Web / TDesktop Adapter             | Planned Multi-Account             | **Roadmap**   |
-| **Zalo**               | Web Wrapper + Auth Watcher         | Planned Multi-Account             | **Roadmap**   |
-| **Discord**            | Web Client / Gateway Adapter       | Planned Multi-Account             | **Roadmap**   |
+| Platform               | Integration Type                              | Multi-Account Support             | Status        |
+| :--------------------- | :-------------------------------------------- | :-------------------------------- | :------------ |
+| **Facebook Messenger** | Isolated Webviews (WV2/WebKit) + Rust Daemons | Up to 5 Accounts (Profiles 01–05) | **Available** |
+| **Telegram**           | Web / TDesktop Adapter                        | Planned Multi-Account             | **Roadmap**   |
+| **Zalo**               | Web Wrapper + Auth Watcher                    | Planned Multi-Account             | **Roadmap**   |
+| **Discord**            | Web Client / Gateway Adapter                  | Planned Multi-Account             | **Roadmap**   |
 
 ---
 
-### Getting Started
+### Getting Started (Building from Source)
 
 #### Prerequisites
 
-- **Windows 10 (1903+) or Windows 11 (64-bit)**
-- **Node.js**: `>= 18.0.0`
-- **Rust & Cargo**: Stable (1.80+ with `x86_64-pc-windows-msvc`)
-- **Visual Studio Build Tools 2022** (Desktop development with C++ Workload)
-- **Microsoft Edge WebView2 Runtime** (Evergreen)
+- **All Platforms**:
+  - **Node.js**: `>= 18.0.0`
+  - **Rust & Cargo**: Stable (1.80+)
+
+- **Windows**:
+  - **Windows 10 (1903+) or Windows 11 (64-bit)**
+  - **Visual Studio Build Tools 2022** (Desktop development with C++ workload)
+  - **Microsoft Edge WebView2 Runtime** (Evergreen)
+
+- **macOS**:
+  - **macOS 10.15 (Catalina) or later** (Apple Silicon `aarch64` or Intel `x86_64`)
+  - **Xcode Command Line Tools**: `xcode-select --install`
+
+- **Linux**:
+  - **Ubuntu 20.04+, Debian 11+, Fedora 36+, or Arch Linux**
+  - **Required GTK & WebKit development packages**:
+    - **Debian / Ubuntu**:
+      ```bash
+      sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      ```
+    - **Fedora**:
+      ```bash
+      sudo dnf install webkit2gtk4.1-devel openssl-devel libappindicator-gtk3-devel librsvg2-devel
+      ```
+    - **Arch Linux**:
+      ```bash
+      sudo pacman -S webkit2gtk-4.1 libappindicator-gtk3 librsvg
+      ```
 
 #### Installation & Setup
 
@@ -208,39 +293,65 @@ DesktopBubbleChat/
    npm install
    ```
 
-3. **Verify your build environment**:
+3. **Verify build environment**:
 
-   ```powershell
+   ```bash
    npm run app:check
    ```
 
 4. **Run in development mode**:
 
-   ```powershell
+   ```bash
    npm run app:start
    ```
 
 5. **Build for production**:
-   ```powershell
-   npm run tauri build
+
+   ```bash
+   npm run app:build
+   # or: npm run tauri build
    ```
+
+6. **Stop background processes**:
+
+   ```bash
+   npm run app:stop
+   ```
+
+#### Developer Troubleshooting
+
+- **Port 1420 In Use or Zombie Background Process**:
+  If the Vite dev server fails to bind to port 1420 due to a lingering process:
+  ```bash
+  npm run app:stop
+  ```
+  *(Launching via `npm run app:start` also automatically detects and purges stale ports).*
+- **Binary / WebView Process Locked During Build**:
+  If `npm run app:build` fails because `DesktopBubbleChat.exe` or `msedgewebview2.exe` is still open in the background, terminate them with:
+  ```bash
+  npm run app:stop
+  ```
+- **Rust Linker Missing**:
+  - **Windows (`link.exe not found`)**: Install Visual Studio Build Tools 2022 and select the "Desktop development with C++" workload.
+  - **macOS (`clang not found`)**: Run `xcode-select --install` in Terminal.
+  - **Linux (`cc / ld not found`)**: Install build essentials via `sudo apt install build-essential pkg-config`.
 
 ---
 
 ### Usage & Shortcuts
 
-- **`Ctrl + Shift + M`**: Master hotkey to toggle visibility of all floating bubbles.
+- **`Ctrl + Shift + M / ⌘ + Shift + M`**: Master hotkey to toggle visibility of all floating bubbles across Windows, macOS, and Linux.
 - **Hover on Bubble**: Slides out and opens docked conversation window.
 - **Leave Cursor**: Slides chat back into docked edge tucking.
-- **System Tray Menu**: Right-click the taskbar tray icon to:
+- **System Tray Menu**: Right-click the system tray icon to:
   - Toggle Main Dashboard
   - Show / Hide All Bubbles
   - Toggle individual accounts
   - Exit Application cleanly
 - **Resource Monitoring**:
-  Inspect live RAM and WebView2 usage across profiles via the in-app **Performance Dashboard** or CLI:
-  ```powershell
-  powershell -ExecutionPolicy Bypass -File scripts/status.ps1 -Watch
+  Inspect live RAM and WebView usage across profiles via the in-app **Performance Dashboard** or cross-platform CLI:
+  ```bash
+  npm run app:perf -- --watch
   ```
 
 ---
@@ -251,17 +362,6 @@ DesktopBubbleChat/
 2. **Profile Isolation**: Each account operates in an isolated user data directory (`profiles/<platform>_<index>`). Sessions, cookies, and local storage never mix.
 3. **Cryptographic Updates**: In-app updater verifies binary signatures using **Minisign Ed25519** public keys prior to execution.
 4. **Strict Tauri Permissions**: Strict ACL capability policies (`src-tauri/capabilities/default.json`) prevent unauthorized shell or file system operations.
-
----
-
-### Troubleshooting
-
-- **Port 1420 In Use**: Run `Stop-Process -Name "DesktopBubbleChat" -Force -ErrorAction SilentlyContinue` or launch via `npm run app:start` (which automatically clears stale ports).
-- **WebView2 Process Locked**: If builds fail due to file locks on `msedgewebview2.exe`, right-click the system tray and select **Exit Application**, or terminate via PowerShell:
-  ```powershell
-  Get-Process msedgewebview2 -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*com.desktopbubblechat.app*" } | Stop-Process -Force
-  ```
-- **Rust Linker Missing (`link.exe`)**: Install Visual Studio Build Tools 2022 with the "Desktop development with C++" component.
 
 ---
 
