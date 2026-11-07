@@ -13,6 +13,7 @@ pub struct GdkRectangle {
 #[cfg(target_os = "linux")]
 #[link(name = "gtk-3")]
 unsafe extern "C" {
+    pub fn gtk_init_check(argc: *mut i32, argv: *mut *mut *mut std::ffi::c_char) -> i32;
     pub fn gtk_window_new(type_: i32) -> *mut c_void;
     pub fn gtk_widget_set_app_paintable(widget: *mut c_void, app_paintable: i32);
     pub fn gtk_window_set_decorated(window: *mut c_void, setting: i32);
@@ -27,6 +28,21 @@ unsafe extern "C" {
     pub fn gtk_widget_get_screen(widget: *mut c_void) -> *mut c_void;
     pub fn gdk_screen_get_rgba_visual(screen: *mut c_void) -> *mut c_void;
     pub fn gtk_widget_set_visual(widget: *mut c_void, visual: *mut c_void);
+    pub fn gtk_widget_add_events(widget: *mut c_void, events: i32);
+    pub fn gtk_widget_destroy(widget: *mut c_void);
+}
+
+#[cfg(target_os = "linux")]
+#[link(name = "gobject-2.0")]
+unsafe extern "C" {
+    pub fn g_signal_connect_data(
+        instance: *mut c_void,
+        detailed_signal: *const std::ffi::c_char,
+        c_handler: Option<unsafe extern "C" fn()>,
+        data: *mut c_void,
+        destroy_data: *mut c_void,
+        connect_flags: i32,
+    ) -> std::ffi::c_ulong;
 }
 
 #[cfg(target_os = "linux")]
@@ -40,4 +56,7 @@ unsafe extern "C" {
         stride: i32,
     ) -> *mut c_void;
     pub fn cairo_surface_destroy(surface: *mut c_void);
+    pub fn cairo_set_source_surface(cr: *mut c_void, surface: *mut c_void, x: f64, y: f64);
+    pub fn cairo_set_operator(cr: *mut c_void, op: i32);
+    pub fn cairo_paint(cr: *mut c_void);
 }

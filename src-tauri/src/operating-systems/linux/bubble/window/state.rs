@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 use super::gtk_window::LinuxGtkWindowController;
 use super::types::*;
-use tauri::PhysicalPosition;
+use tauri::{Manager, PhysicalPosition};
 use crate::movement::BubbleMovementEngine;
 use crate::operating_systems::linux::bubble::animator::SpringAnimationState;
 use crate::operating_systems::linux::bubble::renderer::{render_bubble_bgra, BubbleRenderOptions};
@@ -17,12 +17,14 @@ pub struct LinuxBubbleWindowState {
     pub is_left_edge: bool,
     pub is_visible: bool,
     pub is_dragging: bool,
+    pub has_dragged: bool,
     pub drag_start_mouse_x: i32,
     pub drag_start_mouse_y: i32,
     pub drag_start_bubble_x: i32,
     pub drag_start_bubble_y: i32,
     pub is_tucked: bool,
     pub anim_state: SpringAnimationState,
+    pub app_handle: Option<tauri::AppHandle>,
 }
 
 unsafe impl Send for LinuxBubbleWindowState {}
@@ -32,7 +34,7 @@ impl LinuxBubbleWindowState {
     pub fn new(account_index: u32, x: i32, y: i32, bubble_size: u32) -> Self {
         let canvas_w = bubble_size + 2 * (BUBBLE_CANVAS_PAD_X as u32);
         let canvas_h = bubble_size + 2 * (BUBBLE_CANVAS_PAD_Y as u32);
-        let window = LinuxGtkWindowController::create_floating_bubble_window(x as f64, y as f64, canvas_w as f64, canvas_h as f64);
+        let window = LinuxGtkWindowController::create_floating_bubble_window(account_index, x as f64, y as f64, canvas_w as f64, canvas_h as f64);
         Self {
             account_index,
             window,
@@ -44,12 +46,14 @@ impl LinuxBubbleWindowState {
             is_left_edge: true,
             is_visible: false,
             is_dragging: false,
+            has_dragged: false,
             drag_start_mouse_x: 0,
             drag_start_mouse_y: 0,
             drag_start_bubble_x: x,
             drag_start_bubble_y: y,
             is_tucked: false,
             anim_state: SpringAnimationState::default(),
+            app_handle: None,
         }
     }
 
@@ -189,6 +193,92 @@ impl LinuxBubbleWindowState {
 
     /// Triggers bubble pulse animation
     pub fn trigger_pulse(&mut self) {}
+
+    /// Handles mouse button press
+    pub fn on_mouse_down(&mut self, mouse_x: i32, mouse_y: i32) {
+        self.start_drag(mouse_x, mouse_y);
+        self.has_dragged = false;
+        crate::utils::trim_controller::record_user_interaction(self.account_index);
+        crate::utils::trim_controller::cancel_auto_trim(self.account_index);
+    }
+
+    /// Handles mouse motion during drag
+    pub fn on_mouse_move(&mut self, mouse_x: i32, mouse_y: i32) {
+        if self.is_dragging {
+            let dx = mouse_x - self.drag_start_mouse_x;
+            let dy = mouse_y - self.drag_start_mouse_y;
+            if dx * dx + dy * dy >= 16 {
+                self.has_dragged = true;
+            }
+            if self.has_dragged {
+                self.update_drag(mouse_x, mouse_y);
+            }
+        }
+    }
+
+    /// Handles mouse button release for snap or click
+    pub fn on_mouse_up(&mut self, _mouse_x: i32, _mouse_y: i32) {
+        self.is_dragging = false;
+        let app_opt = self.app_handle.clone();
+        if self.has_dragged {
+            let (target_x, target_y, should_dismiss) = self.end_drag(app_opt.as_ref());
+            if should_dismiss {
+                self.set_visible(false);
+                if let Some(app) = &self.app_handle {
+                    let app_clone = app.clone();
+                    let idx = self.account_index;
+                    tauri::async_runtime::spawn(async move {
+                        let _ = crate::commands::bubble::toggle_bubble(app_clone, false, Some(idx)).await;
+                    });
+                }
+            } else {
+                self.set_position(target_x, target_y);
+                if let Some(app) = &self.app_handle {
+                    if let Some(cs) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
+                        cs.set_bubble_rect(self.account_index, crate::movement::BubbleRect {
+                            account_index: self.account_index,
+                            x: target_x,
+                            y: target_y,
+                            width: self.bubble_size as i32,
+                            height: self.bubble_size as i32,
+                        });
+                    }
+                }
+            }
+        } else if let Some(app) = &self.app_handle {
+            let app_clone = app.clone();
+            let idx = self.account_index;
+            tauri::async_runtime::spawn(async move {
+                if let Some(chat_state) = app_clone.try_state::<std::sync::Arc<crate::state::ChatState>>() {
+                    let _ = crate::platforms::messenger::services::ChatService::toggle_chat(&app_clone, &chat_state, idx);
+                }
+            });
+        }
+    }
+
+    /// Handles mouse cursor enter
+    pub fn on_mouse_enter(&mut self) {
+        self.is_hovered = true;
+        let app_opt = self.app_handle.clone();
+        if let Some(app) = app_opt {
+            self.untuck(&app);
+        }
+    }
+
+    /// Handles mouse cursor leave
+    pub fn on_mouse_leave(&mut self) {
+        self.is_hovered = false;
+        let app_opt = self.app_handle.clone();
+        if let Some(app) = app_opt {
+            self.tuck(&app);
+        }
+    }
+}
+
+impl Drop for LinuxBubbleWindowState {
+    fn drop(&mut self) {
+        LinuxGtkWindowController::destroy_window(self.window);
+    }
 }
 
 #[cfg(test)]
@@ -197,6 +287,9 @@ mod tests {
 
     #[test]
     fn test_linux_bubble_window_state_creation() {
+        if std::env::var("DISPLAY").is_err() && std::env::var("WAYLAND_DISPLAY").is_err() {
+            return;
+        }
         let mut state = LinuxBubbleWindowState::new(1, 100, 150, 56);
         assert_eq!(state.account_index, 1);
         assert_eq!(state.x, 100);
@@ -212,6 +305,9 @@ mod tests {
 
     #[test]
     fn test_drag_and_snap_lifecycle() {
+        if std::env::var("DISPLAY").is_err() && std::env::var("WAYLAND_DISPLAY").is_err() {
+            return;
+        }
         let mut state = LinuxBubbleWindowState::new(1, 100, 200, 56);
         assert!(!state.is_dragging);
         state.start_drag(120, 210);
