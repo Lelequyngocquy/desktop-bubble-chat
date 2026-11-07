@@ -91,7 +91,11 @@ pub fn collect_performance_snapshot(
         let pid_u32 = pid.as_u32();
         let is_direct_child = process.parent().map(|p| p.as_u32() == host_pid).unwrap_or(false);
         let cmd_joined = process.cmd().iter().map(|c| c.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
-        let is_broker = is_direct_child || cmd_joined.contains("--embedded-browser-webview=1") || (cmd_joined.contains("com.desktopbubblechat.app") && !cmd_joined.contains("--type="));
+        let belongs_to_app = is_direct_child || cmd_joined.contains("com.desktopbubblechat.app") || cmd_joined.contains("desktopbubblechat");
+        if !belongs_to_app {
+            continue;
+        }
+        let is_broker = is_direct_child || (!cmd_joined.contains("--type=") && (cmd_joined.contains("--embedded-browser-webview=1") || cmd_joined.contains("com.desktopbubblechat.app")));
         if is_broker {
             let mut detected_acc = 0;
             for idx in 1..=5 {
