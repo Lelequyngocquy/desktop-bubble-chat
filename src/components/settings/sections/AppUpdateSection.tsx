@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
   ArrowDownCircle,
-  ArrowUpCircle,
   CheckCircle2,
   Download,
   ExternalLink,
