@@ -36,7 +36,7 @@ windows-core = "0.62"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.25"
-objc = { version = "0.2", features = ["verify_message"] }
+objc = "0.2"
 core-graphics = "0.24"
 core-foundation = "0.10"
 

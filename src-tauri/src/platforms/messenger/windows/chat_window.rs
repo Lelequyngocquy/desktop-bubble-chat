@@ -269,9 +269,6 @@ pub fn set_webview_memory_target_level(window: &tauri::WebviewWindow, is_low: bo
     crate::operating_systems::current::MemoryOptimizer::set_webview_memory_target_level(window, is_low);
 }
 
-#[cfg(not(target_os = "windows"))]
-pub fn set_webview_memory_target_level(_window: &tauri::WebviewWindow, _is_low: bool) {}
-
 /// Sets memory target level for a specific Messenger account chat window
 pub fn set_chat_window_memory_target(app: &tauri::AppHandle, account_index: u32, is_low: bool) {
     let label = get_messenger_window_label(account_index);

@@ -1,5 +1,3 @@
-use tauri::WebviewWindow;
-
 pub mod autostart;
 pub mod bubble;
 pub mod cursor;
