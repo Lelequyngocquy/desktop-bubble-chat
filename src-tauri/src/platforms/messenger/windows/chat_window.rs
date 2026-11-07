@@ -264,30 +264,9 @@ pub fn get_or_create_messenger_window(
     }
 }
 
-/// Adjusts WebView2 memory usage target level (Low vs Normal)
-#[cfg(target_os = "windows")]
+/// Adjusts WebView memory usage target level
 pub fn set_webview_memory_target_level(window: &tauri::WebviewWindow, is_low: bool) {
-    let _ = window.with_webview(move |webview| {
-        unsafe {
-            use webview2_com::Microsoft::Web::WebView2::Win32::{
-                ICoreWebView2_19,
-                COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW,
-                COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL,
-            };
-            use windows_core::Interface;
-            let controller = webview.controller();
-            if let Ok(core_webview) = controller.CoreWebView2() {
-                if let Ok(webview_19) = core_webview.cast::<ICoreWebView2_19>() {
-                    let level = if is_low {
-                        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW
-                    } else {
-                        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL
-                    };
-                    let _ = webview_19.SetMemoryUsageTargetLevel(level);
-                }
-            }
-        }
-    });
+    crate::operating_systems::current::MemoryOptimizer::set_webview_memory_target_level(window, is_low);
 }
 
 #[cfg(not(target_os = "windows"))]

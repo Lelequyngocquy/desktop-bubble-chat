@@ -1,4 +1,4 @@
-pub mod ffi;
+﻿pub mod ffi;
 pub mod state;
 pub mod types;
 pub mod wndproc;
@@ -130,7 +130,7 @@ impl NativeBubbleWindow {
                 is_hovered: false,
                 unread_count: 0,
                 drag_alpha: 255,
-                anim_state: crate::windows::native_bubble::animator::SpringAnimationState::default(),
+                anim_state: crate::operating_systems::windows::bubble::animator::SpringAnimationState::default(),
                 app_handle: app,
                 hdc_mem,
                 hbitmap,

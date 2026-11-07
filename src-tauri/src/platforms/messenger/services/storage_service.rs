@@ -47,32 +47,7 @@ impl StorageService {
         let app_handle = app.clone();
         std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(100));
-            #[cfg(target_os = "windows")]
-            {
-                use std::os::windows::process::CommandExt;
-                const CREATE_NO_WINDOW: u32 = 0x08000000;
-                let kill_cmd = format!(
-                    "Get-CimInstance Win32_Process | Where-Object {{ $_.Name -like '*msedgewebview2*' -and $_.CommandLine -like '*{}*' }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }}",
-                    target_needle
-                );
-                match std::process::Command::new("powershell")
-                    .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", &kill_cmd])
-                    .creation_flags(CREATE_NO_WINDOW)
-                    .output()
-                {
-                    Ok(output) => {
-                        if !output.status.success() {
-                            eprintln!(
-                                "[StorageService WARNING] Stop-Process WebView2 exit with status: {:?}",
-                                output.status
-                            );
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("[StorageService ERROR] PowerShell command failed: {}", e);
-                    }
-                }
-            }
+            crate::operating_systems::current::MemoryOptimizer::terminate_profile_process(&target_needle);
             std::thread::sleep(Duration::from_millis(150));
             match app_handle.path().app_data_dir() {
                 Ok(mut profile_dir) => {
@@ -115,35 +90,9 @@ impl StorageService {
         Ok(())
     }
 
-    /// Terminates WebView2 process of specified account to reclaim RAM, preserving profile/cache on disk
+    /// Terminates WebView process of specified account to reclaim RAM, preserving profile/cache on disk
     pub fn terminate_profile_process_only(account_index: u32) {
         let target_needle = format!("messenger_{:02}", account_index);
-        #[cfg(target_os = "windows")]
-        {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
-            let kill_cmd = format!(
-                "Get-CimInstance Win32_Process | Where-Object {{ $_.Name -like '*msedgewebview2*' -and $_.CommandLine -like '*{}*' }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }}",
-                target_needle
-            );
-            let output = std::process::Command::new("powershell")
-                .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", &kill_cmd])
-                .creation_flags(CREATE_NO_WINDOW)
-                .output();
-            match output {
-                Ok(out) => {
-                    println!(
-                        "[StorageService] Terminated WebView2 process for profile '{}' (status: {:?})",
-                        target_needle, out.status
-                    );
-                }
-                Err(e) => {
-                    eprintln!(
-                        "[StorageService ERROR] Failed to invoke PowerShell to terminate process {}: {}",
-                        target_needle, e
-                    );
-                }
-            }
-        }
+        crate::operating_systems::current::MemoryOptimizer::terminate_profile_process(&target_needle);
     }
 }

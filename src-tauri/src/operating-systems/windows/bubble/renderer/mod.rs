@@ -1,4 +1,4 @@
-pub mod badge;
+﻿pub mod badge;
 pub mod icons;
 pub mod theme;
 
@@ -22,8 +22,8 @@ pub struct BubbleRenderOptions {
 impl Default for BubbleRenderOptions {
     fn default() -> Self {
         let bubble_size = 56;
-        let canvas_width = bubble_size + 2 * (crate::windows::native_bubble::window::BUBBLE_CANVAS_PAD_X as u32);
-        let canvas_height = bubble_size + 2 * (crate::windows::native_bubble::window::BUBBLE_CANVAS_PAD_Y as u32);
+        let canvas_width = bubble_size + 2 * (crate::operating_systems::windows::bubble::window::BUBBLE_CANVAS_PAD_X as u32);
+        let canvas_height = bubble_size + 2 * (crate::operating_systems::windows::bubble::window::BUBBLE_CANVAS_PAD_Y as u32);
         Self {
             canvas_width,
             canvas_height,

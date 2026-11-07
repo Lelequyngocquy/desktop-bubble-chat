@@ -1,9 +1,9 @@
-use tauri::AppHandle;
+﻿use tauri::AppHandle;
 
 use super::ffi::*;
 use super::types::*;
 use crate::movement::BubbleMovementEngine;
-use crate::windows::native_bubble::renderer::{render_bubble_bgra, BubbleRenderOptions};
+use crate::operating_systems::windows::bubble::renderer::{render_bubble_bgra, BubbleRenderOptions};
 
 /// Internal state of a native bubble attached to HWND via GWLP_USERDATA.
 pub struct BubbleWindowState {
@@ -27,7 +27,7 @@ pub struct BubbleWindowState {
     pub drag_alpha: u8,
 
     // 60 FPS spring animation state
-    pub anim_state: crate::windows::native_bubble::animator::SpringAnimationState,
+    pub anim_state: crate::operating_systems::windows::bubble::animator::SpringAnimationState,
 
     // SSOT connection to Tauri AppHandle
     pub app_handle: Option<AppHandle>,
@@ -218,8 +218,8 @@ impl BubbleWindowState {
                     .find(|b| b.account_index == slot.account_index)
                     .map(|b| b.x)
                     .unwrap_or(target_pos.x);
-                crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
-                    crate::windows::native_bubble::NativeBubbleAction::AnimateTo {
+                crate::operating_systems::windows::bubble::NativeBubbleManager::global().dispatch(
+                    crate::operating_systems::windows::bubble::NativeBubbleAction::AnimateTo {
                         account_index: slot.account_index,
                         target_x: sibling_x,
                         target_y: slot.target_y,
@@ -277,8 +277,8 @@ impl BubbleWindowState {
                     .find(|b| b.account_index == slot.account_index)
                     .map(|b| b.x)
                     .unwrap_or(target_pos.x);
-                crate::windows::native_bubble::NativeBubbleManager::global().dispatch(
-                    crate::windows::native_bubble::NativeBubbleAction::AnimateTo {
+                crate::operating_systems::windows::bubble::NativeBubbleManager::global().dispatch(
+                    crate::operating_systems::windows::bubble::NativeBubbleAction::AnimateTo {
                         account_index: slot.account_index,
                         target_x: sibling_x,
                         target_y: slot.target_y,

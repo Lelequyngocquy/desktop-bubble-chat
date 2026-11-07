@@ -1,9 +1,13 @@
 pub mod commands;
+pub mod core;
 pub mod movement;
+#[path = "operating-systems/mod.rs"]
+pub mod operating_systems;
 pub mod platforms;
 pub mod state;
 pub mod tray;
 pub mod utils;
+pub mod presentation;
 pub mod windows;
 
 use std::sync::atomic::Ordering;
