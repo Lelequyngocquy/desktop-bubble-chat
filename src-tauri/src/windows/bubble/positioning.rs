@@ -71,6 +71,15 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
     account_index: u32,
     extra_obstacles: &[BubbleRect],
 ) -> Result<BubbleRect, String> {
+    if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
+        if chat_state.is_account_suspended(account_index) {
+            return Err(format!("Account {} is suspended", account_index));
+        }
+        let is_connected = chat_state.get_account_auth(account_index).map(|a| a.connected).unwrap_or(false);
+        if !is_connected {
+            return Err(format!("Account {} is not authenticated", account_index));
+        }
+    }
     #[cfg(target_os = "windows")]
     {
         let config = crate::movement::get_bubble_physics_config(app);

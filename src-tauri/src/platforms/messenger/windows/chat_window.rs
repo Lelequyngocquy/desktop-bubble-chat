@@ -60,6 +60,12 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                 let _ = chat_clone.set_decorations(false);
                 let _ = chat_clone.set_skip_taskbar(true);
                 if !state_clone.get_account_auth(idx).as_ref().map(|a| a.connected).unwrap_or(false) {
+                    state_clone.set_account_suspended(idx, true);
+                    crate::commands::bubble::suspend_account_bubble_and_chat(&app_handle, idx);
+                    state_clone.update_user_config(&app_handle, |c| {
+                        c.active_bubble_accounts.retain(|&x| x != idx);
+                        c.authenticated_accounts.retain(|&x| x != idx);
+                    });
                     if let Ok(clean_url) = tauri::Url::parse(MESSENGER_BASE_URL) {
                         let _ = chat_clone.navigate(clean_url);
                     }
@@ -339,19 +345,14 @@ pub fn preload_messenger_window(
     });
 }
 
-/// Scans existing Messenger profiles and preloads webviews
+/// Scans authenticated Messenger accounts and preloads webviews
 pub fn preload_existing_messenger_windows(app: &AppHandle, chat_state: Arc<ChatState>) {
     let app_handle = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(300));
-        let app_data_dir = match app_handle.path().app_data_dir() {
-            Ok(p) => p,
-            Err(_) => return,
-        };
-        let profiles_dir = app_data_dir.join("profiles");
         for idx in 1..=5 {
-            let account_profile = profiles_dir.join(format!("messenger_{:02}", idx));
-            if account_profile.exists() || (idx == 1 && !profiles_dir.exists()) {
+            let is_connected = chat_state.get_account_auth(idx).map(|a| a.connected).unwrap_or(false);
+            if is_connected {
                 println!("[BE - Window] Preloading Messenger {:02}...", idx);
                 let _ = get_or_create_messenger_window(&app_handle, idx, Arc::clone(&chat_state));
             }

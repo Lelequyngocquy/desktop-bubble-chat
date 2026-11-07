@@ -1,17 +1,9 @@
 use std::sync::Arc;
 use tauri::{AppHandle, Manager};
 
-/// Returns account indices available on disk or authenticated in ChatState
+/// Returns account indices that are authenticated and active in ChatState
 pub fn get_available_account_indices(app_handle: &AppHandle) -> Vec<u32> {
     let mut available = std::collections::BTreeSet::new();
-    if let Ok(app_data_dir) = app_handle.path().app_data_dir() {
-        let profiles_dir = app_data_dir.join("profiles");
-        for idx in 1..=5 {
-            if profiles_dir.join(format!("messenger_{:02}", idx)).exists() {
-                available.insert(idx);
-            }
-        }
-    }
     if let Some(chat_state) = app_handle.try_state::<Arc<crate::state::ChatState>>() {
         if let Ok(map) = chat_state.account_auth.lock() {
             for (idx, info) in map.iter() {

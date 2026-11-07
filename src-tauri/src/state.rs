@@ -272,8 +272,12 @@ impl ChatState {
         }
     }
 
-    /// Initializes user config from disk on startup
-    pub fn init_user_config(&self, config: crate::utils::user_cache::AppUserConfig) {
+    /// Initializes user config from disk on startup and seeds authenticated accounts
+    pub fn init_user_config(&self, mut config: crate::utils::user_cache::AppUserConfig) {
+        config.active_bubble_accounts.retain(|idx| config.authenticated_accounts.contains(idx));
+        for &idx in &config.authenticated_accounts {
+            self.set_account_auth(idx, true, None);
+        }
         if let Ok(mut lock) = self.user_config.lock() {
             *lock = config;
         }

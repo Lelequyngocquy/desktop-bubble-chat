@@ -109,6 +109,11 @@ impl AuthService {
         if let Some(bubble_win) = app.get_webview_window(&bubble_label) {
             let _ = bubble_win.hide();
         }
+        crate::commands::bubble::suspend_account_bubble_and_chat(app, idx);
+        state.update_user_config(app, |c| {
+            c.authenticated_accounts.retain(|&x| x != idx);
+            c.active_bubble_accounts.retain(|&x| x != idx);
+        });
         let _ = app.emit("messenger-auth-status", serde_json::json!({
             "accountIndex": idx,
             "connected": false
@@ -150,6 +155,12 @@ impl AuthService {
             if is_logged_in {
                 println!("\x1b[32m[BE - Auth] check_messenger_auth: Auth SUCCESS for account {:02}! (User: '{}', URL: {})\x1b[0m", idx, user_name, url_str);
                 state.set_account_auth(idx, true, if user_name.is_empty() { None } else { Some(user_name.clone()) });
+                state.update_user_config(app, |c| {
+                    if !c.authenticated_accounts.contains(&idx) {
+                        c.authenticated_accounts.push(idx);
+                        c.authenticated_accounts.sort();
+                    }
+                });
                 state.set_window_auth_mode(&label, false);
                 let _ = chat_window.set_title("Messenger");
                 let _ = chat_window.hide();
@@ -194,6 +205,12 @@ impl AuthService {
         state.set_account_auth(idx, connected, name.clone());
         state.set_chat_ready(idx, true);
         if connected {
+            state.update_user_config(app, |c| {
+                if !c.authenticated_accounts.contains(&idx) {
+                    c.authenticated_accounts.push(idx);
+                    c.authenticated_accounts.sort();
+                }
+            });
             let was_in_auth_mode = state.is_window_in_auth_mode(&label);
             state.set_window_auth_mode(&label, false);
             if let Some(win) = app.get_webview_window(&label) {
@@ -221,6 +238,10 @@ impl AuthService {
                 "windowLabel": &label
             }));
         } else {
+            state.update_user_config(app, |c| {
+                c.authenticated_accounts.retain(|&x| x != idx);
+                c.active_bubble_accounts.retain(|&x| x != idx);
+            });
             if let Some(win) = app.get_webview_window(&label) {
                 let _ = win.eval("window.__IS_AUTH_MODE__ = true;");
             }

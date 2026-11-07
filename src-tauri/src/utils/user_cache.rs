@@ -22,6 +22,12 @@ pub struct AppUserConfig {
     pub theme_mode: Option<String>,
     #[serde(default = "default_position_mode")]
     pub bubble_position_mode: String,
+    #[serde(default = "default_authenticated_accounts")]
+    pub authenticated_accounts: Vec<u32>,
+}
+
+fn default_authenticated_accounts() -> Vec<u32> {
+    vec![1]
 }
 
 fn default_locale() -> Option<String> {
@@ -54,6 +60,7 @@ impl Default for AppUserConfig {
             is_auto_trim_enabled: true,
             theme_mode: Some("system".to_string()),
             bubble_position_mode: "auto_tuck".to_string(),
+            authenticated_accounts: vec![1],
         }
     }
 }
@@ -129,11 +136,13 @@ mod tests {
             is_auto_trim_enabled: false,
             theme_mode: Some("dark".to_string()),
             bubble_position_mode: "free".to_string(),
+            authenticated_accounts: vec![1, 2],
         };
         let serialized = serde_json::to_string(&config).unwrap();
         let deserialized: AppUserConfig = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized.is_dashboard_open, false);
         assert_eq!(deserialized.active_bubble_accounts, vec![1, 2]);
+        assert_eq!(deserialized.authenticated_accounts, vec![1, 2]);
         assert_eq!(deserialized.is_notifications_enabled, false);
         assert_eq!(deserialized.muted_accounts, vec![1, 2, 3, 4, 5]);
         assert_eq!(deserialized.bubble_size, "lg");
@@ -160,5 +169,6 @@ mod tests {
         assert_eq!(legacy_config.current_theme_mode(), "system");
         assert_eq!(legacy_config.is_free_position_mode(), false);
         assert_eq!(legacy_config.bubble_position_mode, "auto_tuck");
+        assert_eq!(legacy_config.authenticated_accounts, vec![1]);
     }
 }

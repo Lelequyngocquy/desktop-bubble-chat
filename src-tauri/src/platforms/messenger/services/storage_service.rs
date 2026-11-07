@@ -19,6 +19,12 @@ impl StorageService {
         let label = get_messenger_window_label(idx);
         println!("[StorageService] Closing window and cleaning profile for Messenger {:02}", idx);
         state.clear_account_auth(idx);
+        state.set_account_suspended(idx, true);
+        crate::commands::bubble::suspend_account_bubble_and_chat(app, idx);
+        state.update_user_config(app, |c| {
+            c.authenticated_accounts.retain(|&x| x != idx);
+            c.active_bubble_accounts.retain(|&x| x != idx);
+        });
         let _ = crate::tray::update_tray_menu(app);
         let win = app
             .get_webview_window(&label)

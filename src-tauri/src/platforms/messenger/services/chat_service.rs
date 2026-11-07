@@ -95,6 +95,10 @@ impl ChatService {
         account_index: u32,
     ) -> Result<(), String> {
         let idx = account_index;
+        let is_connected = state.get_account_auth(idx).map(|a| a.connected).unwrap_or(false);
+        if !is_connected {
+            return Err(format!("Account {} is not authenticated", idx));
+        }
         let is_bubble_already_active = {
             #[cfg(target_os = "windows")]
             {
@@ -109,14 +113,15 @@ impl ChatService {
             }
         };
         if state.is_account_suspended(idx) || !is_bubble_already_active {
-            let _ = crate::commands::bubble::lifecycle::resume_account_bubble_and_chat(app, idx, None);
-            state.update_user_config(app, |c| {
-                if !c.active_bubble_accounts.contains(&idx) {
-                    c.active_bubble_accounts.push(idx);
-                    c.active_bubble_accounts.sort();
-                }
-            });
-            let _ = crate::tray::update_tray_menu(app);
+            if crate::commands::bubble::lifecycle::resume_account_bubble_and_chat(app, idx, None).is_ok() {
+                state.update_user_config(app, |c| {
+                    if !c.active_bubble_accounts.contains(&idx) {
+                        c.active_bubble_accounts.push(idx);
+                        c.active_bubble_accounts.sort();
+                    }
+                });
+                let _ = crate::tray::update_tray_menu(app);
+            }
         }
         let chat_window = get_or_create_messenger_window(app, idx, Arc::clone(state))?;
         let is_already_visible = chat_window.is_visible().unwrap_or(false);

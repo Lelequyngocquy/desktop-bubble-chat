@@ -52,6 +52,14 @@ pub fn resume_account_bubble_and_chat(
     committed_rects: Option<&[BubbleRect]>,
 ) -> Result<BubbleRect, String> {
     let idx = account_index;
+    let is_connected = app
+        .try_state::<Arc<ChatState>>()
+        .and_then(|s| s.get_account_auth(idx))
+        .map(|a| a.connected)
+        .unwrap_or(false);
+    if !is_connected {
+        return Err(format!("Account {} is not authenticated", idx));
+    }
     if let Some(state) = app.try_state::<Arc<ChatState>>() {
         state.set_account_suspended(idx, false);
         state.set_chat_ready(idx, false);
@@ -90,6 +98,16 @@ pub async fn toggle_bubble(
     }
     let guard = TransitionLockGuard::new(state, idx);
     if visible {
+        let is_connected = app
+            .try_state::<Arc<ChatState>>()
+            .and_then(|s| s.get_account_auth(idx))
+            .map(|a| a.connected)
+            .unwrap_or(false);
+        if !is_connected {
+            println!("[toggle_bubble] Cannot show bubble: account {} is not authenticated", idx);
+            drop(guard);
+            return Err(format!("Account {} is not authenticated", idx));
+        }
         match resume_account_bubble_and_chat(&app, idx, None) {
             Ok(_) => {
                 println!("[toggle_bubble] Account {} bubble resumed successfully", idx);
@@ -136,22 +154,21 @@ pub async fn toggle_all_bubbles_impl(
         None => !any_visible,
     };
     if next_visible {
-        let targets = if let Some(indices) = account_indices {
-            indices
+        let targets: Vec<u32> = if let Some(indices) = account_indices {
+            indices.into_iter().filter(|idx| {
+                app.try_state::<Arc<ChatState>>().and_then(|s| s.get_account_auth(*idx)).map(|a| a.connected).unwrap_or(false)
+            }).collect()
         } else {
-            let available = crate::tray::get_available_account_indices(app);
-            if available.is_empty() {
-                vec![1]
-            } else {
-                available
-            }
+            crate::tray::get_available_account_indices(app)
         };
         let mut committed_rects: Vec<BubbleRect> = Vec::new();
+        let mut successfully_resumed: Vec<u32> = Vec::new();
         for (i, idx) in targets.iter().enumerate() {
             match resume_account_bubble_and_chat(app, *idx, Some(&committed_rects)) {
                 Ok(rect) => {
                     println!("[toggle_all_bubbles] Account {} bubble resumed successfully", idx);
                     committed_rects.push(rect);
+                    successfully_resumed.push(*idx);
                 }
                 Err(err) => {
                     eprintln!("[toggle_all_bubbles ERROR] Failed to resume bubble for account {}: {}", idx, err);
@@ -163,7 +180,7 @@ pub async fn toggle_all_bubbles_impl(
         }
         if let Some(s) = app.try_state::<Arc<ChatState>>() {
             s.update_user_config(app, |c| {
-                for &idx in &targets {
+                for &idx in &successfully_resumed {
                     if !c.active_bubble_accounts.contains(&idx) {
                         c.active_bubble_accounts.push(idx);
                     }

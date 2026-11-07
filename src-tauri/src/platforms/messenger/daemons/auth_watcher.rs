@@ -58,6 +58,12 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                                 true,
                                 if user_name.is_empty() { None } else { Some(user_name.clone()) },
                             );
+                            chat_state.update_user_config(&app_handle, |c| {
+                                if !c.authenticated_accounts.contains(&idx) {
+                                    c.authenticated_accounts.push(idx);
+                                    c.authenticated_accounts.sort();
+                                }
+                            });
                             if let Ok(curr_url) = chat_window.url() {
                                 let u = curr_url.to_string();
                                 if u.contains("facebook.com") || u.contains("meta.com") {
@@ -81,7 +87,13 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                             }
                         } else {
                             chat_state.clear_account_auth(idx);
+                            chat_state.set_account_suspended(idx, true);
                             let _ = chat_window.eval("window.__IS_AUTH_MODE__ = true;");
+                            crate::commands::bubble::suspend_account_bubble_and_chat(&app_handle, idx);
+                            chat_state.update_user_config(&app_handle, |c| {
+                                c.authenticated_accounts.retain(|&x| x != idx);
+                                c.active_bubble_accounts.retain(|&x| x != idx);
+                            });
                         }
                         let _ = app_handle.emit("messenger-auth-status", serde_json::json!({
                             "accountIndex": idx,
