@@ -120,7 +120,7 @@ export const SystemStartupSection: React.FC<SystemStartupSectionProps> = ({
                 onClick={() => handleSetCloseAction(opt.id)}
                 className={`p-2.5 rounded-control border text-center transition-all cursor-pointer ${
                   closeAction === opt.id
-                    ? "border-primary bg-primary-subtle text-primary font-semibold shadow-xs ring-1 ring-primary/20"
+                    ? "border-primary bg-primary/10 text-primary font-semibold shadow-xs ring-1 ring-primary/20"
                     : "border-border bg-background-surface text-content-secondary hover:border-border-strong hover:bg-background-subtle"
                 }`}
               >
