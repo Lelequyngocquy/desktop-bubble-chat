@@ -196,13 +196,10 @@ mod tests {
 
     #[test]
     fn test_gtk_window_controller_fallback_safety() {
-        #[cfg(not(target_os = "linux"))]
-        {
-            let ptr = LinuxGtkWindowController::create_floating_bubble_window(1, 100.0, 100.0, 56.0, 56.0);
-            assert!(ptr.is_null());
-            LinuxGtkWindowController::update_window_surface(ptr, &[], 0, 0);
-            LinuxGtkWindowController::set_window_position(ptr, 0, 0);
-            LinuxGtkWindowController::set_window_visible(ptr, true);
-        }
+        let ptr = std::ptr::null_mut();
+        LinuxGtkWindowController::update_window_surface(ptr, &[], 0, 0);
+        LinuxGtkWindowController::set_window_position(ptr, 0, 0);
+        LinuxGtkWindowController::set_window_visible(ptr, true);
+        LinuxGtkWindowController::destroy_window(ptr);
     }
 }

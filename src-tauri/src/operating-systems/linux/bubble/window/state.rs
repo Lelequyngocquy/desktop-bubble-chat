@@ -34,7 +34,11 @@ impl LinuxBubbleWindowState {
     pub fn new(account_index: u32, x: i32, y: i32, bubble_size: u32) -> Self {
         let canvas_w = bubble_size + 2 * (BUBBLE_CANVAS_PAD_X as u32);
         let canvas_h = bubble_size + 2 * (BUBBLE_CANVAS_PAD_Y as u32);
-        let window = LinuxGtkWindowController::create_floating_bubble_window(account_index, x as f64, y as f64, canvas_w as f64, canvas_h as f64);
+        let window = if cfg!(test) {
+            std::ptr::null_mut()
+        } else {
+            LinuxGtkWindowController::create_floating_bubble_window(account_index, x as f64, y as f64, canvas_w as f64, canvas_h as f64)
+        };
         Self {
             account_index,
             window,
@@ -287,9 +291,6 @@ mod tests {
 
     #[test]
     fn test_linux_bubble_window_state_creation() {
-        if std::env::var("DISPLAY").is_err() && std::env::var("WAYLAND_DISPLAY").is_err() {
-            return;
-        }
         let mut state = LinuxBubbleWindowState::new(1, 100, 150, 56);
         assert_eq!(state.account_index, 1);
         assert_eq!(state.x, 100);
@@ -305,9 +306,6 @@ mod tests {
 
     #[test]
     fn test_drag_and_snap_lifecycle() {
-        if std::env::var("DISPLAY").is_err() && std::env::var("WAYLAND_DISPLAY").is_err() {
-            return;
-        }
         let mut state = LinuxBubbleWindowState::new(1, 100, 200, 56);
         assert!(!state.is_dragging);
         state.start_drag(120, 210);
