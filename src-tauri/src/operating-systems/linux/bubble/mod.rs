@@ -1,86 +1,71 @@
 pub mod animator;
+pub mod manager;
 pub mod renderer;
 pub mod window;
 
 pub use animator::*;
+pub use manager::*;
 pub use renderer::*;
 pub use window::*;
 
-use std::collections::HashMap;
-use std::sync::{LazyLock, Mutex};
-
-static BUBBLES: LazyLock<Mutex<HashMap<u32, window::LinuxBubbleWindowState>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
-
 /// Shows or hides native bubble prototype on Linux
-pub fn toggle_native_bubble_prototype(_app: Option<tauri::AppHandle>, account_index: u32, visible: bool) -> Result<bool, String> {
-    if let Ok(mut map) = BUBBLES.lock() {
-        let entry = map.entry(account_index).or_insert_with(|| {
-            window::LinuxBubbleWindowState::new(account_index, 100, 100, 56)
+pub fn toggle_native_bubble_prototype(app: Option<tauri::AppHandle>, account_index: u32, visible: bool) -> Result<bool, String> {
+    if visible {
+        let app_handle = app.ok_or_else(|| "AppHandle is required to show native bubble".to_string())?;
+        let config = crate::movement::get_bubble_physics_config(&app_handle);
+        let screen = crate::movement::get_target_dashboard_screen(Some(&app_handle));
+        let size = (config.size * screen.scale_factor).round() as u32;
+        let y_pos = 180 + ((account_index.max(1) - 1) as i32) * 72;
+        NativeBubbleManager::global().dispatch(NativeBubbleAction::Show {
+            account_index,
+            x: screen.x + 30,
+            y: screen.y + y_pos,
+            size,
+            app: app_handle,
         });
-        entry.set_visible(visible);
-        Ok(entry.is_visible)
+        Ok(true)
     } else {
-        Err("Failed to acquire bubble lock".into())
+        NativeBubbleManager::global().dispatch(NativeBubbleAction::Hide { account_index });
+        Ok(false)
     }
 }
 
 /// Checks if native bubble is currently initialized for account
 pub fn has_native_bubble(account_index: u32) -> bool {
-    BUBBLES.lock().map(|m| m.contains_key(&account_index)).unwrap_or(false)
+    NativeBubbleManager::global().has_bubble(account_index)
 }
 
 /// Updates unread badge count for native bubble
 pub fn set_native_bubble_unread_count(account_index: u32, count: u32) {
-    if let Ok(mut map) = BUBBLES.lock() {
-        if let Some(bubble) = map.get_mut(&account_index) {
-            bubble.set_unread_count(count);
-        }
-    }
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::SetUnread { account_index, count });
 }
 
 /// Triggers pulse animation for native bubble
-pub fn trigger_native_bubble_pulse(_account_index: u32) {}
+pub fn trigger_native_bubble_pulse(account_index: u32) {
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::TriggerPulse { account_index });
+}
 
 /// Checks if cursor is over native bubble
 pub fn is_cursor_over_native_bubble(account_index: u32) -> bool {
-    if let Ok(map) = BUBBLES.lock() {
-        if let Some(bubble) = map.get(&account_index) {
-            if let Some((cx, cy)) = crate::operating_systems::linux::cursor::LinuxCursorTracker::get_cursor_position() {
-                let size = bubble.bubble_size as i32;
-                return cx >= bubble.x && cx <= bubble.x + size && cy >= bubble.y && cy <= bubble.y + size;
-            }
-        }
-    }
-    false
+    NativeBubbleManager::global().is_cursor_over(account_index)
 }
 
 /// Tucks native bubble into screen edge
 pub fn tuck_native_bubble(app: &tauri::AppHandle, account_index: u32) {
-    if let Ok(mut map) = BUBBLES.lock() {
-        if let Some(bubble) = map.get_mut(&account_index) {
-            bubble.tuck(app);
-        }
-    }
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::Tuck { account_index, app: app.clone() });
 }
 
 /// Untucks native bubble from screen edge
 pub fn untuck_native_bubble(app: &tauri::AppHandle, account_index: u32) {
-    if let Ok(mut map) = BUBBLES.lock() {
-        if let Some(bubble) = map.get_mut(&account_index) {
-            bubble.untuck(app);
-        }
-    }
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::Untuck { account_index, app: app.clone() });
 }
 
 /// Sets always on top window level
-pub fn set_native_bubble_always_on_top(_enabled: bool) {}
+pub fn set_native_bubble_always_on_top(enabled: bool) {
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::SetAlwaysOnTop { enabled });
+}
 
 /// Resizes native bubble canvas and triggers redraw
 pub fn set_native_bubble_size(account_index: u32, size: u32) {
-    if let Ok(mut map) = BUBBLES.lock() {
-        if let Some(bubble) = map.get_mut(&account_index) {
-            bubble.bubble_size = size;
-            bubble.render_and_update();
-        }
-    }
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::SetSize { account_index, size });
 }
