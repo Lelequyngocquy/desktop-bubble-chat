@@ -24,6 +24,30 @@ pub fn run() {
     let chat_state = Arc::new(ChatState::default());
     let chat_state_clone = Arc::clone(&chat_state);
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            println!("\x1b[33m[SingleInstance] Second instance launch detected -> Focusing primary instance...\x1b[0m");
+            let handle = app.clone();
+            let _ = crate::windows::main_window::get_or_create_main_window(&handle);
+            if let Some(main_win) = app.get_webview_window("main") {
+                let _ = main_win.unminimize();
+                let _ = main_win.show();
+                let _ = main_win.set_focus();
+                #[cfg(target_os = "windows")]
+                if let Ok(hwnd) = main_win.hwnd() {
+                    unsafe {
+                        #[link(name = "user32")]
+                        unsafe extern "system" {
+                            fn ShowWindow(hWnd: *mut std::ffi::c_void, nCmdShow: i32) -> i32;
+                            fn BringWindowToTop(hWnd: *mut std::ffi::c_void) -> i32;
+                            fn SetForegroundWindow(hWnd: *mut std::ffi::c_void) -> i32;
+                        }
+                        ShowWindow(hwnd.0 as *mut std::ffi::c_void, 9);
+                        BringWindowToTop(hwnd.0 as *mut std::ffi::c_void);
+                        SetForegroundWindow(hwnd.0 as *mut std::ffi::c_void);
+                    }
+                }
+            }
+        }))
         .manage(chat_state)
         .manage(movement::BubbleConfigState::default())
         .plugin(tauri_plugin_opener::init())
