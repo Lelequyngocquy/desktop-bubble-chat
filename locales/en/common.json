@@ -24,7 +24,7 @@
   "status_running": "Running",
   "status_stopped": "Stopped",
   "running_in_background": "Running in background",
-  "running_in_background_desc": "Closing the window will keep the application running and help optimize resource usage.",
+  "running_in_background_desc": "Closing the this window helps optimize resource usage.",
   "update_widget_title": "Software Update",
   "update_widget_desc": "A new version is available. Click to update.",
   "update_widget_desc_ver": "Version v{{version}} is ready. Click to update.",
