@@ -72,9 +72,10 @@ impl NativeBubbleManager {
     /// Dispatches control action to native bubbles
     pub fn dispatch(&self, action: NativeBubbleAction) {
         match action {
-            NativeBubbleAction::Show { account_index, x, y, size, .. } => {
+            NativeBubbleAction::Show { account_index, x, y, size, app } => {
                 if let Ok(mut map) = self.bubbles.lock() {
                     let entry = map.entry(account_index).or_insert_with(|| LinuxBubbleWindowState::new(account_index, x, y, size));
+                    entry.app_handle = Some(app);
                     entry.set_position(x, y);
                     entry.resize(size);
                     entry.set_visible(true);
@@ -195,6 +196,53 @@ impl NativeBubbleManager {
             }
         }
         false
+    }
+
+    /// Dispatches mouse press event
+    pub fn handle_mouse_down(&self, account_index: u32, mouse_x: i32, mouse_y: i32) {
+        if let Ok(mut map) = self.bubbles.lock() {
+            if let Some(bubble) = map.get_mut(&account_index) {
+                bubble.on_mouse_down(mouse_x, mouse_y);
+            }
+        }
+    }
+
+    /// Dispatches mouse move event
+    pub fn handle_mouse_move(&self, account_index: u32, mouse_x: i32, mouse_y: i32) {
+        if let Ok(mut map) = self.bubbles.lock() {
+            if let Some(bubble) = map.get_mut(&account_index) {
+                bubble.on_mouse_move(mouse_x, mouse_y);
+                self.update_cached_bounds(account_index, bubble.x, bubble.y, bubble.bubble_size, bubble.bubble_size);
+            }
+        }
+    }
+
+    /// Dispatches mouse release event
+    pub fn handle_mouse_up(&self, account_index: u32, mouse_x: i32, mouse_y: i32) {
+        if let Ok(mut map) = self.bubbles.lock() {
+            if let Some(bubble) = map.get_mut(&account_index) {
+                bubble.on_mouse_up(mouse_x, mouse_y);
+                self.update_cached_bounds(account_index, bubble.x, bubble.y, bubble.bubble_size, bubble.bubble_size);
+            }
+        }
+    }
+
+    /// Dispatches mouse enter event
+    pub fn handle_mouse_enter(&self, account_index: u32) {
+        if let Ok(mut map) = self.bubbles.lock() {
+            if let Some(bubble) = map.get_mut(&account_index) {
+                bubble.on_mouse_enter();
+            }
+        }
+    }
+
+    /// Dispatches mouse leave event
+    pub fn handle_mouse_leave(&self, account_index: u32) {
+        if let Ok(mut map) = self.bubbles.lock() {
+            if let Some(bubble) = map.get_mut(&account_index) {
+                bubble.on_mouse_leave();
+            }
+        }
     }
 }
 
