@@ -28,6 +28,7 @@
   "update_widget_title": "Software Update",
   "update_widget_desc": "A new version is available. Click to update.",
   "update_widget_desc_ver": "Version v{{version}} is ready. Click to update.",
+  "update_widget_uptodate": "You are on the latest version v{{version}}.",
   "new_badge_tag": "(new)",
   "personal_space": "Personal Space",
   "version": "Version",

@@ -196,40 +196,49 @@ export const Sidebar: React.FC = () => {
 
       {/* Bottom section: Background service, Secondary Nav, Language Switcher & Version */}
       <div className="flex flex-col gap-3">
-        {hasUpdate && (
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={handleNavigateToUpdate}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                handleNavigateToUpdate();
-              }
-            }}
-            className="bg-sidebar-card border border-sidebar-cardBorder hover:border-primary/50 dark:hover:border-primary/50 rounded-panel p-[14px] flex flex-col gap-2 cursor-pointer transition-all shadow-xs group"
-            title={t("settings:scroll_to_update")}
-          >
-            <div className="flex items-center justify-between text-content-primary">
-              <div className="flex items-center gap-2 min-w-0">
-                <Sparkles className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-small font-medium leading-none truncate">
-                  {t("common:update_widget_title")}
-                </span>
-              </div>
-              <span className="px-1.5 py-0.5 bg-primary text-white text-[10px] font-bold rounded-pill animate-pulse leading-none shadow-xs shrink-0">
-                (new)
+        {/* Software Update Card */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={handleNavigateToUpdate}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleNavigateToUpdate();
+            }
+          }}
+          className="bg-sidebar-card border border-sidebar-cardBorder hover:border-primary/50 dark:hover:border-primary/50 rounded-panel p-[14px] flex flex-col gap-2 cursor-pointer transition-all shadow-xs group"
+          title={t("settings:scroll_to_update")}
+        >
+          <div className="flex items-center justify-between text-content-primary">
+            <div className="flex items-center gap-2 min-w-0">
+              <Sparkles className={`w-4 h-4 shrink-0 ${hasUpdate ? "text-primary" : "text-content-secondary group-hover:text-primary transition-colors"}`} />
+              <span className="text-small font-medium leading-none truncate">
+                {t("common:update_widget_title")}
               </span>
             </div>
-            <p className="text-caption text-content-secondary leading-snug m-0 group-hover:text-content-primary transition-colors">
-              {availableVersion
-                ? t("common:update_widget_desc_ver", {
-                    version: availableVersion,
-                  })
-                : t("common:update_widget_desc")}
-            </p>
+            {hasUpdate && (
+              <span className="px-1.5 py-0.5 bg-primary text-white text-[10px] font-bold rounded-pill animate-pulse leading-none shadow-xs shrink-0">
+                {t("common:new_badge_tag")}
+              </span>
+            )}
           </div>
-        )}
+          <p className="text-caption text-content-secondary leading-snug m-0 group-hover:text-content-primary transition-colors">
+            {hasUpdate
+              ? (availableVersion
+                  ? t("common:update_widget_desc_ver", {
+                      version: availableVersion,
+                    })
+                  : t("common:update_widget_desc"))
+              : (updateStatus === "checking"
+                  ? t("settings:update.status_checking")
+                  : (currentVersion
+                      ? t("common:update_widget_uptodate", {
+                          version: currentVersion,
+                        })
+                      : t("settings:update.status_uptodate")))}
+          </p>
+        </div>
 
         {/* Background Service Status Card */}
         <div className="bg-sidebar-card border border-sidebar-cardBorder rounded-panel p-[14px] flex flex-col gap-2">
