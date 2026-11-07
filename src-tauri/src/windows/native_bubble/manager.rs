@@ -199,9 +199,12 @@ impl NativeBubbleManager {
                                     }
                                     NativeBubbleAction::Tuck { account_index, app } => {
                                         crate::utils::trim_controller::schedule_auto_trim_on_tuck(account_index, app.clone());
+                                        let config = crate::movement::get_bubble_physics_config(&app);
+                                        if config.is_free_position {
+                                            continue;
+                                        }
                                         if let Some(win) = bubbles.get(&account_index) {
                                             let screen = crate::movement::get_target_dashboard_screen(Some(&app));
-                                            let config = crate::movement::get_bubble_physics_config(&app);
                                             let (cur_x, cur_y, _, _) = win.get_bounds();
                                             let target_pos = crate::movement::BubbleMovementEngine::calculate_hover_pos(
                                                 &screen,
@@ -264,6 +267,12 @@ impl NativeBubbleManager {
                                     }
                                     NativeBubbleAction::Untuck { account_index, app } => {
                                         crate::utils::trim_controller::cancel_auto_trim(account_index);
+                                        crate::utils::trim_controller::record_user_interaction(account_index);
+                                        crate::platforms::messenger::windows::set_chat_window_memory_target(&app, account_index, false);
+                                        let config = crate::movement::get_bubble_physics_config(&app);
+                                        if config.is_free_position {
+                                            continue;
+                                        }
                                         if let Some(win) = bubbles.get(&account_index) {
                                             let screen = crate::movement::get_target_dashboard_screen(Some(&app));
                                             let config = crate::movement::get_bubble_physics_config(&app);

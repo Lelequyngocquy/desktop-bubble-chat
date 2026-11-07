@@ -172,9 +172,14 @@ impl BubbleWindowState {
     /// Triggers spring animation to untuck from edge (180ms ease-out cubic).
     pub fn untuck(&mut self) {
         crate::utils::trim_controller::cancel_auto_trim(self.account_index);
-        let screen = crate::movement::get_target_dashboard_screen(self.app_handle.as_ref());
+        crate::utils::trim_controller::record_user_interaction(self.account_index);
         if let Some(app) = &self.app_handle {
+            crate::platforms::messenger::windows::set_chat_window_memory_target(app, self.account_index, false);
             let config = crate::movement::get_bubble_physics_config(app);
+            if config.is_free_position {
+                return;
+            }
+            let screen = crate::movement::get_target_dashboard_screen(self.app_handle.as_ref());
             let target_pos = BubbleMovementEngine::calculate_hover_pos(
                 &screen,
                 &config,
@@ -229,8 +234,11 @@ impl BubbleWindowState {
     pub fn tuck(&mut self) {
         if let Some(app) = &self.app_handle {
             crate::utils::trim_controller::schedule_auto_trim_on_tuck(self.account_index, app.clone());
-            let screen = crate::movement::get_target_dashboard_screen(self.app_handle.as_ref());
             let config = crate::movement::get_bubble_physics_config(app);
+            if config.is_free_position {
+                return;
+            }
+            let screen = crate::movement::get_target_dashboard_screen(self.app_handle.as_ref());
             let target_pos = BubbleMovementEngine::calculate_hover_pos(
                 &screen,
                 &config,

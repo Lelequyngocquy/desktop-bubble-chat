@@ -23,13 +23,13 @@
   "item1_desc": "Mỗi tài khoản bạn thêm vào chạy trong một profile WebView2 biệt lập. Không chia sẻ cookie, không làm ảnh hưởng phiên làm việc của nhau.",
   "item2_title": "2. Đa màu sắc nhận diện",
   "item2_desc": "Hệ thống tự động gán màu sắc riêng để bạn không bao giờ nhầm lẫn.",
-  "item3_title": "3. Chuyển đổi nhanh 1-Click",
-  "item3_desc": "Trỏ con trỏ chuột trực tiếp vào bong bóng chat hoặc nút Mở chat (trang Kết nối) để gọi ngay khung hội thoại của tài khoản tương ứng.",
+  "item3_title": "3. Chuyển đổi nhanh bằng trỏ chuột",
+  "item3_desc": "Di chuyển con trỏ chuột trực tiếp vào bong bóng chat hoặc nút Mở chat (trang Kết nối) để gọi ngay khung hội thoại của tài khoản tương ứng.",
   "settings_hint": "Bạn có thể thay đổi kích thước bong bóng hoặc cài đặt phím tắt toàn cục trong tab Cài đặt.",
   "feedback_title": "Gửi phản hồi cho nhà phát triển",
   "feedback_desc": "Bạn gặp sự cố hiển thị hoặc muốn đề xuất thêm nền tảng mới (Zalo, Telegram, Discord)? Hãy gửi tin nhắn cho chúng tôi:",
   "feedback_placeholder": "Nhập nội dung phản hồi hoặc ý kiến đóng góp của bạn...",
-  "feedback_thanks": "Cảm ơn bạn! Phản hồi đã được ghi nhận.",
+  "feedback_thanks": "Cảm ơn bạn! Phản hồi đã được ghi nhận. (Nháp, hãy tạo issue mới trên repo github để phản ánh lỗi ạ hjhj)",
   "app_version": "Phiên bản ứng dụng: v{{version}} · DesktopBubbleChat - Liên hệ: lengocquytdts@gmail.com",
   "send_btn": "Gửi phản hồi"
 }

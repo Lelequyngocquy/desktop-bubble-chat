@@ -62,6 +62,10 @@ export function useDashboardBootstrap() {
             if (bubbleSize && (bubbleSize === "sm" || bubbleSize === "md" || bubbleSize === "lg")) {
               useSettingsStore.getState().setBubbleSize(bubbleSize);
             }
+            const positionMode = userSettings.bubblePositionMode || userSettings.bubble_position_mode;
+            if (positionMode && (positionMode === "auto_tuck" || positionMode === "free")) {
+              useSettingsStore.getState().setBubblePositionMode(positionMode, true);
+            }
             const alwaysOnTop = typeof userSettings.isAlwaysOnTop === "boolean" ? userSettings.isAlwaysOnTop : userSettings.is_always_on_top;
             if (typeof alwaysOnTop === "boolean") {
               useSettingsStore.getState().setAlwaysOnTop(alwaysOnTop);

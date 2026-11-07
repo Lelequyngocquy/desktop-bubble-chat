@@ -34,6 +34,8 @@ export const SettingsWorkspace: React.FC = () => {
   const toggleGlobalShortcut = useSettingsStore((s) => s.toggleGlobalShortcut);
   const isAutoTrimEnabled = useSettingsStore((s) => s.isAutoTrimEnabled);
   const toggleAutoTrim = useSettingsStore((s) => s.toggleAutoTrim);
+  const bubblePositionMode = useSettingsStore((s) => s.bubblePositionMode);
+  const setBubblePositionMode = useSettingsStore((s) => s.setBubblePositionMode);
   const currentVersion = useUpdateStore((s) => s.currentVersion);
   const hasUpdate = useUpdateStore(
     (s) =>
@@ -103,6 +105,8 @@ export const SettingsWorkspace: React.FC = () => {
         <BubbleCustomizationSection
           bubbleSize={bubbleSize}
           onSelectSize={handleSetBubbleSize}
+          bubblePositionMode={bubblePositionMode}
+          onSelectPositionMode={setBubblePositionMode}
         />
 
         <GlobalShortcutSection

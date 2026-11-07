@@ -296,7 +296,6 @@ pub fn hide_all_other_messenger_windows(app: &AppHandle, active_label: &str) {
         let label = get_messenger_window_label(idx);
         if label != active_label {
             if let Some(w) = app.get_webview_window(&label) {
-                set_webview_memory_target_level(&w, true);
                 let _ = w.hide();
             }
             let _ = app.emit("chat-visibility-changed", serde_json::json!({
@@ -309,7 +308,6 @@ pub fn hide_all_other_messenger_windows(app: &AppHandle, active_label: &str) {
     }
     if active_label != "chat-messenger" {
         if let Some(w) = app.get_webview_window("chat-messenger") {
-            set_webview_memory_target_level(&w, true);
             let _ = w.hide();
             let _ = app.emit("chat-visibility-changed", serde_json::json!({
                 "accountIndex": 1,

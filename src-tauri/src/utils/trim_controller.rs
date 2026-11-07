@@ -4,11 +4,11 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 
-/// Debounce duration after bubble/window is tucked before trimming memory
-pub const TUCK_DEBOUNCE_DURATION: Duration = Duration::from_millis(3000);
+/// Debounce duration after bubble/window is tucked before trimming memory (5s)
+pub const TUCK_DEBOUNCE_DURATION: Duration = Duration::from_secs(5);
 
-/// Debounce duration after incoming message notification before trimming memory
-pub const MESSAGE_DEBOUNCE_DURATION: Duration = Duration::from_millis(2000);
+/// Debounce duration after incoming message notification before trimming memory (5s)
+pub const MESSAGE_DEBOUNCE_DURATION: Duration = Duration::from_secs(5);
 
 /// Settle duration after webview preload finishes before trimming memory
 pub const PRELOAD_SETTLE_DURATION: Duration = Duration::from_millis(5000);
@@ -16,18 +16,25 @@ pub const PRELOAD_SETTLE_DURATION: Duration = Duration::from_millis(5000);
 /// Interval duration between periodic idle sweeps (5 minutes)
 pub const IDLE_SWEEP_INTERVAL: Duration = Duration::from_secs(300);
 
-/// Minimum cooldown duration between consecutive trims of the same account process tree
-pub const TRIM_COOLDOWN_DURATION: Duration = Duration::from_secs(10);
+/// Minimum cooldown duration between consecutive trims of the same account process tree (30s)
+pub const TRIM_COOLDOWN_DURATION: Duration = Duration::from_secs(30);
 
 /// Coordinates automated, non-intrusive working set memory trimming for Messenger accounts
 pub struct AutoTrimController {
     last_trim_time: Mutex<HashMap<u32, Instant>>,
+    last_interaction_time: Mutex<HashMap<u32, Instant>>,
     pending_tokens: Mutex<HashMap<u32, u64>>,
     is_tucked: Mutex<HashMap<u32, bool>>,
     token_counter: AtomicU64,
 }
 
 static AUTO_TRIM_CONTROLLER: OnceLock<AutoTrimController> = OnceLock::new();
+
+fn is_chat_window_visible(app: &AppHandle, account_index: u32) -> bool {
+    let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(account_index);
+    let win = app.get_webview_window(&chat_label).or_else(|| if account_index == 1 { app.get_webview_window("chat-messenger") } else { None });
+    win.and_then(|w| w.is_visible().ok()).unwrap_or(false)
+}
 
 impl Default for AutoTrimController {
     fn default() -> Self {
@@ -40,6 +47,7 @@ impl AutoTrimController {
     pub fn new() -> Self {
         Self {
             last_trim_time: Mutex::new(HashMap::new()),
+            last_interaction_time: Mutex::new(HashMap::new()),
             pending_tokens: Mutex::new(HashMap::new()),
             is_tucked: Mutex::new(HashMap::new()),
             token_counter: AtomicU64::new(1),
@@ -49,7 +57,22 @@ impl AutoTrimController {
     pub fn global() -> &'static Self {
         AUTO_TRIM_CONTROLLER.get_or_init(Self::new)
     }
-    /// Checks if an account is eligible to trim based on 10s cooldown
+    /// Records user interaction with an account
+    pub fn record_interaction(&self, account_index: u32) {
+        if let Ok(mut lock) = self.last_interaction_time.lock() {
+            lock.insert(account_index, Instant::now());
+        }
+    }
+    /// Checks whether user recently interacted with an account within duration
+    pub fn has_recent_interaction(&self, account_index: u32, duration: Duration) -> bool {
+        if let Ok(lock) = self.last_interaction_time.lock() {
+            if let Some(last) = lock.get(&account_index) {
+                return last.elapsed() < duration;
+            }
+        }
+        false
+    }
+    /// Checks if an account is eligible to trim based on cooldown
     pub fn can_trim(&self, account_index: u32) -> bool {
         if let Ok(lock) = self.last_trim_time.lock() {
             if let Some(last) = lock.get(&account_index) {
@@ -116,7 +139,7 @@ impl AutoTrimController {
         }
         count
     }
-    /// Schedules an auto-trim task after bubble/window is tucked (3.0s debounce)
+    /// Schedules an auto-trim task after bubble/window is tucked (5s debounce)
     pub fn on_account_tucked(&self, account_index: u32, app: AppHandle) {
         self.set_tucked_state(account_index, true);
         let token = self.next_token(account_index);
@@ -127,6 +150,12 @@ impl AutoTrimController {
                 return;
             }
             if !controller.is_account_tucked(account_index) {
+                return;
+            }
+            if controller.has_recent_interaction(account_index, TUCK_DEBOUNCE_DURATION) {
+                return;
+            }
+            if is_chat_window_visible(&app, account_index) {
                 return;
             }
             if !controller.is_auto_trim_enabled(&app) {
@@ -144,8 +173,9 @@ impl AutoTrimController {
     pub fn on_account_untucked(&self, account_index: u32) {
         self.set_tucked_state(account_index, false);
         self.cancel_pending_trim(account_index);
+        self.record_interaction(account_index);
     }
-    /// Schedules an auto-trim task after receiving a message notification (2.0s debounce)
+    /// Schedules an auto-trim task after receiving a message notification (5s debounce)
     pub fn on_new_message(&self, account_index: u32, app: AppHandle) {
         let token = self.next_token(account_index);
         let controller = Self::global();
@@ -155,6 +185,12 @@ impl AutoTrimController {
                 return;
             }
             if !controller.is_account_tucked(account_index) {
+                return;
+            }
+            if controller.has_recent_interaction(account_index, MESSAGE_DEBOUNCE_DURATION) {
+                return;
+            }
+            if is_chat_window_visible(&app, account_index) {
                 return;
             }
             if !controller.is_auto_trim_enabled(&app) {
@@ -180,11 +216,7 @@ impl AutoTrimController {
             if !controller.is_account_tucked(account_index) {
                 return;
             }
-            let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(account_index);
-            let is_chat_visible = app.get_webview_window(&chat_label)
-                .and_then(|w| w.is_visible().ok())
-                .unwrap_or(false);
-            if is_chat_visible {
+            if is_chat_window_visible(&app, account_index) {
                 return;
             }
             if !controller.is_auto_trim_enabled(&app) {
@@ -204,6 +236,11 @@ impl AutoTrimController {
             controller.cancel_pending_trim(account_index);
         });
     }
+}
+
+/// Convenience function to record user interaction with an account bubble or chat
+pub fn record_user_interaction(account_index: u32) {
+    AutoTrimController::global().record_interaction(account_index);
 }
 
 /// Convenience function to schedule debounced trim on tuck
@@ -231,11 +268,10 @@ pub fn start_idle_trim_sweeper(app: AppHandle) {
                 if !controller.is_account_tucked(account_index) {
                     continue;
                 }
-                let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(account_index);
-                let is_chat_visible = app.get_webview_window(&chat_label)
-                    .and_then(|w| w.is_visible().ok())
-                    .unwrap_or(false);
-                if is_chat_visible {
+                if controller.has_recent_interaction(account_index, Duration::from_secs(30)) {
+                    continue;
+                }
+                if is_chat_window_visible(&app, account_index) {
                     continue;
                 }
                 if !controller.can_trim(account_index) {
@@ -305,5 +341,14 @@ mod tests {
     fn test_preload_and_idle_durations() {
         assert_eq!(PRELOAD_SETTLE_DURATION.as_secs(), 5);
         assert_eq!(IDLE_SWEEP_INTERVAL.as_secs(), 300);
+    }
+
+    #[test]
+    fn test_recent_interaction_tracking() {
+        let controller = AutoTrimController::new();
+        assert!(!controller.has_recent_interaction(1, Duration::from_secs(1)));
+        controller.record_interaction(1);
+        assert!(controller.has_recent_interaction(1, Duration::from_secs(5)));
+        assert!(!controller.has_recent_interaction(2, Duration::from_secs(5)));
     }
 }

@@ -56,6 +56,7 @@ pub fn run() {
             commands::get_all_bubble_positions,
             commands::get_active_bubble_accounts,
             commands::set_bubble_config,
+            commands::set_bubble_position_mode,
             commands::toggle_chat,
             commands::open_chat,
             commands::preload_chat,
@@ -114,6 +115,7 @@ pub fn run() {
             if let Some(state) = app.try_state::<movement::BubbleConfigState>() {
                 if let Ok(mut guard) = state.0.write() {
                     guard.size = target_bubble_size;
+                    guard.is_free_position = initial_config.is_free_position_mode();
                 }
             }
             for &idx in &initial_config.muted_accounts {

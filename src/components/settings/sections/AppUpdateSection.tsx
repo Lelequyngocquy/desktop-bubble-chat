@@ -214,7 +214,7 @@ export const AppUpdateSection: React.FC = () => {
                 ) : isUpToDate ? (
                   <CheckCircle2 className="w-6 h-6" />
                 ) : (
-                  <ArrowUpCircle className="w-6 h-6" />
+                  <ArrowDownCircle className="w-6 h-6" />
                 )}
               </div>
               <div className="flex flex-col gap-0.5">

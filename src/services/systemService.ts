@@ -106,6 +106,17 @@ export const systemService = {
   },
 
   /**
+   * Sets bubble position mode: "auto_tuck" (default) or "free".
+   */
+  async setBubblePositionMode(mode: "auto_tuck" | "free"): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.SET_BUBBLE_POSITION_MODE, { mode });
+    } catch (err) {
+      console.warn("[SystemService] Failed to set bubble position mode:", err);
+    }
+  },
+
+  /**
    * Gets persisted user settings snapshot from Backend cache.
    */
   async getUserSettings(): Promise<{
@@ -128,6 +139,8 @@ export const systemService = {
     isAutoTrimEnabled?: boolean;
     theme_mode?: string;
     themeMode?: string;
+    bubble_position_mode?: "auto_tuck" | "free";
+    bubblePositionMode?: "auto_tuck" | "free";
   } | null> {
     try {
       return await invoke(IPC_COMMANDS.GET_USER_SETTINGS);

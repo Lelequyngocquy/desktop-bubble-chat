@@ -47,18 +47,23 @@ impl ChatService {
             width: chat_w as u32,
             height: chat_h as u32,
         }));
-        let untucked_pos = BubbleMovementEngine::calculate_hover_pos(
-            &screen,
-            &config,
-            bubble_x,
-            bubble_y,
-            true,
-        );
-        if let Some(bw) = &webview_bubble {
-            let _ = bw.set_position(tauri::Position::Physical(untucked_pos));
+        let untucked_pos = if config.is_free_position {
+            tauri::PhysicalPosition { x: bubble_x, y: bubble_y }
         } else {
-            crate::windows::native_bubble::untuck_native_bubble(app, account_index);
-        }
+            let pos = BubbleMovementEngine::calculate_hover_pos(
+                &screen,
+                &config,
+                bubble_x,
+                bubble_y,
+                true,
+            );
+            if let Some(bw) = &webview_bubble {
+                let _ = bw.set_position(tauri::Position::Physical(pos));
+            } else {
+                crate::windows::native_bubble::untuck_native_bubble(app, account_index);
+            }
+            pos
+        };
         let mid_x = screen.x + screen.width / 2;
         let target_x = if untucked_pos.x + bubble_w / 2 >= mid_x {
             untucked_pos.x - chat_w - gap
@@ -140,6 +145,8 @@ impl ChatService {
             "count": 0
         }));
         println!("[BE - Chat] Opened Messenger {:02} chat docked next to bubble", idx);
+        crate::utils::trim_controller::cancel_auto_trim(idx);
+        crate::utils::trim_controller::record_user_interaction(idx);
         crate::platforms::messenger::windows::set_webview_memory_target_level(&chat_window, false);
         chat_window.show().map_err(|e| e.to_string())?;
         chat_window.set_focus().map_err(|e| e.to_string())?;
@@ -169,7 +176,6 @@ impl ChatService {
         if let Some(chat_window) = chat_window {
             if chat_window.is_visible().unwrap_or(false) {
                 let _ = chat_window.eval("window.__isWindowFocused = false; if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); } window.dispatchEvent(new Event('blur'));");
-                crate::platforms::messenger::windows::set_webview_memory_target_level(&chat_window, true);
                 let _ = chat_window.hide();
                 let app_handle = app.clone();
                 std::thread::spawn(move || {

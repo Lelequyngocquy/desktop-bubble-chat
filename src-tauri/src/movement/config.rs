@@ -44,6 +44,7 @@ pub struct BubblePhysicsConfig {
     pub chat_width: f64,
     pub chat_height: f64,
     pub chat_gap: f64,
+    pub is_free_position: bool,
 }
 
 impl Default for BubblePhysicsConfig {
@@ -59,6 +60,7 @@ impl Default for BubblePhysicsConfig {
             chat_width: 404.0,
             chat_height: 550.0,
             chat_gap: 8.0,
+            is_free_position: false,
         }
     }
 }

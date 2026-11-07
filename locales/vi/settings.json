@@ -29,7 +29,7 @@
     "notifications": "Thông báo desktop & Âm thanh",
     "notifications_desc": "Phát âm thanh bong bóng nhẹ và hiển thị thông báo toast khi có tin nhắn mới",
     "auto_trim": "Tự Động Thu Hồi RAM",
-    "auto_trim_desc": "Tự động tối ưu giải phóng RAM khi bong bóng thụt vào mép hoặc 2 giây sau khi nhận tin nhắn",
+    "auto_trim_desc": "Tự động tối ưu giải phóng RAM khi bong bóng thụt vào mép hoặc 5 giây sau khi nhận tin nhắn",
     "close_action": "Thao tác khi đóng Dashboard [X]",
     "close_action_desc": "Hành động được thực hiện khi nhấn nút [X] ở thanh tiêu đề Bảng điều khiển",
     "close_action_ask": "Luôn hỏi mỗi lần đóng",
@@ -41,7 +41,13 @@
     "size_label": "Kích thước hiển thị",
     "small": "Nhỏ (48px)",
     "medium": "Vừa (56px)",
-    "large": "Lớn (64px)"
+    "large": "Lớn (64px)",
+    "position_mode_label": "Cơ chế Vị trí Bong bóng",
+    "position_mode_desc": "Tùy chọn cách thức bong bóng tương tác và dừng lại trên màn hình của bạn.",
+    "auto_tuck": "Tự động ẩn vào mép",
+    "auto_tuck_desc": "Bong bóng tự động hút và thụt vào cạnh màn hình khi không sử dụng",
+    "free": "Vị trí Tự do",
+    "free_desc": "Bong bóng đứng yên ở bất kỳ vị trí nào bạn kéo thả, không tự động nép vào mép"
   },
   "shortcuts": {
     "title": "Phím Tắt Toàn Cục",

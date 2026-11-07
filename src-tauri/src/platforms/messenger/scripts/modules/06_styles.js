@@ -17,6 +17,15 @@ function injectMessengerStyles() {
           display: none !important;
         }
       }
+      /* Tối ưu hiệu năng render danh sách tin nhắn */
+      div[role="grid"] div[role="row"], div[role="log"] > div {
+        content-visibility: auto;
+        contain-intrinsic-size: 0 44px;
+      }
+      /* Tạm dừng hiệu ứng CSS khi cửa sổ ẩn/unfocused */
+      body.app-window-unfocused * {
+        animation-play-state: paused !important;
+      }
     `;
     if (document.head) {
       document.head.appendChild(style);
