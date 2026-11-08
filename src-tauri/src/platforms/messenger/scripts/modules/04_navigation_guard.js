@@ -112,12 +112,16 @@ function isInternalChatNavigation(rawUrl) {
   const str = String(rawUrl).trim();
   if (str.startsWith("#") || str.startsWith("javascript:") || str.startsWith("blob:") || str.startsWith("data:")) return true;
   try {
+    const destUrl = extractDestinationUrl(str);
     const origin = typeof window !== "undefined" && window.location ? window.location.origin : "https://www.messenger.com";
-    const parsed = new URL(str, origin);
+    const parsed = new URL(destUrl, origin);
     if (parsed.protocol === "blob:" || parsed.protocol === "data:") return true;
-    if (!parsed.hostname.includes("messenger.com")) return false;
+    const host = parsed.hostname.toLowerCase();
+    const isMessengerDomain = host === "messenger.com" || host.endsWith(".messenger.com");
+    if (!isMessengerDomain) return false;
     const path = parsed.pathname || "";
-    return path.startsWith("/t/") || path.startsWith("/e2ee/") || path.startsWith("/media") || path.startsWith("/stories") || path === "/new" || path === "/" || path === "";
+    const isUnresolvedLinkShim = (host.startsWith("l.") || host.startsWith("lm.")) && path.startsWith("/l.php");
+    return !isUnresolvedLinkShim;
   } catch (e) {
     return false;
   }
