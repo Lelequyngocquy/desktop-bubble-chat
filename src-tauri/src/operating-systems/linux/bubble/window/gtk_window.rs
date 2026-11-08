@@ -92,6 +92,9 @@ impl LinuxGtkWindowController {
             }
             gtk_widget_set_app_paintable(window, 1);
             gtk_window_set_decorated(window, 0);
+            gtk_window_set_type_hint(window, GDK_WINDOW_TYPE_HINT_UTILITY);
+            gtk_window_set_accept_focus(window, 0);
+            gtk_window_set_focus_on_map(window, 0);
             gtk_window_set_skip_taskbar_hint(window, 1);
             gtk_window_set_skip_pager_hint(window, 1);
             gtk_window_set_keep_above(window, 1);
@@ -102,6 +105,16 @@ impl LinuxGtkWindowController {
                 if !visual.is_null() {
                     gtk_widget_set_visual(window, visual);
                 }
+            }
+            let css_provider = gtk_css_provider_new();
+            if !css_provider.is_null() {
+                let css = b"window { background-color: transparent; background: transparent; border: none; }\0";
+                gtk_css_provider_load_from_data(css_provider, css.as_ptr() as *const _, -1, std::ptr::null_mut());
+                let style_ctx = gtk_widget_get_style_context(window);
+                if !style_ctx.is_null() {
+                    gtk_style_context_add_provider(style_ctx, css_provider, GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+                }
+                g_object_unref(css_provider);
             }
             gtk_widget_set_size_request(window, width as i32, height as i32);
             gtk_window_resize(window, width as i32, height as i32);
