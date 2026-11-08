@@ -24,6 +24,8 @@ pub struct LinuxBubbleWindowState {
     pub drag_start_bubble_y: i32,
     pub is_tucked: bool,
     pub anim_state: SpringAnimationState,
+    pub spring_timer_id: u32,
+    pub hover_leave_timer_id: u32,
     pub app_handle: Option<tauri::AppHandle>,
 }
 
@@ -57,6 +59,8 @@ impl LinuxBubbleWindowState {
             drag_start_bubble_y: y,
             is_tucked: false,
             anim_state: SpringAnimationState::default(),
+            spring_timer_id: 0,
+            hover_leave_timer_id: 0,
             app_handle: None,
         };
         if !inst.window.is_null() {
@@ -145,6 +149,58 @@ impl LinuxBubbleWindowState {
         (snap.target_x, snap.target_y, snap.should_dismiss)
     }
 
+    /// Starts GLib 16ms spring animation timer
+    pub fn start_spring_timer(&mut self) {
+        self.stop_spring_timer();
+        #[cfg(target_os = "linux")]
+        {
+            self.spring_timer_id = unsafe {
+                crate::operating_systems::linux::bubble::window::ffi::g_timeout_add(
+                    16,
+                    Some(crate::operating_systems::linux::bubble::manager::spring_timer_callback),
+                    self.account_index as usize as *mut c_void,
+                )
+            };
+        }
+    }
+
+    /// Stops active spring animation timer
+    pub fn stop_spring_timer(&mut self) {
+        if self.spring_timer_id != 0 {
+            #[cfg(target_os = "linux")]
+            unsafe {
+                crate::operating_systems::linux::bubble::window::ffi::g_source_remove(self.spring_timer_id);
+            }
+            self.spring_timer_id = 0;
+        }
+    }
+
+    /// Starts GLib 160ms hover leave debounce timer
+    pub fn start_hover_leave_timer(&mut self) {
+        self.stop_hover_leave_timer();
+        #[cfg(target_os = "linux")]
+        {
+            self.hover_leave_timer_id = unsafe {
+                crate::operating_systems::linux::bubble::window::ffi::g_timeout_add(
+                    160,
+                    Some(crate::operating_systems::linux::bubble::manager::hover_leave_timer_callback),
+                    self.account_index as usize as *mut c_void,
+                )
+            };
+        }
+    }
+
+    /// Stops active hover leave debounce timer
+    pub fn stop_hover_leave_timer(&mut self) {
+        if self.hover_leave_timer_id != 0 {
+            #[cfg(target_os = "linux")]
+            unsafe {
+                crate::operating_systems::linux::bubble::window::ffi::g_source_remove(self.hover_leave_timer_id);
+            }
+            self.hover_leave_timer_id = 0;
+        }
+    }
+
     /// Steps spring physics animation
     pub fn step_animation(&mut self) -> Option<(i32, i32, bool)> {
         if let Some((new_x, new_y, finished)) = self.anim_state.step() {
@@ -155,7 +211,7 @@ impl LinuxBubbleWindowState {
         }
     }
 
-    /// Triggers spring animation to tuck into screen edge
+    /// Triggers spring animation to tuck into screen edge (180ms ease-out)
     pub fn tuck(&mut self, app: &tauri::AppHandle) {
         crate::utils::trim_controller::schedule_auto_trim_on_tuck(self.account_index, app.clone());
         let config = crate::movement::get_bubble_physics_config(app);
@@ -164,28 +220,60 @@ impl LinuxBubbleWindowState {
         }
         let screen = crate::movement::get_target_dashboard_screen(Some(app));
         let target_pos = BubbleMovementEngine::calculate_hover_pos(&screen, &config, self.x, self.y, false);
-        self.anim_state.start(self.x, self.y, target_pos.x, target_pos.y, 180);
+        if self.x != target_pos.x || self.y != target_pos.y {
+            self.anim_state.start(self.x, self.y, target_pos.x, target_pos.y, 180);
+            self.start_spring_timer();
+        }
         self.is_tucked = true;
     }
 
-    /// Triggers spring animation to untuck from screen edge
+    /// Triggers spring animation to untuck from screen edge and cascades siblings
     pub fn untuck(&mut self, app: &tauri::AppHandle) {
         crate::utils::trim_controller::cancel_auto_trim(self.account_index);
         crate::utils::trim_controller::record_user_interaction(self.account_index);
+        crate::platforms::messenger::windows::set_chat_window_memory_target(app, self.account_index, false);
         let config = crate::movement::get_bubble_physics_config(app);
         if config.is_free_position {
             return;
         }
         let screen = crate::movement::get_target_dashboard_screen(Some(app));
         let target_pos = BubbleMovementEngine::calculate_hover_pos(&screen, &config, self.x, self.y, true);
-        self.anim_state.start(self.x, self.y, target_pos.x, target_pos.y, 180);
+        let mid_x = screen.x + screen.width / 2;
+        let is_left_edge = self.x + (self.bubble_size as i32 / 2) < mid_x;
+        let all_bubbles = crate::presentation::bubble::get_active_bubble_rects(app, None);
+        let slots = crate::movement::collision::CollisionResolver::resolve_mutual_column_layout(
+            self.account_index,
+            self.y,
+            is_left_edge,
+            &screen,
+            &config,
+            &all_bubbles,
+        );
+        let resolved_y = slots.iter().find(|s| s.account_index == self.account_index).map(|s| s.target_y).unwrap_or(self.y);
+        if self.x != target_pos.x || self.y != resolved_y {
+            self.anim_state.start(self.x, self.y, target_pos.x, resolved_y, 180);
+            self.start_spring_timer();
+        }
+        for slot in &slots {
+            if slot.account_index != self.account_index {
+                let sibling_x = all_bubbles.iter().find(|b| b.account_index == slot.account_index).map(|b| b.x).unwrap_or(target_pos.x);
+                crate::operating_systems::linux::bubble::manager::NativeBubbleManager::global().dispatch(
+                    crate::operating_systems::linux::bubble::manager::NativeBubbleAction::AnimateTo {
+                        account_index: slot.account_index,
+                        target_x: sibling_x,
+                        target_y: slot.target_y,
+                        duration_ms: 180,
+                    },
+                );
+            }
+        }
         self.is_tucked = false;
     }
 
     /// Animates bubble to target coordinates
     pub fn animate_to(&mut self, target_x: i32, target_y: i32, duration_ms: u64) {
         self.anim_state.start(self.x, self.y, target_x, target_y, duration_ms);
-        self.set_position(target_x, target_y);
+        self.start_spring_timer();
     }
 
     /// Returns current bubble bounds
@@ -207,13 +295,18 @@ impl LinuxBubbleWindowState {
 
     /// Handles mouse button press
     pub fn on_mouse_down(&mut self, mouse_x: i32, mouse_y: i32) {
+        self.stop_spring_timer();
+        self.stop_hover_leave_timer();
         self.start_drag(mouse_x, mouse_y);
         self.has_dragged = false;
         crate::utils::trim_controller::record_user_interaction(self.account_index);
-        crate::utils::trim_controller::cancel_auto_trim(self.account_index);
+        if let Some(app) = &self.app_handle {
+            crate::platforms::messenger::windows::set_chat_window_memory_target(app, self.account_index, false);
+            crate::utils::trim_controller::cancel_auto_trim(self.account_index);
+        }
     }
 
-    /// Handles mouse motion during drag
+    /// Handles mouse motion during drag with bottom dismiss opacity fade
     pub fn on_mouse_move(&mut self, mouse_x: i32, mouse_y: i32) {
         if self.is_dragging {
             let dx = mouse_x - self.drag_start_mouse_x;
@@ -222,73 +315,112 @@ impl LinuxBubbleWindowState {
                 self.has_dragged = true;
             }
             if self.has_dragged {
-                self.update_drag(mouse_x, mouse_y);
+                let new_x = self.drag_start_bubble_x + dx;
+                let new_y = self.drag_start_bubble_y + dy;
+                self.set_position(new_x, new_y);
+                let screen = crate::movement::get_target_dashboard_screen(self.app_handle.as_ref());
+                let bottom_edge = screen.y + screen.height;
+                let dist = bottom_edge - new_y;
+                let start_fade_dist = (340.0 * screen.scale_factor) as i32;
+                let max_fade_dist = (140.0 * screen.scale_factor) as i32;
+                let alpha_f64 = if dist >= start_fade_dist {
+                    1.0
+                } else if dist <= max_fade_dist {
+                    0.25
+                } else {
+                    let ratio = (start_fade_dist - dist) as f64 / (start_fade_dist - max_fade_dist) as f64;
+                    (1.0 - ratio * 0.75).clamp(0.25, 1.0)
+                };
+                LinuxGtkWindowController::set_window_opacity(self.window, alpha_f64);
             }
+        } else if !self.is_hovered {
+            self.on_mouse_enter();
         }
     }
 
     /// Handles mouse button release for snap or click
     pub fn on_mouse_up(&mut self, _mouse_x: i32, _mouse_y: i32) {
         self.is_dragging = false;
+        LinuxGtkWindowController::set_window_opacity(self.window, 1.0);
         let app_opt = self.app_handle.clone();
         if self.has_dragged {
             let (target_x, target_y, should_dismiss) = self.end_drag(app_opt.as_ref());
             if should_dismiss {
                 self.set_visible(false);
-                if let Some(app) = &self.app_handle {
-                    let app_clone = app.clone();
+                if let Some(app) = app_opt {
                     let idx = self.account_index;
                     tauri::async_runtime::spawn(async move {
-                        let _ = crate::commands::bubble::toggle_bubble(app_clone, false, Some(idx)).await;
+                        let _ = crate::commands::bubble::toggle_bubble(app, false, Some(idx)).await;
                     });
                 }
             } else {
-                self.set_position(target_x, target_y);
-                if let Some(app) = &self.app_handle {
-                    if let Some(cs) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
-                        cs.set_bubble_rect(self.account_index, crate::movement::BubbleRect {
-                            account_index: self.account_index,
-                            x: target_x,
-                            y: target_y,
-                            width: self.bubble_size as i32,
-                            height: self.bubble_size as i32,
-                        });
+                self.anim_state.start(self.x, self.y, target_x, target_y, 180);
+                self.start_spring_timer();
+                if let Some(app) = &app_opt {
+                    let all_bubbles = crate::presentation::bubble::get_active_bubble_rects(app, None);
+                    let screen = crate::movement::get_target_dashboard_screen(Some(app));
+                    let config = crate::movement::get_bubble_physics_config(app);
+                    let mid_x = screen.x + screen.width / 2;
+                    let is_left_edge = target_x + (self.bubble_size as i32 / 2) < mid_x;
+                    let slots = crate::movement::collision::CollisionResolver::resolve_mutual_column_layout(
+                        self.account_index,
+                        target_y,
+                        is_left_edge,
+                        &screen,
+                        &config,
+                        &all_bubbles,
+                    );
+                    for slot in slots {
+                        if slot.account_index != self.account_index {
+                            crate::operating_systems::linux::bubble::manager::NativeBubbleManager::global().dispatch(
+                                crate::operating_systems::linux::bubble::manager::NativeBubbleAction::AnimateTo {
+                                    account_index: slot.account_index,
+                                    target_x,
+                                    target_y: slot.target_y,
+                                    duration_ms: 180,
+                                },
+                            );
+                        }
                     }
                 }
             }
-        } else if let Some(app) = &self.app_handle {
-            let app_clone = app.clone();
+        } else if let Some(app) = app_opt {
             let idx = self.account_index;
             tauri::async_runtime::spawn(async move {
-                if let Some(chat_state) = app_clone.try_state::<std::sync::Arc<crate::state::ChatState>>() {
-                    let _ = crate::platforms::messenger::services::ChatService::toggle_chat(&app_clone, &chat_state, idx);
+                if let Some(chat_state) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
+                    let _ = crate::platforms::messenger::services::ChatService::toggle_chat(&app, &chat_state, idx);
                 }
             });
         }
     }
 
-    /// Handles mouse cursor enter
+    /// Handles mouse cursor enter with pre-warm and untuck
     pub fn on_mouse_enter(&mut self) {
-        self.is_hovered = true;
-        let app_opt = self.app_handle.clone();
-        if let Some(app) = app_opt {
-            self.untuck(&app);
+        self.stop_hover_leave_timer();
+        if !self.is_hovered {
+            self.is_hovered = true;
+            self.render_and_update();
+            crate::utils::trim_controller::record_user_interaction(self.account_index);
+            if let Some(app) = &self.app_handle {
+                crate::platforms::messenger::windows::set_chat_window_memory_target(app, self.account_index, false);
+                crate::utils::trim_controller::cancel_auto_trim(self.account_index);
+                self.untuck(app);
+            }
         }
     }
 
-    /// Handles mouse cursor leave
+    /// Handles mouse cursor leave by starting debounce timer
     pub fn on_mouse_leave(&mut self) {
-        self.is_hovered = false;
-        let app_opt = self.app_handle.clone();
-        if let Some(app) = app_opt {
-            self.tuck(&app);
-        }
+        self.start_hover_leave_timer();
     }
 }
 
 impl Drop for LinuxBubbleWindowState {
     fn drop(&mut self) {
+        self.stop_spring_timer();
+        self.stop_hover_leave_timer();
         LinuxGtkWindowController::destroy_window(self.window);
+    }
     }
 }
 

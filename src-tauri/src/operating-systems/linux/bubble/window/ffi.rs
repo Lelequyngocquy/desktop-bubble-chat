@@ -38,7 +38,20 @@ unsafe extern "C" {
     pub fn gtk_css_provider_load_from_data(css_provider: *mut c_void, data: *const std::ffi::c_char, length: isize, error: *mut *mut c_void) -> i32;
     pub fn gtk_widget_get_style_context(widget: *mut c_void) -> *mut c_void;
     pub fn gtk_style_context_add_provider(context: *mut c_void, provider: *mut c_void, priority: u32);
+    pub fn gtk_widget_set_opacity(widget: *mut c_void, opacity: f64);
+    pub fn gtk_widget_realize(widget: *mut c_void);
+    pub fn gtk_widget_get_window(widget: *mut c_void) -> *mut c_void;
+    pub fn gdk_display_get_default() -> *mut c_void;
+    pub fn gdk_cursor_new_from_name(display: *mut c_void, name: *const std::ffi::c_char) -> *mut c_void;
+    pub fn gdk_window_set_cursor(window: *mut c_void, cursor: *mut c_void);
     pub fn gtk_widget_destroy(widget: *mut c_void);
+}
+
+#[cfg(target_os = "linux")]
+#[link(name = "glib-2.0")]
+unsafe extern "C" {
+    pub fn g_timeout_add(interval: u32, function: Option<unsafe extern "C" fn(*mut c_void) -> i32>, data: *mut c_void) -> u32;
+    pub fn g_source_remove(tag: u32) -> i32;
 }
 
 #[cfg(target_os = "linux")]
