@@ -4,4 +4,4 @@ pub mod memory;
 
 pub use bubble::BubbleDriver;
 pub use cursor::CursorProvider;
-pub use memory::MemoryManager;
+pub use memory::MemoryOptimizerTrait;

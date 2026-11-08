@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System, UpdateKind};
 
@@ -385,7 +385,13 @@ pub fn collect_performance_snapshot(
 }
 
 /// Trims working set memory of all application processes, returns reclaimed MB
-pub fn trim_all_app_processes_memory(_app: &AppHandle) -> f64 {
+pub fn trim_all_app_processes_memory(app: &AppHandle) -> f64 {
+    for idx in 1..=5 {
+        crate::platforms::messenger::windows::set_chat_window_memory_target(app, idx, true);
+    }
+    if let Some(dash_win) = app.get_webview_window("main") {
+        crate::operating_systems::current::MemoryOptimizer::set_webview_memory_target_level(&dash_win, true);
+    }
     let host_pid = std::process::id();
     let mut target_pids = Vec::new();
     target_pids.push(host_pid);

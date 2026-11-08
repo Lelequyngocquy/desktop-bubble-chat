@@ -252,7 +252,6 @@ pub fn get_or_create_messenger_window(
                     }
                 });
             }
-            #[cfg(target_os = "windows")]
             set_webview_memory_target_level(&window, true);
             Ok(window)
         }

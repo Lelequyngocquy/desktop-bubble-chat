@@ -279,6 +279,7 @@ pub fn start_idle_trim_sweeper(app: AppHandle) {
                 }
                 let pids = crate::utils::performance::get_account_process_pids(account_index);
                 if !pids.is_empty() {
+                    crate::platforms::messenger::windows::set_chat_window_memory_target(&app, account_index, true);
                     controller.trim_account_process_tree(account_index);
                 }
             }

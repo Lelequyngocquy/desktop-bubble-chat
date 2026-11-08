@@ -1,4 +1,5 @@
 use tauri::WebviewWindow;
+use crate::core::traits::MemoryOptimizerTrait;
 
 #[cfg(target_os = "linux")]
 unsafe extern "C" {
@@ -7,11 +8,33 @@ unsafe extern "C" {
 
 pub struct LinuxMemoryOptimizer;
 
+impl MemoryOptimizerTrait for LinuxMemoryOptimizer {
+    fn trim_single_process_working_set(pid: u32) {
+        Self::trim_single_process_working_set(pid);
+    }
+    fn trim_current_process_working_set() {
+        Self::trim_current_process_working_set();
+    }
+    fn set_webview_memory_target_level(window: &WebviewWindow, is_low: bool) {
+        Self::set_webview_memory_target_level(window, is_low);
+    }
+    fn is_webview_process(name: &str) -> bool {
+        Self::is_webview_process(name)
+    }
+    fn terminate_profile_process(needle: &str) {
+        Self::terminate_profile_process(needle);
+    }
+}
+
 impl LinuxMemoryOptimizer {
     /// Trims memory working set of target PID to standby list
     pub fn trim_single_process_working_set(pid: u32) {
         if pid == std::process::id() {
             Self::trim_current_process_working_set();
+        }
+        #[cfg(target_os = "linux")]
+        {
+            let _ = std::fs::write(format!("/proc/{}/clear_refs", pid), "1\n");
         }
     }
 
@@ -23,11 +46,25 @@ impl LinuxMemoryOptimizer {
         }
     }
 
-    /// Adjusts WebKit memory target level by requesting garbage collection and memory trim
+    /// Adjusts WebKit memory target level by setting cache model, clearing cache and requesting garbage collection
     pub fn set_webview_memory_target_level(window: &WebviewWindow, is_low: bool) {
-        if is_low {
-            let _ = window.eval("if (window.gc) { window.gc(); }");
-            Self::trim_current_process_working_set();
+        #[cfg(target_os = "linux")]
+        {
+            use webkit2gtk::{WebContextExt, WebViewExt};
+            let _ = window.with_webview(move |webview| {
+                let inner = webview.inner();
+                if let Some(context) = inner.web_context() {
+                    let model = if is_low { webkit2gtk::CacheModel::DocumentViewer } else { webkit2gtk::CacheModel::WebBrowser };
+                    context.set_cache_model(model);
+                    if is_low {
+                        context.clear_cache();
+                    }
+                }
+            });
+            if is_low {
+                let _ = window.eval("if(window.gc){window.gc();}if(window.performance&&window.performance.clearResourceTimings){window.performance.clearResourceTimings();}");
+                Self::trim_current_process_working_set();
+            }
         }
     }
 
