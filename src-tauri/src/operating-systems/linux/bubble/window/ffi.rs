@@ -29,6 +29,8 @@ unsafe extern "C" {
     pub fn gdk_screen_get_rgba_visual(screen: *mut c_void) -> *mut c_void;
     pub fn gtk_widget_set_visual(widget: *mut c_void, visual: *mut c_void);
     pub fn gtk_widget_add_events(widget: *mut c_void, events: i32);
+    pub fn gtk_widget_set_size_request(widget: *mut c_void, width: i32, height: i32);
+    pub fn gtk_window_resize(window: *mut c_void, width: i32, height: i32);
     pub fn gtk_widget_destroy(widget: *mut c_void);
 }
 
