@@ -2,7 +2,7 @@
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ErrorActionPreference = "Stop"
 
-$ProjectRoot = Split-Path -Parent $PSScriptRoot
+$ProjectRoot = (Resolve-Path "$PSScriptRoot\..\..").Path
 Set-Location $ProjectRoot
 
 Write-Host "=============================================" -ForegroundColor Cyan
