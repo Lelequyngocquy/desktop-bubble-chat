@@ -61,6 +61,43 @@ fn get_performance_system() -> &'static Mutex<System> {
     })
 }
 
+/// Checks if process name belongs to webview engine on any platform
+pub fn is_webview_process_name(name: &str) -> bool {
+    crate::operating_systems::current::MemoryOptimizer::is_webview_process(name)
+        || {
+            let n = name.to_lowercase();
+            n.contains("msedgewebview2")
+                || n.contains("webkitwebprocess")
+                || n.contains("webkitnetworkprocess")
+                || n.contains("webkitgpuprocess")
+                || n.contains("com.apple.webkit")
+        }
+}
+
+/// Detects account profile index for process using cmdline and proc maps
+pub fn detect_account_index_for_process(_pid: u32, cmd_joined: &str) -> u32 {
+    for idx in 1..=5 {
+        if cmd_joined.contains(&format!("messenger_{:02}", idx)) || cmd_joined.contains(&format!("messenger_{}", idx)) {
+            return idx;
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        use std::io::BufRead;
+        if let Ok(file) = std::fs::File::open(format!("/proc/{}/maps", _pid)) {
+            let reader = std::io::BufReader::new(file);
+            for line in reader.lines().flatten() {
+                for idx in 1..=5 {
+                    if line.contains(&format!("messenger_{:02}", idx)) || line.contains(&format!("messenger_{}", idx)) {
+                        return idx;
+                    }
+                }
+            }
+        }
+    }
+    0
+}
+
 /// Collects real-time performance snapshot for the application process tree
 pub fn collect_performance_snapshot(
     app: &AppHandle,
@@ -85,25 +122,19 @@ pub fn collect_performance_snapshot(
     let mut process_account_map: HashMap<u32, u32> = HashMap::new();
     for (pid, process) in sys.processes() {
         let p_name = process.name().to_string_lossy().to_lowercase();
-        if !p_name.contains("msedgewebview2") {
+        if !is_webview_process_name(&p_name) {
             continue;
         }
         let pid_u32 = pid.as_u32();
         let is_direct_child = process.parent().map(|p| p.as_u32() == host_pid).unwrap_or(false);
         let cmd_joined = process.cmd().iter().map(|c| c.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
-        let belongs_to_app = is_direct_child || cmd_joined.contains("com.desktopbubblechat.app") || cmd_joined.contains("desktopbubblechat");
+        let detected_acc = detect_account_index_for_process(pid_u32, &cmd_joined);
+        let belongs_to_app = is_direct_child || detected_acc > 0 || cmd_joined.contains("com.desktopbubblechat.app") || cmd_joined.contains("desktopbubblechat");
         if !belongs_to_app {
             continue;
         }
-        let is_broker = is_direct_child || (!cmd_joined.contains("--type=") && (cmd_joined.contains("--embedded-browser-webview=1") || cmd_joined.contains("com.desktopbubblechat.app")));
-        if is_broker {
-            let mut detected_acc = 0;
-            for idx in 1..=5 {
-                if cmd_joined.contains(&format!("messenger_{:02}", idx)) || cmd_joined.contains(&format!("messenger_{}", idx)) {
-                    detected_acc = idx;
-                    break;
-                }
-            }
+        let is_broker_or_child = is_direct_child || (!cmd_joined.contains("--type=") && (cmd_joined.contains("--embedded-browser-webview=1") || cmd_joined.contains("com.desktopbubblechat.app")));
+        if is_broker_or_child || detected_acc > 0 {
             process_account_map.insert(pid_u32, detected_acc);
         }
     }
@@ -116,7 +147,7 @@ pub fn collect_performance_snapshot(
                 continue;
             }
             let p_name = process.name().to_string_lossy().to_lowercase();
-            if !p_name.contains("msedgewebview2") {
+            if !is_webview_process_name(&p_name) {
                 continue;
             }
             if let Some(parent) = process.parent() {
@@ -128,14 +159,9 @@ pub fn collect_performance_snapshot(
                 }
             }
             let cmd_joined = process.cmd().iter().map(|c| c.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
-            if cmd_joined.contains("com.desktopbubblechat.app") || cmd_joined.contains("desktopbubblechat") {
-                let mut detected_acc = 0;
-                for idx in 1..=5 {
-                    if cmd_joined.contains(&format!("messenger_{:02}", idx)) || cmd_joined.contains(&format!("messenger_{}", idx)) {
-                        detected_acc = idx;
-                        break;
-                    }
-                }
+            let detected_acc = detect_account_index_for_process(pid_u32, &cmd_joined);
+            let belongs_to_app = detected_acc > 0 || cmd_joined.contains("com.desktopbubblechat.app") || cmd_joined.contains("desktopbubblechat");
+            if belongs_to_app {
                 process_account_map.insert(pid_u32, detected_acc);
                 added_more = true;
             }
@@ -172,10 +198,31 @@ pub fn collect_performance_snapshot(
             total_ram_mb += working_set_mb;
             total_cpu_percent += cpu_percent;
             let cmd_str = proc.cmd().iter().map(|c| c.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
-            if cmd_str.contains("--type=gpu-process") {
+            let p_name = proc.name().to_string_lossy().to_lowercase();
+            if p_name.contains("webkitnetworkprocess") || p_name.contains("com.apple.webkit.networking") {
+                if acc_idx > 0 {
+                    active_accounts.insert(acc_idx);
+                }
+                let name = if acc_idx > 0 {
+                    format!("Messenger {:02} (Network Service)", acc_idx)
+                } else {
+                    "Dashboard Network Service".to_string()
+                };
                 items.push(ProcessMetricItem {
                     pid: pid_u32,
-                    name: "GPU Acceleration (Direct3D)".to_string(),
+                    name,
+                    category: "utility".to_string(),
+                    account_index: if acc_idx > 0 { Some(acc_idx) } else { None },
+                    account_name: None,
+                    working_set_mb: (working_set_mb * 100.0).round() / 100.0,
+                    cpu_percent: (cpu_percent * 10.0).round() / 10.0,
+                    is_suspended: false,
+                });
+            } else if p_name.contains("webkitgpuprocess") || cmd_str.contains("--type=gpu-process") {
+                let name = if p_name.contains("webkit") { "GPU Acceleration (WebKit/Cairo)" } else { "GPU Acceleration (Direct3D)" };
+                items.push(ProcessMetricItem {
+                    pid: pid_u32,
+                    name: name.to_string(),
                     category: "gpu".to_string(),
                     account_index: if acc_idx > 0 { Some(acc_idx) } else { None },
                     account_name: None,
@@ -223,8 +270,13 @@ pub fn collect_performance_snapshot(
                         info.name
                     }
                 });
-                let is_renderer = cmd_str.contains("--type=renderer") || proc.parent().map(|p| p.as_u32() != host_pid).unwrap_or(false);
-                let sub_type = if is_renderer { "Renderer" } else { "Broker" };
+                let is_webkit = p_name.contains("webkitwebprocess") || p_name.contains("com.apple.webkit.webcontent");
+                let sub_type = if is_webkit {
+                    "WebKit Webview"
+                } else {
+                    let is_renderer = cmd_str.contains("--type=renderer") || proc.parent().map(|p| p.as_u32() != host_pid).unwrap_or(false);
+                    if is_renderer { "Renderer" } else { "Broker" }
+                };
                 items.push(ProcessMetricItem {
                     pid: pid_u32,
                     name: format!("Messenger {:02} ({})", acc_idx, sub_type),
@@ -237,11 +289,16 @@ pub fn collect_performance_snapshot(
                 });
             } else {
                 dashboard_ram_mb += working_set_mb;
-                let is_renderer = cmd_str.contains("--type=renderer") || proc.parent().map(|p| p.as_u32() != host_pid).unwrap_or(false);
-                let name = if is_renderer {
-                    "Dashboard Web Renderer"
+                let is_webkit = p_name.contains("webkitwebprocess") || p_name.contains("com.apple.webkit.webcontent");
+                let name = if is_webkit {
+                    "Dashboard Webview (WebKit)"
                 } else {
-                    "Dashboard Main Window"
+                    let is_renderer = cmd_str.contains("--type=renderer") || proc.parent().map(|p| p.as_u32() != host_pid).unwrap_or(false);
+                    if is_renderer {
+                        "Dashboard Web Renderer"
+                    } else {
+                        "Dashboard Main Window"
+                    }
                 };
                 items.push(ProcessMetricItem {
                     pid: pid_u32,
@@ -344,7 +401,7 @@ pub fn trim_all_app_processes_memory(_app: &AppHandle) -> f64 {
                     continue;
                 }
                 let p_name = process.name().to_string_lossy().to_lowercase();
-                if !p_name.contains("msedgewebview2") && !p_name.contains("desktopbubblechat") && !p_name.contains("desktop-bubble-chat") {
+                if !is_webview_process_name(&p_name) && !p_name.contains("desktopbubblechat") && !p_name.contains("desktop-bubble-chat") {
                     continue;
                 }
                 if process
@@ -388,8 +445,6 @@ pub fn trim_all_app_processes_memory(_app: &AppHandle) -> f64 {
 /// Returns all process IDs belonging to a specific account index
 pub fn get_account_process_pids(account_index: u32) -> Vec<u32> {
     let mut pids = HashSet::new();
-    let pattern_padded = format!("messenger_{:02}", account_index);
-    let pattern_single = format!("messenger_{}", account_index);
     let sys_mutex = get_performance_system();
     if let Ok(mut sys) = sys_mutex.lock() {
         sys.refresh_processes_specifics(
@@ -399,7 +454,7 @@ pub fn get_account_process_pids(account_index: u32) -> Vec<u32> {
         );
         for (pid, proc) in sys.processes() {
             let p_name = proc.name().to_string_lossy().to_lowercase();
-            if !p_name.contains("msedgewebview2") {
+            if !is_webview_process_name(&p_name) {
                 continue;
             }
             let cmd_str = proc
@@ -409,8 +464,9 @@ pub fn get_account_process_pids(account_index: u32) -> Vec<u32> {
                 .collect::<Vec<_>>()
                 .join(" ")
                 .to_lowercase();
-            if cmd_str.contains(&pattern_padded) || cmd_str.contains(&pattern_single) {
-                pids.insert(pid.as_u32());
+            let pid_u32 = pid.as_u32();
+            if detect_account_index_for_process(pid_u32, &cmd_str) == account_index {
+                pids.insert(pid_u32);
             }
         }
         let mut added = true;
@@ -422,7 +478,7 @@ pub fn get_account_process_pids(account_index: u32) -> Vec<u32> {
                     continue;
                 }
                 let p_name = proc.name().to_string_lossy().to_lowercase();
-                if !crate::operating_systems::current::MemoryOptimizer::is_webview_process(&p_name) {
+                if !is_webview_process_name(&p_name) {
                     continue;
                 }
                 if let Some(parent) = proc.parent() {
@@ -440,4 +496,27 @@ pub fn get_account_process_pids(account_index: u32) -> Vec<u32> {
 /// Trims memory working set of target process
 pub fn trim_single_process_working_set(pid: u32) {
     crate::operating_systems::current::MemoryOptimizer::trim_single_process_working_set(pid);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_webview_process_name_matches() {
+        assert!(is_webview_process_name("msedgewebview2.exe"));
+        assert!(is_webview_process_name("WebKitWebProcess"));
+        assert!(is_webview_process_name("WebKitNetworkProcess"));
+        assert!(is_webview_process_name("WebKitGPUProcess"));
+        assert!(is_webview_process_name("com.apple.WebKit.WebContent"));
+        assert!(!is_webview_process_name("desktop-bubble-chat"));
+        assert!(!is_webview_process_name("bash"));
+    }
+
+    #[test]
+    fn test_detect_account_index_for_process_cmdline() {
+        assert_eq!(detect_account_index_for_process(9999, "--user-data-dir=profiles/messenger_01"), 1);
+        assert_eq!(detect_account_index_for_process(9999, "--user-data-dir=profiles/messenger_04"), 4);
+        assert_eq!(detect_account_index_for_process(9999, "dashboard main process"), 0);
+    }
 }
