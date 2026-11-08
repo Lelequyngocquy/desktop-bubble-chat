@@ -34,18 +34,32 @@ impl LinuxMemoryOptimizer {
     /// Checks if process name belongs to WebKitGTK helper processes
     pub fn is_webview_process(name: &str) -> bool {
         let n = name.to_lowercase();
-        n.contains("webkitwebprocess") || n.contains("webkitnetworkprocess")
+        n.contains("webkitwebprocess") || n.contains("webkitnetworkprocess") || n.contains("webkitgpuprocess")
     }
 
     /// Terminates WebKit processes matching needle profile path
     pub fn terminate_profile_process(needle: &str) {
         let mut system = sysinfo::System::new_all();
         system.refresh_all();
-        for (_pid, process) in system.processes() {
+        for (pid, process) in system.processes() {
             let name = process.name().to_string_lossy().to_lowercase();
             if Self::is_webview_process(&name) {
                 let cmd = process.cmd().iter().map(|s| s.to_string_lossy()).collect::<Vec<_>>().join(" ");
-                if cmd.contains(needle) {
+                let mut matched = cmd.contains(needle);
+                #[cfg(target_os = "linux")]
+                if !matched {
+                    if let Ok(file) = std::fs::File::open(format!("/proc/{}/maps", pid.as_u32())) {
+                        use std::io::BufRead;
+                        let reader = std::io::BufReader::new(file);
+                        for line in reader.lines().flatten() {
+                            if line.contains(needle) {
+                                matched = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if matched {
                     let _ = process.kill_with(sysinfo::Signal::Term);
                 }
             }
@@ -61,6 +75,7 @@ mod tests {
     fn test_is_webview_process_patterns() {
         assert!(LinuxMemoryOptimizer::is_webview_process("WebKitWebProcess"));
         assert!(LinuxMemoryOptimizer::is_webview_process("WebKitNetworkProcess"));
+        assert!(LinuxMemoryOptimizer::is_webview_process("WebKitGPUProcess"));
         assert!(!LinuxMemoryOptimizer::is_webview_process("desktop-bubble-chat"));
         assert!(!LinuxMemoryOptimizer::is_webview_process("gnome-shell"));
     }
