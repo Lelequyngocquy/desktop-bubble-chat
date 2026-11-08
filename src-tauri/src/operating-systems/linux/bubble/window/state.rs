@@ -421,7 +421,6 @@ impl Drop for LinuxBubbleWindowState {
         self.stop_hover_leave_timer();
         LinuxGtkWindowController::destroy_window(self.window);
     }
-    }
 }
 
 #[cfg(test)]
