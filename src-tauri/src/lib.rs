@@ -24,6 +24,12 @@ pub fn run() {
             crate::platforms::messenger::constants::CHROMIUM_BROWSER_ARGS,
         );
     }
+    #[cfg(target_os = "linux")]
+    unsafe {
+        if std::env::var("GDK_BACKEND").is_err() {
+            std::env::set_var("GDK_BACKEND", "x11,wayland");
+        }
+    }
     let chat_state = Arc::new(ChatState::default());
     let chat_state_clone = Arc::clone(&chat_state);
     let app = tauri::Builder::default()

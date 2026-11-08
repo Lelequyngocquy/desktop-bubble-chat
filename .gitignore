@@ -38,14 +38,9 @@ dev_md/
 !README.vi.md 
 RELEASE.md
 logs/
-scripts/*
-!scripts/start.ps1
-!scripts/check_env.ps1
-!scripts/status.ps1
-!scripts/build.ps1
-!scripts/stop.ps1
-!scripts/*.mjs
-!scripts/*.json
+scripts/windows/versioning.ps1
+scripts/windows/set-logo.ps1
+scripts/windows/appium-server.ps1
 tests/
 docs/
 

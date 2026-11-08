@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Starts the DesktopBubbleChat application (Dev, Prod, or Web mode).
 .DESCRIPTION
@@ -16,7 +16,7 @@ param (
 )
 
 $ErrorActionPreference = "Stop"
-$ProjectRoot = Split-Path -Parent $PSScriptRoot
+$ProjectRoot = (Resolve-Path "$PSScriptRoot\..\..").Path
 
 Write-Host "====================================================" -ForegroundColor Cyan
 Write-Host "   DesktopBubbleChat - Application Launcher         " -ForegroundColor Cyan

@@ -169,6 +169,26 @@ impl MacOSBubbleWindowState {
         self.anim_state.start(self.x, self.y, target_pos.x, target_pos.y, 180);
         self.is_tucked = false;
     }
+
+    /// Animates bubble to target coordinates
+    pub fn animate_to(&mut self, target_x: i32, target_y: i32, duration_ms: u64) {
+        self.anim_state.start(self.x, self.y, target_x, target_y, duration_ms);
+        self.set_position(target_x, target_y);
+    }
+
+    /// Returns current bubble bounds
+    pub fn get_bounds(&self) -> (i32, i32, u32, u32) {
+        (self.x, self.y, self.bubble_size, self.bubble_size)
+    }
+
+    /// Resizes bubble canvas
+    pub fn resize(&mut self, size: u32) {
+        self.bubble_size = size;
+        self.render_and_update();
+    }
+
+    /// Triggers bubble pulse animation
+    pub fn trigger_pulse(&mut self) {}
 }
 
 #[cfg(test)]

@@ -1,4 +1,5 @@
 use tauri::WebviewWindow;
+use crate::core::traits::MemoryOptimizerTrait;
 
 #[cfg(target_os = "macos")]
 unsafe extern "C" {
@@ -6,6 +7,24 @@ unsafe extern "C" {
 }
 
 pub struct MacOSMemoryOptimizer;
+
+impl MemoryOptimizerTrait for MacOSMemoryOptimizer {
+    fn trim_single_process_working_set(pid: u32) {
+        Self::trim_single_process_working_set(pid);
+    }
+    fn trim_current_process_working_set() {
+        Self::trim_current_process_working_set();
+    }
+    fn set_webview_memory_target_level(window: &WebviewWindow, is_low: bool) {
+        Self::set_webview_memory_target_level(window, is_low);
+    }
+    fn is_webview_process(name: &str) -> bool {
+        Self::is_webview_process(name)
+    }
+    fn terminate_profile_process(needle: &str) {
+        Self::terminate_profile_process(needle);
+    }
+}
 
 impl MacOSMemoryOptimizer {
     /// Trims memory working set of target PID to standby list

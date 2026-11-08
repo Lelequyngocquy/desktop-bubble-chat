@@ -29,7 +29,6 @@ pub fn suspend_account_bubble_and_chat(app: &AppHandle, account_index: u32) {
         let _ = cw.close();
         let _ = cw.destroy();
     }
-    #[cfg(target_os = "windows")]
     crate::operating_systems::current::bubble::NativeBubbleManager::global().dispatch(
         crate::operating_systems::current::bubble::NativeBubbleAction::Hide { account_index: idx }
     );
@@ -37,7 +36,6 @@ pub fn suspend_account_bubble_and_chat(app: &AppHandle, account_index: u32) {
         let _ = bw.hide();
         let _ = bw.destroy();
     }
-    #[cfg(target_os = "windows")]
     crate::presentation::main_window::trim_current_process_working_set();
     let _ = app.emit("bubble-visibility-changed", serde_json::json!({
         "accountIndex": idx,

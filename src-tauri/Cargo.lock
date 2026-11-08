@@ -873,6 +873,7 @@ dependencies = [
  "tauri-plugin-updater",
  "tiny-skia",
  "tokio",
+ "webkit2gtk",
  "webview2-com",
  "windows-core 0.62.2",
  "x11",

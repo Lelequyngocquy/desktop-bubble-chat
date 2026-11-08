@@ -18,6 +18,13 @@ import { messengerService } from "../../platforms/messenger/services/messengerSe
 import { CommonBadge } from "../common";
 import { usePerformanceStore } from "../../stores/performanceStore";
 
+const getHostEngineLabel = () => {
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent.toLowerCase() : "";
+  if (ua.includes("linux")) return "GTK3 / X11 Event Loop & Skia Vector Engine";
+  if (ua.includes("mac")) return "Cocoa RunLoop & Skia Vector Engine";
+  return "Win32 Message Loop & Skia Vector Engine";
+};
+
 interface ProcessDetailCardProps {
   snapshot: SystemPerformanceSnapshot | null;
   isLoading: boolean;
@@ -126,7 +133,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                   {item.name}
                 </span>
                 <span className="text-caption text-content-muted">
-                  PID: {item.pid} · Win32 Message Loop & Skia Vector Engine
+                  PID: {item.pid} · {getHostEngineLabel()}
                 </span>
               </div>
               <div className="flex items-center gap-4 text-small">
