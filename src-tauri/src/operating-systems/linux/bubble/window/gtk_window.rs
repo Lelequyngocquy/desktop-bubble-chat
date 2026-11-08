@@ -118,6 +118,18 @@ impl LinuxGtkWindowController {
             }
             gtk_widget_set_size_request(window, width as i32, height as i32);
             gtk_window_resize(window, width as i32, height as i32);
+            gtk_widget_realize(window);
+            let gdk_win = gtk_widget_get_window(window);
+            if !gdk_win.is_null() {
+                let display = gdk_display_get_default();
+                if !display.is_null() {
+                    let cursor = gdk_cursor_new_from_name(display, b"pointer\0".as_ptr() as *const _);
+                    if !cursor.is_null() {
+                        gdk_window_set_cursor(gdk_win, cursor);
+                        g_object_unref(cursor);
+                    }
+                }
+            }
             gtk_widget_add_events(window, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK);
             let user_data = account_index as usize as *mut c_void;
             g_signal_connect_data(window, b"draw\0".as_ptr() as *const _, Some(std::mem::transmute(on_draw as *const ())), user_data, std::ptr::null_mut(), 0);
@@ -187,6 +199,21 @@ impl LinuxGtkWindowController {
     /// Fallback for non-Linux target
     #[cfg(not(target_os = "linux"))]
     pub fn set_window_position(_window: *mut c_void, _x: i32, _y: i32) {}
+
+    /// Sets window opacity (0.0 to 1.0)
+    #[cfg(target_os = "linux")]
+    pub fn set_window_opacity(window: *mut c_void, opacity: f64) {
+        if window.is_null() {
+            return;
+        }
+        unsafe {
+            gtk_widget_set_opacity(window, opacity);
+        }
+    }
+
+    /// Fallback for non-Linux target
+    #[cfg(not(target_os = "linux"))]
+    pub fn set_window_opacity(_window: *mut c_void, _opacity: f64) {}
 
     /// Shows or hides GTK window
     #[cfg(target_os = "linux")]

@@ -244,7 +244,88 @@ impl NativeBubbleManager {
             }
         }
     }
+
+    /// Handles GLib spring physics animation tick (60 FPS)
+    pub fn on_spring_timer_tick(&self, account_index: u32) -> bool {
+        let mut finished = true;
+        let mut cur_pos = (0, 0);
+        let mut app_handle_opt = None;
+        if let Ok(mut map) = self.bubbles.lock() {
+            if let Some(bubble) = map.get_mut(&account_index) {
+                if let Some((cur_x, cur_y, is_finished)) = bubble.anim_state.step() {
+                    bubble.set_position(cur_x, cur_y);
+                    cur_pos = (cur_x, cur_y);
+                    finished = is_finished;
+                    if is_finished {
+                        bubble.spring_timer_id = 0;
+                        bubble.render_and_update();
+                        app_handle_opt = bubble.app_handle.clone();
+                    }
+                } else {
+                    bubble.spring_timer_id = 0;
+                }
+            }
+        }
+        if cur_pos != (0, 0) {
+            self.update_cached_bounds(account_index, cur_pos.0, cur_pos.1, 56, 56);
+        }
+        if finished {
+            if let Some(app) = app_handle_opt {
+                if let Some(cs) = app.try_state::<Arc<crate::state::ChatState>>() {
+                    cs.set_bubble_rect(account_index, crate::movement::BubbleRect {
+                        account_index,
+                        x: cur_pos.0,
+                        y: cur_pos.1,
+                        width: 56,
+                        height: 56,
+                    });
+                }
+            }
+            false
+        } else {
+            true
+        }
+    }
+
+    /// Handles GLib hover leave debounce expiration (160ms)
+    pub fn on_hover_leave_timer_tick(&self, account_index: u32) {
+        let mut app_handle_opt = None;
+        if let Ok(mut map) = self.bubbles.lock() {
+            if let Some(bubble) = map.get_mut(&account_index) {
+                bubble.hover_leave_timer_id = 0;
+                bubble.is_hovered = false;
+                bubble.render_and_update();
+                app_handle_opt = bubble.app_handle.clone();
+            }
+        }
+        if let Some(app) = app_handle_opt {
+            self.dispatch(NativeBubbleAction::Tuck { account_index, app });
+        }
+    }
 }
+
+/// GLib 16ms spring animation timer callback
+#[cfg(target_os = "linux")]
+pub unsafe extern "C" fn spring_timer_callback(user_data: *mut std::ffi::c_void) -> i32 {
+    let account_index = user_data as usize as u32;
+    if NativeBubbleManager::global().on_spring_timer_tick(account_index) { 1 } else { 0 }
+}
+
+/// Fallback for non-Linux targets
+#[cfg(not(target_os = "linux"))]
+pub unsafe extern "C" fn spring_timer_callback(_user_data: *mut std::ffi::c_void) -> i32 { 0 }
+
+/// GLib 160ms hover leave debounce timer callback
+#[cfg(target_os = "linux")]
+pub unsafe extern "C" fn hover_leave_timer_callback(user_data: *mut std::ffi::c_void) -> i32 {
+    let account_index = user_data as usize as u32;
+    NativeBubbleManager::global().on_hover_leave_timer_tick(account_index);
+    0
+}
+
+/// Fallback for non-Linux targets
+#[cfg(not(target_os = "linux"))]
+pub unsafe extern "C" fn hover_leave_timer_callback(_user_data: *mut std::ffi::c_void) -> i32 { 0 }
 
 /// Utility function to update cached bounds
 pub fn update_cached_bubble_bounds(account_index: u32, x: i32, y: i32, w: u32, h: u32) {
