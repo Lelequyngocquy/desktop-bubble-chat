@@ -39,7 +39,7 @@ impl LinuxBubbleWindowState {
         } else {
             LinuxGtkWindowController::create_floating_bubble_window(account_index, x as f64, y as f64, canvas_w as f64, canvas_h as f64)
         };
-        Self {
+        let mut inst = Self {
             account_index,
             window,
             x,
@@ -58,7 +58,11 @@ impl LinuxBubbleWindowState {
             is_tucked: false,
             anim_state: SpringAnimationState::default(),
             app_handle: None,
+        };
+        if !inst.window.is_null() {
+            inst.render_and_update();
         }
+        inst
     }
 
     /// Renders tiny-skia pixel buffer and commits to Cairo/GTK surface
@@ -192,6 +196,9 @@ impl LinuxBubbleWindowState {
     /// Resizes bubble canvas
     pub fn resize(&mut self, size: u32) {
         self.bubble_size = size;
+        let canvas_w = size + 2 * (BUBBLE_CANVAS_PAD_X as u32);
+        let canvas_h = size + 2 * (BUBBLE_CANVAS_PAD_Y as u32);
+        LinuxGtkWindowController::resize_window(self.window, canvas_w as i32, canvas_h as i32);
         self.render_and_update();
     }
 

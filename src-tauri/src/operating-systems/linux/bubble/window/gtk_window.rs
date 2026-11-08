@@ -24,6 +24,11 @@ unsafe extern "C" fn on_draw(widget: *mut c_void, cr: *mut c_void, _user_data: *
                     cairo_surface_destroy(surface);
                 }
             }
+        } else {
+            unsafe {
+                cairo_set_operator(cr, CAIRO_OPERATOR_CLEAR);
+                cairo_paint(cr);
+            }
         }
     }
     0
@@ -76,12 +81,12 @@ unsafe extern "C" fn on_leave_notify(_widget: *mut c_void, _event: *mut c_void, 
 impl LinuxGtkWindowController {
     /// Creates a transparent, borderless, floating GTK window sticky on all workspaces
     #[cfg(target_os = "linux")]
-    pub fn create_floating_bubble_window(account_index: u32, x: f64, y: f64, _width: f64, _height: f64) -> *mut c_void {
+    pub fn create_floating_bubble_window(account_index: u32, x: f64, y: f64, width: f64, height: f64) -> *mut c_void {
         unsafe {
             if gtk_init_check(std::ptr::null_mut(), std::ptr::null_mut()) == 0 {
                 return std::ptr::null_mut();
             }
-            let window = gtk_window_new(GTK_WINDOW_POPUP);
+            let window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
             if window.is_null() {
                 return std::ptr::null_mut();
             }
@@ -98,6 +103,8 @@ impl LinuxGtkWindowController {
                     gtk_widget_set_visual(window, visual);
                 }
             }
+            gtk_widget_set_size_request(window, width as i32, height as i32);
+            gtk_window_resize(window, width as i32, height as i32);
             gtk_widget_add_events(window, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK);
             let user_data = account_index as usize as *mut c_void;
             g_signal_connect_data(window, b"draw\0".as_ptr() as *const _, Some(std::mem::transmute(on_draw as *const ())), user_data, std::ptr::null_mut(), 0);
@@ -106,7 +113,7 @@ impl LinuxGtkWindowController {
             g_signal_connect_data(window, b"button-release-event\0".as_ptr() as *const _, Some(std::mem::transmute(on_button_release as *const ())), user_data, std::ptr::null_mut(), 0);
             g_signal_connect_data(window, b"enter-notify-event\0".as_ptr() as *const _, Some(std::mem::transmute(on_enter_notify as *const ())), user_data, std::ptr::null_mut(), 0);
             g_signal_connect_data(window, b"leave-notify-event\0".as_ptr() as *const _, Some(std::mem::transmute(on_leave_notify as *const ())), user_data, std::ptr::null_mut(), 0);
-            gtk_window_move(window, x as i32, y as i32);
+            gtk_window_move(window, (x as i32) - BUBBLE_CANVAS_PAD_X, (y as i32) - BUBBLE_CANVAS_PAD_Y);
             window
         }
     }
@@ -136,6 +143,23 @@ impl LinuxGtkWindowController {
     #[cfg(not(target_os = "linux"))]
     pub fn update_window_surface(_window: *mut c_void, _bgra_data: &[u8], _width: usize, _height: usize) {}
 
+    /// Resizes GTK window canvas dimensions
+    #[cfg(target_os = "linux")]
+    pub fn resize_window(window: *mut c_void, width: i32, height: i32) {
+        if window.is_null() {
+            return;
+        }
+        unsafe {
+            gtk_widget_set_size_request(window, width, height);
+            gtk_window_resize(window, width, height);
+            gtk_widget_queue_draw(window);
+        }
+    }
+
+    /// Fallback for non-Linux target
+    #[cfg(not(target_os = "linux"))]
+    pub fn resize_window(_window: *mut c_void, _width: i32, _height: i32) {}
+
     /// Sets window top-left position coordinates
     #[cfg(target_os = "linux")]
     pub fn set_window_position(window: *mut c_void, x: i32, y: i32) {
@@ -143,7 +167,7 @@ impl LinuxGtkWindowController {
             return;
         }
         unsafe {
-            gtk_window_move(window, x, y);
+            gtk_window_move(window, x - BUBBLE_CANVAS_PAD_X, y - BUBBLE_CANVAS_PAD_Y);
         }
     }
 
@@ -160,6 +184,7 @@ impl LinuxGtkWindowController {
         unsafe {
             if visible {
                 gtk_widget_show_all(window);
+                gtk_widget_queue_draw(window);
             } else {
                 gtk_widget_hide(window);
             }
@@ -199,6 +224,7 @@ mod tests {
         let ptr = std::ptr::null_mut();
         LinuxGtkWindowController::update_window_surface(ptr, &[], 0, 0);
         LinuxGtkWindowController::set_window_position(ptr, 0, 0);
+        LinuxGtkWindowController::resize_window(ptr, 84, 84);
         LinuxGtkWindowController::set_window_visible(ptr, true);
         LinuxGtkWindowController::destroy_window(ptr);
     }
