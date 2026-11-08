@@ -92,7 +92,7 @@ export const PerformanceSummaryCards: React.FC<PerformanceSummaryCardsProps> = (
           <div
             className="h-full bg-emerald-500 rounded-pill transition-all duration-500"
             style={{
-              width: `${Math.min(100, Math.max(6, totalCpuPercent * 2))}%`,
+              width: `${Math.min(100, Math.max(6, totalCpuPercent))}%`,
             }}
           />
         </div>

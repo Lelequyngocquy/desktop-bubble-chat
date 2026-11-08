@@ -34,7 +34,7 @@ impl LinuxMemoryOptimizer {
     /// Checks if process name belongs to WebKitGTK helper processes
     pub fn is_webview_process(name: &str) -> bool {
         let n = name.to_lowercase();
-        n.contains("webkitwebprocess") || n.contains("webkitnetworkprocess") || n.contains("webkitgpuprocess")
+        n.contains("webkitweb") || n.contains("webkitnetwork") || n.contains("webkitgpu")
     }
 
     /// Terminates WebKit processes matching needle profile path
@@ -42,9 +42,12 @@ impl LinuxMemoryOptimizer {
         let mut system = sysinfo::System::new_all();
         system.refresh_all();
         for (pid, process) in system.processes() {
+            if process.thread_kind().is_some() {
+                continue;
+            }
             let name = process.name().to_string_lossy().to_lowercase();
-            if Self::is_webview_process(&name) {
-                let cmd = process.cmd().iter().map(|s| s.to_string_lossy()).collect::<Vec<_>>().join(" ");
+            let cmd = process.cmd().iter().map(|s| s.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
+            if Self::is_webview_process(&name) || Self::is_webview_process(&cmd) {
                 let mut matched = cmd.contains(needle);
                 #[cfg(target_os = "linux")]
                 if !matched {
@@ -74,8 +77,11 @@ mod tests {
     #[test]
     fn test_is_webview_process_patterns() {
         assert!(LinuxMemoryOptimizer::is_webview_process("WebKitWebProcess"));
+        assert!(LinuxMemoryOptimizer::is_webview_process("WebKitWebProces"));
         assert!(LinuxMemoryOptimizer::is_webview_process("WebKitNetworkProcess"));
+        assert!(LinuxMemoryOptimizer::is_webview_process("WebKitNetworkPr"));
         assert!(LinuxMemoryOptimizer::is_webview_process("WebKitGPUProcess"));
+        assert!(LinuxMemoryOptimizer::is_webview_process("WebKitGPUProces"));
         assert!(!LinuxMemoryOptimizer::is_webview_process("desktop-bubble-chat"));
         assert!(!LinuxMemoryOptimizer::is_webview_process("gnome-shell"));
     }

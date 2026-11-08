@@ -67,9 +67,9 @@ pub fn is_webview_process_name(name: &str) -> bool {
         || {
             let n = name.to_lowercase();
             n.contains("msedgewebview2")
-                || n.contains("webkitwebprocess")
-                || n.contains("webkitnetworkprocess")
-                || n.contains("webkitgpuprocess")
+                || n.contains("webkitweb")
+                || n.contains("webkitnetwork")
+                || n.contains("webkitgpu")
                 || n.contains("com.apple.webkit")
         }
 }
@@ -118,18 +118,25 @@ pub fn collect_performance_snapshot(
             .with_cmd(UpdateKind::Always),
     );
     let host_pid = std::process::id();
-    let cpu_cores = sys.cpus().len() as u32;
+    let cpu_cores = sys.cpus().len().max(1) as u32;
+    let cores_f64 = cpu_cores as f64;
     let mut process_account_map: HashMap<u32, u32> = HashMap::new();
     for (pid, process) in sys.processes() {
-        let p_name = process.name().to_string_lossy().to_lowercase();
-        if !is_webview_process_name(&p_name) {
+        if process.thread_kind().is_some() {
             continue;
         }
         let pid_u32 = pid.as_u32();
-        let is_direct_child = process.parent().map(|p| p.as_u32() == host_pid).unwrap_or(false);
+        if pid_u32 == host_pid {
+            continue;
+        }
+        let p_name = process.name().to_string_lossy().to_lowercase();
         let cmd_joined = process.cmd().iter().map(|c| c.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
+        if !is_webview_process_name(&p_name) && !is_webview_process_name(&cmd_joined) {
+            continue;
+        }
+        let is_direct_child = process.parent().map(|p| p.as_u32() == host_pid).unwrap_or(false);
         let detected_acc = detect_account_index_for_process(pid_u32, &cmd_joined);
-        let belongs_to_app = is_direct_child || detected_acc > 0 || cmd_joined.contains("com.desktopbubblechat.app") || cmd_joined.contains("desktopbubblechat");
+        let belongs_to_app = is_direct_child || detected_acc > 0 || cmd_joined.contains("com.desktopbubblechat.app");
         if !belongs_to_app {
             continue;
         }
@@ -142,12 +149,16 @@ pub fn collect_performance_snapshot(
     while added_more {
         added_more = false;
         for (pid, process) in sys.processes() {
+            if process.thread_kind().is_some() {
+                continue;
+            }
             let pid_u32 = pid.as_u32();
-            if process_account_map.contains_key(&pid_u32) {
+            if pid_u32 == host_pid || process_account_map.contains_key(&pid_u32) {
                 continue;
             }
             let p_name = process.name().to_string_lossy().to_lowercase();
-            if !is_webview_process_name(&p_name) {
+            let cmd_joined = process.cmd().iter().map(|c| c.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
+            if !is_webview_process_name(&p_name) && !is_webview_process_name(&cmd_joined) {
                 continue;
             }
             if let Some(parent) = process.parent() {
@@ -158,9 +169,8 @@ pub fn collect_performance_snapshot(
                     continue;
                 }
             }
-            let cmd_joined = process.cmd().iter().map(|c| c.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
             let detected_acc = detect_account_index_for_process(pid_u32, &cmd_joined);
-            let belongs_to_app = detected_acc > 0 || cmd_joined.contains("com.desktopbubblechat.app") || cmd_joined.contains("desktopbubblechat");
+            let belongs_to_app = detected_acc > 0 || cmd_joined.contains("com.desktopbubblechat.app");
             if belongs_to_app {
                 process_account_map.insert(pid_u32, detected_acc);
                 added_more = true;
@@ -175,7 +185,7 @@ pub fn collect_performance_snapshot(
     let mut active_accounts = HashSet::new();
     if let Some(proc) = sys.processes().get(&Pid::from_u32(host_pid)) {
         let working_set_mb = (proc.memory() as f64) / (1024.0 * 1024.0);
-        let cpu_percent = proc.cpu_usage() as f64;
+        let cpu_percent = (proc.cpu_usage() as f64) / cores_f64;
         total_ram_mb += working_set_mb;
         total_cpu_percent += cpu_percent;
         host_ram_mb += working_set_mb;
@@ -194,12 +204,15 @@ pub fn collect_performance_snapshot(
         let pid_obj = Pid::from_u32(pid_u32);
         if let Some(proc) = sys.processes().get(&pid_obj) {
             let working_set_mb = (proc.memory() as f64) / (1024.0 * 1024.0);
-            let cpu_percent = proc.cpu_usage() as f64;
+            let cpu_percent = (proc.cpu_usage() as f64) / cores_f64;
             total_ram_mb += working_set_mb;
             total_cpu_percent += cpu_percent;
             let cmd_str = proc.cmd().iter().map(|c| c.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
             let p_name = proc.name().to_string_lossy().to_lowercase();
-            if p_name.contains("webkitnetworkprocess") || p_name.contains("com.apple.webkit.networking") {
+            let is_net = p_name.contains("webkitnetwork") || cmd_str.contains("webkitnetwork") || p_name.contains("com.apple.webkit.networking");
+            let is_gpu = p_name.contains("webkitgpu") || cmd_str.contains("webkitgpu") || cmd_str.contains("--type=gpu-process");
+            let is_web = p_name.contains("webkitweb") || cmd_str.contains("webkitweb") || p_name.contains("com.apple.webkit.webcontent");
+            if is_net {
                 if acc_idx > 0 {
                     active_accounts.insert(acc_idx);
                 }
@@ -218,8 +231,8 @@ pub fn collect_performance_snapshot(
                     cpu_percent: (cpu_percent * 10.0).round() / 10.0,
                     is_suspended: false,
                 });
-            } else if p_name.contains("webkitgpuprocess") || cmd_str.contains("--type=gpu-process") {
-                let name = if p_name.contains("webkit") { "GPU Acceleration (WebKit/Cairo)" } else { "GPU Acceleration (Direct3D)" };
+            } else if is_gpu {
+                let name = if p_name.contains("webkit") || cmd_str.contains("webkit") { "GPU Acceleration (WebKit/Cairo)" } else { "GPU Acceleration (Direct3D)" };
                 items.push(ProcessMetricItem {
                     pid: pid_u32,
                     name: name.to_string(),
@@ -270,8 +283,7 @@ pub fn collect_performance_snapshot(
                         info.name
                     }
                 });
-                let is_webkit = p_name.contains("webkitwebprocess") || p_name.contains("com.apple.webkit.webcontent");
-                let sub_type = if is_webkit {
+                let sub_type = if is_web {
                     "WebKit Webview"
                 } else {
                     let is_renderer = cmd_str.contains("--type=renderer") || proc.parent().map(|p| p.as_u32() != host_pid).unwrap_or(false);
@@ -289,8 +301,7 @@ pub fn collect_performance_snapshot(
                 });
             } else {
                 dashboard_ram_mb += working_set_mb;
-                let is_webkit = p_name.contains("webkitwebprocess") || p_name.contains("com.apple.webkit.webcontent");
-                let name = if is_webkit {
+                let name = if is_web {
                     "Dashboard Webview (WebKit)"
                 } else {
                     let is_renderer = cmd_str.contains("--type=renderer") || proc.parent().map(|p| p.as_u32() != host_pid).unwrap_or(false);
@@ -362,7 +373,7 @@ pub fn collect_performance_snapshot(
     SystemPerformanceSnapshot {
         timestamp: now_ts,
         total_ram_mb: (total_ram_mb * 100.0).round() / 100.0,
-        total_cpu_percent: (total_cpu_percent * 10.0).round() / 10.0,
+        total_cpu_percent: (total_cpu_percent.min(100.0) * 10.0).round() / 10.0,
         host_ram_mb: (host_ram_mb * 100.0).round() / 100.0,
         dashboard_ram_mb: (dashboard_ram_mb * 100.0).round() / 100.0,
         active_accounts_count: active_accounts.len() as u32,
@@ -385,23 +396,23 @@ pub fn trim_all_app_processes_memory(_app: &AppHandle) -> f64 {
             true,
             ProcessRefreshKind::nothing().with_memory(),
         );
-        let ram_before: u64 = sys
-            .processes()
-            .values()
-            .map(|p| p.memory())
-            .sum();
         let mut app_pids = HashSet::new();
         app_pids.insert(host_pid);
         let mut added = true;
         while added {
             added = false;
             for (pid, process) in sys.processes() {
+                if process.thread_kind().is_some() {
+                    continue;
+                }
                 let pid_u32 = pid.as_u32();
                 if app_pids.contains(&pid_u32) {
                     continue;
                 }
                 let p_name = process.name().to_string_lossy().to_lowercase();
-                if !is_webview_process_name(&p_name) && !p_name.contains("desktopbubblechat") && !p_name.contains("desktop-bubble-chat") {
+                let cmd_str = process.cmd().iter().map(|c| c.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
+                let is_wv = is_webview_process_name(&p_name) || is_webview_process_name(&cmd_str);
+                if !is_wv && !p_name.contains("desktopbubblechat") && !p_name.contains("desktop-bubble-chat") {
                     continue;
                 }
                 if process
@@ -415,6 +426,11 @@ pub fn trim_all_app_processes_memory(_app: &AppHandle) -> f64 {
                 }
             }
         }
+        let ram_before: u64 = target_pids
+            .iter()
+            .filter_map(|p| sys.processes().get(&Pid::from_u32(*p)))
+            .map(|p| p.memory())
+            .sum();
         for pid in &target_pids {
             trim_single_process_working_set(*pid);
         }
@@ -424,9 +440,9 @@ pub fn trim_all_app_processes_memory(_app: &AppHandle) -> f64 {
             true,
             ProcessRefreshKind::nothing().with_memory(),
         );
-        let ram_after: u64 = sys
-            .processes()
-            .values()
+        let ram_after: u64 = target_pids
+            .iter()
+            .filter_map(|p| sys.processes().get(&Pid::from_u32(*p)))
             .map(|p| p.memory())
             .sum();
         let diff_bytes = ram_before.saturating_sub(ram_after);
@@ -453,17 +469,14 @@ pub fn get_account_process_pids(account_index: u32) -> Vec<u32> {
             ProcessRefreshKind::nothing().with_cmd(UpdateKind::OnlyIfNotSet),
         );
         for (pid, proc) in sys.processes() {
-            let p_name = proc.name().to_string_lossy().to_lowercase();
-            if !is_webview_process_name(&p_name) {
+            if proc.thread_kind().is_some() {
                 continue;
             }
-            let cmd_str = proc
-                .cmd()
-                .iter()
-                .map(|c| c.to_string_lossy())
-                .collect::<Vec<_>>()
-                .join(" ")
-                .to_lowercase();
+            let p_name = proc.name().to_string_lossy().to_lowercase();
+            let cmd_str = proc.cmd().iter().map(|c| c.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
+            if !is_webview_process_name(&p_name) && !is_webview_process_name(&cmd_str) {
+                continue;
+            }
             let pid_u32 = pid.as_u32();
             if detect_account_index_for_process(pid_u32, &cmd_str) == account_index {
                 pids.insert(pid_u32);
@@ -473,12 +486,16 @@ pub fn get_account_process_pids(account_index: u32) -> Vec<u32> {
         while added {
             added = false;
             for (pid, proc) in sys.processes() {
+                if proc.thread_kind().is_some() {
+                    continue;
+                }
                 let pid_u32 = pid.as_u32();
                 if pids.contains(&pid_u32) {
                     continue;
                 }
                 let p_name = proc.name().to_string_lossy().to_lowercase();
-                if !is_webview_process_name(&p_name) {
+                let cmd_str = proc.cmd().iter().map(|c| c.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
+                if !is_webview_process_name(&p_name) && !is_webview_process_name(&cmd_str) {
                     continue;
                 }
                 if let Some(parent) = proc.parent() {
@@ -506,8 +523,11 @@ mod tests {
     fn test_is_webview_process_name_matches() {
         assert!(is_webview_process_name("msedgewebview2.exe"));
         assert!(is_webview_process_name("WebKitWebProcess"));
+        assert!(is_webview_process_name("WebKitWebProces"));
         assert!(is_webview_process_name("WebKitNetworkProcess"));
+        assert!(is_webview_process_name("WebKitNetworkPr"));
         assert!(is_webview_process_name("WebKitGPUProcess"));
+        assert!(is_webview_process_name("WebKitGPUProces"));
         assert!(is_webview_process_name("com.apple.WebKit.WebContent"));
         assert!(!is_webview_process_name("desktop-bubble-chat"));
         assert!(!is_webview_process_name("bash"));
@@ -518,5 +538,13 @@ mod tests {
         assert_eq!(detect_account_index_for_process(9999, "--user-data-dir=profiles/messenger_01"), 1);
         assert_eq!(detect_account_index_for_process(9999, "--user-data-dir=profiles/messenger_04"), 4);
         assert_eq!(detect_account_index_for_process(9999, "dashboard main process"), 0);
+    }
+
+    #[test]
+    fn test_thread_kind_filtering() {
+        let mut sys = System::new_all();
+        sys.refresh_all();
+        let main_procs = sys.processes().values().filter(|p| p.thread_kind().is_none()).count();
+        assert!(main_procs > 0);
     }
 }
