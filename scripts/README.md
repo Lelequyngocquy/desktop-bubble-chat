@@ -1,64 +1,87 @@
-# Automation Scripts
+# Platform Automation Scripts
 
-This folder contains PowerShell scripts to develop, build, run, and diagnose **DesktopBubbleChat**.
+This folder contains platform-specific automation scripts to run, monitor, build, and diagnose **DesktopBubbleChat** across Windows, Linux, and macOS.
 
 ---
 
-## 1. Launch Application (`scripts/start.ps1`)
+## Folder Structure
 
-Automatically configures the Rust/Cargo PATH and launches the application in the specified mode.
-
-```powershell
-# Development Mode (Default): Runs React + Tauri dev server with hot-reloading
-.\scripts\start.ps1
-# or
-.\scripts\start.ps1 -Mode dev
-# or
-npm run app:start
-
-# Web Mode: Starts only the Vite dev server for browser preview
-.\scripts\start.ps1 -Mode web
-
-# Production Mode: Runs the compiled release executable
-.\scripts\start.ps1 -Mode prod
+```
+scripts/
+├── tauri.be-logs.json       # Common Tauri dev config
+├── windows/                 # PowerShell scripts (.ps1)
+│   ├── start.ps1            # Launch application (dev, prod, web)
+│   ├── status.ps1           # Resource & process monitor
+│   ├── stop.ps1             # Terminate all processes & free port 1420
+│   ├── build.ps1            # Production build pipeline
+│   ├── check_env.ps1        # Toolchain & prerequisite diagnostics
+│   ├── versioning.ps1       # Synchronize version across config files
+│   ├── set-logo.ps1         # App icon & branding generator
+│   └── appium-server.ps1    # WinAppDriver test server
+├── linux/                   # Linux Bash scripts (.sh)
+│   ├── start.sh             # Launch application (dev, prod, web)
+│   ├── status.sh            # Process table & RAM breakdown
+│   ├── stop.sh              # Terminate app & WebKit helper processes
+│   ├── build.sh             # Production build pipeline
+│   └── check_env.sh         # Linux GTK3, WebKitGTK & toolchain diagnostics
+└── macos/                   # macOS Bash scripts (.sh)
+    ├── start.sh             # Launch application (dev, prod, web)
+    ├── status.sh            # Process table & RAM breakdown
+    ├── stop.sh              # Terminate app & WebKit processes
+    ├── build.sh             # Production build & .app bundle pipeline
+    └── check_env.sh         # Xcode & toolchain diagnostics
 ```
 
 ---
 
-## 2. Stop Processes (`scripts/stop.ps1`)
-
-Terminates all running DesktopBubbleChat instances, floating chat heads, and dev servers on port 1420.
+## 1. Windows (`scripts/windows/`)
 
 ```powershell
-.\scripts\stop.ps1
-# or
-npm run app:stop
+# Development Mode (Hot-reload React + Rust backend logs)
+.\scripts\windows\start.ps1
+
+# Monitor running processes & RAM
+.\scripts\windows\status.ps1
+
+# Stop all processes & free port 1420
+.\scripts\windows\stop.ps1
+
+# Production Build
+.\scripts\windows\build.ps1
 ```
 
 ---
 
-## 3. Package Application (`scripts/build.ps1`)
+## 2. Linux (`scripts/linux/`)
 
-Compiles the frontend and builds standalone Windows release installers (`.exe` / `.msi`).
+```bash
+# Development Mode (Hot-reload React + Rust backend logs)
+bash scripts/linux/start.sh
 
-```powershell
-# Full packaging (Frontend + Tauri Release Bundle) and opens output directory
-.\scripts\build.ps1
-# or
-npm run app:build
+# Monitor running processes & RAM
+bash scripts/linux/status.sh
 
-# Build only the frontend assets into 'dist/'
-.\scripts\build.ps1 -FrontendOnly
+# Stop all processes & free port 1420
+bash scripts/linux/stop.sh
+
+# Production Build
+bash scripts/linux/build.sh
 ```
 
 ---
 
-## 4. Diagnostics (`scripts/check_env.ps1`)
+## 3. macOS (`scripts/macos/`)
 
-Verifies the required toolchains (Node.js, npm, rustc, cargo, MSVC linker `link.exe`, and WebView2 Runtime).
+```bash
+# Development Mode (Hot-reload React + Rust backend logs)
+bash scripts/macos/start.sh
 
-```powershell
-.\scripts\check_env.ps1
-# or
-npm run app:check
+# Monitor running processes & RAM
+bash scripts/macos/status.sh
+
+# Stop all processes & free port 1420
+bash scripts/macos/stop.sh
+
+# Production Build
+bash scripts/macos/build.sh
 ```
