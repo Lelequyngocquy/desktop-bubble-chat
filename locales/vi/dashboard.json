@@ -202,7 +202,8 @@
     "empty_btn_connect": "Kết nối Messenger ngay ↗",
     "pin": "Ghim lên đầu (tối đa 6)",
     "unpin": "Bỏ ghim",
-    "hide": "Ẩn chat head"
+    "hide": "Ẩn chat head",
+    "feature_not_available": "Tính năng này chưa hỗ trợ"
   },
   "recent": {
     "title": "Tin Nhắn Gần Đây",

@@ -202,7 +202,8 @@
     "empty_btn_connect": "Connect Messenger ↗",
     "pin": "Pin to top (max 6)",
     "unpin": "Unpin",
-    "hide": "Hide chat head"
+    "hide": "Hide chat head",
+    "feature_not_available": "Feature not available yet"
   },
   "recent": {
     "title": "Recent Messages",
