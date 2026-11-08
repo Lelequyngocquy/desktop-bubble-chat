@@ -401,10 +401,11 @@ impl LinuxBubbleWindowState {
             self.is_hovered = true;
             self.render_and_update();
             crate::utils::trim_controller::record_user_interaction(self.account_index);
-            if let Some(app) = &self.app_handle {
-                crate::platforms::messenger::windows::set_chat_window_memory_target(app, self.account_index, false);
+            let app_opt = self.app_handle.clone();
+            if let Some(app) = app_opt {
+                crate::platforms::messenger::windows::set_chat_window_memory_target(&app, self.account_index, false);
                 crate::utils::trim_controller::cancel_auto_trim(self.account_index);
-                self.untuck(app);
+                self.untuck(&app);
             }
         }
     }

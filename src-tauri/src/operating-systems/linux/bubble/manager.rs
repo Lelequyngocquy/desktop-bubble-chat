@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use super::window::LinuxBubbleWindowState;
 
 /// Control actions sent to the Linux Native Bubble manager
