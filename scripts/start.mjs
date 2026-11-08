@@ -108,6 +108,9 @@ export async function startApp(mode = "dev") {
   }
   process.env.RUST_LOG = "info,desktop_bubble_chat=debug,desktop_bubble_chat_lib=debug";
   process.env.RUST_BACKTRACE = "1";
+  if (os.platform() === "linux" && !process.env.GDK_BACKEND) {
+    process.env.GDK_BACKEND = "x11,wayland";
+  }
   const logDir = path.join(projectRoot, "logs");
   if (!fs.existsSync(logDir)) {
     fs.mkdirSync(logDir, { recursive: true });

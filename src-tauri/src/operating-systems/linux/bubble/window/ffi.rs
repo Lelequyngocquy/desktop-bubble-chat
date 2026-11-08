@@ -31,12 +31,20 @@ unsafe extern "C" {
     pub fn gtk_widget_add_events(widget: *mut c_void, events: i32);
     pub fn gtk_widget_set_size_request(widget: *mut c_void, width: i32, height: i32);
     pub fn gtk_window_resize(window: *mut c_void, width: i32, height: i32);
+    pub fn gtk_window_set_type_hint(window: *mut c_void, hint: i32);
+    pub fn gtk_window_set_accept_focus(window: *mut c_void, setting: i32);
+    pub fn gtk_window_set_focus_on_map(window: *mut c_void, setting: i32);
+    pub fn gtk_css_provider_new() -> *mut c_void;
+    pub fn gtk_css_provider_load_from_data(css_provider: *mut c_void, data: *const std::ffi::c_char, length: isize, error: *mut *mut c_void) -> i32;
+    pub fn gtk_widget_get_style_context(widget: *mut c_void) -> *mut c_void;
+    pub fn gtk_style_context_add_provider(context: *mut c_void, provider: *mut c_void, priority: u32);
     pub fn gtk_widget_destroy(widget: *mut c_void);
 }
 
 #[cfg(target_os = "linux")]
 #[link(name = "gobject-2.0")]
 unsafe extern "C" {
+    pub fn g_object_unref(object: *mut c_void);
     pub fn g_signal_connect_data(
         instance: *mut c_void,
         detailed_signal: *const std::ffi::c_char,
