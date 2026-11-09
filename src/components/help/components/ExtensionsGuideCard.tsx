@@ -86,6 +86,11 @@ export const ExtensionsGuideCard: React.FC = () => {
           icon={<Info className="w-3.5 h-3.5" />}
           text={t("ext_disable_hint")}
         />
+        {/* Compatibility hint */}
+        <CommonHintLine
+          icon={<Info className="w-3.5 h-3.5" />}
+          text={t("ext_compat_hint")}
+        />
         {/* Security warning */}
         <CommonHintLine
           icon={<AlertTriangle className="w-3.5 h-3.5" />}

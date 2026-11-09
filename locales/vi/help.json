@@ -41,5 +41,6 @@
   "ext_step3_title": "3. Khởi động lại bubble chat",
   "ext_step3_desc": "Đóng và mở lại bubble chat của tài khoản tương ứng. Extension sẽ được tải tự động bởi WebView2 khi khởi động.",
   "ext_disable_hint": "Để tắt extension: chuyển thư mục của extension từ 'extensions/' sang 'extensions_disabled/' trong cùng thư mục profile, sau đó khởi động lại.",
+  "ext_compat_hint": "Lưu ý tương thích: Chỉ hỗ trợ tiện ích thuần giao diện (Content Script, CSS, JS DOM). Các tiện ích yêu cầu ứng dụng máy tính hoặc Native Messaging (như Grammarly, 1Password,...) sẽ không hoạt động trong môi trường WebView2.",
   "ext_security_warn": "Chỉ cài extension từ nguồn tin cậy. Extension có quyền đọc cookie, tin nhắn và toàn bộ nội dung trang web trong WebView2."
 }

@@ -80,8 +80,8 @@ html.dark {
   --color-text-inverse: #ffffff;
 
   /* Borders & Dividers (Subdued dark gray, no bright glowing edges) */
-  --color-border-default: #333f4f;
-  --color-border-strong: #262e3b;
+  --color-border-default: #425268;
+  --color-border-strong: #6e98bb;
   --color-border-focus: #3b82f6;
 
   /* Primary Accent */

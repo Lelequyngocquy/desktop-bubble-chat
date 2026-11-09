@@ -41,5 +41,6 @@
   "ext_step3_title": "3. Restart bubble chat",
   "ext_step3_desc": "Close and reopen the bubble chat window for that account. Extensions are loaded automatically by WebView2 on startup.",
   "ext_disable_hint": "To disable an extension: move its folder from 'extensions/' to 'extensions_disabled/' in the same profile directory, then restart.",
+  "ext_compat_hint": "Compatibility note: Only pure DOM/UI extensions (Content Scripts, CSS, JS) are supported. Extensions requiring desktop background apps or Native Messaging (like Grammarly, 1Password,...) will not work inside WebView2.",
   "ext_security_warn": "Only install extensions from trusted sources. Extensions can read cookies, messages, and all page content inside the WebView2."
 }
