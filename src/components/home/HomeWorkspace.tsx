@@ -1,5 +1,5 @@
 import React from "react";
-import { MonitorCheck } from "lucide-react";
+import { Lightbulb, MonitorCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSystemUserStore } from "../../stores/systemUserStore";
 import { TabHeader } from "../common/TabHeader";
@@ -7,9 +7,9 @@ import {
   MessengerConnectionCard,
   ActiveChatHeads,
   QuickSettings,
-  PlatformRoadmap,
-  HomeFooter,
+  PlatformRoadmap, 
 } from "./components";
+import { CommonHintLine } from "../common";
 
 export const HomeWorkspace: React.FC = () => {
   const { t } = useTranslation("dashboard");
@@ -37,7 +37,13 @@ export const HomeWorkspace: React.FC = () => {
           <QuickSettings />
         </div>
         <PlatformRoadmap />
-        <HomeFooter />
+   
+        <CommonHintLine
+          icon={<Lightbulb />}
+          text={t("footer_tip")}
+          className="bg-transparent p-0
+      rounded-none"
+        />
       </main>
     </div>
   );

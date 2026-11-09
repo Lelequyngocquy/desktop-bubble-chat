@@ -1,22 +1,15 @@
 import React from "react";
-import {
-  Puzzle,
-  FolderOpen,
-  Info,
-  AlertTriangle,
-  RotateCcw,
-  FolderPlus,
-} from "lucide-react";
+import { Puzzle, FolderOpen, AlertTriangle, RotateCcw, FolderPlus, Info } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
-import { CommonLargeCard } from "../../common/index";
+import { CommonLargeCard, CommonHintLine } from "../../common/index";
+import { useMessengerStore } from "../../../platforms/messenger";
 
 export const ExtensionsGuideCard: React.FC = () => {
   const { t } = useTranslation("help");
+  const accounts = useMessengerStore((s) => s.accounts);
   const openFolder = (index: number) => {
-    invoke("open_profile_extensions_folder", { accountIndex: index }).catch(
-      () => {},
-    );
+    invoke("open_profile_extensions_folder", { accountIndex: index }).catch(() => {});
   };
   return (
     <CommonLargeCard
@@ -48,15 +41,15 @@ export const ExtensionsGuideCard: React.FC = () => {
             <span className="text-caption text-content-secondary">
               {t("ext_step1_desc")}
             </span>
-            {/* Quick-open buttons for each account slot */}
+            {/* Quick-open buttons — only for existing accounts */}
             <div className="flex flex-wrap gap-1.5 mt-1">
-              {[1, 2, 3, 4, 5].map((i) => (
+              {accounts.map((acc) => (
                 <button
-                  key={i}
-                  onClick={() => openFolder(i)}
+                  key={acc.index}
+                  onClick={() => openFolder(acc.index)}
                   className="px-2 py-0.5 rounded-pill bg-background-surface border border-border text-caption text-primary hover:bg-background-subtle transition-colors cursor-pointer"
                 >
-                  #{i}
+                  #{acc.index}
                 </button>
               ))}
             </div>
@@ -89,16 +82,16 @@ export const ExtensionsGuideCard: React.FC = () => {
           </div>
         </div>
         {/* Disable hint */}
-        <div className="bg-background-app/60 rounded-panel flex items-center gap-2 text-caption text-content-secondary">
-          <Info className="w-3.5 h-3.5 shrink-0 text-primary" />
-          <span>{t("ext_disable_hint")}</span>
-        </div>
-
+        <CommonHintLine
+          icon={<Info className="w-3.5 h-3.5" />}
+          text={t("ext_disable_hint")}
+        />
         {/* Security warning */}
-        <div className="bg-background-app/60 rounded-panel flex items-center gap-2 text-caption text-status-warning">
-          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-          <span>{t("ext_security_warn")}</span>
-        </div>
+        <CommonHintLine
+          icon={<AlertTriangle className="w-3.5 h-3.5" />}
+          text={t("ext_security_warn")}
+          color="text-status-warning"
+        />
       </div>
     </CommonLargeCard>
   );

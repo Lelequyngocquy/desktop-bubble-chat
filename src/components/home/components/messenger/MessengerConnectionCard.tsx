@@ -12,7 +12,7 @@ import { useWindowStore } from "../../../../stores/windowStore";
 import { useNavigationStore } from "../../../../stores/navigationStore";
 import { systemService } from "../../../../services/systemService";
 import { MessengerAccount } from "../../../../types/account";
-import { CommonButton } from "../../../common";
+import { CommonButton, CommonHintLine } from "../../../common";
 import { MessengerPlatformHeader } from "./MessengerPlatformHeader";
 import { ConnectedAccountRow } from "./ConnectedAccountRow";
 import { ConnectionMetricsColumn } from "./ConnectionMetricsColumn";
@@ -105,22 +105,22 @@ export const MessengerConnectionCard: React.FC = () => {
           unreadCount={totalUnreadCount}
         />
       </div>
-      <div className="bg-primary-subtle px-6 py-2.5 flex items-center justify-between gap-3 text-primary-foreground border-t border-border flex-wrap sm:flex-nowrap">
-        <div className="flex items-center gap-2 min-w-0">
-          <ShieldCheck className="w-4 h-4 shrink-0 text-primary" />
-          <span className="text-caption font-normal leading-tight">
-            {t("reassurance_banner")}
-          </span>
-        </div>
-        <button
-          onClick={() => systemService.openProfilesFolder()}
-          className="shrink-0 flex items-center gap-1.5 text-caption font-semibold text-primary hover:text-primary-hover hover:underline transition-colors cursor-pointer ml-auto"
-          title={t("open_folder_tooltip")}
-        >
-          <span>{t("open_folder_btn")}</span>
-          <FolderOpen className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      <CommonHintLine
+        icon={<ShieldCheck className="w-3.5 h-3.5" />}
+        text={t("reassurance_banner")}
+        color="text-primary-foreground"
+        className="bg-primary-subtle border-t border-border rounded-none px-6 py-2.5"
+        rightChildren={
+          <button
+            onClick={() => systemService.openProfilesFolder()}
+            className="flex items-center gap-1.5 text-caption font-semibold text-primary hover:text-primary-hover hover:underline transition-colors cursor-pointer"
+            title={t("open_folder_tooltip")}
+          >
+            <span>{t("open_folder_btn")}</span>
+            <FolderOpen className="w-3.5 h-3.5" />
+          </button>
+        }
+      />
     </div>
   );
 };

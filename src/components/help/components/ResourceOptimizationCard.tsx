@@ -1,7 +1,14 @@
 import React from "react";
-import { Cpu, Sparkles, XCircle, MousePointerClick, Menu, Info } from "lucide-react";
+import {
+  Cpu,
+  Sparkles,
+  XCircle,
+  MousePointerClick,
+  Menu,
+  Info,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { CommonLargeCard } from "../../common/index";
+import { CommonLargeCard, CommonHintLine } from "../../common/index";
 
 export const ResourceOptimizationCard: React.FC = () => {
   const { t } = useTranslation("help");
@@ -28,9 +35,7 @@ export const ResourceOptimizationCard: React.FC = () => {
             <span className="font-semibold text-status-success">
               {t("banner_title")}
             </span>
-            <span>
-              {t("banner_desc")}
-            </span>
+            <span>{t("banner_desc")}</span>
           </div>
         </div>
 
@@ -84,12 +89,10 @@ export const ResourceOptimizationCard: React.FC = () => {
       </div>
 
       {/* Footer hint */}
-      <div className="p-3 bg-background-app/60 rounded-panel flex items-start gap-2 text-caption text-content-secondary">
-        <Info className="w-3.5 h-3.5 shrink-0 text-primary mt-0.5" />
-        <span>
-          {t("tray_tip")}
-        </span>
-      </div>
+      <CommonHintLine
+        icon={<Info className="w-3.5 h-3.5" />}
+        text={t("tray_tip")}
+      />
     </CommonLargeCard>
   );
 };

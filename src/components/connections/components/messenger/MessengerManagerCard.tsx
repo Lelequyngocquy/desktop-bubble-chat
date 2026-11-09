@@ -9,7 +9,7 @@ import { PlatformId } from "../../../../types/platform";
 import { PLATFORM_CONFIGS } from "../../../../config";
 import { PlatformIcon } from "../../../icons";
 import { MessengerAccountList } from "./MessengerAccountList";
-import { CommonBadge } from "../../../common";
+import { CommonBadge, CommonHintLine } from "../../../common";
 
 export const MessengerManagerCard: React.FC = () => {
   const { t } = useTranslation("dashboard");
@@ -118,17 +118,15 @@ export const MessengerManagerCard: React.FC = () => {
           </div>
         </div>
       </div>
-      <div className="px-6 py-3.5 border-t border-border flex flex-wrap items-center justify-between gap-3 bg-background-surface">
-        <div className="flex items-center gap-2">
-          <MonitorCheck className="w-4 h-4 text-status-success" />
-          <span className="text-small font-medium text-content-primary">
-            {t("connections_page.footer_native_secure")}
-          </span>
-        </div>
-        <span className="text-caption text-content-secondary">
-          {t("connections_page.footer_isolated_proc")}
-        </span>
-      </div>
+      <CommonHintLine
+        icon={<MonitorCheck className="w-4 h-4" />}
+        text={<span className="text-small font-medium text-content-primary">{t("connections_page.footer_native_secure")}</span>}
+        color="text-status-success"
+        className="rounded-none border-t border-border bg-background-surface px-6 py-3.5"
+        rightChildren={
+          <span className="text-caption text-content-secondary">{t("connections_page.footer_isolated_proc")}</span>
+        }
+      />
     </div>
   );
 };
