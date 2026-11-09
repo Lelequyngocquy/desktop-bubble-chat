@@ -39,12 +39,12 @@ export const AppUpdateSection: React.FC = () => {
     downloadSpeed,
     errorMessage,
     lastCheckedTime,
-    autoCheckOnStartup,
+    updateMode,
     checkForUpdates,
     startDownload,
     cancelDownload,
     installAndRelaunch,
-    setAutoCheckOnStartup,
+    setUpdateMode,
   } = useAutoUpdater();
   const isChecking = status === "checking";
   const isDownloading = status === "downloading";
@@ -378,14 +378,30 @@ export const AppUpdateSection: React.FC = () => {
                 </strong>
               </span>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-content-secondary">
-                {t("update.autocheck_label")}
+            <div className="flex items-center gap-2">
+              <span className={`px-2 py-0.5 rounded-pill text-[11px] font-semibold ${
+                updateMode === "auto"
+                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                  : "bg-background-subtle text-content-secondary border border-border"
+              }`}>
+                {updateMode === "auto" ? t("update.mode_auto_badge") : t("update.mode_manual_badge")}
               </span>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-body font-medium text-content-primary">
+                {t("update.autoupdate_mode_title")}
+              </span>
+              <span className="text-caption text-content-secondary">
+                {updateMode === "auto" ? t("update.mode_auto_desc") : t("update.mode_manual_desc")}
+              </span>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
               <SwitchButton
-                checked={autoCheckOnStartup}
-                onChange={setAutoCheckOnStartup}
-                ariaLabel={t("update.autocheck_aria")}
+                checked={updateMode === "auto"}
+                onChange={(checked) => setUpdateMode(checked ? "auto" : "manual")}
+                ariaLabel={t("update.autoupdate_mode_aria")}
               />
             </div>
           </div>

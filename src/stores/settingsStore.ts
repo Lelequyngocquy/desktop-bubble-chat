@@ -9,6 +9,7 @@ export type BubblePositionMode = "auto_tuck" | "free";
 export type AppLanguage = "vi" | "en";
 export type ThemeMode = "light" | "dark" | "system";
 export type CloseWindowAction = "ask" | "hide_to_tray" | "exit_app";
+export type UpdateMode = "auto" | "manual";
 
 export const BUBBLE_SIZE_PIXELS: Record<BubbleSize, number> = {
   sm: 48,
@@ -41,6 +42,7 @@ interface SettingsState {
   isAutoTrimEnabled: boolean;
   themeMode: ThemeMode;
   closeWindowAction: CloseWindowAction;
+  updateMode: UpdateMode;
 
   setAlwaysOnTop: (enabled: boolean) => void;
   toggleAlwaysOnTop: () => void;
@@ -57,6 +59,7 @@ interface SettingsState {
   toggleAutoTrim: () => void;
   setThemeMode: (mode: ThemeMode, skipIpc?: boolean) => void;
   setCloseWindowAction: (action: CloseWindowAction) => void;
+  setUpdateMode: (mode: UpdateMode) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -71,6 +74,18 @@ export const useSettingsStore = create<SettingsState>()(
       language: "en",
       isAutoTrimEnabled: true,
       themeMode: "system",
+      updateMode: (() => {
+        if (typeof localStorage !== "undefined") {
+          try {
+            const oldUpdate = localStorage.getItem("desktop_bubble_chat_update_settings");
+            if (oldUpdate) {
+              const parsed = JSON.parse(oldUpdate);
+              if (parsed?.state?.updateMode) return parsed.state.updateMode;
+            }
+          } catch {}
+        }
+        return "auto";
+      })(),
       closeWindowAction: (() => {
         if (typeof localStorage !== "undefined") {
           const val = localStorage.getItem("dbc_close_window_action");
@@ -131,6 +146,7 @@ export const useSettingsStore = create<SettingsState>()(
           }
         }
       },
+      setUpdateMode: (mode) => set({ updateMode: mode }),
     }),
     {
       name: "desktop_bubble_chat_settings",
@@ -162,6 +178,9 @@ if (typeof window !== "undefined") {
           }
           if (parsed.state.bubblePositionMode) {
             useSettingsStore.setState({ bubblePositionMode: parsed.state.bubblePositionMode });
+          }
+          if (parsed.state.updateMode) {
+            useSettingsStore.setState({ updateMode: parsed.state.updateMode });
           }
         }
       } catch (err) {

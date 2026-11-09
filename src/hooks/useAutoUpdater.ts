@@ -2,7 +2,11 @@ import { useCallback, useEffect, useRef } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { check, type DownloadEvent } from "@tauri-apps/plugin-updater";
 import { useUpdateStore } from "../stores/updateStore";
+import { useSettingsStore } from "../stores/settingsStore";
 import { systemService } from "../services/systemService";
+import { notificationService } from "../services/notificationService";
+
+let hasInitiatedStartupCheck = false;
 
 export function formatBytes(bytes: number): string {
   if (bytes <= 0) return "0 MB";
@@ -37,6 +41,8 @@ export function useAutoUpdater() {
   const errorMessage = useUpdateStore((s) => s.errorMessage);
   const lastCheckedTime = useUpdateStore((s) => s.lastCheckedTime);
   const autoCheckOnStartup = useUpdateStore((s) => s.autoCheckOnStartup);
+  const updateMode = useSettingsStore((s) => s.updateMode);
+  const setUpdateMode = useSettingsStore((s) => s.setUpdateMode);
   const activeUpdate = useUpdateStore((s) => s.activeUpdate);
   const setStatus = useUpdateStore((s) => s.setStatus);
   const setCurrentVersion = useUpdateStore((s) => s.setCurrentVersion);
@@ -63,9 +69,7 @@ export function useAutoUpdater() {
   const checkForUpdates = useCallback(
     async (isSilent = false) => {
       try {
-        if (!isSilent) {
-          setStatus("checking");
-        }
+        if (!isSilent) setStatus("checking");
         const nowStr = new Date().toLocaleTimeString(undefined, {
           hour: "2-digit",
           minute: "2-digit",
@@ -77,56 +81,127 @@ export function useAutoUpdater() {
         setLastCheckedTime(nowStr);
         const update = await check();
         if (update) {
-          console.log(
-            `[AutoUpdater] Found new version: ${update.version} (Current: ${update.currentVersion})`,
-          );
+          console.log(`[AutoUpdater] Found new version: ${update.version} (Current: ${update.currentVersion})`);
           setUpdateAvailable({
             availableVersion: update.version,
             releaseDate: update.date,
             releaseNotes: update.body,
             updateInstance: update,
           });
+          if (isSilent) {
+            try {
+              const granted = await notificationService.requestPermission();
+              if (granted) {
+                notificationService.sendNotification("DesktopBubbleChat · Bản cập nhật mới", {
+                  body: `Đã có phiên bản mới v${update.version}. Mở Cài đặt để cập nhật.`,
+                });
+              }
+            } catch (notiErr) {
+              console.warn("[AutoUpdater] Notification dispatch failed:", notiErr);
+            }
+          }
         } else {
           console.log("[AutoUpdater] Application is up to date.");
           setUpToDate();
         }
       } catch (err) {
         console.error("[AutoUpdater] Error checking for updates:", err);
-        let message =
-          err instanceof Error
-            ? err.message
-            : typeof err === "string"
-              ? err
-              : "Unable to connect to update server.";
-        if (
-          message.includes("Could not fetch a valid release JSON") ||
-          message.includes("404")
-        ) {
+        let message = err instanceof Error ? err.message : typeof err === "string" ? err : "Unable to connect to update server.";
+        if (message.includes("Could not fetch a valid release JSON") || message.includes("404")) {
           message = "New release are not available!";
-        } else if (
-          message.toLowerCase().includes("network") ||
-          message.toLowerCase().includes("failed to fetch")
-        ) {
+        } else if (message.toLowerCase().includes("network") || message.toLowerCase().includes("failed to fetch")) {
           message = "Network error: Unable to access GitHub Releases server.";
         }
-        if (!isSilent) {
-          setError(message);
-        }
+        if (!isSilent) setError(message);
       }
     },
     [setError, setLastCheckedTime, setStatus, setUpToDate, setUpdateAvailable],
   );
 
-  const hasCheckedOnMountRef = useRef(false);
+  const runAutoUpdateFlow = useCallback(async () => {
+    try {
+      const nowStr = new Date().toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+      setLastCheckedTime(nowStr);
+      const update = await check();
+      if (!update) {
+        setUpToDate();
+        return;
+      }
+      setUpdateAvailable({
+        availableVersion: update.version,
+        releaseDate: update.date,
+        releaseNotes: update.body,
+        updateInstance: update,
+      });
+      try {
+        const granted = await notificationService.requestPermission();
+        if (granted) {
+          notificationService.sendNotification("DesktopBubbleChat · Bản cập nhật mới", {
+            body: `Phát hiện phiên bản v${update.version}. Ứng dụng đang tự động tải và cập nhật...`,
+          });
+        }
+      } catch (notiErr) {
+        console.warn("[AutoUpdater] Notification dispatch failed:", notiErr);
+      }
+      resetProgress();
+      setStatus("downloading");
+      let total = 0;
+      let downloaded = 0;
+      let lastTime = Date.now();
+      let lastBytes = 0;
+      await update.download((event: DownloadEvent) => {
+        if (event.event === "Started") {
+          total = event.data.contentLength || 0;
+          setProgress(0, total, 0, "0 KB/s");
+        } else if (event.event === "Progress") {
+          downloaded += event.data.chunkLength;
+          const now = Date.now();
+          const elapsed = (now - lastTime) / 1000;
+          let speedStr: string | undefined = undefined;
+          if (elapsed >= 0.4) {
+            const bytesDiff = downloaded - lastBytes;
+            const speed = bytesDiff / elapsed;
+            speedStr = formatSpeed(speed);
+            lastTime = now;
+            lastBytes = downloaded;
+          }
+          const pct = total > 0 ? Math.min(100, Math.round((downloaded / total) * 100)) : 0;
+          setProgress(downloaded, total, pct, speedStr);
+        } else if (event.event === "Finished") {
+          setProgress(total, total, 100, "Done");
+          setStatus("downloaded");
+        }
+      });
+      setStatus("installing");
+      await update.install({ restartAfterInstall: true });
+    } catch (err) {
+      console.error("[AutoUpdater] Auto-update flow error:", err);
+      const msg = err instanceof Error ? err.message : "Auto-update failed.";
+      setError(msg);
+    }
+  }, [resetProgress, setError, setLastCheckedTime, setProgress, setStatus, setUpToDate, setUpdateAvailable]);
+
   useEffect(() => {
-    if (autoCheckOnStartup && !hasCheckedOnMountRef.current) {
-      hasCheckedOnMountRef.current = true;
-      const timer = setTimeout(() => {
-        checkForUpdates(true);
+    if (!hasInitiatedStartupCheck) {
+      hasInitiatedStartupCheck = true;
+      const timer = setTimeout(async () => {
+        const currentMode = useSettingsStore.getState().updateMode;
+        if (currentMode === "auto") {
+          await runAutoUpdateFlow();
+        } else if (useUpdateStore.getState().autoCheckOnStartup) {
+          await checkForUpdates(true);
+        }
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [autoCheckOnStartup, checkForUpdates]);
+  }, [checkForUpdates, runAutoUpdateFlow]);
 
   const startDownload = useCallback(async () => {
     if (!activeUpdate) {
@@ -238,6 +313,7 @@ export function useAutoUpdater() {
     errorMessage,
     lastCheckedTime,
     autoCheckOnStartup,
+    updateMode,
     hasUpdate:
       status === "available" ||
       status === "downloading" ||
@@ -248,5 +324,6 @@ export function useAutoUpdater() {
     installAndRelaunch,
     restartApp,
     setAutoCheckOnStartup,
+    setUpdateMode,
   };
 }

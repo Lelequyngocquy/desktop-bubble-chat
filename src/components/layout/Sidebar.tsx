@@ -212,31 +212,33 @@ export const Sidebar: React.FC = () => {
         >
           <div className="flex items-center justify-between text-content-primary">
             <div className="flex items-center gap-2 min-w-0">
-              <Sparkles className={`w-4 h-4 shrink-0 ${hasUpdate ? "text-primary" : "text-content-secondary group-hover:text-primary transition-colors"}`} />
+              <Sparkles
+                className={`w-4 h-4 shrink-0 ${hasUpdate ? "text-primary" : "text-content-secondary group-hover:text-primary transition-colors"}`}
+              />
               <span className="text-small font-medium leading-none truncate">
                 {t("common:update_widget_title")}
               </span>
             </div>
             {hasUpdate && (
-              <span className="px-1.5 py-0.5 bg-primary text-white text-[10px] font-bold rounded-pill animate-pulse leading-none shadow-xs shrink-0">
+              <span className="px-1.5 py-0.5 bg-status-errorBg text-white text-[10px] font-bold rounded-pill animate-pulse leading-none shadow-xs shrink-0">
                 {t("common:new_badge_tag")}
               </span>
             )}
           </div>
           <p className="text-caption text-content-secondary leading-snug m-0 group-hover:text-content-primary transition-colors">
             {hasUpdate
-              ? (availableVersion
-                  ? t("common:update_widget_desc_ver", {
-                      version: availableVersion,
+              ? availableVersion
+                ? t("common:update_widget_desc_ver", {
+                    version: availableVersion,
+                  })
+                : t("common:update_widget_desc")
+              : updateStatus === "checking"
+                ? t("settings:update.status_checking")
+                : currentVersion
+                  ? t("common:update_widget_uptodate", {
+                      version: currentVersion,
                     })
-                  : t("common:update_widget_desc"))
-              : (updateStatus === "checking"
-                  ? t("settings:update.status_checking")
-                  : (currentVersion
-                      ? t("common:update_widget_uptodate", {
-                          version: currentVersion,
-                        })
-                      : t("settings:update.status_uptodate")))}
+                  : t("settings:update.status_uptodate")}
           </p>
         </div>
 
