@@ -6,6 +6,7 @@ import {
   ResourceOptimizationCard,
   FeedbackSection,
   MessengerExplainerCard,
+  ExtensionsGuideCard,
 } from "./components";
 
 export const HelpWorkspace: React.FC = () => {
@@ -22,6 +23,7 @@ export const HelpWorkspace: React.FC = () => {
         <QuickTipsSection />
         <ResourceOptimizationCard />
         <MessengerExplainerCard />
+        <ExtensionsGuideCard />
         <FeedbackSection />
       </main>
     </div>

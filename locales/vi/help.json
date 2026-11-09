@@ -31,5 +31,15 @@
   "feedback_placeholder": "Nhập nội dung phản hồi hoặc ý kiến đóng góp của bạn...",
   "feedback_thanks": "Cảm ơn bạn! Phản hồi đã được ghi nhận. (Nháp, hãy tạo issue mới trên repo github để phản ánh lỗi ạ hjhj)",
   "app_version": "Phiên bản ứng dụng: v{{version}} · DesktopBubbleChat - Liên hệ: lengocquytdts@gmail.com",
-  "send_btn": "Gửi phản hồi"
+  "send_btn": "Gửi phản hồi",
+  "ext_title": "Tiện ích mở rộng (Extensions)",
+  "ext_desc": "DesktopBubbleChat hỗ trợ tải tiện ích Chrome (Unpacked Extension) vào WebView2 của từng tài khoản Messenger. Mỗi tài khoản có thư mục extensions riêng biệt, không ảnh hưởng lẫn nhau.",
+  "ext_step1_title": "1. Mở thư mục extensions",
+  "ext_step1_desc": "Nhấn nút số tương ứng với tài khoản cần cài extension. Thư mục extensions của tài khoản đó sẽ được mở trong File Explorer.",
+  "ext_step2_title": "2. Dán thư mục extension vào",
+  "ext_step2_desc": "Sao chép thư mục extension (thư mục chứa file manifest.json) vào trong thư mục extensions vừa mở. Mỗi extension là một thư mục con riêng biệt.",
+  "ext_step3_title": "3. Khởi động lại bubble chat",
+  "ext_step3_desc": "Đóng và mở lại bubble chat của tài khoản tương ứng. Extension sẽ được tải tự động bởi WebView2 khi khởi động.",
+  "ext_disable_hint": "Để tắt extension: chuyển thư mục của extension từ 'extensions/' sang 'extensions_disabled/' trong cùng thư mục profile, sau đó khởi động lại.",
+  "ext_security_warn": "Chỉ cài extension từ nguồn tin cậy. Extension có quyền đọc cookie, tin nhắn và toàn bộ nội dung trang web trong WebView2."
 }

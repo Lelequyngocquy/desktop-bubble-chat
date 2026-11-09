@@ -31,5 +31,15 @@
   "feedback_placeholder": "Enter your feedback, suggestions or bug report...",
   "feedback_thanks": "Thank you! Your feedback has been recorded. (draft, please create a new issue on the GitHub repo to report bugs hjhj)",
   "app_version": "App version: v{{version}} · DesktopBubbleChat - Contact: lengocquytdts@gmail.com",
-  "send_btn": "Send Feedback"
+  "send_btn": "Send Feedback",
+  "ext_title": "Browser Extensions",
+  "ext_desc": "DesktopBubbleChat supports loading unpacked Chrome extensions into each account's Messenger WebView2. Each account has its own isolated extensions folder with no cross-account interference.",
+  "ext_step1_title": "1. Open extensions folder",
+  "ext_step1_desc": "Click the account number button to open that account's extensions folder in File Explorer.",
+  "ext_step2_title": "2. Paste extension folder",
+  "ext_step2_desc": "Copy your extension folder (the one containing manifest.json) into the extensions folder. Each extension is a separate subfolder.",
+  "ext_step3_title": "3. Restart bubble chat",
+  "ext_step3_desc": "Close and reopen the bubble chat window for that account. Extensions are loaded automatically by WebView2 on startup.",
+  "ext_disable_hint": "To disable an extension: move its folder from 'extensions/' to 'extensions_disabled/' in the same profile directory, then restart.",
+  "ext_security_warn": "Only install extensions from trusted sources. Extensions can read cookies, messages, and all page content inside the WebView2."
 }

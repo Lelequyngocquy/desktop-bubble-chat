@@ -123,6 +123,10 @@ pub fn get_or_create_messenger_window(
     profile_dir.push("profiles");
     profile_dir.push(format!("messenger_{:02}", account_index));
     let _ = std::fs::create_dir_all(&profile_dir);
+    let ext_dir = profile_dir.join("extensions");
+    let ext_disabled_dir = profile_dir.join("extensions_disabled");
+    let _ = std::fs::create_dir_all(&ext_dir);
+    let _ = std::fs::create_dir_all(&ext_disabled_dir);
     println!("[BE - Window] Profile directory: {:?}", profile_dir);
     let parsed_url = tauri::Url::parse(MESSENGER_BASE_URL).map_err(|e| e.to_string())?;
     let theme = get_account_theme(account_index);
@@ -138,8 +142,11 @@ pub fn get_or_create_messenger_window(
         app,
         &label,
         tauri::WebviewUrl::External(parsed_url),
-    )
-    .background_color(tauri::utils::config::Color(255, 255, 255, 255))
+    );
+    #[cfg(target_os = "windows")]
+    let builder = builder.browser_extensions_enabled(true).extensions_path(&ext_dir);
+    let builder = builder
+        .background_color(tauri::utils::config::Color(255, 255, 255, 255))
     .data_directory(profile_dir)
     .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0")
     .initialization_script(&init_script)

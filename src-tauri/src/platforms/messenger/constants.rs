@@ -28,8 +28,6 @@ pub const CHROMIUM_BROWSER_ARGS: &str = concat!(
     "--enable-gpu-rasterization ",
     "--enable-zero-copy ",
     "--ignore-gpu-blocklist ",
-    "--disable-extensions ",
-    "--disable-component-extensions-with-background-pages ",
     "--disable-sync ",
     "--disable-default-apps ",
     "--disable-spell-checking ",

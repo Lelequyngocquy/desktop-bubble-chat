@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod core;
+pub mod extensions;
 pub mod movement;
 #[path = "operating-systems/mod.rs"]
 pub mod operating_systems;
@@ -136,7 +137,13 @@ pub fn run() {
             commands::tuck_native_bubble_preview,
             commands::untuck_native_bubble_preview,
             commands::get_performance_snapshot,
-            commands::trim_system_memory
+            commands::trim_system_memory,
+            commands::get_profile_extensions,
+            commands::load_profile_extension,
+            commands::toggle_profile_extension,
+            commands::remove_profile_extension,
+            commands::open_profile_extensions_folder,
+            commands::reload_messenger_window
         ])
         .setup(move |app| {
             if let Err(err) = tray::setup_system_tray(app) {
