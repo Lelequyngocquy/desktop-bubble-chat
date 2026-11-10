@@ -3,7 +3,7 @@
 // ============================================================================
 // Safely navigates from specific conversation (/t/<id> or /e2ee/t/<id>)
 // back to Messenger chat list 5 seconds after chat window is hidden, preventing auto-seen.
-// Fully universal & locale-agnostic across all Facebook/Messenger languages.
+// Completes background transition to chat list immediately so hover opens smoothly.
 
 let autoUnselectTimer = null;
 
@@ -33,37 +33,52 @@ function findChatsTab() {
 }
 
 /**
+ * Ensures the chat list view is active and properly sized
+ */
+function activateChatList() {
+  try {
+    if (typeof isAuthMode === "function" && isAuthMode()) return;
+    const chatsTab = findChatsTab();
+    if (chatsTab && typeof chatsTab.click === "function") {
+      chatsTab.click();
+    }
+    window.dispatchEvent(new Event("resize"));
+  } catch (e) {}
+}
+
+/**
  * Ensures chat list is displayed when at Messenger home (/t)
  */
 function ensureChatListVisible() {
   try {
     if (isInChatThread()) return;
-    if (typeof isAuthMode === "function" && isAuthMode()) return;
-    const chatsTab = findChatsTab();
-    if (chatsTab && typeof chatsTab.click === "function") {
-      chatsTab.click();
-    }
-    setTimeout(() => { window.dispatchEvent(new Event("resize")); }, 100);
+    activateChatList();
   } catch (e) {}
 }
 
 /**
- * Safely unselects conversation thread by clicking Chats tab natively once
+ * Safely unselects conversation thread by clicking Chats tab natively,
+ * then ensures the list view transition completes in background while hidden.
  */
 function navigateToMessengerHome() {
   try {
     if (!isInChatThread()) return;
     if (typeof isAuthMode === "function" && isAuthMode()) return;
-    logDebug("AUTO-UNSELECT", "Navigating back to Messenger chat list...", null, "info");
+    logDebug("AUTO-UNSELECT", "Navigating back to Messenger chat list in background...", null, "info");
     const backBtn = document.querySelector('[aria-label="Back"], [aria-label="Quay lại"], [aria-label="Volver"], [aria-label="Retour"], [aria-label="Zurück"], [aria-label="戻る"], [aria-label="返回"]');
     if (backBtn && typeof backBtn.click === "function") {
       backBtn.click();
+    } else {
+      activateChatList();
     }
-    const chatsTab = findChatsTab();
-    if (chatsTab && typeof chatsTab.click === "function") {
-      chatsTab.click();
-    }
-    setTimeout(() => { window.dispatchEvent(new Event("resize")); }, 100);
+    const checkDelays = [150, 350, 600, 900];
+    checkDelays.forEach((delay) => {
+      setTimeout(() => {
+        if (!isInChatThread() && typeof window !== "undefined" && window.__isWindowFocused !== true) {
+          activateChatList();
+        }
+      }, delay);
+    });
   } catch (e) {
     logDebug("AUTO-UNSELECT", `Error in navigateToMessengerHome: ${e}`, null, "warn");
   }
