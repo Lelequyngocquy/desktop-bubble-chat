@@ -10,6 +10,20 @@ export type AppLanguage = "vi" | "en";
 export type ThemeMode = "light" | "dark" | "system";
 export type CloseWindowAction = "ask" | "hide_to_tray" | "exit_app";
 export type UpdateMode = "auto" | "manual";
+export type ChatWindowSizeMode = "default" | "remember_custom";
+
+export interface ChatWindowSizeSetting {
+  accountId: string;
+  accountIndex: number;
+  mode: ChatWindowSizeMode;
+  customWidth?: number;
+  customHeight?: number;
+}
+
+export const DEFAULT_CHAT_WIDTH = 404;
+export const DEFAULT_CHAT_HEIGHT = 550;
+export const MIN_CHAT_WIDTH = 320;
+export const MIN_CHAT_HEIGHT = 450;
 
 export const BUBBLE_SIZE_PIXELS: Record<BubbleSize, number> = {
   sm: 48,
@@ -43,6 +57,7 @@ interface SettingsState {
   themeMode: ThemeMode;
   closeWindowAction: CloseWindowAction;
   updateMode: UpdateMode;
+  chatWindowSettings: ChatWindowSizeSetting[];
 
   setAlwaysOnTop: (enabled: boolean) => void;
   toggleAlwaysOnTop: () => void;
@@ -60,6 +75,8 @@ interface SettingsState {
   setThemeMode: (mode: ThemeMode, skipIpc?: boolean) => void;
   setCloseWindowAction: (action: CloseWindowAction) => void;
   setUpdateMode: (mode: UpdateMode) => void;
+  setChatWindowMode: (accountIndex: number, accountId: string, mode: ChatWindowSizeMode) => void | Promise<void>;
+  updateChatWindowSize: (accountIndex: number, width: number, height: number) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -74,6 +91,7 @@ export const useSettingsStore = create<SettingsState>()(
       language: "en",
       isAutoTrimEnabled: true,
       themeMode: "system",
+      chatWindowSettings: [],
       updateMode: (() => {
         if (typeof localStorage !== "undefined") {
           try {
@@ -147,6 +165,84 @@ export const useSettingsStore = create<SettingsState>()(
         }
       },
       setUpdateMode: (mode) => set({ updateMode: mode }),
+      setChatWindowMode: async (accountIndex, accountId, mode) => {
+        set((state) => {
+          const existing = state.chatWindowSettings.find((s) => s.accountIndex === accountIndex);
+          if (existing) {
+            return {
+              chatWindowSettings: state.chatWindowSettings.map((s) =>
+                s.accountIndex === accountIndex ? { ...s, mode } : s
+              ),
+            };
+          }
+          return {
+            chatWindowSettings: [
+              ...state.chatWindowSettings,
+              { accountId, accountIndex, mode, customWidth: DEFAULT_CHAT_WIDTH, customHeight: DEFAULT_CHAT_HEIGHT },
+            ],
+          };
+        });
+        const isCustom = mode === "remember_custom";
+        const current = useSettingsStore.getState().chatWindowSettings.find((s) => s.accountIndex === accountIndex);
+        try {
+          const res = await invoke<[number, number] | null>(IPC_COMMANDS.SET_CHAT_WINDOW_SIZE_CONFIG, {
+            accountIndex,
+            isCustom,
+            width: isCustom && current?.customWidth ? current.customWidth : undefined,
+            height: isCustom && current?.customHeight ? current.customHeight : undefined,
+          });
+          if (isCustom && res && Array.isArray(res) && res.length === 2) {
+            const [w, h] = res;
+            if (w >= MIN_CHAT_WIDTH && h >= MIN_CHAT_HEIGHT) {
+              set((state) => ({
+                chatWindowSettings: state.chatWindowSettings.map((s) =>
+                  s.accountIndex === accountIndex ? { ...s, customWidth: w, customHeight: h } : s
+                ),
+              }));
+            }
+          }
+        } catch {}
+      },
+      updateChatWindowSize: (accountIndex, width, height) => {
+        const clampedWidth = Math.max(MIN_CHAT_WIDTH, Math.round(width));
+        const clampedHeight = Math.max(MIN_CHAT_HEIGHT, Math.round(height));
+        set((state) => {
+          const existing = state.chatWindowSettings.find((s) => s.accountIndex === accountIndex);
+          if (existing) {
+            if (
+              existing.customWidth !== undefined &&
+              existing.customHeight !== undefined &&
+              Math.abs(existing.customWidth - clampedWidth) < 2 &&
+              Math.abs(existing.customHeight - clampedHeight) < 2
+            ) {
+              return state;
+            }
+            return {
+              chatWindowSettings: state.chatWindowSettings.map((s) =>
+                s.accountIndex === accountIndex ? { ...s, customWidth: clampedWidth, customHeight: clampedHeight } : s
+              ),
+            };
+          }
+          return {
+            chatWindowSettings: [
+              ...state.chatWindowSettings,
+              {
+                accountId: `messenger-${accountIndex.toString().padStart(2, "0")}`,
+                accountIndex,
+                mode: "remember_custom",
+                customWidth: clampedWidth,
+                customHeight: clampedHeight,
+              },
+            ],
+          };
+        });
+        invoke(IPC_COMMANDS.SET_CHAT_WINDOW_SIZE_CONFIG, {
+          accountIndex,
+          isCustom: true,
+          width: clampedWidth,
+          height: clampedHeight,
+        }).catch(() => {});
+      },
     }),
     {
       name: "desktop_bubble_chat_settings",
@@ -181,6 +277,9 @@ if (typeof window !== "undefined") {
           }
           if (parsed.state.updateMode) {
             useSettingsStore.setState({ updateMode: parsed.state.updateMode });
+          }
+          if (parsed.state.chatWindowSettings) {
+            useSettingsStore.setState({ chatWindowSettings: parsed.state.chatWindowSettings });
           }
         }
       } catch (err) {

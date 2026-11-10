@@ -73,6 +73,23 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                 let _ = app_handle.emit("messenger-auth-closed", serde_json::json!({ "label": &win_label }));
                 let _ = ChatService::hide_chat(&app_handle, idx);
             }
+            tauri::WindowEvent::Resized(physical_size) => {
+                if physical_size.width > 0 && physical_size.height > 0 {
+                    let scale = chat_clone.scale_factor().unwrap_or(1.0);
+                    let logical_w = (physical_size.width as f64 / scale).round() as u32;
+                    let logical_h = (physical_size.height as f64 / scale).round() as u32;
+                    if logical_w >= 200 && logical_h >= 200 {
+                        if state_clone.get_chat_window_custom_size(idx).is_some() {
+                            state_clone.set_chat_window_custom_size(idx, Some((logical_w, logical_h)));
+                        }
+                        let _ = app_handle.emit("chat-window-resized", serde_json::json!({
+                            "accountIndex": idx,
+                            "width": logical_w,
+                            "height": logical_h,
+                        }));
+                    }
+                }
+            }
             _ => {}
         }
     });
@@ -145,14 +162,18 @@ pub fn get_or_create_messenger_window(
     );
     #[cfg(target_os = "windows")]
     let builder = builder.browser_extensions_enabled(true).extensions_path(&ext_dir);
+    let (init_w, init_h) = chat_state
+        .get_chat_window_custom_size(account_index)
+        .map(|(w, h)| (w as f64, h as f64))
+        .unwrap_or((404.0, 550.0));
     let builder = builder
         .background_color(tauri::utils::config::Color(255, 255, 255, 255))
     .data_directory(profile_dir)
     .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0")
     .initialization_script(&init_script)
     .title(format!("Messenger {:02}", account_index))
-    .inner_size(404.0, 550.0)
-    .min_inner_size(404.0, 550.0)
+    .inner_size(init_w, init_h)
+    .min_inner_size(320.0, 450.0)
     .resizable(true)
     .decorations(false)
     .always_on_top(true)

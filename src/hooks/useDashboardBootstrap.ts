@@ -114,6 +114,16 @@ export function useDashboardBootstrap() {
         } catch (err) {
           feLog.warn("[useDashboardBootstrap] Unable to get active bubbles snapshot:", err);
         }
+        try {
+          const chatSettings = useSettingsStore.getState().chatWindowSettings;
+          for (const s of chatSettings) {
+            if (s.mode === "remember_custom" && s.customWidth && s.customHeight) {
+              await messengerService.setChatWindowSizeConfig(s.accountIndex, true, s.customWidth, s.customHeight);
+            }
+          }
+        } catch (err) {
+          feLog.warn("[useDashboardBootstrap] Unable to sync chat window size configs:", err);
+        }
         await new Promise((resolve) => setTimeout(resolve, 200));
         feLog.info("[useDashboardBootstrap] Bootstrap completed! Dashboard is ready.");
         markDashboardReady();

@@ -232,3 +232,45 @@ pub fn set_account_muted(
     }
     Ok(())
 }
+
+/// Command setting chat window size configuration
+#[tauri::command]
+pub fn set_chat_window_size_config(
+    app: AppHandle,
+    state: State<'_, Arc<ChatState>>,
+    account_index: Option<u32>,
+    is_custom: bool,
+    width: Option<u32>,
+    height: Option<u32>,
+) -> Result<Option<(u32, u32)>, String> {
+    let idx = account_index.unwrap_or(1);
+    let label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
+    let win_opt = app.get_webview_window(&label);
+    let size = if is_custom {
+        match (width, height) {
+            (Some(w), Some(h)) if w >= 320 && h >= 450 => Some((w, h)),
+            _ => {
+                if let Some(ref win) = win_opt {
+                    if let Ok(phys_sz) = win.inner_size() {
+                        let scale = win.scale_factor().unwrap_or(1.0);
+                        let cur_w = (phys_sz.width as f64 / scale).round() as u32;
+                        let cur_h = (phys_sz.height as f64 / scale).round() as u32;
+                        if cur_w >= 320 && cur_h >= 450 {
+                            Some((cur_w, cur_h))
+                        } else {
+                            Some((404, 550))
+                        }
+                    } else {
+                        Some((404, 550))
+                    }
+                } else {
+                    Some((404, 550))
+                }
+            }
+        }
+    } else {
+        None
+    };
+    state.set_chat_window_custom_size(idx, size);
+    Ok(size)
+}

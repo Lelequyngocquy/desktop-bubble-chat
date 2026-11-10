@@ -38,8 +38,12 @@ impl ChatService {
         let screen = crate::movement::get_target_dashboard_screen(Some(app));
         let scale = screen.scale_factor;
         let config = crate::movement::get_bubble_physics_config(app);
-        let chat_w = (config.chat_width * scale).round() as i32;
-        let chat_h = (config.chat_height * scale).round() as i32;
+        let (custom_w, custom_h) = app.try_state::<Arc<ChatState>>()
+            .and_then(|cs| cs.get_chat_window_custom_size(account_index))
+            .map(|(w, h)| (w as f64, h as f64))
+            .unwrap_or((config.chat_width, config.chat_height));
+        let chat_w = (custom_w * scale).round() as i32;
+        let chat_h = (custom_h * scale).round() as i32;
         let gap = (config.chat_gap * scale).round() as i32;
         let margin = (config.margin * scale) as i32;
         let taskbar_margin = (config.taskbar_margin * scale) as i32;
@@ -181,6 +185,18 @@ impl ChatService {
             .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
         if let Some(chat_window) = chat_window {
             if chat_window.is_visible().unwrap_or(false) {
+                if let Some(cs) = app.try_state::<Arc<ChatState>>() {
+                    if cs.get_chat_window_custom_size(idx).is_some() {
+                        if let Ok(phys_sz) = chat_window.inner_size() {
+                            let scale = chat_window.scale_factor().unwrap_or(1.0);
+                            let cur_w = (phys_sz.width as f64 / scale).round() as u32;
+                            let cur_h = (phys_sz.height as f64 / scale).round() as u32;
+                            if cur_w >= 320 && cur_h >= 450 {
+                                cs.set_chat_window_custom_size(idx, Some((cur_w, cur_h)));
+                            }
+                        }
+                    }
+                }
                 let _ = chat_window.eval("window.__isWindowFocused = false; if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); } window.dispatchEvent(new Event('blur'));");
                 let _ = chat_window.hide();
                 let app_handle = app.clone();

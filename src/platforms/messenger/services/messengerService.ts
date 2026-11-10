@@ -169,4 +169,21 @@ export const messengerService = {
   async setBubbleConfig(size?: number, tuckRatio?: number): Promise<void> {
     await systemService.setBubbleConfig(size, tuckRatio);
   },
+
+  /**
+   * Configure chat window size mode and custom dimensions in backend Rust.
+   */
+  async setChatWindowSizeConfig(accountIndex: number, isCustom: boolean, width?: number, height?: number): Promise<[number, number] | null> {
+    try {
+      return await invoke<[number, number] | null>(IPC_COMMANDS.SET_CHAT_WINDOW_SIZE_CONFIG, {
+        accountIndex,
+        isCustom,
+        width,
+        height,
+      });
+    } catch (err) {
+      console.warn(`[MessengerService] Failed to set chat window size config for account ${accountIndex}:`, err);
+      return null;
+    }
+  },
 };

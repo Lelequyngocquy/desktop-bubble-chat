@@ -49,6 +49,17 @@
     "free": "Free Placement",
     "free_desc": "Bubbles stay exactly where you place them without tucking into the edge"
   },
+  "chat_window": {
+    "title": "Chat Window Customization",
+    "subtitle": "Configure window size behavior and memory per Messenger chat bubble.",
+    "mode_default": "Default",
+    "mode_default_desc": "Opens in standard size (404×550px). Can be resized temporarily without saving for future sessions.",
+    "mode_custom": "Remember Size",
+    "mode_custom_desc": "Saves the last resized dimensions and applies them automatically on subsequent opens.",
+    "badge_default": "{{width}} × {{height}} px (Default)",
+    "badge_custom": "{{width}} × {{height}} px (Saved)",
+    "no_accounts": "No Messenger accounts connected yet. Please connect an account in the Connections tab to customize chat window sizes."
+  },
   "shortcuts": {
     "title": "Global Shortcuts",
     "desc": "Quick access across Windows without focusing the dashboard",

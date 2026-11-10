@@ -38,6 +38,7 @@ pub struct ChatState {
     pub unread_counts: Mutex<HashMap<u32, u32>>,
     pub recent_messages: Mutex<Vec<IncomingMessage>>,
     pub muted_accounts: Mutex<HashSet<u32>>,
+    pub chat_window_sizes: Mutex<HashMap<u32, (u32, u32)>>,
     pub user_config: Mutex<crate::utils::user_cache::AppUserConfig>,
     pub has_shown_tray_notification: AtomicBool,
 }
@@ -64,6 +65,7 @@ impl Default for ChatState {
             unread_counts: Mutex::new(HashMap::new()),
             recent_messages: Mutex::new(Vec::new()),
             muted_accounts: Mutex::new(HashSet::new()),
+            chat_window_sizes: Mutex::new(HashMap::new()),
             user_config: Mutex::new(crate::utils::user_cache::AppUserConfig::default()),
             has_shown_tray_notification: AtomicBool::new(false),
         }
@@ -272,6 +274,23 @@ impl ChatState {
         } else {
             false
         }
+    }
+
+    pub fn set_chat_window_custom_size(&self, account_index: u32, size: Option<(u32, u32)>) {
+        if let Ok(mut map) = self.chat_window_sizes.lock() {
+            if let Some((w, h)) = size {
+                map.insert(account_index, (w, h));
+            } else {
+                map.remove(&account_index);
+            }
+        }
+    }
+
+    pub fn get_chat_window_custom_size(&self, account_index: u32) -> Option<(u32, u32)> {
+        if let Ok(map) = self.chat_window_sizes.lock() {
+            return map.get(&account_index).copied();
+        }
+        None
     }
 
     /// Initializes user config from disk on startup and seeds authenticated accounts

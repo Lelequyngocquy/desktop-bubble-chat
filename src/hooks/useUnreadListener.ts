@@ -21,6 +21,7 @@ import {
   ChatVisibilityPayload,
   IncomingMessagePayload,
   RecentConversationsSyncedPayload,
+  ChatWindowResizedPayload,
 } from "../types/ipc";
 
 /**
@@ -56,6 +57,7 @@ export const useUnreadListener = () => {
     let unlistenRecent: (() => void) | undefined;
     let unlistenCloseDialog: (() => void) | undefined;
     let unlistenBubbleSpawned: (() => void) | undefined;
+    let unlistenChatResized: (() => void) | undefined;
     const setupListeners = async () => {
       try {
         const currentAccounts = useMessengerStore.getState().accounts;
@@ -227,6 +229,24 @@ export const useUnreadListener = () => {
             }
           }
         );
+        let resizeDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+        unlistenChatResized = await listen<ChatWindowResizedPayload>(
+          IPC_EVENTS.CHAT_WINDOW_RESIZED,
+          (event) => {
+            const data = event.payload;
+            if (data && data.accountIndex && data.width && data.height) {
+              const currentSetting = useSettingsStore.getState().chatWindowSettings.find(
+                (s) => s.accountIndex === data.accountIndex
+              );
+              if (currentSetting && currentSetting.mode === "remember_custom") {
+                clearTimeout(resizeDebounceTimer);
+                resizeDebounceTimer = setTimeout(() => {
+                  useSettingsStore.getState().updateChatWindowSize(data.accountIndex, data.width, data.height);
+                }, 500);
+              }
+            }
+          }
+        );
       } catch (err) {
         console.warn("[useUnreadListener] Desktop IPC event listeners not available in preview:", err);
       }
@@ -251,6 +271,7 @@ export const useUnreadListener = () => {
       if (unlistenRecent) unlistenRecent();
       if (unlistenCloseDialog) unlistenCloseDialog();
       if (unlistenBubbleSpawned) unlistenBubbleSpawned();
+      if (unlistenChatResized) unlistenChatResized();
     };
   }, []);
 

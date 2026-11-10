@@ -143,7 +143,8 @@ pub fn run() {
             commands::toggle_profile_extension,
             commands::remove_profile_extension,
             commands::open_profile_extensions_folder,
-            commands::reload_messenger_window
+            commands::reload_messenger_window,
+            commands::set_chat_window_size_config
         ])
         .setup(move |app| {
             if let Err(err) = tray::setup_system_tray(app) {

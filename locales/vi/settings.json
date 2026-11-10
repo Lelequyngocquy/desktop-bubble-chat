@@ -49,6 +49,17 @@
     "free": "Vị trí Tự do",
     "free_desc": "Bong bóng đứng yên ở bất kỳ vị trí nào bạn kéo thả, không tự động nép vào mép"
   },
+  "chat_window": {
+    "title": "Tùy chỉnh khung chat",
+    "subtitle": "Cấu hình kích thước và cơ chế ghi nhớ cho từng bong bóng chat Messenger khi mở.",
+    "mode_default": "Mặc định",
+    "mode_default_desc": "Mở theo kích thước chuẩn (404×550px). Có thể kéo giãn tạm thời nhưng không lưu lại cho lần mở sau.",
+    "mode_custom": "Ghi nhớ kích thước",
+    "mode_custom_desc": "Ghi nhớ kích thước cửa sổ cuối cùng sau khi kéo giãn và áp dụng cho các lần mở tiếp theo.",
+    "badge_default": "{{width}} × {{height}} px (Mặc định)",
+    "badge_custom": "{{width}} × {{height}} px (Đã lưu)",
+    "no_accounts": "Chưa có tài khoản Messenger nào được kết nối. Hãy kết nối tài khoản tại tab Kết nối để bắt đầu tùy chỉnh khung chat."
+  },
   "shortcuts": {
     "title": "Phím Tắt Toàn Cục",
     "desc": "Thao tác nhanh trên màn hình mà không cần mở bảng điều khiển",

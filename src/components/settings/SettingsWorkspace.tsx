@@ -10,6 +10,7 @@ import {
   AppearanceSection,
   SystemStartupSection,
   BubbleCustomizationSection,
+  ChatWindowCustomizationSection,
   GlobalShortcutSection,
   DataCacheSection,
   AppUpdateSection,
@@ -108,6 +109,8 @@ export const SettingsWorkspace: React.FC = () => {
           bubblePositionMode={bubblePositionMode}
           onSelectPositionMode={setBubblePositionMode}
         />
+
+        <ChatWindowCustomizationSection />
 
         <GlobalShortcutSection
           isGlobalShortcutEnabled={isGlobalShortcutEnabled}
