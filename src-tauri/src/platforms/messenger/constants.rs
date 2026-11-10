@@ -14,6 +14,8 @@ pub const MESSENGER_INJECT_SCRIPT: &str = concat!(
     include_str!("scripts/modules/06_styles.js"),
     "\n\n",
     include_str!("scripts/modules/07_lifecycle.js"),
+    "\n\n",
+    include_str!("scripts/modules/08_auto_unselect_thread.js"),
     "\n})();\n"
 );
 pub const MESSENGER_LOGIN_URL: &str = "https://www.messenger.com/";

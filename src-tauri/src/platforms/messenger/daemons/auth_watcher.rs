@@ -104,18 +104,20 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                     }
                     if is_logged_in {
                         if let Ok(title) = chat_window.title() {
-                            let count = parse_unread_from_title(&title);
-                            let prev_count = chat_state.get_unread_count(idx);
-                            let is_visible = chat_window.is_visible().unwrap_or(false);
-                            if !is_visible && count < prev_count {
+                            if !title.contains("Messenger") {
                                 continue;
                             }
+                            let count = parse_unread_from_title(&title);
+                            let prev_count = chat_state.get_unread_count(idx);
                             if count != prev_count {
                                 unread_map.insert(idx, count);
                                 if count > prev_count {
                                     crate::operating_systems::current::bubble::trigger_native_bubble_pulse(idx);
                                 }
                                 chat_state.set_unread_count(idx, count);
+                                if count == 0 {
+                                    chat_state.clear_recent_messages_for_account(idx);
+                                }
                                 crate::operating_systems::current::bubble::set_native_bubble_unread_count(idx, count);
                                 let _ = app_handle.emit("badge-updated", serde_json::json!({
                                     "accountIndex": idx,

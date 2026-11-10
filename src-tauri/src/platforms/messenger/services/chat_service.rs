@@ -147,20 +147,13 @@ impl ChatService {
         let _ = chat_window.set_skip_taskbar(true);
         Self::dock_chat_window(app, &chat_window, idx);
         let _ = chat_window.eval(MESSENGER_INJECT_SCRIPT);
-        state.clear_unread_count(idx);
-        state.clear_recent_messages_for_account(idx);
-        crate::operating_systems::current::bubble::set_native_bubble_unread_count(idx, 0);
-        let _ = app.emit("badge-updated", serde_json::json!({
-            "accountIndex": idx,
-            "count": 0
-        }));
         println!("[BE - Chat] Opened Messenger {:02} chat docked next to bubble", idx);
         crate::utils::trim_controller::cancel_auto_trim(idx);
         crate::utils::trim_controller::record_user_interaction(idx);
         crate::platforms::messenger::windows::set_webview_memory_target_level(&chat_window, false);
         chat_window.show().map_err(|e| e.to_string())?;
         chat_window.set_focus().map_err(|e| e.to_string())?;
-        let _ = chat_window.eval("window.__isWindowFocused = true; window.dispatchEvent(new Event('focus'));");
+        let _ = chat_window.eval("window.__isWindowFocused = true; window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('resize')); if (typeof window.__cancelAutoUnselectCountdown === 'function') { window.__cancelAutoUnselectCountdown(); } if (typeof window.__ensureChatListVisible === 'function') { window.__ensureChatListVisible(); }");
         let _ = app.emit("bubble-visibility-changed", serde_json::json!({
             "accountIndex": idx,
             "visible": true
@@ -197,7 +190,7 @@ impl ChatService {
                         }
                     }
                 }
-                let _ = chat_window.eval("window.__isWindowFocused = false; if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); } window.dispatchEvent(new Event('blur'));");
+                let _ = chat_window.eval("window.__isWindowFocused = false; if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); } window.dispatchEvent(new Event('blur')); if (typeof window.__startAutoUnselectCountdown === 'function') { window.__startAutoUnselectCountdown(5000); }");
                 let _ = chat_window.hide();
                 let app_handle = app.clone();
                 std::thread::spawn(move || {

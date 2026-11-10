@@ -184,13 +184,15 @@ pub fn get_or_create_messenger_window(
     .on_document_title_changed(move |win, title| {
         let count = parse_unread_from_title(&title);
         let prev = state_title.get_unread_count(account_index);
-        let is_visible = win.is_visible().unwrap_or(false);
-        if !is_visible && count < prev {
+        let _ = win.set_title(&title);
+        if !title.contains("Messenger") {
             return;
         }
-        let _ = win.set_title(&title);
         if count != prev {
             state_title.set_unread_count(account_index, count);
+            if count == 0 {
+                state_title.clear_recent_messages_for_account(account_index);
+            }
             crate::operating_systems::current::bubble::set_native_bubble_unread_count(account_index, count);
             if count > prev && count > 0 {
                 let display_title = format!("New message for Messenger {:02}", account_index);
