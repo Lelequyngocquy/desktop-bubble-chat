@@ -57,28 +57,22 @@ function ensureChatListVisible() {
 }
 
 /**
- * Safely unselects conversation thread by clicking Chats tab natively,
- * then ensures the list view transition completes in background while hidden.
+ * Deselects conversation via React Router (no network request) by patching history state
+ * and firing a popstate event so Messenger's SPA unmounts the conversation panel.
+ * Falls back to Chats tab click if popstate doesn't take effect within 200ms.
  */
 function navigateToMessengerHome() {
   try {
     if (!isInChatThread()) return;
     if (typeof isAuthMode === "function" && isAuthMode()) return;
-    logDebug("AUTO-UNSELECT", "Navigating back to Messenger chat list in background...", null, "info");
-    const backBtn = document.querySelector('[aria-label="Back"], [aria-label="Quay lại"], [aria-label="Volver"], [aria-label="Retour"], [aria-label="Zurück"], [aria-label="戻る"], [aria-label="返回"]');
-    if (backBtn && typeof backBtn.click === "function") {
-      backBtn.click();
-    } else {
-      activateChatList();
-    }
-    const checkDelays = [150, 350, 600, 900];
-    checkDelays.forEach((delay) => {
-      setTimeout(() => {
-        if (!isInChatThread() && typeof window !== "undefined" && window.__isWindowFocused !== true) {
-          activateChatList();
-        }
-      }, delay);
-    });
+    logDebug("AUTO-UNSELECT", "SPA-navigating to /t/ via history API to clear conversation panel...", null, "info");
+    history.replaceState(null, "", "/t/");
+    window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+    setTimeout(() => {
+      if (isInChatThread() && window.__isWindowFocused !== true) {
+        activateChatList();
+      }
+    }, 200);
   } catch (e) {
     logDebug("AUTO-UNSELECT", `Error in navigateToMessengerHome: ${e}`, null, "warn");
   }
