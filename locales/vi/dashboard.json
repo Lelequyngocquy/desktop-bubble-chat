@@ -211,30 +211,10 @@
     "empty_desc": "Tin nhắn đến sẽ hiển thị trực tiếp tại đây.",
     "unread_badge": "{{count}} mới"
   },
-  "roadmap": {
-    "title": "Sắp có thêm nhiều kết nối",
-    "subtitle": "Phiên bản đầu hiện chỉ hỗ trợ Messenger",
-    "upcoming_badge": "Sắp ra mắt",
-    "telegram_desc": "Hỗ trợ bong bóng chat đa nền tảng.",
-    "zalo_desc": "Trình bao nhắn tin Zalo trực tiếp.",
-    "discord_desc": "Lớp phủ bong bóng Discord trực tiếp."
-  },
   "platforms": {
     "messenger": {
       "tagline": "Kết nối trực tiếp qua Smart WebView Wrapper",
       "desc": "Nhắn tin và gọi video trực tiếp trên nền tảng Meta Messenger."
-    },
-    "telegram": {
-      "tagline": "Sắp có thêm nhiều kết nối",
-      "desc": "Hỗ trợ bong bóng chat đa nền tảng."
-    },
-    "zalo": {
-      "tagline": "Luôn giữ liên lạc với danh bạ",
-      "desc": "Trình bao nhắn tin Zalo trực tiếp."
-    },
-    "discord": {
-      "tagline": "Kết nối cùng các cộng đồng của bạn",
-      "desc": "Lớp phủ bong bóng Discord trực tiếp."
     }
   },
   "warning_heavy_load": "Bạn đang bật {{count}} bong bóng cùng lúc. Mỗi phiên WebView2 chiếm bộ nhớ. Hãy tắt các tài khoản không dùng để tiết kiệm RAM."

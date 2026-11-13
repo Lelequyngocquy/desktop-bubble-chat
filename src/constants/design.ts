@@ -95,9 +95,6 @@ export const Color = {
 
   brand: {
     messenger: "#0866FF",
-    telegram: "#229ED9",
-    zalo: "#0068FF",
-    discord: "#5865F2",
   },
 
   accountTheme: ACCOUNT_THEME_COLORS,
@@ -110,7 +107,6 @@ export const Color = {
   overlay: {
     navigationSelected: "rgba(255, 255, 255, 0.69)",
     backgroundService: "rgba(255, 255, 255, 0.50)",
-    upcomingPlatform: "rgba(255, 255, 255, 0.65)",
   },
 } as const;
 

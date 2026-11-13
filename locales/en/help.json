@@ -27,7 +27,7 @@
   "item3_desc": "Point your cursor directly at a bubble or click Open Chat (Connections page) to summon its chat window immediately.",
   "settings_hint": "You can change bubble sizes or customize global shortcuts in Settings.",
   "feedback_title": "Send Feedback to Developers",
-  "feedback_desc": "Encountered a display glitch or want to suggest new platforms (Zalo, Telegram, Discord)? Send us a note:",
+  "feedback_desc": "Encountered a display glitch or have feedback? Send us a note:",
   "feedback_placeholder": "Enter your feedback, suggestions or bug report...",
   "feedback_thanks": "Thank you! Your feedback has been recorded. (draft, please create a new issue on the GitHub repo to report bugs hjhj)",
   "app_version": "App version: v{{version}} · DesktopBubbleChat - Contact: lengocquytdts@gmail.com",

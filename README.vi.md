@@ -9,7 +9,7 @@
 [![Rust 2024](https://img.shields.io/badge/Rust-2024%20Edition-DEA584?style=flat-square&logo=rust&logoColor=black)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-> Ứng dụng bong bóng chat (Chat Heads) nổi mượt mà, tiện lợi trên Desktop (Windows, macOS, Linux). Hỗ trợ đa nền tảng nhắn tin, đồ họa vector native, cơ chế tối ưu RAM 4 tầng thông minh, hút mép vật lý và tương tác lướt chuột zero-click.
+> Ứng dụng bong bóng chat (Chat Heads) nổi mượt mà, tiện lợi trên Desktop (Windows, macOS, Linux). Hỗ trợ đa tài khoản Messenger cô lập hoàn toàn, đồ họa vector native, cơ chế tối ưu RAM 4 tầng thông minh, hút mép vật lý và tương tác lướt chuột zero-click.
 
 [English](README.md) | **Tiếng Việt**
 
@@ -25,7 +25,6 @@
   - [Hướng dẫn cài đặt & Xử lý sự cố người dùng](#hướng-dẫn-cài-đặt--xử-lý-sự-cố-người-dùng)
 - [Tính năng nổi bật](#tính-năng-nổi-bật)
 - [Tổng quan kiến trúc](#tổng-quan-kiến-trúc)
-- [Lộ trình phát triển](#lộ-trình-phát-triển)
 - [Khởi chạy từ mã nguồn (Dành cho Lập trình viên)](#khởi-chạy-từ-mã-nguồn-dành-cho-lập-trình-viên)
   - [Yêu cầu môi trường](#yêu-cầu-môi-trường)
   - [Các bước cài đặt](#các-bước-cài-đặt)
@@ -248,17 +247,6 @@ DesktopBubbleChat/
 ```
 
 </details>
-
----
-
-### Lộ trình phát triển
-
-| Nền tảng               | Hình thức tích hợp                            | Đa tài khoản                       | Trạng thái   |
-| :--------------------- | :-------------------------------------------- | :--------------------------------- | :----------- |
-| **Facebook Messenger** | Webview độc lập (WV2/WebKit) + Rust Daemons   | Tối đa 5 tài khoản (Profile 01–05) | **Khả dụng** |
-| **Telegram**           | Web / TDesktop Adapter                        | Hỗ trợ nhiều tài khoản (Dự kiến)   | **Kế hoạch** |
-| **Zalo**               | Web Wrapper + Trình theo dõi Auth             | Hỗ trợ nhiều tài khoản (Dự kiến)   | **Kế hoạch** |
-| **Discord**            | Web Client / Gateway Adapter                  | Hỗ trợ nhiều tài khoản (Dự kiến)   | **Kế hoạch** |
 
 ---
 

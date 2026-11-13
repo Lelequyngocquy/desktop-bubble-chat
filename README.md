@@ -9,13 +9,13 @@
 [![Rust 2024](https://img.shields.io/badge/Rust-2024%20Edition-DEA584?style=flat-square&logo=rust&logoColor=black)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-> Extensible, high-performance floating chat heads for Desktop (Windows, macOS, Linux) featuring pluggable multi-platform messaging, hardware-accelerated vector avatars, intelligent 4-tier RAM trimming, physics-driven edge docking, and zero-click interactions.
+> Extensible, high-performance floating chat heads for Desktop (Windows, macOS, Linux) featuring isolated multi-account Messenger integration, hardware-accelerated vector avatars, intelligent 4-tier RAM trimming, physics-driven edge docking, and zero-click interactions.
 
 **English** | [Tiếng Việt](README.vi.md)
 
 ---
 
-**DesktopBubbleChat** brings the fluid, non-intrusive mobile chat head experience to **Windows**, **macOS**, and **Linux** across multiple messaging networks. Built with **Tauri v2**, **React 19**, **TypeScript**, and a native **Rust (Hardware & OS Abstraction Layer)** core, it decouples windowing, physics, and rendering from platform adapters. It runs concurrent isolated profiles inside dedicated Webview sandboxes while keeping memory overhead exceptionally low via automated working-set trimming.
+**DesktopBubbleChat** brings the fluid, non-intrusive mobile chat head experience to **Windows**, **macOS**, and **Linux**. Built with **Tauri v2**, **React 19**, **TypeScript**, and a native **Rust (Hardware & OS Abstraction Layer)** core, it decouples windowing, physics, and rendering from platform adapters. It runs concurrent isolated profiles inside dedicated Webview sandboxes while keeping memory overhead exceptionally low via automated working-set trimming.
 
 ### Table of Contents
 
@@ -25,7 +25,6 @@
   - [OS Installation Notes & User Troubleshooting](#os-installation-notes--user-troubleshooting)
 - [Key Features](#key-features)
 - [Architecture Overview](#architecture-overview)
-- [Roadmap](#roadmap)
 - [Getting Started (Building from Source)](#getting-started-building-from-source)
   - [Prerequisites](#prerequisites)
   - [Installation & Setup](#installation--setup)
@@ -250,17 +249,6 @@ DesktopBubbleChat/
 ```
 
 </details>
-
----
-
-### Roadmap
-
-| Platform               | Integration Type                              | Multi-Account Support             | Status        |
-| :--------------------- | :-------------------------------------------- | :-------------------------------- | :------------ |
-| **Facebook Messenger** | Isolated Webviews (WV2/WebKit) + Rust Daemons | Up to 5 Accounts (Profiles 01–05) | **Available** |
-| **Telegram**           | Web / TDesktop Adapter                        | Planned Multi-Account             | **Roadmap**   |
-| **Zalo**               | Web Wrapper + Auth Watcher                    | Planned Multi-Account             | **Roadmap**   |
-| **Discord**            | Web Client / Gateway Adapter                  | Planned Multi-Account             | **Roadmap**   |
 
 ---
 

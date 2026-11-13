@@ -45,9 +45,6 @@ export default {
         },
         brand: {
           messenger: "#0866FF",
-          telegram: "#229ED9",
-          zalo: "#0068FF",
-          discord: "#5865F2",
         },
         accountTheme: {
           1: { main: "#06B6D4", border: "#0891B2", bgLight: "var(--color-acc1-bg)" },

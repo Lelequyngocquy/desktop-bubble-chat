@@ -7,14 +7,12 @@ import {
   MessengerConnectionCard,
   ActiveChatHeads,
   QuickSettings,
-  PlatformRoadmap, 
 } from "./components";
 import { CommonHintLine } from "../common";
 
 export const HomeWorkspace: React.FC = () => {
   const { t } = useTranslation("dashboard");
   const systemUser = useSystemUserStore((s) => s.systemUser);
-
   return (
     <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden">
       <TabHeader
@@ -36,13 +34,10 @@ export const HomeWorkspace: React.FC = () => {
           <ActiveChatHeads />
           <QuickSettings />
         </div>
-        <PlatformRoadmap />
-   
         <CommonHintLine
           icon={<Lightbulb />}
           text={t("footer_tip")}
-          className="bg-transparent p-0
-      rounded-none"
+          className="bg-transparent p-0 rounded-none"
         />
       </main>
     </div>

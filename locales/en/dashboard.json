@@ -211,30 +211,10 @@
     "empty_desc": "Incoming messages will appear here in real time.",
     "unread_badge": "{{count}} new"
   },
-  "roadmap": {
-    "title": "More Connections Coming Soon",
-    "subtitle": "Initial release supports Messenger",
-    "upcoming_badge": "Coming Soon",
-    "telegram_desc": "Multi-platform chat heads support.",
-    "zalo_desc": "Direct Zalo messaging wrapper.",
-    "discord_desc": "Discord direct bubble overlay."
-  },
   "platforms": {
     "messenger": {
       "tagline": "Direct connection via Smart WebView Wrapper",
       "desc": "Messaging and video calls directly on Meta Messenger platform."
-    },
-    "telegram": {
-      "tagline": "More connections coming soon",
-      "desc": "Multi-platform chat heads support."
-    },
-    "zalo": {
-      "tagline": "Stay close to your contacts",
-      "desc": "Direct Zalo messaging wrapper."
-    },
-    "discord": {
-      "tagline": "Connect with your communities",
-      "desc": "Discord direct bubble overlay."
     }
   },
   "warning_heavy_load": "You have {{count}} active bubbles. Each WebView2 instance consumes memory. Consider hiding unused accounts."

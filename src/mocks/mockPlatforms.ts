@@ -1,4 +1,3 @@
-import { PLATFORM_CONFIGS, UPCOMING_PLATFORMS } from "../config/platforms";
+import { PLATFORM_CONFIGS } from "../config/platforms";
 
 export const MOCK_PLATFORMS = PLATFORM_CONFIGS;
-export const MOCK_UPCOMING_PLATFORMS = UPCOMING_PLATFORMS;
