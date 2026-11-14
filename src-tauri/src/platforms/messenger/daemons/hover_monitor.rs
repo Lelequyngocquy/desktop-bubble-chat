@@ -85,7 +85,7 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                         .get_webview_window(&bubble_label)
                         .map(|b| is_cursor_over_bubble(&b))
                         .unwrap_or_else(|| crate::operating_systems::current::bubble::is_cursor_over_native_bubble(active_idx));
-                    if over_chat || over_bubble {
+                    if over_chat || over_bubble || chat_state.is_chat_pinned(active_idx) {
                         outside_open_chat_start = None;
                     } else {
                         match outside_open_chat_start {
@@ -94,8 +94,10 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                             }
                             Some(start_time) => {
                                 if start_time.elapsed() >= Duration::from_millis(300) {
-                                    let _ = ChatService::hide_chat(&app, active_idx);
-                                    crate::operating_systems::current::bubble::tuck_native_bubble(&app, active_idx);
+                                    if !chat_state.is_chat_pinned(active_idx) {
+                                        let _ = ChatService::hide_chat(&app, active_idx);
+                                        crate::operating_systems::current::bubble::tuck_native_bubble(&app, active_idx);
+                                    }
                                     outside_open_chat_start = None;
                                 }
                             }

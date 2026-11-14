@@ -261,6 +261,11 @@ pub fn tuck_bubble(app: &AppHandle, account_index: Option<u32>) {
         None => (1..=5).collect(),
     };
     for idx in indices {
+        if let Some(cs) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
+            if cs.is_chat_pinned(idx) {
+                continue;
+            }
+        }
         crate::utils::trim_controller::schedule_auto_trim_on_tuck(idx, app.clone());
         let label = get_bubble_window_label(idx);
         let win = app.get_webview_window(&label);

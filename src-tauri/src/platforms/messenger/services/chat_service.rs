@@ -179,6 +179,7 @@ impl ChatService {
         if let Some(chat_window) = chat_window {
             if chat_window.is_visible().unwrap_or(false) {
                 if let Some(cs) = app.try_state::<Arc<ChatState>>() {
+                    cs.set_chat_pinned(idx, false);
                     if cs.get_chat_window_custom_size(idx).is_some() {
                         if let Ok(phys_sz) = chat_window.inner_size() {
                             let scale = chat_window.scale_factor().unwrap_or(1.0);
@@ -190,7 +191,7 @@ impl ChatService {
                         }
                     }
                 }
-                let _ = chat_window.eval("window.__isWindowFocused = false; if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); } window.dispatchEvent(new Event('blur')); if (typeof window.__startAutoUnselectCountdown === 'function') { window.__startAutoUnselectCountdown(5000); }");
+                let _ = chat_window.eval("window.__isWindowFocused = false; window.__IS_PINNED__ = false; if (typeof window.__updatePinButtonUi === 'function') { window.__updatePinButtonUi(false); } if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); } window.dispatchEvent(new Event('blur')); if (typeof window.__startAutoUnselectCountdown === 'function') { window.__startAutoUnselectCountdown(5000); }");
                 let _ = chat_window.hide();
                 let app_handle = app.clone();
                 std::thread::spawn(move || {

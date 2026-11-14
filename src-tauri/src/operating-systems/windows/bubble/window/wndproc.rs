@@ -362,7 +362,11 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                         } else {
                             false
                         };
-                        if !is_chat_open {
+                        let is_pinned = state.app_handle.as_ref()
+                            .and_then(|app| app.try_state::<std::sync::Arc<crate::state::ChatState>>())
+                            .map(|cs| cs.is_chat_pinned(state.account_index))
+                            .unwrap_or(false);
+                        if !is_chat_open && !is_pinned {
                             let is_free = state.app_handle.as_ref()
                                 .map(|app| crate::movement::get_bubble_physics_config(app).is_free_position)
                                 .unwrap_or(false);

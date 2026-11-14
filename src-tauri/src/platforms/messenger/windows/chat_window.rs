@@ -29,7 +29,7 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
             .unwrap_or(1);
         match event {
             tauri::WindowEvent::Focused(false) => {
-                if !state_clone.is_window_in_auth_mode(&win_label) {
+                if !state_clone.is_window_in_auth_mode(&win_label) && !state_clone.is_chat_pinned(idx) {
                     let bubble_label = get_bubble_window_label(idx);
                     let over_bubble = app_handle
                         .get_webview_window(&bubble_label)
@@ -316,6 +316,9 @@ pub fn hide_all_other_messenger_windows(app: &AppHandle, active_label: &str) {
         if label != active_label {
             if let Some(w) = app.get_webview_window(&label) {
                 let _ = w.hide();
+            }
+            if let Some(cs) = app.try_state::<Arc<ChatState>>() {
+                cs.set_chat_pinned(idx, false);
             }
             let _ = app.emit("chat-visibility-changed", serde_json::json!({
                 "accountIndex": idx,
