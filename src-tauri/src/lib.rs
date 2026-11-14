@@ -144,7 +144,9 @@ pub fn run() {
             commands::remove_profile_extension,
             commands::open_profile_extensions_folder,
             commands::reload_messenger_window,
-            commands::set_chat_window_size_config
+            commands::set_chat_window_size_config,
+            commands::toggle_pin_chat,
+            commands::is_chat_pinned
         ])
         .setup(move |app| {
             if let Err(err) = tray::setup_system_tray(app) {

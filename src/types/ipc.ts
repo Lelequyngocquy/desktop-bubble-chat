@@ -66,6 +66,8 @@ export const IPC_COMMANDS = {
   GET_RECENT_MESSAGES: "get_recent_messages",
   SET_ACCOUNT_MUTED: "set_account_muted",
   SET_CHAT_WINDOW_SIZE_CONFIG: "set_chat_window_size_config",
+  TOGGLE_PIN_CHAT: "toggle_pin_chat",
+  IS_CHAT_PINNED: "is_chat_pinned",
 } as const;
 
 export type IpcCommand = (typeof IPC_COMMANDS)[keyof typeof IPC_COMMANDS];
@@ -84,11 +86,17 @@ export const IPC_EVENTS = {
   LANGUAGE_CHANGED: "language-changed",
   SHOW_CLOSE_DIALOG: "show-close-dialog",
   CHAT_WINDOW_RESIZED: "chat-window-resized",
+  CHAT_PIN_CHANGED: "chat-pin-changed",
 } as const;
 
 export type IpcEvent = (typeof IPC_EVENTS)[keyof typeof IPC_EVENTS];
 
 // 3. Event Payloads
+export interface ChatPinChangedPayload {
+  accountIndex: number;
+  pinned: boolean;
+}
+
 export interface ChatWindowResizedPayload {
   accountIndex: number;
   width: number;

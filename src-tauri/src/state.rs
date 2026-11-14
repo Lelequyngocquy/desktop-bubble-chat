@@ -38,6 +38,7 @@ pub struct ChatState {
     pub unread_counts: Mutex<HashMap<u32, u32>>,
     pub recent_messages: Mutex<Vec<IncomingMessage>>,
     pub muted_accounts: Mutex<HashSet<u32>>,
+    pub pinned_accounts: Mutex<HashSet<u32>>,
     pub chat_window_sizes: Mutex<HashMap<u32, (u32, u32)>>,
     pub user_config: Mutex<crate::utils::user_cache::AppUserConfig>,
     pub has_shown_tray_notification: AtomicBool,
@@ -65,6 +66,7 @@ impl Default for ChatState {
             unread_counts: Mutex::new(HashMap::new()),
             recent_messages: Mutex::new(Vec::new()),
             muted_accounts: Mutex::new(HashSet::new()),
+            pinned_accounts: Mutex::new(HashSet::new()),
             chat_window_sizes: Mutex::new(HashMap::new()),
             user_config: Mutex::new(crate::utils::user_cache::AppUserConfig::default()),
             has_shown_tray_notification: AtomicBool::new(false),
@@ -270,6 +272,24 @@ impl ChatState {
 
     pub fn is_account_muted(&self, account_index: u32) -> bool {
         if let Ok(set) = self.muted_accounts.lock() {
+            set.contains(&account_index)
+        } else {
+            false
+        }
+    }
+
+    pub fn set_chat_pinned(&self, account_index: u32, pinned: bool) {
+        if let Ok(mut set) = self.pinned_accounts.lock() {
+            if pinned {
+                set.insert(account_index);
+            } else {
+                set.remove(&account_index);
+            }
+        }
+    }
+
+    pub fn is_chat_pinned(&self, account_index: u32) -> bool {
+        if let Ok(set) = self.pinned_accounts.lock() {
             set.contains(&account_index)
         } else {
             false

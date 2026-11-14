@@ -274,3 +274,31 @@ pub fn set_chat_window_size_config(
     state.set_chat_window_custom_size(idx, size);
     Ok(size)
 }
+
+/// Command toggling or explicitly setting pinned state of chat window
+#[tauri::command]
+pub fn toggle_pin_chat(
+    app: AppHandle,
+    state: State<'_, Arc<ChatState>>,
+    account_index: Option<u32>,
+    pinned: Option<bool>,
+) -> Result<bool, String> {
+    let idx = account_index.unwrap_or(1);
+    let next_state = pinned.unwrap_or_else(|| !state.is_chat_pinned(idx));
+    state.set_chat_pinned(idx, next_state);
+    let _ = app.emit("chat-pin-changed", serde_json::json!({
+        "accountIndex": idx,
+        "pinned": next_state
+    }));
+    Ok(next_state)
+}
+
+/// Command querying whether chat window is currently pinned
+#[tauri::command]
+pub fn is_chat_pinned(
+    state: State<'_, Arc<ChatState>>,
+    account_index: Option<u32>,
+) -> Result<bool, String> {
+    let idx = account_index.unwrap_or(1);
+    Ok(state.is_chat_pinned(idx))
+}
