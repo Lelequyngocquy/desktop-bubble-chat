@@ -213,30 +213,32 @@ impl AuthService {
             });
             let was_in_auth_mode = state.is_window_in_auth_mode(&label);
             state.set_window_auth_mode(&label, false);
-            if let Some(win) = app.get_webview_window(&label) {
-                if let Ok(curr_url) = win.url() {
-                    let u = curr_url.to_string();
-                    if u.contains("facebook.com") || u.contains("meta.com") {
-                        println!("[BE - Auth] report_auth_status: On Meta URL ('{}'), redirecting to https://www.messenger.com/", u);
-                        if let Ok(target) = tauri::Url::parse("https://www.messenger.com/") {
-                            let _ = win.navigate(target);
+            if was_in_auth_mode {
+                if let Some(win) = app.get_webview_window(&label) {
+                    if let Ok(curr_url) = win.url() {
+                        let u = curr_url.to_string();
+                        if u.contains("facebook.com") || u.contains("meta.com") {
+                            println!("[BE - Auth] report_auth_status: On Meta URL ('{}'), redirecting to https://www.messenger.com/", u);
+                            if let Ok(target) = tauri::Url::parse("https://www.messenger.com/") {
+                                let _ = win.navigate(target);
+                            }
                         }
                     }
+                    let _ = win.eval("window.__IS_AUTH_MODE__ = false;");
+                    let _ = win.set_title("Messenger");
+                    let _ = win.hide();
+                    let _ = win.set_decorations(false);
+                    let _ = win.set_skip_taskbar(true);
                 }
-                let _ = win.eval("window.__IS_AUTH_MODE__ = false;");
-                let _ = win.set_title("Messenger");
-                let _ = win.hide();
-                let _ = win.set_decorations(false);
-                let _ = win.set_skip_taskbar(true);
+                if !state.is_account_suspended(idx) {
+                    let _ = ensure_bubble_positioned_and_visible(app, idx);
+                }
+                let _ = app.emit("chat-visibility-changed", serde_json::json!({
+                    "accountIndex": idx,
+                    "visible": false,
+                    "windowLabel": &label
+                }));
             }
-            if was_in_auth_mode && !state.is_account_suspended(idx) {
-                let _ = ensure_bubble_positioned_and_visible(app, idx);
-            }
-            let _ = app.emit("chat-visibility-changed", serde_json::json!({
-                "accountIndex": idx,
-                "visible": false,
-                "windowLabel": &label
-            }));
         } else {
             state.update_user_config(app, |c| {
                 c.authenticated_accounts.retain(|&x| x != idx);

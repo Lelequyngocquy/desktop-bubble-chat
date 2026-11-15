@@ -63,13 +63,14 @@ function ensureChatListVisible() {
  */
 function navigateToMessengerHome() {
   try {
+    if (typeof window !== "undefined" && window.__IS_PINNED__ === true) return;
     if (!isInChatThread()) return;
     if (typeof isAuthMode === "function" && isAuthMode()) return;
     logDebug("AUTO-UNSELECT", "SPA-navigating to /t/ via history API to clear conversation panel...", null, "info");
     history.replaceState(null, "", "/t/");
     window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
     setTimeout(() => {
-      if (isInChatThread() && window.__isWindowFocused !== true) {
+      if (isInChatThread() && window.__isWindowFocused !== true && window.__IS_PINNED__ !== true) {
         activateChatList();
       }
     }, 200);
@@ -95,11 +96,13 @@ function cancelAutoUnselectCountdown() {
  */
 function startAutoUnselectCountdown(delayMs = 5000) {
   cancelAutoUnselectCountdown();
+  if (typeof window !== "undefined" && window.__IS_PINNED__ === true) return;
   if (!isInChatThread()) return;
   if (typeof window !== "undefined" && window.__isWindowFocused === true) return;
   logDebug("AUTO-UNSELECT", `Started ${delayMs}ms countdown to return to /t after hide`, null, "debug");
   autoUnselectTimer = setTimeout(() => {
     autoUnselectTimer = null;
+    if (typeof window !== "undefined" && window.__IS_PINNED__ === true) return;
     if (typeof window !== "undefined" && window.__isWindowFocused !== true && isInChatThread()) {
       navigateToMessengerHome();
     }
@@ -108,6 +111,7 @@ function startAutoUnselectCountdown(delayMs = 5000) {
 
 if (typeof window !== "undefined") {
   window.addEventListener("blur", () => {
+    if (typeof window !== "undefined" && window.__IS_PINNED__ === true) return;
     startAutoUnselectCountdown(5000);
   });
   window.addEventListener("focus", () => {

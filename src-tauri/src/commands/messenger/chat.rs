@@ -286,6 +286,7 @@ pub fn toggle_pin_chat(
     let idx = account_index.unwrap_or(1);
     let next_state = pinned.unwrap_or_else(|| !state.is_chat_pinned(idx));
     state.set_chat_pinned(idx, next_state);
+    println!("\x1b[34m[BE - Pin] toggle_pin_chat: account_index={}, pinned={}\x1b[0m", idx, next_state);
     let _ = app.emit("chat-pin-changed", serde_json::json!({
         "accountIndex": idx,
         "pinned": next_state
