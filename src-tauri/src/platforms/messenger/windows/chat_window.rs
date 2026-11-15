@@ -9,7 +9,7 @@ use crate::platforms::messenger::services::ChatService;
 use crate::state::ChatState;
 use crate::utils::time::now_millis;
 use crate::utils::win32::{is_cursor_over_bubble, is_cursor_over_window};
-use crate::presentation::bubble::{get_bubble_window_label, tuck_bubble};
+use crate::presentation::bubble::get_bubble_window_label;
 
 /// Returns window label for a Messenger account index (e.g. chat-messenger-01)
 pub fn get_messenger_window_label(account_index: u32) -> String {
@@ -312,35 +312,16 @@ pub fn set_chat_window_memory_target(app: &tauri::AppHandle, account_index: u32,
     }
 }
 
-/// Ensures only one chat/auth window is displayed at a time and others are tucked
+/// Ensures only one chat/auth window is displayed at a time and others are tucked and cleaned
 pub fn hide_all_other_messenger_windows(app: &AppHandle, active_label: &str) {
     for idx in 1..=5 {
         let label = get_messenger_window_label(idx);
         if label != active_label {
-            if let Some(w) = app.get_webview_window(&label) {
-                let _ = w.hide();
-            }
-            if let Some(cs) = app.try_state::<Arc<ChatState>>() {
-                cs.set_chat_pinned(idx, false);
-            }
-            let _ = app.emit("chat-visibility-changed", serde_json::json!({
-                "accountIndex": idx,
-                "visible": false,
-                "windowLabel": &label
-            }));
-            tuck_bubble(app, Some(idx));
+            let _ = ChatService::hide_chat(app, idx);
         }
     }
     if active_label != "chat-messenger" {
-        if let Some(w) = app.get_webview_window("chat-messenger") {
-            let _ = w.hide();
-            let _ = app.emit("chat-visibility-changed", serde_json::json!({
-                "accountIndex": 1,
-                "visible": false,
-                "windowLabel": "chat-messenger"
-            }));
-            tuck_bubble(app, Some(1));
-        }
+        let _ = ChatService::hide_chat(app, 1);
     }
 }
 

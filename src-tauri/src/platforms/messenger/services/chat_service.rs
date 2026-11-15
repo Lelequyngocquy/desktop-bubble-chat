@@ -151,9 +151,10 @@ impl ChatService {
         crate::utils::trim_controller::cancel_auto_trim(idx);
         crate::utils::trim_controller::record_user_interaction(idx);
         crate::platforms::messenger::windows::set_webview_memory_target_level(&chat_window, false);
+        state.set_chat_pinned(idx, false);
         chat_window.show().map_err(|e| e.to_string())?;
         chat_window.set_focus().map_err(|e| e.to_string())?;
-        let _ = chat_window.eval("window.__isWindowFocused = true; window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('resize')); if (typeof window.__cancelAutoUnselectCountdown === 'function') { window.__cancelAutoUnselectCountdown(); } if (typeof window.__ensureChatListVisible === 'function') { window.__ensureChatListVisible(); }");
+        let _ = chat_window.eval("window.__isWindowFocused = true; window.__IS_PINNED__ = false; if (typeof window.__updatePinButtonUi === 'function') { window.__updatePinButtonUi(false); } window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('resize')); if (typeof window.__cancelAutoUnselectCountdown === 'function') { window.__cancelAutoUnselectCountdown(); } if (typeof window.__ensureChatListVisible === 'function') { window.__ensureChatListVisible(); }");
         let _ = app.emit("bubble-visibility-changed", serde_json::json!({
             "accountIndex": idx,
             "visible": true
