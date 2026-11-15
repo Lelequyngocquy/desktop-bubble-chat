@@ -102,12 +102,14 @@ pub enum NativeBubbleAction {
     },
 }
 
+pub type BubbleBoundsCache = Arc<RwLock<HashMap<u32, (i32, i32, u32, u32)>>>;
+
 /// Dedicated Native Bubble UI Thread Manager
 #[cfg(target_os = "windows")]
 pub struct NativeBubbleManager {
     thread_id: u32,
     sender: Sender<NativeBubbleAction>,
-    bounds_cache: Arc<RwLock<HashMap<u32, (i32, i32, u32, u32)>>>,
+    bounds_cache: BubbleBoundsCache,
 }
 
 #[cfg(target_os = "windows")]
@@ -168,23 +170,21 @@ impl NativeBubbleManager {
                                     NativeBubbleAction::SetPosition { account_index, x, y } => {
                                         if let Some(win) = bubbles.get(&account_index) {
                                             win.set_position(x, y);
-                                            if let Ok(mut cache) = bounds_clone.write() {
-                                                if let Some(b) = cache.get_mut(&account_index) {
+                                            if let Ok(mut cache) = bounds_clone.write()
+                                                && let Some(b) = cache.get_mut(&account_index) {
                                                     b.0 = x;
                                                     b.1 = y;
                                                 }
-                                            }
                                         }
                                     }
                                     NativeBubbleAction::AnimateTo { account_index, target_x, target_y, duration_ms } => {
                                         if let Some(win) = bubbles.get(&account_index) {
                                             win.animate_to(target_x, target_y, duration_ms);
-                                            if let Ok(mut cache) = bounds_clone.write() {
-                                                if let Some(b) = cache.get_mut(&account_index) {
+                                            if let Ok(mut cache) = bounds_clone.write()
+                                                && let Some(b) = cache.get_mut(&account_index) {
                                                     b.0 = target_x;
                                                     b.1 = target_y;
                                                 }
-                                            }
                                         }
                                     }
                                     NativeBubbleAction::SetUnread { account_index, count } => {
@@ -239,12 +239,11 @@ impl NativeBubbleManager {
                                                 .map(|s| s.target_y)
                                                 .unwrap_or(cur_y);
                                             win.animate_to(target_pos.x, resolved_y, 180);
-                                            if let Ok(mut cache) = bounds_clone.write() {
-                                                if let Some(b) = cache.get_mut(&account_index) {
+                                            if let Ok(mut cache) = bounds_clone.write()
+                                                && let Some(b) = cache.get_mut(&account_index) {
                                                     b.0 = target_pos.x;
                                                     b.1 = resolved_y;
                                                 }
-                                            }
                                             for slot in &slots {
                                                 if slot.account_index == account_index {
                                                     continue;
@@ -256,12 +255,11 @@ impl NativeBubbleManager {
                                                 if let Some(sibling_win) = bubbles.get(&slot.account_index) {
                                                     sibling_win.animate_to(sibling_x, slot.target_y, 180);
                                                 }
-                                                if let Ok(mut cache) = bounds_clone.write() {
-                                                    if let Some(b) = cache.get_mut(&slot.account_index) {
+                                                if let Ok(mut cache) = bounds_clone.write()
+                                                    && let Some(b) = cache.get_mut(&slot.account_index) {
                                                         b.0 = sibling_x;
                                                         b.1 = slot.target_y;
                                                     }
-                                                }
                                             }
                                         }
                                     }
@@ -310,12 +308,11 @@ impl NativeBubbleManager {
                                                 .map(|s| s.target_y)
                                                 .unwrap_or(cur_y);
                                             win.animate_to(target_pos.x, resolved_y, 180);
-                                            if let Ok(mut cache) = bounds_clone.write() {
-                                                if let Some(b) = cache.get_mut(&account_index) {
+                                            if let Ok(mut cache) = bounds_clone.write()
+                                                && let Some(b) = cache.get_mut(&account_index) {
                                                     b.0 = target_pos.x;
                                                     b.1 = resolved_y;
                                                 }
-                                            }
                                             for slot in &slots {
                                                 if slot.account_index == account_index {
                                                     continue;
@@ -327,12 +324,11 @@ impl NativeBubbleManager {
                                                 if let Some(sibling_win) = bubbles.get(&slot.account_index) {
                                                     sibling_win.animate_to(sibling_x, slot.target_y, 180);
                                                 }
-                                                if let Ok(mut cache) = bounds_clone.write() {
-                                                    if let Some(b) = cache.get_mut(&slot.account_index) {
+                                                if let Ok(mut cache) = bounds_clone.write()
+                                                    && let Some(b) = cache.get_mut(&slot.account_index) {
                                                         b.0 = sibling_x;
                                                         b.1 = slot.target_y;
                                                     }
-                                                }
                                             }
                                         }
                                     }
@@ -345,12 +341,11 @@ impl NativeBubbleManager {
                                         if let Some(win) = bubbles.get_mut(&account_index) {
                                             win.resize(size);
                                         }
-                                        if let Ok(mut cache) = bounds_clone.write() {
-                                            if let Some(b) = cache.get_mut(&account_index) {
+                                        if let Ok(mut cache) = bounds_clone.write()
+                                            && let Some(b) = cache.get_mut(&account_index) {
                                                 b.2 = size;
                                                 b.3 = size;
                                             }
-                                        }
                                     }
                                 }
                             }

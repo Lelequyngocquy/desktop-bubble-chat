@@ -88,12 +88,11 @@ pub async fn toggle_bubble(
 ) -> Result<(), String> {
     let idx = account_index.unwrap_or(1);
     let state = app.try_state::<Arc<ChatState>>().map(|s| Arc::clone(&s));
-    if let Some(s) = &state {
-        if !s.try_acquire_transition_lock(idx) {
+    if let Some(s) = &state
+        && !s.try_acquire_transition_lock(idx) {
             println!("[toggle_bubble] Account {} is transitioning, skipping duplicate toggle", idx);
             return Ok(());
         }
-    }
     let guard = TransitionLockGuard::new(state, idx);
     if visible {
         let is_connected = app

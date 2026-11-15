@@ -13,7 +13,7 @@ fn is_window_valid(window: &WebviewWindow) -> bool {
         fn IsWindow(hWnd: *mut std::ffi::c_void) -> i32;
     }
     if let Ok(hwnd) = window.hwnd() {
-        return unsafe { IsWindow(hwnd.0 as *mut std::ffi::c_void) != 0 };
+        return unsafe { IsWindow(hwnd.0) != 0 };
     }
     false
 }
@@ -35,8 +35,8 @@ pub fn relocate_bubbles_to_screen(
     for idx in 1..=5 {
         #[cfg(target_os = "windows")]
         {
-            if crate::operating_systems::current::bubble::has_native_bubble(idx) {
-                if let Some((cur_x, cur_y, _, _)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
+            if crate::operating_systems::current::bubble::has_native_bubble(idx)
+                && let Some((cur_x, cur_y, _, _)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
                     let is_left = cur_x + (bubble_w / 2) < old_screen.x + (old_screen.width / 2);
                     let rel_y_ratio = if old_screen.height > 0 {
                         (cur_y - old_screen.y) as f64 / old_screen.height as f64
@@ -78,14 +78,12 @@ pub fn relocate_bubbles_to_screen(
                         );
                     }
                 }
-            }
         }
         let label = crate::presentation::bubble::get_bubble_window_label(idx);
-        if let Some(bubble_win) = app.get_webview_window(&label) {
-            if bubble_win.is_visible().unwrap_or(false) {
+        if let Some(bubble_win) = app.get_webview_window(&label)
+            && bubble_win.is_visible().unwrap_or(false) {
                 let _ = crate::commands::bubble::snap_bubble(app.clone(), Some(idx));
             }
-        }
     }
 }
 
@@ -93,13 +91,12 @@ pub fn relocate_bubbles_to_screen(
 pub fn destroy_or_hibernate_main_window(app: &AppHandle) {
     let mut should_notify = false;
     let mut locale = "en".to_string();
-    if let Some(state) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
-        if !state.is_explicit_exit.load(std::sync::atomic::Ordering::SeqCst) {
+    if let Some(state) = app.try_state::<std::sync::Arc<crate::state::ChatState>>()
+        && !state.is_explicit_exit.load(std::sync::atomic::Ordering::SeqCst) {
             state.update_user_config(app, |c| c.is_dashboard_open = false);
             should_notify = state.mark_tray_notification_shown();
             locale = state.get_user_config().current_locale().to_string();
         }
-    }
     if let Some(main_window) = app.get_webview_window("main") {
         if let Ok(Some(mon)) = main_window.current_monitor() {
             crate::movement::update_target_dashboard_screen(crate::movement::ScreenMetrics::from_monitor(&mon));

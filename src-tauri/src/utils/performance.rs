@@ -504,12 +504,11 @@ pub fn get_account_process_pids(account_index: u32) -> Vec<u32> {
                 if !is_webview_process_name(&p_name) && !is_webview_process_name(&cmd_str) {
                     continue;
                 }
-                if let Some(parent) = proc.parent() {
-                    if pids.contains(&parent.as_u32()) {
+                if let Some(parent) = proc.parent()
+                    && pids.contains(&parent.as_u32()) {
                         pids.insert(pid_u32);
                         added = true;
                     }
-                }
             }
         }
     }

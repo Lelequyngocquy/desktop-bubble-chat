@@ -4,15 +4,14 @@ use tauri::{AppHandle, Manager};
 /// Returns account indices that are authenticated and active in ChatState
 pub fn get_available_account_indices(app_handle: &AppHandle) -> Vec<u32> {
     let mut available = std::collections::BTreeSet::new();
-    if let Some(chat_state) = app_handle.try_state::<Arc<crate::state::ChatState>>() {
-        if let Ok(map) = chat_state.account_auth.lock() {
+    if let Some(chat_state) = app_handle.try_state::<Arc<crate::state::ChatState>>()
+        && let Ok(map) = chat_state.account_auth.lock() {
             for (idx, info) in map.iter() {
                 if info.connected {
                     available.insert(*idx);
                 }
             }
         }
-    }
     available.into_iter().collect()
 }
 
@@ -48,7 +47,7 @@ pub fn is_main_window_open(app_handle: &AppHandle) -> bool {
                 fn IsWindow(hWnd: *mut std::ffi::c_void) -> i32;
             }
             let is_alive = if let Ok(hwnd) = main_win.hwnd() {
-                unsafe { IsWindow(hwnd.0 as *mut std::ffi::c_void) != 0 }
+                unsafe { IsWindow(hwnd.0) != 0 }
             } else {
                 false
             };

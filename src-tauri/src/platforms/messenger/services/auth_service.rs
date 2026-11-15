@@ -34,8 +34,8 @@ impl AuthService {
                 return Err(err);
             }
         };
-        hide_all_other_messenger_windows(app, &chat_window.label());
-        state.set_window_auth_mode(&chat_window.label(), true);
+        hide_all_other_messenger_windows(app, chat_window.label());
+        state.set_window_auth_mode(chat_window.label(), true);
         let theme = get_account_theme(idx);
         let _ = chat_window.set_title(&format!("Messenger Login {:02}", idx));
         let _ = chat_window.set_decorations(true);
@@ -130,8 +130,8 @@ impl AuthService {
     ) -> Result<serde_json::Value, String> {
         let idx = account_index;
         let label = get_messenger_window_label(idx);
-        if let Some(auth_info) = state.get_account_auth(idx) {
-            if auth_info.connected {
+        if let Some(auth_info) = state.get_account_auth(idx)
+            && auth_info.connected {
                 return Ok(serde_json::json!({
                     "accountIndex": idx,
                     "connected": true,
@@ -139,7 +139,6 @@ impl AuthService {
                     "userId": auth_info.user_id,
                 }));
             }
-        }
         let win = app
             .get_webview_window(&label)
             .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });

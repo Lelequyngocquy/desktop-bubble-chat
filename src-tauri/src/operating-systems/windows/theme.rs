@@ -23,7 +23,7 @@ impl WindowsThemeManager {
     /// Applies custom titlebar caption and border colors via Desktop Window Manager
     pub fn apply_window_theme_color(window: &WebviewWindow, hex: &str, border_hex: &str) {
         if let Ok(hwnd) = window.hwnd() {
-            let raw_hwnd = hwnd.0 as *mut std::ffi::c_void;
+            let raw_hwnd = hwnd.0;
             let caption_color = hex_to_colorref(hex);
             let border_color = hex_to_colorref(border_hex);
             let text_color: u32 = 0x00FFFFFF;

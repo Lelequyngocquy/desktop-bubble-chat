@@ -39,7 +39,7 @@ impl Default for BubbleRenderOptions {
 /// Converts premultiplied RGBA from tiny-skia to Windows DIB Section BGRA.
 pub fn rgba_to_bgra(rgba: &[u8]) -> Vec<u8> {
     let mut bgra = Vec::with_capacity(rgba.len());
-    for chunk in rgba.chunks_exact(4) {
+    for chunk in rgba.as_chunks::<4>().0 {
         let r = chunk[0];
         let g = chunk[1];
         let b = chunk[2];
@@ -97,9 +97,7 @@ pub fn render_bubble_bgra(opts: &BubbleRenderOptions) -> Option<Vec<u8>> {
             SpreadMode::Pad,
             Transform::identity(),
         )?;
-        let mut body_paint = Paint::default();
-        body_paint.shader = shader;
-        body_paint.anti_alias = true;
+        let body_paint = Paint { shader, anti_alias: true, ..Default::default() };
         let mut pb = PathBuilder::new();
         pb.push_circle(cx, cy, radius);
         if let Some(body_path) = pb.finish() {
@@ -114,8 +112,7 @@ pub fn render_bubble_bgra(opts: &BubbleRenderOptions) -> Option<Vec<u8>> {
             let mut border_paint = Paint::default();
             border_paint.set_color_rgba8(255, 255, 255, 245);
             border_paint.anti_alias = true;
-            let mut stroke = Stroke::default();
-            stroke.width = 2.0;
+            let stroke = Stroke { width: 2.0, ..Default::default() };
             pixmap.stroke_path(
                 &body_path,
                 &border_paint,

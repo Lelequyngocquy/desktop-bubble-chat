@@ -31,11 +31,7 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                     let is_logged_in = if state_logged_in {
                         if let Ok(curr_url) = chat_window.url() {
                             let u = curr_url.to_string();
-                            if u.contains("messenger.com/login") || (u.contains("facebook.com/login") && !win_logged_in) {
-                                false
-                            } else {
-                                true
-                            }
+                            !(u.contains("messenger.com/login") || (u.contains("facebook.com/login") && !win_logged_in))
                         } else {
                             true
                         }
@@ -66,11 +62,10 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                             });
                             if let Ok(curr_url) = chat_window.url() {
                                 let u = curr_url.to_string();
-                                if u.contains("facebook.com") || u.contains("meta.com") {
-                                    if let Ok(target) = tauri::Url::parse("https://www.messenger.com/") {
+                                if (u.contains("facebook.com") || u.contains("meta.com"))
+                                    && let Ok(target) = tauri::Url::parse("https://www.messenger.com/") {
                                         let _ = chat_window.navigate(target);
                                     }
-                                }
                             }
                             let _ = chat_window.eval("window.__IS_AUTH_MODE__ = false;");
                             if chat_state.is_window_in_auth_mode(&win_label) {
@@ -102,8 +97,8 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                         }));
                         let _ = crate::tray::update_tray_menu(&app_handle);
                     }
-                    if is_logged_in {
-                        if let Ok(title) = chat_window.title() {
+                    if is_logged_in
+                        && let Ok(title) = chat_window.title() {
                             if !title.contains("Messenger") {
                                 continue;
                             }
@@ -125,7 +120,6 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                                 }));
                             }
                         }
-                    }
                 }
             }
         }

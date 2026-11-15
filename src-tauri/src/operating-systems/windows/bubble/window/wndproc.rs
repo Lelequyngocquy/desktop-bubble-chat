@@ -8,6 +8,9 @@ use crate::movement::BubbleMovementEngine;
 use crate::state::ChatState;
 
 /// Window Procedure handling Win32 messages for native bubbles.
+///
+/// # Safety
+/// Caller must ensure `hwnd` is a valid Win32 window handle and parameters adhere to Windows API conventions.
 pub unsafe extern "system" fn native_bubble_wndproc(
     hwnd: *mut std::ffi::c_void,
     msg: u32,
@@ -123,8 +126,8 @@ pub unsafe extern "system" fn native_bubble_wndproc(
             0
         }
         WM_MOUSELEAVE => {
-            if let Some(state) = unsafe { state_ptr.as_mut() } {
-                if !state.is_dragging {
+            if let Some(state) = unsafe { state_ptr.as_mut() }
+                && !state.is_dragging {
                     state.is_hovered = false;
                     state.update_layered_buffer();
                     unsafe {
@@ -132,21 +135,19 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                         SetTimer(hwnd, TIMER_ID_HOVER_LEAVE, 80, None);
                     }
                 }
-            }
             0
         }
         WM_CAPTURECHANGED => {
-            if let Some(state) = unsafe { state_ptr.as_mut() } {
-                if state.is_dragging {
+            if let Some(state) = unsafe { state_ptr.as_mut() }
+                && state.is_dragging {
                     state.is_dragging = false;
                     state.set_layered_alpha(255);
                 }
-            }
             0
         }
         WM_LBUTTONUP => {
-            if let Some(state) = unsafe { state_ptr.as_mut() } {
-                if state.is_dragging {
+            if let Some(state) = unsafe { state_ptr.as_mut() }
+                && state.is_dragging {
                     state.is_dragging = false;
                     // Release capture after clearing is_dragging so WM_CAPTURECHANGED
                     // fires with is_dragging already false and becomes a no-op.
@@ -301,7 +302,6 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                         }
                     }
                 }
-            }
             0
         }
         WM_TIMER => {
@@ -331,8 +331,8 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                         if is_finished {
                             unsafe { KillTimer(hwnd, TIMER_ID_SPRING); }
                             state.update_layered_buffer();
-                            if let Some(app) = &state.app_handle {
-                                if let Some(cs) = app.try_state::<Arc<ChatState>>() {
+                            if let Some(app) = &state.app_handle
+                                && let Some(cs) = app.try_state::<Arc<ChatState>>() {
                                     cs.set_bubble_rect(
                                         state.account_index,
                                         crate::movement::BubbleRect {
@@ -344,7 +344,6 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                                         },
                                     );
                                 }
-                            }
                         }
                     } else {
                         unsafe { KillTimer(hwnd, TIMER_ID_SPRING); }
@@ -352,8 +351,8 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                 }
             } else if wparam == TIMER_ID_HOVER_LEAVE {
                 unsafe { KillTimer(hwnd, TIMER_ID_HOVER_LEAVE); }
-                if let Some(state) = unsafe { state_ptr.as_mut() } {
-                    if !state.is_dragging && !state.is_hovered {
+                if let Some(state) = unsafe { state_ptr.as_mut() }
+                    && !state.is_dragging && !state.is_hovered {
                         let is_chat_open = if let Some(app) = &state.app_handle {
                             let label = crate::platforms::messenger::windows::get_messenger_window_label(state.account_index);
                             app.get_webview_window(&label)
@@ -375,7 +374,6 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                             }
                         }
                     }
-                }
             }
             0
         }

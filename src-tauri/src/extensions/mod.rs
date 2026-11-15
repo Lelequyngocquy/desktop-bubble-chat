@@ -61,9 +61,9 @@ pub fn parse_manifest(folder: &Path) -> Result<(String, String, String, Option<S
             }
         }
     }
-    if icon_rel.is_none() {
-        if let Some(action) = json.get("action").or_else(|| json.get("browser_action")) {
-            if let Some(icon_obj) = action.get("default_icon") {
+    if icon_rel.is_none()
+        && let Some(action) = json.get("action").or_else(|| json.get("browser_action"))
+            && let Some(icon_obj) = action.get("default_icon") {
                 if let Some(s) = icon_obj.as_str() {
                     icon_rel = Some(s.to_string());
                 } else if let Some(obj) = icon_obj.as_object() {
@@ -75,12 +75,10 @@ pub fn parse_manifest(folder: &Path) -> Result<(String, String, String, Option<S
                     }
                 }
             }
-        }
-    }
     if let Some(rel) = icon_rel {
         let icon_path = folder.join(rel.trim_start_matches('/'));
-        if icon_path.exists() {
-            if let Ok(bytes) = std::fs::read(&icon_path) {
+        if icon_path.exists()
+            && let Ok(bytes) = std::fs::read(&icon_path) {
                 let mut base64_str = String::new();
                 for chunk in bytes.chunks(3) {
                     const B64_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -102,7 +100,6 @@ pub fn parse_manifest(folder: &Path) -> Result<(String, String, String, Option<S
                 }
                 icon_base64 = Some(format!("data:image/png;base64,{}", base64_str));
             }
-        }
     }
     Ok((name, version, description, icon_base64))
 }
@@ -149,7 +146,7 @@ pub fn list_profile_extensions(app_data_dir: &Path, account_index: u32) -> Resul
             }
         }
     }
-    list.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    list.sort_by_key(|a| a.name.to_lowercase());
     Ok(list)
 }
 

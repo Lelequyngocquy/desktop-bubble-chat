@@ -16,11 +16,10 @@ pub fn get_bubble_position(
     if let Some((x, y, _, _)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
         return Ok(PhysicalPosition { x, y });
     }
-    if let Some(cs) = app.try_state::<Arc<ChatState>>() {
-        if let Some(rect) = cs.get_bubble_rect(idx) {
+    if let Some(cs) = app.try_state::<Arc<ChatState>>()
+        && let Some(rect) = cs.get_bubble_rect(idx) {
             return Ok(PhysicalPosition { x: rect.x, y: rect.y });
         }
-    }
     let label = get_bubble_window_label(idx);
     if let Some(w) = app.get_webview_window(&label) {
         return w.outer_position().map_err(|e| e.to_string());
@@ -53,8 +52,8 @@ pub fn get_all_bubble_positions(app: AppHandle) -> Result<Vec<BubblePositionDto>
         .and_then(|s| s.active_bubble_rects.lock().ok().map(|g| g.clone()))
         .unwrap_or_default();
     for idx in 1..=5 {
-        if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx) {
-            if let Some((x, y, w, h)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
+        if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx)
+            && let Some((x, y, w, h)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
                 list.push(BubblePositionDto {
                     account_index: idx,
                     x,
@@ -65,7 +64,6 @@ pub fn get_all_bubble_positions(app: AppHandle) -> Result<Vec<BubblePositionDto>
                 });
                 continue;
             }
-        }
         if let Some(sr) = state_rects.get(&idx) {
             let is_suspended = app
                 .try_state::<Arc<ChatState>>()
@@ -88,14 +86,13 @@ pub fn get_all_bubble_positions(app: AppHandle) -> Result<Vec<BubblePositionDto>
             let is_vis = w.is_visible().unwrap_or(false);
             let mut pos = w.outer_position().unwrap_or_default();
             let mut size = w.outer_size().unwrap_or_default();
-            if pos.x == 0 && pos.y == 0 {
-                if let Some(sr) = state_rects.get(&idx) {
+            if pos.x == 0 && pos.y == 0
+                && let Some(sr) = state_rects.get(&idx) {
                     pos.x = sr.x;
                     pos.y = sr.y;
                     size.width = sr.width as u32;
                     size.height = sr.height as u32;
                 }
-            }
             list.push(BubblePositionDto {
                 account_index: idx,
                 x: pos.x,

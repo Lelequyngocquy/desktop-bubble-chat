@@ -10,7 +10,7 @@ pub fn now_millis() -> i64 {
 
 #[cfg(target_os = "windows")]
 #[repr(C)]
-struct SYSTEMTIME {
+struct Win32SystemTime {
     w_year: u16,
     w_month: u16,
     w_day_of_week: u16,
@@ -24,14 +24,14 @@ struct SYSTEMTIME {
 #[cfg(target_os = "windows")]
 #[link(name = "kernel32")]
 unsafe extern "system" {
-    fn GetLocalTime(lpSystemTime: *mut SYSTEMTIME);
+    fn GetLocalTime(lpSystemTime: *mut Win32SystemTime);
 }
 
 /// Formats current local time as HH:MM:SS
 pub fn format_current_time() -> String {
     #[cfg(target_os = "windows")]
     unsafe {
-        let mut st: SYSTEMTIME = std::mem::zeroed();
+        let mut st: Win32SystemTime = std::mem::zeroed();
         GetLocalTime(&mut st);
         format!("{:02}:{:02}:{:02}", st.w_hour, st.w_minute, st.w_second)
     }

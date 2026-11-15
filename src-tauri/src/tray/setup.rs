@@ -9,7 +9,7 @@ use super::TRAY_ID;
 
 /// Initializes System Tray Icon and control context menu
 pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let menu = build_tray_menu(&app.handle())?;
+    let menu = build_tray_menu(app.handle())?;
     let icon = app.default_window_icon().cloned().ok_or("Failed to get app icon")?;
     let locale_str = app.handle().try_state::<Arc<crate::state::ChatState>>().and_then(|s| s.user_config.lock().ok().map(|c| c.current_locale().to_string())).unwrap_or_else(|| "en".to_string());
     let tooltip = if locale_str == "vi" { "DesktopBubbleChat - Đang chạy ngầm" } else { "DesktopBubbleChat - Running in background" };
@@ -53,7 +53,7 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
                     if confirm_exit_dialog(&locale) {
                         if let Some(state) = app_handle.try_state::<Arc<crate::state::ChatState>>() {
                             state.is_explicit_exit.store(true, std::sync::atomic::Ordering::SeqCst);
-                            state.update_user_config(&app_handle, |c| {
+                            state.update_user_config(app_handle, |c| {
                                 c.is_dashboard_open = true;
                             });
                         }

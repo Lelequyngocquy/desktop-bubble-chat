@@ -33,12 +33,11 @@ impl StorageService {
             let _ = chat_window.hide();
             let _ = chat_window.destroy();
         }
-        if idx == 1 {
-            if let Some(old) = app.get_webview_window("chat-messenger") {
+        if idx == 1
+            && let Some(old) = app.get_webview_window("chat-messenger") {
                 let _ = old.hide();
                 let _ = old.destroy();
             }
-        }
         let bubble_label = get_bubble_window_label(idx);
         if let Some(bw) = app.get_webview_window(&bubble_label) {
             let _ = bw.hide();

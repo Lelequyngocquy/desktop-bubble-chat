@@ -51,9 +51,9 @@ pub fn run() {
                             fn BringWindowToTop(hWnd: *mut std::ffi::c_void) -> i32;
                             fn SetForegroundWindow(hWnd: *mut std::ffi::c_void) -> i32;
                         }
-                        ShowWindow(hwnd.0 as *mut std::ffi::c_void, 9);
-                        BringWindowToTop(hwnd.0 as *mut std::ffi::c_void);
-                        SetForegroundWindow(hwnd.0 as *mut std::ffi::c_void);
+                        ShowWindow(hwnd.0, 9);
+                        BringWindowToTop(hwnd.0);
+                        SetForegroundWindow(hwnd.0);
                     }
                 }
             }
@@ -156,12 +156,11 @@ pub fn run() {
             let initial_config = utils::load_user_cache(&handle);
             chat_state_clone.init_user_config(initial_config.clone());
             let target_bubble_size = initial_config.bubble_size_px();
-            if let Some(state) = app.try_state::<movement::BubbleConfigState>() {
-                if let Ok(mut guard) = state.0.write() {
+            if let Some(state) = app.try_state::<movement::BubbleConfigState>()
+                && let Ok(mut guard) = state.0.write() {
                     guard.size = target_bubble_size;
                     guard.is_free_position = initial_config.is_free_position_mode();
                 }
-            }
             for &idx in &initial_config.muted_accounts {
                 chat_state_clone.set_account_muted(idx, true);
             }

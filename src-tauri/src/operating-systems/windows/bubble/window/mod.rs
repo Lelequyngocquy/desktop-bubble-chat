@@ -185,9 +185,9 @@ impl NativeBubbleWindow {
     pub fn set_always_on_top(&self, enabled: bool) {
         unsafe {
             let insert_after = if enabled {
-                -1 as isize as *mut std::ffi::c_void // HWND_TOPMOST
+                -1_isize as *mut std::ffi::c_void // HWND_TOPMOST
             } else {
-                -2 as isize as *mut std::ffi::c_void // HWND_NOTOPMOST
+                -2_isize as *mut std::ffi::c_void // HWND_NOTOPMOST
             };
             SetWindowPos(
                 self.hwnd,
@@ -237,12 +237,11 @@ impl NativeBubbleWindow {
     pub fn set_unread_count(&self, count: u32) {
         unsafe {
             let ptr = GetWindowLongPtrW(self.hwnd, GWLP_USERDATA) as *mut BubbleWindowState;
-            if let Some(state) = ptr.as_mut() {
-                if state.unread_count != count {
+            if let Some(state) = ptr.as_mut()
+                && state.unread_count != count {
                     state.unread_count = count;
                     state.update_layered_buffer();
                 }
-            }
         }
     }
 

@@ -75,11 +75,10 @@ impl Default for BubbleConfigState {
 
 pub fn get_bubble_physics_config(app: &tauri::AppHandle) -> BubblePhysicsConfig {
     use tauri::Manager;
-    if let Some(state) = app.try_state::<BubbleConfigState>() {
-        if let Ok(guard) = state.0.read() {
+    if let Some(state) = app.try_state::<BubbleConfigState>()
+        && let Ok(guard) = state.0.read() {
             return *guard;
         }
-    }
     BubblePhysicsConfig::default()
 }
 
@@ -105,20 +104,18 @@ pub fn update_target_dashboard_screen(metrics: ScreenMetrics) -> Option<(ScreenM
 }
 
 pub fn get_target_dashboard_screen(app: Option<&tauri::AppHandle>) -> ScreenMetrics {
-    if let Ok(lock) = TARGET_DASHBOARD_SCREEN.read() {
-        if let Some(metrics) = *lock {
+    if let Ok(lock) = TARGET_DASHBOARD_SCREEN.read()
+        && let Some(metrics) = *lock {
             return metrics;
         }
-    }
     if let Some(app_handle) = app {
         use tauri::Manager;
-        if let Some(main_win) = app_handle.get_webview_window("main") {
-            if let Ok(Some(mon)) = main_win.current_monitor() {
+        if let Some(main_win) = app_handle.get_webview_window("main")
+            && let Ok(Some(mon)) = main_win.current_monitor() {
                 let screen = ScreenMetrics::from_monitor(&mon);
                 update_target_dashboard_screen(screen);
                 return screen;
             }
-        }
         if let Ok(Some(mon)) = app_handle.primary_monitor() {
             let screen = ScreenMetrics::from_monitor(&mon);
             update_target_dashboard_screen(screen);

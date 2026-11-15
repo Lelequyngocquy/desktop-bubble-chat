@@ -1,14 +1,14 @@
 use tauri::WebviewWindow;
 
 #[repr(C)]
-struct POINT {
+struct Point {
     x: i32,
     y: i32,
 }
 
 #[link(name = "user32")]
 unsafe extern "system" {
-    fn GetCursorPos(lpPoint: *mut POINT) -> i32;
+    fn GetCursorPos(lpPoint: *mut Point) -> i32;
     fn GetAsyncKeyState(vKey: i32) -> i16;
 }
 
@@ -17,7 +17,7 @@ pub struct WindowsCursorTracker;
 impl WindowsCursorTracker {
     /// Returns current global cursor position
     pub fn get_cursor_position() -> Option<(i32, i32)> {
-        let mut pt = POINT { x: 0, y: 0 };
+        let mut pt = Point { x: 0, y: 0 };
         if unsafe { GetCursorPos(&mut pt) } != 0 {
             Some((pt.x, pt.y))
         } else {
@@ -30,7 +30,7 @@ impl WindowsCursorTracker {
     }
     /// Checks if cursor is currently over given window
     pub fn is_cursor_over_window(window: &WebviewWindow) -> bool {
-        let mut pt = POINT { x: 0, y: 0 };
+        let mut pt = Point { x: 0, y: 0 };
         if unsafe { GetCursorPos(&mut pt) } == 0 {
             return false;
         }

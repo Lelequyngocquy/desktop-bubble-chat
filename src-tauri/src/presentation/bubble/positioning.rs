@@ -16,13 +16,12 @@ pub fn get_active_bubble_rects(
         .unwrap_or_default();
     for idx in 1..=5 {
         let label = get_bubble_window_label(idx);
-        if let Some(exclude) = exclude_label {
-            if label == exclude {
+        if let Some(exclude) = exclude_label
+            && label == exclude {
                 continue;
             }
-        }
-        if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx) {
-            if let Some((x, y, w, h)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
+        if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx)
+            && let Some((x, y, w, h)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
                 rects.push(BubbleRect {
                     account_index: idx,
                     x,
@@ -32,13 +31,12 @@ pub fn get_active_bubble_rects(
                 });
                 continue;
             }
-        }
         let win = app.get_webview_window(&label);
         if let Some(w) = win {
             let is_vis = w.is_visible().unwrap_or(false);
             if is_vis || state_rects.contains_key(&idx) {
-                if let (Ok(pos), Ok(size)) = (w.outer_position(), w.outer_size()) {
-                    if pos.x != 0 || pos.y != 0 {
+                if let (Ok(pos), Ok(size)) = (w.outer_position(), w.outer_size())
+                    && (pos.x != 0 || pos.y != 0) {
                         rects.push(BubbleRect {
                             account_index: idx,
                             x: pos.x,
@@ -48,7 +46,6 @@ pub fn get_active_bubble_rects(
                         });
                         continue;
                     }
-                }
                 if let Some(sr) = state_rects.get(&idx) {
                     rects.push(*sr);
                 }
@@ -84,8 +81,8 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
             other_bubbles.push(*obs);
         }
     }
-    if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(account_index) {
-        if let Some((x, y, w, _h)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(account_index) {
+    if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(account_index)
+        && let Some((x, y, w, _h)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(account_index) {
             if w != bubble_w as u32 {
                 crate::operating_systems::current::bubble::set_native_bubble_size(account_index, bubble_w as u32);
             }
@@ -193,7 +190,6 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
             }
             return Ok(rect);
         }
-    }
     let target_pos = if config.is_free_position {
         let margin = (config.margin * screen.scale_factor) as i32;
         let default_x = screen.x + margin + (account_index.saturating_sub(1) as i32) * (bubble_w + (config.gap * screen.scale_factor) as i32);
@@ -261,11 +257,10 @@ pub fn tuck_bubble(app: &AppHandle, account_index: Option<u32>) {
         None => (1..=5).collect(),
     };
     for idx in indices {
-        if let Some(cs) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
-            if cs.is_chat_pinned(idx) {
+        if let Some(cs) = app.try_state::<std::sync::Arc<crate::state::ChatState>>()
+            && cs.is_chat_pinned(idx) {
                 continue;
             }
-        }
         crate::utils::trim_controller::schedule_auto_trim_on_tuck(idx, app.clone());
         let label = get_bubble_window_label(idx);
         let win = app.get_webview_window(&label);

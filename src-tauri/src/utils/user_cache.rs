@@ -91,16 +91,13 @@ pub fn get_user_cache_path(app: &AppHandle) -> Option<PathBuf> {
 
 // Loads user cache from disk or returns default configuration
 pub fn load_user_cache(app: &AppHandle) -> AppUserConfig {
-    if let Some(path) = get_user_cache_path(app) {
-        if path.exists() {
-            if let Ok(content) = fs::read_to_string(&path) {
-                if let Ok(config) = serde_json::from_str::<AppUserConfig>(&content) {
+    if let Some(path) = get_user_cache_path(app)
+        && path.exists()
+            && let Ok(content) = fs::read_to_string(&path)
+                && let Ok(config) = serde_json::from_str::<AppUserConfig>(&content) {
                     println!("\x1b[32m[UserCache] Successfully loaded user cache: {:?}\x1b[0m", config);
                     return config;
                 }
-            }
-        }
-    }
     println!("[UserCache] No cache found on disk, initializing defaults");
     AppUserConfig::default()
 }

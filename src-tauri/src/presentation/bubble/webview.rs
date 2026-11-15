@@ -33,7 +33,7 @@ pub fn resize_bubble_window(bubble: &tauri::WebviewWindow, size_px: f64) {
         let bubble_clone = bubble.clone();
         let _ = bubble.run_on_main_thread(move || {
             if let Ok(hwnd) = bubble_clone.hwnd() {
-                let raw_hwnd = hwnd.0 as *mut std::ffi::c_void;
+                let raw_hwnd = hwnd.0;
                 let screen = crate::movement::get_target_dashboard_screen(None);
                 let size = (size_px * screen.scale_factor) as i32;
                 unsafe {
@@ -72,7 +72,7 @@ pub fn get_or_create_bubble_window(
             #[cfg(target_os = "windows")]
             {
                 let is_alive = if let Ok(hwnd) = win.hwnd() {
-                    unsafe { IsWindow(hwnd.0 as *mut std::ffi::c_void) != 0 }
+                    unsafe { IsWindow(hwnd.0) != 0 }
                 } else {
                     false
                 };

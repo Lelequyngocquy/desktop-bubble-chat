@@ -63,12 +63,11 @@ impl WindowsMemoryOptimizer {
                 };
                 use windows_core::Interface;
                 let controller = webview.controller();
-                if let Ok(core_webview) = controller.CoreWebView2() {
-                    if let Ok(webview_19) = core_webview.cast::<ICoreWebView2_19>() {
+                if let Ok(core_webview) = controller.CoreWebView2()
+                    && let Ok(webview_19) = core_webview.cast::<ICoreWebView2_19>() {
                         let level = if is_low { COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW } else { COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL };
                         let _ = webview_19.SetMemoryUsageTargetLevel(level);
                     }
-                }
             }
         });
     }
@@ -80,7 +79,7 @@ impl WindowsMemoryOptimizer {
     pub fn terminate_profile_process(needle: &str) {
         let mut system = sysinfo::System::new_all();
         system.refresh_all();
-        for (_pid, process) in system.processes() {
+        for process in system.processes().values() {
             let name = process.name().to_string_lossy().to_lowercase();
             if name.contains("msedgewebview2") {
                 let cmd = process.cmd().iter().map(|s| s.to_string_lossy()).collect::<Vec<_>>().join(" ");

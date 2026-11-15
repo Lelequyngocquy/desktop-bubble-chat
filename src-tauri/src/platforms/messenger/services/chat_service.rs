@@ -6,7 +6,7 @@ use crate::platforms::messenger::constants::MESSENGER_INJECT_SCRIPT;
 use crate::platforms::messenger::windows::{
     get_messenger_window_label, get_or_create_messenger_window, hide_all_other_messenger_windows,
 };
-use crate::state::ChatState;
+use crate::state::{ChatState, MAX_ACCOUNTS};
 use crate::presentation::bubble::{get_bubble_window_label, tuck_bubble};
 
 pub struct ChatService;
@@ -85,7 +85,7 @@ impl ChatService {
             x: final_x,
             y: final_y,
         }));
-        for other_idx in 1..=5 {
+        for other_idx in 1..=MAX_ACCOUNTS {
             if other_idx != account_index {
                 tuck_bubble(app, Some(other_idx));
             }
@@ -116,8 +116,8 @@ impl ChatService {
                     .unwrap_or(false)
             }
         };
-        if state.is_account_suspended(idx) || !is_bubble_already_active {
-            if crate::commands::bubble::lifecycle::resume_account_bubble_and_chat(app, idx, None).is_ok() {
+        if (state.is_account_suspended(idx) || !is_bubble_already_active)
+            && crate::commands::bubble::lifecycle::resume_account_bubble_and_chat(app, idx, None).is_ok() {
                 state.update_user_config(app, |c| {
                     if !c.active_bubble_accounts.contains(&idx) {
                         c.active_bubble_accounts.push(idx);
@@ -126,13 +126,12 @@ impl ChatService {
                 });
                 let _ = crate::tray::update_tray_menu(app);
             }
-        }
         let chat_window = get_or_create_messenger_window(app, idx, Arc::clone(state))?;
         let is_already_visible = chat_window.is_visible().unwrap_or(false);
         if is_already_visible {
             return Ok(());
         }
-        hide_all_other_messenger_windows(app, &chat_window.label());
+        hide_all_other_messenger_windows(app, chat_window.label());
         if let Ok(curr_url) = chat_window.url() {
             let u = curr_url.to_string();
             if u.contains("facebook.com") || (!u.is_empty() && u != "about:blank" && !u.contains("messenger.com")) {
@@ -142,7 +141,7 @@ impl ChatService {
                 }
             }
         }
-        state.set_window_auth_mode(&chat_window.label(), false);
+        state.set_window_auth_mode(chat_window.label(), false);
         let _ = chat_window.set_decorations(false);
         let _ = chat_window.set_skip_taskbar(true);
         Self::dock_chat_window(app, &chat_window, idx);
@@ -177,12 +176,12 @@ impl ChatService {
         let chat_window = app
             .get_webview_window(&label)
             .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
-        if let Some(chat_window) = chat_window {
-            if chat_window.is_visible().unwrap_or(false) {
+        if let Some(chat_window) = chat_window
+            && chat_window.is_visible().unwrap_or(false) {
                 if let Some(cs) = app.try_state::<Arc<ChatState>>() {
                     cs.set_chat_pinned(idx, false);
-                    if cs.get_chat_window_custom_size(idx).is_some() {
-                        if let Ok(phys_sz) = chat_window.inner_size() {
+                    if cs.get_chat_window_custom_size(idx).is_some()
+                        && let Ok(phys_sz) = chat_window.inner_size() {
                             let scale = chat_window.scale_factor().unwrap_or(1.0);
                             let cur_w = (phys_sz.width as f64 / scale).round() as u32;
                             let cur_h = (phys_sz.height as f64 / scale).round() as u32;
@@ -190,7 +189,6 @@ impl ChatService {
                                 cs.set_chat_window_custom_size(idx, Some((cur_w, cur_h)));
                             }
                         }
-                    }
                 }
                 let _ = chat_window.eval("window.__isWindowFocused = false; window.__IS_PINNED__ = false; if (typeof window.__updatePinButtonUi === 'function') { window.__updatePinButtonUi(false); } if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); } window.dispatchEvent(new Event('blur')); if (typeof window.__startAutoUnselectCountdown === 'function') { window.__startAutoUnselectCountdown(5000); }");
                 let _ = chat_window.hide();
@@ -206,14 +204,11 @@ impl ChatService {
                     if let Some(cw) = app_handle
                         .get_webview_window(&label)
                         .or_else(|| if idx == 1 { app_handle.get_webview_window("chat-messenger") } else { None })
-                    {
-                        if !cw.is_visible().unwrap_or(false) {
+                        && !cw.is_visible().unwrap_or(false) {
                             tuck_bubble(&app_handle, Some(idx));
                         }
-                    }
                 });
             }
-        }
         Ok(())
     }
 

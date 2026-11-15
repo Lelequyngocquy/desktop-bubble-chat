@@ -15,8 +15,8 @@ pub fn snap_bubble(app: AppHandle, account_index: Option<u32>) -> Result<(), Str
         return Ok(());
     }
     let idx = account_index.unwrap_or(1);
-    if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx) {
-        if let Some((cur_x, cur_y, _, _)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
+    if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx)
+        && let Some((cur_x, cur_y, _, _)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
             let screen = crate::movement::get_target_dashboard_screen(Some(&app));
             let config = get_bubble_physics_config(&app);
             let all_bubbles = get_active_bubble_rects(&app, None);
@@ -44,7 +44,6 @@ pub fn snap_bubble(app: AppHandle, account_index: Option<u32>) -> Result<(), Str
             );
             return Ok(());
         }
-    }
     let label = get_bubble_window_label(idx);
     if let Some(window) = app.get_webview_window(&label) {
         let win_pos = window.outer_position().map_err(|e| e.to_string())?;
@@ -95,8 +94,8 @@ pub fn set_bubble_config(
     size: Option<f64>,
     tuck_ratio: Option<f64>,
 ) -> Result<(), String> {
-    if let Some(state) = app.try_state::<BubbleConfigState>() {
-        if let Ok(mut guard) = state.0.write() {
+    if let Some(state) = app.try_state::<BubbleConfigState>()
+        && let Ok(mut guard) = state.0.write() {
             if let Some(s) = size {
                 guard.size = s;
             }
@@ -104,7 +103,6 @@ pub fn set_bubble_config(
                 guard.tuck_ratio = r;
             }
         }
-    }
     if let Some(s) = size {
         let size_str = if s <= 48.0 {
             "sm".to_string()
@@ -134,13 +132,12 @@ pub fn set_bubble_config(
     for idx in 1..=5 {
         if crate::operating_systems::current::bubble::has_native_bubble(idx) {
             crate::operating_systems::current::bubble::set_native_bubble_size(idx, bubble_size_px);
-            if let Some(chat_state) = app.try_state::<Arc<ChatState>>() {
-                if let Some(mut rect) = chat_state.get_bubble_rect(idx) {
+            if let Some(chat_state) = app.try_state::<Arc<ChatState>>()
+                && let Some(mut rect) = chat_state.get_bubble_rect(idx) {
                     rect.width = bubble_size_px as i32;
                     rect.height = bubble_size_px as i32;
                     chat_state.set_bubble_rect(idx, rect);
                 }
-            }
             let _ = snap_bubble(app.clone(), Some(idx));
         }
     }
@@ -169,11 +166,10 @@ pub fn set_bubble_position_mode(
     mode: String,
 ) -> Result<(), String> {
     let is_free = mode == "free";
-    if let Some(state) = app.try_state::<BubbleConfigState>() {
-        if let Ok(mut guard) = state.0.write() {
+    if let Some(state) = app.try_state::<BubbleConfigState>()
+        && let Ok(mut guard) = state.0.write() {
             guard.is_free_position = is_free;
         }
-    }
     if let Some(chat_state) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
         chat_state.update_user_config(&app, |c| {
             c.bubble_position_mode = mode.clone();

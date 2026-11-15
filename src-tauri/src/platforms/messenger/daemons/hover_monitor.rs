@@ -4,7 +4,7 @@ use tauri::{AppHandle, Manager};
 
 use crate::platforms::messenger::services::ChatService;
 use crate::platforms::messenger::windows::get_messenger_window_label;
-use crate::state::ChatState;
+use crate::state::{ChatState, MAX_ACCOUNTS};
 use crate::utils::win32::{is_cursor_over_bubble, is_cursor_over_window, is_lbutton_down};
 use crate::presentation::bubble::get_bubble_window_label;
 
@@ -20,7 +20,7 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
             let lbutton_down = is_lbutton_down();
             let mut detected_hover_bubble: Option<u32> = None;
             if !lbutton_down {
-                for idx in 1..=5 {
+                for idx in 1..=MAX_ACCOUNTS {
                     if chat_state.is_account_suspended(idx) {
                         continue;
                     }
@@ -38,19 +38,14 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
             }
             if let Some(hovered_idx) = detected_hover_bubble {
                 if current_hover_bubble == Some(hovered_idx) {
-                    if !already_opened_for_hover {
-                        if let Some(start) = hover_start {
-                            if start.elapsed() >= Duration::from_millis(100) {
-                                if chat_state.is_chat_ready(hovered_idx) {
-                                    let _ = ChatService::open_chat(&app, &chat_state, hovered_idx);
-                                    already_opened_for_hover = true;
-                                } else if start.elapsed() >= Duration::from_millis(400) {
-                                    let _ = ChatService::open_chat(&app, &chat_state, hovered_idx);
-                                    already_opened_for_hover = true;
-                                }
+                    if !already_opened_for_hover
+                        && let Some(start) = hover_start {
+                            let threshold_ms = if chat_state.is_chat_ready(hovered_idx) { 100 } else { 400 };
+                            if start.elapsed() >= Duration::from_millis(threshold_ms) {
+                                let _ = ChatService::open_chat(&app, &chat_state, hovered_idx);
+                                already_opened_for_hover = true;
                             }
                         }
-                    }
                 } else {
                     current_hover_bubble = Some(hovered_idx);
                     hover_start = Some(Instant::now());
@@ -63,19 +58,18 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                 already_opened_for_hover = false;
             }
             let mut active_chat_info: Option<(u32, tauri::WebviewWindow)> = None;
-            for idx in 1..=5 {
+            for idx in 1..=MAX_ACCOUNTS {
                 if chat_state.is_account_suspended(idx) {
                     continue;
                 }
                 let label = get_messenger_window_label(idx);
-                if let Some(chat_win) = app.get_webview_window(&label) {
-                    if chat_win.is_visible().unwrap_or(false) {
+                if let Some(chat_win) = app.get_webview_window(&label)
+                    && chat_win.is_visible().unwrap_or(false) {
                         if !chat_state.is_window_in_auth_mode(&label) {
                             active_chat_info = Some((idx, chat_win));
                         }
                         break;
                     }
-                }
             }
             if !lbutton_down {
                 if let Some((active_idx, chat_win)) = active_chat_info {

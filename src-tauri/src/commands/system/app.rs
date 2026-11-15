@@ -174,11 +174,10 @@ pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
         return Err("Invalid URL scheme".into());
     }
     if let Ok(mut guard) = LAST_OPENED_URL.lock() {
-        if let Some((ref last_url, ref last_time)) = *guard {
-            if last_url == &url && last_time.elapsed() < std::time::Duration::from_millis(1000) {
+        if let Some((ref last_url, ref last_time)) = *guard
+            && last_url == &url && last_time.elapsed() < std::time::Duration::from_millis(1000) {
                 return Ok(());
             }
-        }
         *guard = Some((url.clone(), std::time::Instant::now()));
     }
     use tauri_plugin_opener::OpenerExt;
@@ -207,7 +206,7 @@ pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
             return Ok(());
         }
         let _ = std::process::Command::new("cmd").args(["/c", "start", "", &url]).spawn();
-        return Ok(());
+        Ok(())
     }
     #[cfg(not(target_os = "windows"))]
     {

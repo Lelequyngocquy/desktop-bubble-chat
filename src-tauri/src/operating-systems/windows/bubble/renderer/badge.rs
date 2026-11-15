@@ -119,13 +119,8 @@ pub fn draw_unread_badge(
     let is_large = radius > 25.5;
     let border_width = if is_small { 1.3 } else if is_large { 1.6 } else { 1.5 };
     let text_stroke_width = if is_small { 1.2 } else if is_large { 1.4 } else { 1.3 };
-    let mut stroke_border = Stroke::default();
-    stroke_border.width = border_width;
-    stroke_border.line_join = LineJoin::Round;
-    let mut stroke_text = Stroke::default();
-    stroke_text.width = text_stroke_width;
-    stroke_text.line_cap = LineCap::Round;
-    stroke_text.line_join = LineJoin::Round;
+    let stroke_border = Stroke { width: border_width, line_join: LineJoin::Round, ..Default::default() };
+    let stroke_text = Stroke { width: text_stroke_width, line_cap: LineCap::Round, line_join: LineJoin::Round, ..Default::default() };
     let gap_from_bubble = 3.0f32;
     if unread_count <= 9 {
         // 1. Pointed Circle Pin for single digit (1-9)

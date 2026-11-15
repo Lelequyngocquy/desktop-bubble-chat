@@ -48,12 +48,12 @@ impl WindowsAutostartManager {
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         if enabled {
             let _ = std::process::Command::new("reg")
-                .args(&["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "DesktopBubbleChat", "/t", "REG_SZ", "/d", &format!("\"{}\"", exe_path), "/f"])
+                .args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "DesktopBubbleChat", "/t", "REG_SZ", "/d", &format!("\"{}\"", exe_path), "/f"])
                 .creation_flags(CREATE_NO_WINDOW)
                 .output();
         } else {
             let _ = std::process::Command::new("reg")
-                .args(&["delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "DesktopBubbleChat", "/f"])
+                .args(["delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "DesktopBubbleChat", "/f"])
                 .creation_flags(CREATE_NO_WINDOW)
                 .output();
         }
@@ -63,7 +63,7 @@ impl WindowsAutostartManager {
     pub fn is_autostart_registry_enabled() -> bool {
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         let output = std::process::Command::new("reg")
-            .args(&["query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "DesktopBubbleChat"])
+            .args(["query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "DesktopBubbleChat"])
             .creation_flags(CREATE_NO_WINDOW)
             .output();
         if let Ok(out) = output { out.status.success() } else { false }

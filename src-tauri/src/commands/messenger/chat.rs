@@ -205,11 +205,10 @@ pub fn set_account_muted(
                     use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2_8;
                     use windows_core::Interface;
                     let controller = webview.controller();
-                    if let Ok(core_webview) = controller.CoreWebView2() {
-                        if let Ok(webview_8) = core_webview.cast::<ICoreWebView2_8>() {
+                    if let Ok(core_webview) = controller.CoreWebView2()
+                        && let Ok(webview_8) = core_webview.cast::<ICoreWebView2_8>() {
                             let _ = webview_8.SetIsMuted(muted);
                         }
-                    }
                 }
             });
             let js = format!(

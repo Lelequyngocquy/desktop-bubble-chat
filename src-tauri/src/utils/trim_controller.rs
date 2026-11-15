@@ -65,20 +65,18 @@ impl AutoTrimController {
     }
     /// Checks whether user recently interacted with an account within duration
     pub fn has_recent_interaction(&self, account_index: u32, duration: Duration) -> bool {
-        if let Ok(lock) = self.last_interaction_time.lock() {
-            if let Some(last) = lock.get(&account_index) {
+        if let Ok(lock) = self.last_interaction_time.lock()
+            && let Some(last) = lock.get(&account_index) {
                 return last.elapsed() < duration;
             }
-        }
         false
     }
     /// Checks if an account is eligible to trim based on cooldown
     pub fn can_trim(&self, account_index: u32) -> bool {
-        if let Ok(lock) = self.last_trim_time.lock() {
-            if let Some(last) = lock.get(&account_index) {
+        if let Ok(lock) = self.last_trim_time.lock()
+            && let Some(last) = lock.get(&account_index) {
                 return last.elapsed() >= TRIM_COOLDOWN_DURATION;
             }
-        }
         true
     }
     /// Records the current instant as the last trim time for an account

@@ -21,6 +21,9 @@ pub struct IncomingMessage {
     pub timestamp: i64,
 }
 
+/// Maximum number of supported concurrent accounts
+pub const MAX_ACCOUNTS: u32 = 5;
+
 /// Multi-account SSOT state for chat and authentication
 pub struct ChatState {
     pub last_blur_time: AtomicI64,
@@ -47,7 +50,7 @@ pub struct ChatState {
 impl Default for ChatState {
     fn default() -> Self {
         let mut suspended = HashSet::new();
-        for idx in 1..=5 {
+        for idx in 1..=MAX_ACCOUNTS {
             suspended.insert(idx);
         }
         Self {
@@ -87,11 +90,10 @@ impl ChatState {
     }
 
     pub fn is_window_in_auth_mode(&self, label: &str) -> bool {
-        if let Ok(set) = self.auth_windows.lock() {
-            if set.contains(label) {
+        if let Ok(set) = self.auth_windows.lock()
+            && set.contains(label) {
                 return true;
             }
-        }
         self.is_auth_mode.load(Ordering::SeqCst)
     }
 
@@ -130,11 +132,10 @@ impl ChatState {
     }
 
     pub fn save_previously_visible_bubbles(&self, indices: Vec<u32>) {
-        if let Ok(mut prev) = self.previously_visible_bubbles.lock() {
-            if !indices.is_empty() {
+        if let Ok(mut prev) = self.previously_visible_bubbles.lock()
+            && !indices.is_empty() {
                 *prev = indices;
             }
-        }
     }
 
     pub fn get_previously_visible_bubbles(&self) -> Vec<u32> {

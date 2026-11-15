@@ -9,6 +9,7 @@ use crate::state::{ChatState, IncomingMessage};
 /// 3. Update native bubble unread badge
 /// 4. Emit dashboard events (badge-updated & new-message-received)
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn report_incoming_notification(
     app: AppHandle,
     state: State<'_, Arc<ChatState>>,

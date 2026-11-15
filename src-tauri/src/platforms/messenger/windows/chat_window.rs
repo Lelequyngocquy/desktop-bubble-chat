@@ -6,7 +6,7 @@ use super::theme::{apply_window_theme_color, get_account_theme};
 use crate::platforms::messenger::constants::{MESSENGER_BASE_URL, MESSENGER_INJECT_SCRIPT};
 use crate::platforms::messenger::parser::parse_unread_from_title;
 use crate::platforms::messenger::services::ChatService;
-use crate::state::ChatState;
+use crate::state::{ChatState, MAX_ACCOUNTS};
 use crate::utils::time::now_millis;
 use crate::utils::win32::{is_cursor_over_bubble, is_cursor_over_window};
 use crate::presentation::bubble::get_bubble_window_label;
@@ -73,8 +73,8 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                 let _ = app_handle.emit("messenger-auth-closed", serde_json::json!({ "label": &win_label }));
                 let _ = ChatService::hide_chat(&app_handle, idx);
             }
-            tauri::WindowEvent::Resized(physical_size) => {
-                if physical_size.width > 0 && physical_size.height > 0 {
+            tauri::WindowEvent::Resized(physical_size)
+                if physical_size.width > 0 && physical_size.height > 0 => {
                     let scale = chat_clone.scale_factor().unwrap_or(1.0);
                     let logical_w = (physical_size.width as f64 / scale).round() as u32;
                     let logical_h = (physical_size.height as f64 / scale).round() as u32;
@@ -89,7 +89,6 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                         }));
                     }
                 }
-            }
             _ => {}
         }
     });
@@ -111,7 +110,7 @@ pub fn get_or_create_messenger_window(
                 fn IsWindow(hWnd: *mut std::ffi::c_void) -> i32;
             }
             let is_alive = if let Ok(hwnd) = win.hwnd() {
-                unsafe { IsWindow(hwnd.0 as *mut std::ffi::c_void) != 0 }
+                unsafe { IsWindow(hwnd.0) != 0 }
             } else {
                 false
             };
@@ -126,12 +125,11 @@ pub fn get_or_create_messenger_window(
         #[cfg(not(target_os = "windows"))]
         return Ok(win);
     }
-    if account_index == 1 {
-        if let Some(win) = app.get_webview_window("chat-messenger") {
+    if account_index == 1
+        && let Some(win) = app.get_webview_window("chat-messenger") {
             println!("[BE - Window] Found legacy 'chat-messenger' window for account 1.");
             return Ok(win);
         }
-    }
     let mut profile_dir = app.path().app_data_dir().map_err(|e| {
         let msg = format!("Failed to get app_data_dir: {}", e);
         eprintln!("[BE - Window ERROR] {}", msg);
@@ -235,7 +233,7 @@ pub fn get_or_create_messenger_window(
     })
     .on_page_load(move |win, payload| {
         let in_auth = state_page_load.is_window_in_auth_mode(win.label());
-        let _ = win.eval(&format!("window.__IS_AUTH_MODE__ = {};", in_auth));
+        let _ = win.eval(format!("window.__IS_AUTH_MODE__ = {};", in_auth));
         if let tauri::webview::PageLoadEvent::Finished = payload.event() {
             state_page_load.set_chat_ready(account_index, true);
             println!("\x1b[32m[BE - Window] Webview Messenger {:02} preloading finished (Ready)!\x1b[0m", account_index);
@@ -259,11 +257,10 @@ pub fn get_or_create_messenger_window(
                         use windows_core::Interface;
                         let controller = webview.controller();
                         if let Ok(core_webview) = controller.CoreWebView2() {
-                            if is_muted {
-                                if let Ok(webview_8) = core_webview.cast::<ICoreWebView2_8>() {
+                            if is_muted
+                                && let Ok(webview_8) = core_webview.cast::<ICoreWebView2_8>() {
                                     let _ = webview_8.SetIsMuted(true);
                                 }
-                            }
                             if let Ok(settings) = core_webview.Settings() {
                                 let _ = settings.SetIsStatusBarEnabled(false);
                                 let _ = settings.SetIsZoomControlEnabled(false);
@@ -314,7 +311,7 @@ pub fn set_chat_window_memory_target(app: &tauri::AppHandle, account_index: u32,
 
 /// Ensures only one chat/auth window is displayed at a time and others are tucked and cleaned
 pub fn hide_all_other_messenger_windows(app: &AppHandle, active_label: &str) {
-    for idx in 1..=5 {
+    for idx in 1..=MAX_ACCOUNTS {
         let label = get_messenger_window_label(idx);
         if label != active_label {
             let _ = ChatService::hide_chat(app, idx);
@@ -342,7 +339,7 @@ pub fn preload_existing_messenger_windows(app: &AppHandle, chat_state: Arc<ChatS
     let app_handle = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(300));
-        for idx in 1..=5 {
+        for idx in 1..=MAX_ACCOUNTS {
             let is_connected = chat_state.get_account_auth(idx).map(|a| a.connected).unwrap_or(false);
             if is_connected {
                 println!("[BE - Window] Preloading Messenger {:02}...", idx);
