@@ -1,18 +1,19 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { TitleBar } from "./components/layout/TitleBar";
 import { Sidebar } from "./components/layout/Sidebar";
 import { HomeWorkspace } from "./components/home";
-import { ConnectionsWorkspace } from "./components/connections";
-import { NotificationsWorkspace } from "./components/notifications";
-import { PerformanceWorkspace } from "./components/performance";
-import { SettingsWorkspace } from "./components/settings";
-import { HelpWorkspace } from "./components/help";
 import { BubbleSpawnIndicator } from "./components/common/BubbleSpawnIndicator";
 import { DashboardLoadingOverlay } from "./components/common/DashboardLoadingOverlay";
 import { useBubbleAutoRestore, useDashboardBootstrap, useAutoUpdater, useThemeSync } from "./hooks";
 import { useUnreadListener } from "./hooks/useUnreadListener";
 import { useSystemUser } from "./hooks/useSystemUser";
 import { useNavigationStore } from "./stores/navigationStore";
+
+const ConnectionsWorkspace = lazy(() => import("./components/connections").then((m) => ({ default: m.ConnectionsWorkspace })));
+const NotificationsWorkspace = lazy(() => import("./components/notifications").then((m) => ({ default: m.NotificationsWorkspace })));
+const PerformanceWorkspace = lazy(() => import("./components/performance").then((m) => ({ default: m.PerformanceWorkspace })));
+const SettingsWorkspace = lazy(() => import("./components/settings").then((m) => ({ default: m.SettingsWorkspace })));
+const HelpWorkspace = lazy(() => import("./components/help").then((m) => ({ default: m.HelpWorkspace })));
 
 export const App: React.FC = () => {
   const activeTab = useNavigationStore((s) => s.activeTab);
@@ -28,19 +29,21 @@ export const App: React.FC = () => {
       <TitleBar />
       <div className="relative flex flex-1 min-h-0 min-w-0 overflow-hidden">
         <Sidebar />
-        {activeTab === "connections" ? (
-          <ConnectionsWorkspace />
-        ) : activeTab === "notifications" || (activeTab as string) === "chat-heads" ? (
-          <NotificationsWorkspace />
-        ) : activeTab === "performance" ? (
-          <PerformanceWorkspace />
-        ) : activeTab === "settings" ? (
-          <SettingsWorkspace />
-        ) : activeTab === "help" ? (
-          <HelpWorkspace />
-        ) : (
-          <HomeWorkspace />
-        )}
+        <Suspense fallback={<DashboardLoadingOverlay />}>
+          {activeTab === "connections" ? (
+            <ConnectionsWorkspace />
+          ) : activeTab === "notifications" || (activeTab as string) === "chat-heads" ? (
+            <NotificationsWorkspace />
+          ) : activeTab === "performance" ? (
+            <PerformanceWorkspace />
+          ) : activeTab === "settings" ? (
+            <SettingsWorkspace />
+          ) : activeTab === "help" ? (
+            <HelpWorkspace />
+          ) : (
+            <HomeWorkspace />
+          )}
+        </Suspense>
         <DashboardLoadingOverlay />
       </div>
       <BubbleSpawnIndicator />
