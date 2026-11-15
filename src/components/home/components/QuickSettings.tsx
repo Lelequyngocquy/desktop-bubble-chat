@@ -90,7 +90,9 @@ export const QuickSettings: React.FC = () => {
       className="w-full lg:w-[432px] shrink-0 h-side-col lg:h-full"
       title={t("quick_settings.title")}
       headerAction={
-        <SlidersHorizontal className="w-[18px] h-[18px] text-content-secondary" />
+        <div className="w-avatar-sm h-avatar-sm flex items-center justify-center text-content-secondary">
+          <SlidersHorizontal className="w-[18px] h-[18px]" />
+        </div>
       }
       banner={
         warningMessage ? (
