@@ -27,6 +27,20 @@ if (!window.__FOCUS_INTERCEPTOR_INSTALLED__) {
   } catch (e) {}
 }
 
+// Smart context menu: allow text editing and selection menus while blocking generic browser menus
+if (!window.__CONTEXT_MENU_GUARD_INSTALLED__) {
+  window.__CONTEXT_MENU_GUARD_INSTALLED__ = true;
+  document.addEventListener("contextmenu", (e) => {
+    const t = e.target;
+    const isEditable = t && (t.isContentEditable || (t.closest && t.closest('[contenteditable="true"]')) || t.tagName === "INPUT" || t.tagName === "TEXTAREA" || (t.closest && t.closest("input, textarea")));
+    const hasSelection = Boolean(window.getSelection && window.getSelection().toString().trim());
+    const isMediaOrLink = t && (t.tagName === "A" || t.tagName === "IMG" || (t.closest && t.closest("a, img")));
+    if (!isEditable && !hasSelection && !isMediaOrLink) {
+      e.preventDefault();
+    }
+  }, true);
+}
+
 /**
  * Smart periodic interval with adaptive throttling when tab/webview is hidden or unfocused
  * @param {Function} fn Function to execute

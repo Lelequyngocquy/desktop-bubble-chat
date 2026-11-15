@@ -268,7 +268,7 @@ pub fn get_or_create_messenger_window(
                                 let _ = settings.SetIsStatusBarEnabled(false);
                                 let _ = settings.SetIsZoomControlEnabled(false);
                                 let _ = settings.SetIsBuiltInErrorPageEnabled(false);
-                                let _ = settings.SetAreDefaultContextMenusEnabled(false);
+                                let _ = settings.SetAreDefaultContextMenusEnabled(true);
                                 #[cfg(debug_assertions)]
                                 let _ = settings.SetAreDevToolsEnabled(true);
                                 #[cfg(not(debug_assertions))]
