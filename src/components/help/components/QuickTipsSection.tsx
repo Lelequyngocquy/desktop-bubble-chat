@@ -1,12 +1,11 @@
 import React from "react";
-import { Sparkles, MousePointer, Keyboard } from "lucide-react";
+import { Sparkles, MousePointer, Keyboard, Pin } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { TipCard } from "./TipCard";
 import { CommonLargeCard } from "../../common/index";
 
 export const QuickTipsSection: React.FC = () => {
   const { t } = useTranslation("help");
-
   return (
     <CommonLargeCard
       icon={<Sparkles className="w-4 h-4 text-primary" />}
@@ -23,6 +22,12 @@ export const QuickTipsSection: React.FC = () => {
           title={t("shortcut_title")}
           badge="Ctrl + Shift + M / ⌘ + Shift + M"
           description={t("shortcut_desc")}
+        />
+        <TipCard
+          icon={<Pin className="w-5 h-5" />}
+          title={t("pin_title")}
+          badge={t("pin_badge")}
+          description={t("pin_desc")}
         />
       </div>
     </CommonLargeCard>
