@@ -15,8 +15,15 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
         let mut hover_start: Option<Instant> = None;
         let mut already_opened_for_hover = false;
         let mut outside_open_chat_start: Option<Instant> = None;
+        let mut last_topmost_assert = Instant::now();
         loop {
             std::thread::sleep(Duration::from_millis(30));
+            if last_topmost_assert.elapsed() >= Duration::from_secs(3) {
+                if chat_state.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst) {
+                    crate::operating_systems::current::bubble::set_native_bubble_always_on_top(true);
+                }
+                last_topmost_assert = Instant::now();
+            }
             let lbutton_down = is_lbutton_down();
             let mut detected_hover_bubble: Option<u32> = None;
             if !lbutton_down {

@@ -90,6 +90,9 @@ impl NativeBubbleWindow {
             if hwnd.is_null() {
                 return Err("Failed to CreateWindowExW for NativeBubble".into());
             }
+            if is_on_top {
+                SetWindowPos(hwnd, -1_isize as *mut std::ffi::c_void, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            }
             let hdc_screen = GetDC(std::ptr::null_mut());
             let hdc_mem = CreateCompatibleDC(hdc_screen);
             ReleaseDC(std::ptr::null_mut(), hdc_screen);
@@ -214,10 +217,19 @@ impl NativeBubbleWindow {
         }
     }
 
-    /// Shows the window.
+    /// Shows the window and maintains topmost z-order if configured.
     pub fn show(&self) {
         unsafe {
             ShowWindow(self.hwnd, SW_SHOWNOACTIVATE);
+            let ptr = GetWindowLongPtrW(self.hwnd, GWLP_USERDATA) as *mut BubbleWindowState;
+            let is_on_top = ptr.as_ref()
+                .and_then(|s| s.app_handle.as_ref())
+                .and_then(|a| a.try_state::<std::sync::Arc<crate::state::ChatState>>())
+                .map(|s| s.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst))
+                .unwrap_or(true);
+            if is_on_top {
+                self.set_always_on_top(true);
+            }
         }
     }
 

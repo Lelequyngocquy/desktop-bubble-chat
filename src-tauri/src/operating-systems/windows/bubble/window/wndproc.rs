@@ -97,7 +97,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                         }
                     }
                 } else if !state.is_hovered {
-                    // Mouse enter: pre-warm webview and untuck
+                    // Mouse enter: pre-warm webview, assert topmost, and untuck
                     state.is_hovered = true;
                     unsafe {
                         KillTimer(hwnd, TIMER_ID_HOVER_LEAVE);
@@ -108,6 +108,15 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                             dw_hover_time: 0,
                         };
                         TrackMouseEvent(&mut tme);
+                    }
+                    let is_on_top = state.app_handle.as_ref()
+                        .and_then(|a| a.try_state::<Arc<ChatState>>())
+                        .map(|s| s.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst))
+                        .unwrap_or(false);
+                    if is_on_top {
+                        unsafe {
+                            SetWindowPos(hwnd, -1_isize as *mut std::ffi::c_void, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                        }
                     }
                     state.update_layered_buffer();
                     crate::utils::trim_controller::record_user_interaction(state.account_index);
