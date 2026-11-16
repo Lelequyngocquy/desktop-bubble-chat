@@ -127,6 +127,25 @@ function isInternalChatNavigation(rawUrl) {
   }
 }
 
+/**
+ * Determines whether element or URL indicates a file download operation
+ * @param {HTMLElement|null} anchor Target anchor if available
+ * @param {string} rawUrl Navigation or download URL
+ * @returns {boolean} True if download intent
+ */
+function isDownloadIntent(anchor, rawUrl) {
+  if (anchor && (anchor.hasAttribute("download") || anchor.getAttribute("download") !== null)) return true;
+  if (!rawUrl) return false;
+  const str = String(rawUrl).toLowerCase();
+  if (str.includes("attachment.fbsbx.com") || str.includes("file_download.php") || str.includes("&dl=1") || str.includes("?dl=1")) {
+    return true;
+  }
+  if (str.includes("cdn.fbsbx.com") && (str.includes("/v/") || str.includes("&dl="))) {
+    return true;
+  }
+  return false;
+}
+
 let lastOpenedUrl = "";
 let lastOpenedTime = 0;
 
@@ -164,6 +183,10 @@ function openUrlInDefaultBrowser(targetUrl) {
     window.open = function (openUrl) {
       if (!openUrl) return null;
       const urlStr = String(openUrl);
+      if (isDownloadIntent(null, urlStr)) {
+        window.location.href = urlStr;
+        return window;
+      }
       if (isAuthMode()) {
         if (isMetaAuthDomain(urlStr)) {
           window.location.href = urlStr;
@@ -199,6 +222,19 @@ function openUrlInDefaultBrowser(targetUrl) {
       const rawHref = anchor.getAttribute("href") || anchor.getAttribute("data-href") || anchor.href;
       const href = typeof rawHref === "string" ? rawHref : (rawHref && rawHref.baseVal ? rawHref.baseVal : String(rawHref || ""));
       if (!href || href.startsWith("javascript:") || href.startsWith("#")) return;
+      if (isDownloadIntent(anchor, href)) {
+        if (href.startsWith("blob:")) {
+          if (typeof window.__handleBlobDownload === "function") {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            const suggested = anchor.getAttribute("download") || "attachment";
+            window.__handleBlobDownload(href, suggested);
+            return;
+          }
+        }
+        return;
+      }
       if (isAuthMode()) {
         if (isMetaAuthDomain(href)) return;
         e.preventDefault();

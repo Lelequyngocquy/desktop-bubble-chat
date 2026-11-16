@@ -1,6 +1,7 @@
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_notification::NotificationExt;
 
 use super::theme::{apply_window_theme_color, get_account_theme};
 use crate::platforms::messenger::constants::{MESSENGER_BASE_URL, MESSENGER_INJECT_SCRIPT};
@@ -153,11 +154,48 @@ pub fn get_or_create_messenger_window(
     println!("[BE - Window] Building new WebviewWindow for '{}'...", label);
     let state_page_load = Arc::clone(&chat_state);
     let state_title = Arc::clone(&chat_state);
+    let app_dl = app.clone();
+    let state_dl = Arc::clone(&chat_state);
+    let label_dl = label.clone();
     let builder = tauri::WebviewWindowBuilder::new(
         app,
         &label,
         tauri::WebviewUrl::External(parsed_url),
-    );
+    ).on_download(move |_webview, event| {
+        match event {
+            tauri::webview::DownloadEvent::Requested { destination, .. } => {
+                let default_name = destination.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("downloaded_file");
+                if let Some(target) = crate::commands::system::download::show_save_dialog_internal(
+                    &app_dl,
+                    &state_dl,
+                    &label_dl,
+                    Some(default_name),
+                ) {
+                    *destination = target;
+                    true
+                } else {
+                    false
+                }
+            }
+            tauri::webview::DownloadEvent::Finished { path, success, .. } => {
+                if success {
+                    let file_name = path.as_ref()
+                        .and_then(|p| p.file_name())
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("file");
+                    let _ = app_dl.notification()
+                        .builder()
+                        .title("DesktopBubbleChat")
+                        .body(format!("Downloaded: {}", file_name))
+                        .show();
+                }
+                true
+            }
+            _ => true,
+        }
+    });
     #[cfg(target_os = "windows")]
     let builder = builder.browser_extensions_enabled(true).extensions_path(&ext_dir);
     let (init_w, init_h) = chat_state

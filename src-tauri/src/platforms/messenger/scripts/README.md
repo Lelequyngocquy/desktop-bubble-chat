@@ -17,6 +17,9 @@ Thư mục này chứa toàn bộ các script can thiệp vào tiến trình Web
 | **05** | [`05_offline_handler.js`](file:///D:/DesktopBubbleChat/src-tauri/src/platforms/messenger/scripts/modules/05_offline_handler.js) | Giám sát sự kiện `online` / `offline` của trình duyệt; hiển thị banner cảnh báo mất kết nối kèm nút thử lại; tự động reload khi phục hồi mạng. |
 | **06** | [`06_styles.js`](file:///D:/DesktopBubbleChat/src-tauri/src/platforms/messenger/scripts/modules/06_styles.js) | Nhúng CSS responsive thu gọn layout Messenger vừa vặn khung cửa sổ chat popup (404x620), tự động ẩn panel thông tin bên phải (`div[role="complementary"]`). |
 | **07** | [`07_lifecycle.js`](file:///D:/DesktopBubbleChat/src-tauri/src/platforms/messenger/scripts/modules/07_lifecycle.js) | Bộ điều phối vòng đời: cơ chế `runAdaptiveInterval` tự động giãn cách chu kỳ khi cửa sổ ẩn (`document.hidden`) để tối ưu hóa CPU và RAM; khởi tạo toàn bộ module khi DOM sẵn sàng. |
+| **08** | [`08_auto_unselect_thread.js`](file:///D:/DesktopBubbleChat/src-tauri/src/platforms/messenger/scripts/modules/08_auto_unselect_thread.js) | Tự động hủy chọn cuộc trò chuyện sau 5 giây khi cửa sổ ẩn để bảo mật và giảm tải DOM. |
+| **09** | [`09_pin_button.js`](file:///D:/DesktopBubbleChat/src-tauri/src/platforms/messenger/scripts/modules/09_pin_button.js) | Nút ghim cố định khung chat ở góc trên bên phải để chống tự động đóng khi rời chuột ra ngoài. |
+| **10** | [`10_download_manager.js`](file:///D:/DesktopBubbleChat/src-tauri/src/platforms/messenger/scripts/modules/10_download_manager.js) | Bộ quản lý tải tệp: giải mã Blob URL cho cuộc trò chuyện mã hóa E2EE và truyền chunk Base64 về Rust backend ghi đĩa. |
 
 ---
 
