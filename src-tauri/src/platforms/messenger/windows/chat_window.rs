@@ -161,25 +161,29 @@ pub fn get_or_create_messenger_window(
         app,
         &label,
         tauri::WebviewUrl::External(parsed_url),
-    ).on_download(move |_webview, event| {
+    ).on_download(move |_webview, mut event| {
         match event {
-            tauri::webview::DownloadEvent::Requested { destination, .. } => {
-                let default_name = destination.file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("downloaded_file");
+            tauri::webview::DownloadEvent::Requested { ref url, ref mut destination } => {
+                println!("\x1b[35m[BE - Download] on_download Requested: url='{}', default_dest='{:?}'\x1b[0m", url, destination);
+                let default_name = destination.file_name().and_then(|n| n.to_str()).unwrap_or("downloaded_file");
+                let default_dir = destination.parent().map(|p| p.to_path_buf());
                 if let Some(target) = crate::commands::system::download::show_save_dialog_internal(
                     &app_dl,
                     &state_dl,
                     &label_dl,
                     Some(default_name),
+                    default_dir,
                 ) {
-                    *destination = target;
+                    println!("\x1b[32m[BE - Download] on_download User selected target: '{:?}'\x1b[0m", target);
+                    **destination = target;
                     true
                 } else {
+                    println!("\x1b[33m[BE - Download] on_download User cancelled save dialog\x1b[0m");
                     false
                 }
             }
-            tauri::webview::DownloadEvent::Finished { path, success, .. } => {
+            tauri::webview::DownloadEvent::Finished { ref url, ref path, success } => {
+                println!("\x1b[35m[BE - Download] on_download Finished: url='{}', path='{:?}', success={}\x1b[0m", url, path, success);
                 if success {
                     let file_name = path.as_ref()
                         .and_then(|p| p.file_name())
@@ -193,7 +197,10 @@ pub fn get_or_create_messenger_window(
                 }
                 true
             }
-            _ => true,
+            _ => {
+                println!("\x1b[35m[BE - Download] on_download Other event\x1b[0m");
+                true
+            }
         }
     });
     #[cfg(target_os = "windows")]

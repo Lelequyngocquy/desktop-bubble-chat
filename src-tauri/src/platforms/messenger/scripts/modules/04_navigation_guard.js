@@ -134,14 +134,37 @@ function isInternalChatNavigation(rawUrl) {
  * @returns {boolean} True if download intent
  */
 function isDownloadIntent(anchor, rawUrl) {
-  if (anchor && (anchor.hasAttribute("download") || anchor.getAttribute("download") !== null)) return true;
-  if (!rawUrl) return false;
-  const str = String(rawUrl).toLowerCase();
-  if (str.includes("attachment.fbsbx.com") || str.includes("file_download.php") || str.includes("&dl=1") || str.includes("?dl=1")) {
+  if (anchor && (anchor.hasAttribute("download") || anchor.getAttribute("download") !== null)) {
     return true;
   }
-  if (str.includes("cdn.fbsbx.com") && (str.includes("/v/") || str.includes("&dl="))) {
-    return true;
+  if (anchor) {
+    const text = (anchor.innerText || "").trim();
+    if (/\b[^\s]+\.(txt|md|pdf|zip|rar|7z|tar|gz|doc|docx|xls|xlsx|ppt|pptx|csv|mp4|mp3|wav|png|jpg|jpeg|gif|webp)\b/i.test(text)) {
+      return true;
+    }
+    const aria = (anchor.getAttribute("aria-label") || "").toLowerCase();
+    if (aria.includes("download") || aria.includes("tải xuống") || aria.includes("tải về")) {
+      return true;
+    }
+  }
+  if (!rawUrl) return false;
+  const cleanUrl = rawUrl ? extractDestinationUrl(rawUrl) : "";
+  const candidates = [rawUrl, cleanUrl].filter(Boolean);
+  const downloadPatterns = [
+    "attachment.fbsbx.com",
+    "file_download.php",
+    "attachment_preview",
+    "&dl=1",
+    "?dl=1",
+    "/v/",
+  ];
+  const fileExtRegex = /\.(txt|md|pdf|zip|rar|7z|tar|gz|doc|docx|xls|xlsx|ppt|pptx|csv|mp4|mp3|wav|png|jpg|jpeg|gif|webp)(\?|#|$)/i;
+  for (const c of candidates) {
+    const str = String(c).toLowerCase();
+    for (const pat of downloadPatterns) {
+      if (str.includes(pat)) return true;
+    }
+    if (fileExtRegex.test(str)) return true;
   }
   return false;
 }
@@ -183,8 +206,15 @@ function openUrlInDefaultBrowser(targetUrl) {
     window.open = function (openUrl) {
       if (!openUrl) return null;
       const urlStr = String(openUrl);
-      if (isDownloadIntent(null, urlStr)) {
-        window.location.href = urlStr;
+      const isDl = isDownloadIntent(null, urlStr);
+      logDebug("WINDOW-OPEN", `window.open called: url='${urlStr}', isDownloadIntent=${isDl}`);
+      if (isDl) {
+        logDebug("WINDOW-OPEN", `Routing download URL to in-webview navigation: ${urlStr}`);
+        if (typeof window.__triggerBrowserDownload === "function") {
+          window.__triggerBrowserDownload(urlStr, "attachment");
+        } else {
+          window.location.href = urlStr;
+        }
         return window;
       }
       if (isAuthMode()) {
@@ -217,21 +247,30 @@ function openUrlInDefaultBrowser(targetUrl) {
   document.addEventListener(
     "click",
     function (e) {
-      const anchor = e.target && e.target.closest ? (e.target.closest("a") || e.target.closest("[role='link']")) : null;
+      const target = e.target;
+      const anchor = target && target.closest ? (target.closest("a") || target.closest("[role='link']")) : null;
+      const button = target && target.closest ? (target.closest("button") || target.closest("[role='button']")) : null;
+      const aria = (target && target.getAttribute && target.getAttribute("aria-label")) || (button && button.getAttribute && button.getAttribute("aria-label")) || (anchor && anchor.getAttribute && anchor.getAttribute("aria-label")) || "";
+      const textSnippet = target && target.innerText ? target.innerText.trim().substring(0, 80) : "";
+      const isFileKeyword = /\.(md|txt|pdf|zip|rar|png|jpg|mp4|docx|xlsx)/i.test(textSnippet) || /\.(md|txt|pdf|zip|rar|png|jpg|mp4|docx|xlsx)/i.test(aria);
+      const isDownloadKeyword = aria.toLowerCase().includes("download") || aria.toLowerCase().includes("tải");
+      if (anchor || isFileKeyword || isDownloadKeyword) {
+        logDebug("CLICK-EVENT", `Click: tag=${target ? target.tagName : 'null'}, aria='${aria}', text='${textSnippet}', hasAnchor=${Boolean(anchor)}`, {
+          anchorHref: anchor ? (anchor.href || anchor.getAttribute("href")) : null,
+          anchorDownload: anchor ? anchor.getAttribute("download") : null,
+        });
+      }
       if (!anchor) return;
       const rawHref = anchor.getAttribute("href") || anchor.getAttribute("data-href") || anchor.href;
       const href = typeof rawHref === "string" ? rawHref : (rawHref && rawHref.baseVal ? rawHref.baseVal : String(rawHref || ""));
       if (!href || href.startsWith("javascript:") || href.startsWith("#")) return;
-      if (isDownloadIntent(anchor, href)) {
-        if (href.startsWith("blob:")) {
-          if (typeof window.__handleBlobDownload === "function") {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            const suggested = anchor.getAttribute("download") || "attachment";
-            window.__handleBlobDownload(href, suggested);
-            return;
-          }
+      const isDl = isDownloadIntent(anchor, href);
+      const isInternal = isInternalChatNavigation(href);
+      logDebug("NAV-EVAL", `Evaluating anchor: href='${href}', isDl=${isDl}, isInternal=${isInternal}`);
+      if (isDl) {
+        logDebug("NAV-ACTION", `Allowing native in-app download for: ${href}`);
+        if (anchor.getAttribute("target") === "_blank") {
+          anchor.setAttribute("target", "_self");
         }
         return;
       }
@@ -244,7 +283,7 @@ function openUrlInDefaultBrowser(targetUrl) {
         return;
       }
       if (isUserLoggedIn()) {
-        if (isInternalChatNavigation(href)) return;
+        if (isInternal) return;
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();

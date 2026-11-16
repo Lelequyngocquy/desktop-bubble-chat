@@ -11,20 +11,25 @@ pub fn show_save_dialog_internal(
     state: &ChatState,
     window_label: &str,
     default_name: Option<&str>,
+    default_dir: Option<PathBuf>,
 ) -> Option<PathBuf> {
+    let default_file = default_name.unwrap_or("downloaded_file").to_string();
+    println!("\x1b[35m[BE - Download] show_save_dialog_internal: window='{}', default='{}'\x1b[0m", window_label, default_file);
     state.set_dialog_active(window_label, true);
     let win_opt = app.get_webview_window(window_label);
     let was_topmost = win_opt.as_ref().map(|w| w.is_always_on_top().unwrap_or(false)).unwrap_or(false);
     if let Some(w) = win_opt.as_ref() {
         let _ = w.set_always_on_top(false);
     }
-    let default_file = default_name.unwrap_or("downloaded_file").to_string();
     let handle = std::thread::spawn(move || {
-        rfd::FileDialog::new()
-            .set_file_name(&default_file)
-            .save_file()
+        let mut dialog = rfd::FileDialog::new().set_file_name(&default_file);
+        if let Some(ref dir) = default_dir {
+            dialog = dialog.set_directory(dir);
+        }
+        dialog.save_file()
     });
     let result = handle.join().ok().flatten();
+    println!("\x1b[35m[BE - Download] show_save_dialog_internal result: '{:?}'\x1b[0m", result);
     state.set_dialog_active(window_label, false);
     if let Some(w) = win_opt.as_ref() {
         let _ = w.set_always_on_top(was_topmost);
@@ -41,7 +46,8 @@ pub fn prompt_save_file(
     window_label: String,
     default_name: Option<String>,
 ) -> Result<Option<String>, String> {
-    let path_opt = show_save_dialog_internal(&app, &state, &window_label, default_name.as_deref());
+    println!("\x1b[35m[BE - Download] prompt_save_file command called for window='{}', default='{:?}'\x1b[0m", window_label, default_name);
+    let path_opt = show_save_dialog_internal(&app, &state, &window_label, default_name.as_deref(), None);
     Ok(path_opt.map(|p| p.to_string_lossy().to_string()))
 }
 
@@ -55,6 +61,7 @@ pub fn save_blob_chunk(
     use base64::Engine;
     use std::fs::OpenOptions;
     use std::io::Write;
+    println!("\x1b[35m[BE - Download] save_blob_chunk: path='{}', chunk_size={}, is_first={}\x1b[0m", file_path, chunk_base64.len(), is_first_chunk);
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(&chunk_base64)
         .map_err(|e| format!("Base64 decode error: {}", e))?;
@@ -73,6 +80,7 @@ pub fn save_blob_chunk(
 /// Command revealing downloaded file in system file manager
 #[tauri::command]
 pub fn show_file_in_folder(path: String) -> Result<(), String> {
+    println!("\x1b[35m[BE - Download] show_file_in_folder: path='{}'\x1b[0m", path);
     let p = std::path::Path::new(&path);
     if !p.exists() {
         return Err("File path does not exist".to_string());
@@ -109,6 +117,7 @@ pub fn notify_download_complete(
     file_name: String,
     _file_path: String,
 ) -> Result<(), String> {
+    println!("\x1b[35m[BE - Download] notify_download_complete: file='{}', path='{}'\x1b[0m", file_name, _file_path);
     app.notification()
         .builder()
         .title("DesktopBubbleChat")
