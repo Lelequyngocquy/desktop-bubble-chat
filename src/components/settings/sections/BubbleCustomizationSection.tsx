@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { CircleDot, Magnet, Move, Check } from "lucide-react";
+import { CircleDot, Magnet, Move } from "lucide-react";
 import { BubbleSize, BubblePositionMode } from "../../../stores/settingsStore";
 import { CommonLargeCard } from "../../common";
 import { BubbleSizePicker } from "./BubbleSizePicker";
@@ -102,11 +102,6 @@ export const BubbleCustomizationSection: React.FC<BubbleCustomizationSectionProp
                       </span>
                     </div>
                   </div>
-                  {isSelected && (
-                    <div className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center shrink-0 ml-2">
-                      <Check className="w-3 h-3 stroke-[3]" />
-                    </div>
-                  )}
                 </button>
               );
             })}

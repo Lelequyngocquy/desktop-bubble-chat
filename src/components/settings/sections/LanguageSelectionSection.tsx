@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Languages, Check } from "lucide-react";
+import { Languages } from "lucide-react";
 import { useSettingsStore, AppLanguage } from "../../../stores/settingsStore";
 import { CommonLargeCard } from "../../common";
 
@@ -46,11 +46,6 @@ export const LanguageSelectionSection: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                {isSelected && (
-                  <div className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center shrink-0">
-                    <Check className="w-3 h-3 stroke-[3]" />
-                  </div>
-                )}
               </button>
             );
           })}

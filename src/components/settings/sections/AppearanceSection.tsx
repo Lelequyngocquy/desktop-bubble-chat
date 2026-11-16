@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Palette, Sun, Moon, Laptop, Check } from "lucide-react";
+import { Palette, Sun, Moon, Laptop } from "lucide-react";
 import { useSettingsStore, ThemeMode } from "../../../stores/settingsStore";
 import { CommonLargeCard } from "../../common";
 
@@ -66,11 +66,6 @@ export const AppearanceSection: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                {isSelected && (
-                  <div className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center shrink-0 ml-2">
-                    <Check className="w-3 h-3 stroke-[3]" />
-                  </div>
-                )}
               </button>
             );
           })}

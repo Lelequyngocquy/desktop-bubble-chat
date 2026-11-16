@@ -26,7 +26,7 @@ export const BubbleSizePicker: React.FC<BubbleSizePickerProps> = ({
             key={item.id}
             type="button"
             onClick={() => onSelectSize(item.id)}
-            className={`p-3 rounded-card border flex flex-col items-center justify-center text-center gap-1 transition-all cursor-pointer ${
+            className={`p-3 rounded-control border flex flex-col items-center justify-center text-center gap-1 transition-all cursor-pointer ${
               isSelected
                 ? "border-primary bg-primary/10 text-primary font-semibold shadow-xs ring-1 ring-primary/20"
                 : "border-border bg-background-surface text-content-secondary hover:border-border-strong hover:bg-background-subtle"

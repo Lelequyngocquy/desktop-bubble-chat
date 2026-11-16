@@ -16,9 +16,9 @@
     "light": "Light",
     "light_desc": "Standard light theme",
     "dark": "Dark",
-    "dark_desc": "Gentle on the eyes for dark environments",
+    "dark_desc": "Gentle on the eyes",
     "system": "System Default",
-    "system_desc": "Sync automatically with Windows settings"
+    "system_desc": "Sync automatically with Windows"
   },
   "startup": {
     "title": "System & Startup",
@@ -47,17 +47,17 @@
     "auto_tuck": "Auto-Tuck to Edge",
     "auto_tuck_desc": "Bubbles automatically dock and tuck into the screen edge when idle",
     "free": "Free Placement",
-    "free_desc": "Bubbles stay exactly where you place them without tucking into the edge"
+    "free_desc": "Bubbles stay exactly where you place them"
   },
   "chat_window": {
     "title": "Chat Window Customization",
     "subtitle": "Configure window size behavior and memory per Messenger chat bubble.",
     "mode_default": "Default",
-    "mode_default_desc": "Opens in standard size (404×550px). Can be resized temporarily without saving for future sessions.",
+    "mode_default_desc": "Opens in standard size (404x550px). Can be resized temporarily without saving for future sessions.",
     "mode_custom": "Remember Size",
     "mode_custom_desc": "Saves the last resized dimensions and applies them automatically on subsequent opens.",
-    "badge_default": "{{width}} × {{height}} px (Default)",
-    "badge_custom": "{{width}} × {{height}} px (Saved)",
+    "badge_default": "{{width}} x {{height}} px (Default)",
+    "badge_custom": "{{width}} x {{height}} px (Saved)",
     "no_accounts": "No Messenger accounts connected yet. Please connect an account in the Connections tab to customize chat window sizes."
   },
   "shortcuts": {
