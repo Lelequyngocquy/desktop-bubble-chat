@@ -29,7 +29,7 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
             .unwrap_or(1);
         match event {
             tauri::WindowEvent::Focused(false) => {
-                if !state_clone.is_window_in_auth_mode(&win_label) && !state_clone.is_chat_pinned(idx) {
+                if !state_clone.is_window_in_auth_mode(&win_label) && !state_clone.is_chat_pinned(idx) && !state_clone.is_dialog_active(&win_label) {
                     let bubble_label = get_bubble_window_label(idx);
                     let over_bubble = app_handle
                         .get_webview_window(&bubble_label)

@@ -45,6 +45,7 @@ pub struct ChatState {
     pub chat_window_sizes: Mutex<HashMap<u32, (u32, u32)>>,
     pub user_config: Mutex<crate::utils::user_cache::AppUserConfig>,
     pub has_shown_tray_notification: AtomicBool,
+    pub active_dialog_windows: Mutex<HashSet<String>>,
 }
 
 impl Default for ChatState {
@@ -73,11 +74,36 @@ impl Default for ChatState {
             chat_window_sizes: Mutex::new(HashMap::new()),
             user_config: Mutex::new(crate::utils::user_cache::AppUserConfig::default()),
             has_shown_tray_notification: AtomicBool::new(false),
+            active_dialog_windows: Mutex::new(HashSet::new()),
         }
     }
 }
 
 impl ChatState {
+    pub fn set_dialog_active(&self, label: &str, active: bool) {
+        if let Ok(mut set) = self.active_dialog_windows.lock() {
+            if active {
+                set.insert(label.to_string());
+            } else {
+                set.remove(label);
+            }
+        }
+    }
+
+    pub fn is_dialog_active(&self, label: &str) -> bool {
+        if let Ok(set) = self.active_dialog_windows.lock() {
+            return set.contains(label);
+        }
+        false
+    }
+
+    pub fn is_any_dialog_active(&self) -> bool {
+        if let Ok(set) = self.active_dialog_windows.lock() {
+            return !set.is_empty();
+        }
+        false
+    }
+
     pub fn set_window_auth_mode(&self, label: &str, is_auth: bool) {
         if let Ok(mut set) = self.auth_windows.lock() {
             if is_auth {
