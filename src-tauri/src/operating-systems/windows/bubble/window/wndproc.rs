@@ -28,6 +28,15 @@ pub unsafe extern "system" fn native_bubble_wndproc(
         }
         WM_LBUTTONDOWN => {
             if let Some(state) = unsafe { state_ptr.as_mut() } {
+                let is_on_top = state.app_handle.as_ref()
+                    .and_then(|a| a.try_state::<Arc<ChatState>>())
+                    .map(|s| s.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst))
+                    .unwrap_or(false);
+                if is_on_top {
+                    unsafe {
+                        SetWindowPos(hwnd, -1_isize as *mut std::ffi::c_void, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                    }
+                }
                 unsafe {
                     KillTimer(hwnd, TIMER_ID_SPRING);
                     KillTimer(hwnd, TIMER_ID_HOVER_LEAVE);
@@ -97,7 +106,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                         }
                     }
                 } else if !state.is_hovered {
-                    // Mouse enter: pre-warm webview, assert topmost, and untuck
+                    // Mouse enter: pre-warm webview and untuck
                     state.is_hovered = true;
                     unsafe {
                         KillTimer(hwnd, TIMER_ID_HOVER_LEAVE);
@@ -108,15 +117,6 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                             dw_hover_time: 0,
                         };
                         TrackMouseEvent(&mut tme);
-                    }
-                    let is_on_top = state.app_handle.as_ref()
-                        .and_then(|a| a.try_state::<Arc<ChatState>>())
-                        .map(|s| s.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst))
-                        .unwrap_or(false);
-                    if is_on_top {
-                        unsafe {
-                            SetWindowPos(hwnd, -1_isize as *mut std::ffi::c_void, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-                        }
                     }
                     state.update_layered_buffer();
                     crate::utils::trim_controller::record_user_interaction(state.account_index);
@@ -150,7 +150,11 @@ pub unsafe extern "system" fn native_bubble_wndproc(
             if let Some(state) = unsafe { state_ptr.as_mut() }
                 && state.is_dragging {
                     state.is_dragging = false;
-                    state.set_layered_alpha(255);
+                    if state.has_dragged {
+                        unsafe { finish_drag_and_snap(hwnd, state); }
+                    } else {
+                        state.set_layered_alpha(255);
+                    }
                 }
             0
         }
@@ -158,157 +162,22 @@ pub unsafe extern "system" fn native_bubble_wndproc(
             if let Some(state) = unsafe { state_ptr.as_mut() }
                 && state.is_dragging {
                     state.is_dragging = false;
-                    // Release capture after clearing is_dragging so WM_CAPTURECHANGED
-                    // fires with is_dragging already false and becomes a no-op.
                     unsafe { ReleaseCapture(); }
                     if state.has_dragged {
-                        // Restore full opacity
-                        state.set_layered_alpha(255);
-                        // Drag finished -> trigger snap to edge
-                        let (target_x, target_y, should_dismiss, displaced_slots) = if let Some(app) = &state.app_handle {
-                            let screen = crate::movement::get_target_dashboard_screen(Some(app));
-                            let config = crate::movement::get_bubble_physics_config(app);
-                            if config.is_free_position {
-                                let scale = screen.scale_factor;
-                                let bubble_size = (config.size * scale) as i32;
-                                let dismiss_margin = (config.dismiss_margin * scale) as i32;
-                                let dismiss_threshold = screen.y + screen.height - dismiss_margin;
-                                let should_dismiss = state.y + bubble_size >= dismiss_threshold;
-                                if should_dismiss {
-                                    (state.x, state.y, true, Vec::new())
-                                } else {
-                                    let all_bubbles = crate::presentation::bubble::get_active_bubble_rects(app, None);
-                                    let (target_x, target_y) = crate::movement::CollisionResolver::resolve_2d_free_collision(
-                                        state.account_index,
-                                        state.x,
-                                        state.y,
-                                        &screen,
-                                        &config,
-                                        &all_bubbles,
-                                    );
-                                    if let Some(cs) = app.try_state::<Arc<ChatState>>() {
-                                        cs.set_bubble_rect(
-                                            state.account_index,
-                                            crate::movement::BubbleRect {
-                                                account_index: state.account_index,
-                                                x: target_x,
-                                                y: target_y,
-                                                width: bubble_size,
-                                                height: bubble_size,
-                                            },
-                                        );
-                                    }
-                                    (target_x, target_y, false, Vec::new())
-                                }
-                            } else {
-                                let all_bubbles = crate::presentation::bubble::get_active_bubble_rects(app, None);
-                                let snap = BubbleMovementEngine::calculate_mutual_snap(
-                                    &screen,
-                                    &config,
-                                    PhysicalPosition { x: state.x, y: state.y },
-                                    state.account_index,
-                                    &all_bubbles,
-                                );
-                                if !snap.should_dismiss {
-                                    let bubble_w = (config.size * screen.scale_factor) as i32;
-                                    if let Some(cs) = app.try_state::<Arc<ChatState>>() {
-                                        cs.set_bubble_rect(
-                                            state.account_index,
-                                            crate::movement::BubbleRect {
-                                                 account_index: state.account_index,
-                                                 x: snap.target_x,
-                                                 y: snap.target_y,
-                                                 width: bubble_w,
-                                                 height: bubble_w,
-                                            },
-                                        );
-                                    }
-                                }
-                                (snap.target_x, snap.target_y, snap.should_dismiss, snap.column_slots)
-                            }
-                        } else {
-                            let screen = crate::movement::get_target_dashboard_screen(None);
-                            let mid_x = screen.x + screen.width / 2;
-                            let target_x = if state.x + (state.bubble_size as i32 / 2) < mid_x {
-                                screen.x
-                            } else {
-                                screen.x + screen.width - state.bubble_size as i32
-                            };
-                            (target_x, state.y, false, Vec::new())
-                        };
-                        if should_dismiss {
-                            unsafe { ShowWindow(hwnd, SW_HIDE); }
-                            if let Some(app) = &state.app_handle {
-                                let app_clone = app.clone();
-                                let idx = state.account_index;
-                                tauri::async_runtime::spawn(async move {
-                                    let _ = crate::commands::bubble::toggle_bubble(app_clone, false, Some(idx)).await;
-                                });
-                            }
-                        } else {
-                            crate::operating_systems::windows::bubble::manager::update_cached_bubble_bounds(
-                                state.account_index,
-                                target_x,
-                                target_y,
-                                state.bubble_size,
-                                state.bubble_size,
-                            );
-                            state.anim_state.start(state.x, state.y, target_x, target_y, 160);
-                            unsafe {
-                                SetTimer(hwnd, TIMER_ID_SPRING, 16, None);
-                            }
-                            if let Some(app) = &state.app_handle {
-                                let config = crate::movement::get_bubble_physics_config(app);
-                                let screen = crate::movement::get_target_dashboard_screen(Some(app));
-                                let bubble_w = (config.size * screen.scale_factor) as i32;
-                                for slot in displaced_slots {
-                                    if slot.account_index != state.account_index {
-                                        crate::operating_systems::windows::bubble::NativeBubbleManager::global().dispatch(
-                                            crate::operating_systems::windows::bubble::NativeBubbleAction::AnimateTo {
-                                                account_index: slot.account_index,
-                                                target_x,
-                                                target_y: slot.target_y,
-                                                duration_ms: 160,
-                                            }
-                                        );
-                                        crate::operating_systems::windows::bubble::manager::update_cached_bubble_bounds(
-                                            slot.account_index,
-                                            target_x,
-                                            slot.target_y,
-                                            bubble_w as u32,
-                                            bubble_w as u32,
-                                        );
-                                        if let Some(cs) = app.try_state::<Arc<ChatState>>() {
-                                            cs.set_bubble_rect(
-                                                slot.account_index,
-                                                crate::movement::BubbleRect {
-                                                    account_index: slot.account_index,
-                                                    x: target_x,
-                                                    y: slot.target_y,
-                                                    width: bubble_w,
-                                                    height: bubble_w,
-                                                },
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else {
+                        unsafe { finish_drag_and_snap(hwnd, state); }
+                    } else if let Some(app) = &state.app_handle {
                         // Click action (toggle chat)
-                        if let Some(app) = &state.app_handle {
-                            let app_clone = app.clone();
-                            let idx = state.account_index;
-                            tauri::async_runtime::spawn(async move {
-                                if let Some(chat_state) = app_clone.try_state::<Arc<ChatState>>() {
-                                    let _ = crate::platforms::messenger::services::ChatService::toggle_chat(
-                                        &app_clone,
-                                        &chat_state,
-                                        idx,
-                                    );
-                                }
-                            });
-                        }
+                        let app_clone = app.clone();
+                        let idx = state.account_index;
+                        tauri::async_runtime::spawn(async move {
+                            if let Some(chat_state) = app_clone.try_state::<Arc<ChatState>>() {
+                                let _ = crate::platforms::messenger::services::ChatService::toggle_chat(
+                                    &app_clone,
+                                    &chat_state,
+                                    idx,
+                                );
+                            }
+                        });
                     }
                 }
             0
@@ -408,5 +277,137 @@ pub unsafe extern "system" fn native_bubble_wndproc(
         WM_ERASEBKGND => 1,
         WM_PAINT => 0,
         _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) },
+    }
+}
+
+/// Finalize bubble drag interaction, resolve collisions, and snap to target edge.
+unsafe fn finish_drag_and_snap(hwnd: *mut std::ffi::c_void, state: &mut BubbleWindowState) {
+    state.set_layered_alpha(255);
+    let (target_x, target_y, should_dismiss, displaced_slots) = if let Some(app) = &state.app_handle {
+        let screen = crate::movement::get_target_dashboard_screen(Some(app));
+        let config = crate::movement::get_bubble_physics_config(app);
+        if config.is_free_position {
+            let scale = screen.scale_factor;
+            let bubble_size = (config.size * scale) as i32;
+            let dismiss_margin = (config.dismiss_margin * scale) as i32;
+            let dismiss_threshold = screen.y + screen.height - dismiss_margin;
+            let should_dismiss = state.y + bubble_size >= dismiss_threshold;
+            if should_dismiss {
+                (state.x, state.y, true, Vec::new())
+            } else {
+                let all_bubbles = crate::presentation::bubble::get_active_bubble_rects(app, None);
+                let (target_x, target_y) = crate::movement::CollisionResolver::resolve_2d_free_collision(
+                    state.account_index,
+                    state.x,
+                    state.y,
+                    &screen,
+                    &config,
+                    &all_bubbles,
+                );
+                if let Some(cs) = app.try_state::<Arc<ChatState>>() {
+                    cs.set_bubble_rect(
+                        state.account_index,
+                        crate::movement::BubbleRect {
+                            account_index: state.account_index,
+                            x: target_x,
+                            y: target_y,
+                            width: bubble_size,
+                            height: bubble_size,
+                        },
+                    );
+                }
+                (target_x, target_y, false, Vec::new())
+            }
+        } else {
+            let all_bubbles = crate::presentation::bubble::get_active_bubble_rects(app, None);
+            let snap = BubbleMovementEngine::calculate_mutual_snap(
+                &screen,
+                &config,
+                PhysicalPosition { x: state.x, y: state.y },
+                state.account_index,
+                &all_bubbles,
+            );
+            if !snap.should_dismiss {
+                let bubble_w = (config.size * screen.scale_factor) as i32;
+                if let Some(cs) = app.try_state::<Arc<ChatState>>() {
+                    cs.set_bubble_rect(
+                        state.account_index,
+                        crate::movement::BubbleRect {
+                            account_index: state.account_index,
+                            x: snap.target_x,
+                            y: snap.target_y,
+                            width: bubble_w,
+                            height: bubble_w,
+                        },
+                    );
+                }
+            }
+            (snap.target_x, snap.target_y, snap.should_dismiss, snap.column_slots)
+        }
+    } else {
+        let screen = crate::movement::get_target_dashboard_screen(None);
+        let mid_x = screen.x + screen.width / 2;
+        let target_x = if state.x + (state.bubble_size as i32 / 2) < mid_x {
+            screen.x
+        } else {
+            screen.x + screen.width - state.bubble_size as i32
+        };
+        (target_x, state.y, false, Vec::new())
+    };
+    if should_dismiss {
+        unsafe { ShowWindow(hwnd, SW_HIDE); }
+        if let Some(app) = &state.app_handle {
+            let app_clone = app.clone();
+            let idx = state.account_index;
+            tauri::async_runtime::spawn(async move {
+                let _ = crate::commands::bubble::toggle_bubble(app_clone, false, Some(idx)).await;
+            });
+        }
+    } else {
+        crate::operating_systems::windows::bubble::manager::update_cached_bubble_bounds(
+            state.account_index,
+            target_x,
+            target_y,
+            state.bubble_size,
+            state.bubble_size,
+        );
+        state.anim_state.start(state.x, state.y, target_x, target_y, 160);
+        unsafe { SetTimer(hwnd, TIMER_ID_SPRING, 16, None); }
+        if let Some(app) = &state.app_handle {
+            let config = crate::movement::get_bubble_physics_config(app);
+            let screen = crate::movement::get_target_dashboard_screen(Some(app));
+            let bubble_w = (config.size * screen.scale_factor) as i32;
+            for slot in displaced_slots {
+                if slot.account_index != state.account_index {
+                    crate::operating_systems::windows::bubble::NativeBubbleManager::global().dispatch(
+                        crate::operating_systems::windows::bubble::NativeBubbleAction::AnimateTo {
+                            account_index: slot.account_index,
+                            target_x,
+                            target_y: slot.target_y,
+                            duration_ms: 160,
+                        }
+                    );
+                    crate::operating_systems::windows::bubble::manager::update_cached_bubble_bounds(
+                        slot.account_index,
+                        target_x,
+                        slot.target_y,
+                        bubble_w as u32,
+                        bubble_w as u32,
+                    );
+                    if let Some(cs) = app.try_state::<Arc<ChatState>>() {
+                        cs.set_bubble_rect(
+                            slot.account_index,
+                            crate::movement::BubbleRect {
+                                account_index: slot.account_index,
+                                x: target_x,
+                                y: slot.target_y,
+                                width: bubble_w,
+                                height: bubble_w,
+                            },
+                        );
+                    }
+                }
+            }
+        }
     }
 }
