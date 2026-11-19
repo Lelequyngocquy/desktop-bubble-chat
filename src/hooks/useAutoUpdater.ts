@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
 import { getVersion } from "@tauri-apps/api/app";
+import { listen } from "@tauri-apps/api/event";
 import { check, type DownloadEvent } from "@tauri-apps/plugin-updater";
 import { useUpdateStore } from "../stores/updateStore";
 import { useSettingsStore } from "../stores/settingsStore";
 import { systemService } from "../services/systemService";
 import { notificationService } from "../services/notificationService";
+import { IPC_EVENTS } from "../types/ipc";
 
 let hasInitiatedStartupCheck = false;
 
@@ -118,90 +120,42 @@ export function useAutoUpdater() {
     [setError, setLastCheckedTime, setStatus, setUpToDate, setUpdateAvailable],
   );
 
-  const runAutoUpdateFlow = useCallback(async () => {
-    try {
-      const nowStr = new Date().toLocaleTimeString(undefined, {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
-      setLastCheckedTime(nowStr);
-      const update = await check();
-      if (!update) {
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<{ status: string; version?: string; message?: string }>(IPC_EVENTS.UPDATER_STATUS, (event) => {
+      const { status: s, version, message } = event.payload;
+      if (s === "downloading") {
+        setStatus("downloading");
+        if (version) setUpdateAvailable({ availableVersion: version, updateInstance: activeUpdate as any });
+      } else if (s === "installing") {
+        setStatus("installing");
+      } else if (s === "error") {
+        setError(message || "Update error");
+      } else if (s === "up-to-date") {
         setUpToDate();
-        return;
+      } else if (s === "available" && version) {
+        setUpdateAvailable({ availableVersion: version, updateInstance: activeUpdate as any });
       }
-      setUpdateAvailable({
-        availableVersion: update.version,
-        releaseDate: update.date,
-        releaseNotes: update.body,
-        updateInstance: update,
-      });
-      try {
-        const granted = await notificationService.requestPermission();
-        if (granted) {
-          notificationService.sendNotification("DesktopBubbleChat · Bản cập nhật mới", {
-            body: `Phát hiện phiên bản v${update.version}. Ứng dụng đang tự động tải và cập nhật...`,
-          });
-        }
-      } catch (notiErr) {
-        console.warn("[AutoUpdater] Notification dispatch failed:", notiErr);
-      }
-      resetProgress();
-      setStatus("downloading");
-      let total = 0;
-      let downloaded = 0;
-      let lastTime = Date.now();
-      let lastBytes = 0;
-      await update.download((event: DownloadEvent) => {
-        if (event.event === "Started") {
-          total = event.data.contentLength || 0;
-          setProgress(0, total, 0, "0 KB/s");
-        } else if (event.event === "Progress") {
-          downloaded += event.data.chunkLength;
-          const now = Date.now();
-          const elapsed = (now - lastTime) / 1000;
-          let speedStr: string | undefined = undefined;
-          if (elapsed >= 0.4) {
-            const bytesDiff = downloaded - lastBytes;
-            const speed = bytesDiff / elapsed;
-            speedStr = formatSpeed(speed);
-            lastTime = now;
-            lastBytes = downloaded;
-          }
-          const pct = total > 0 ? Math.min(100, Math.round((downloaded / total) * 100)) : 0;
-          setProgress(downloaded, total, pct, speedStr);
-        } else if (event.event === "Finished") {
-          setProgress(total, total, 100, "Done");
-          setStatus("downloaded");
-        }
-      });
-      setStatus("installing");
-      await update.install({ restartAfterInstall: true });
-    } catch (err) {
-      console.error("[AutoUpdater] Auto-update flow error:", err);
-      const msg = err instanceof Error ? err.message : "Auto-update failed.";
-      setError(msg);
-    }
-  }, [resetProgress, setError, setLastCheckedTime, setProgress, setStatus, setUpToDate, setUpdateAvailable]);
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [activeUpdate, setError, setStatus, setUpToDate, setUpdateAvailable]);
 
   useEffect(() => {
     if (!hasInitiatedStartupCheck) {
       hasInitiatedStartupCheck = true;
       const timer = setTimeout(async () => {
         const currentMode = useSettingsStore.getState().updateMode;
-        if (currentMode === "auto") {
-          await runAutoUpdateFlow();
-        } else if (useUpdateStore.getState().autoCheckOnStartup) {
+        if (currentMode === "manual" && useUpdateStore.getState().autoCheckOnStartup) {
           await checkForUpdates(true);
         }
-      }, 2500);
+      }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [checkForUpdates, runAutoUpdateFlow]);
+  }, [checkForUpdates]);
 
   const startDownload = useCallback(async () => {
     if (!activeUpdate) {

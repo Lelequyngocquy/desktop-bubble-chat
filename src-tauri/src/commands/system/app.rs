@@ -104,6 +104,19 @@ pub fn set_theme_mode(
     Ok(())
 }
 
+/// Sets application update mode (auto or manual) in user configuration cache
+#[tauri::command]
+pub fn set_update_mode(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<crate::state::ChatState>>,
+    mode: String,
+) -> Result<(), String> {
+    state.update_user_config(&app, |c| {
+        c.update_mode = Some(mode);
+    });
+    Ok(())
+}
+
 /// Exits application completely
 #[tauri::command]
 pub fn exit_app(app: AppHandle) {

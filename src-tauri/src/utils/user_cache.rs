@@ -24,10 +24,16 @@ pub struct AppUserConfig {
     pub bubble_position_mode: String,
     #[serde(default = "default_authenticated_accounts")]
     pub authenticated_accounts: Vec<u32>,
+    #[serde(default = "default_update_mode")]
+    pub update_mode: Option<String>,
 }
 
 fn default_authenticated_accounts() -> Vec<u32> {
     vec![1]
+}
+
+fn default_update_mode() -> Option<String> {
+    Some("auto".to_string())
 }
 
 fn default_locale() -> Option<String> {
@@ -61,6 +67,7 @@ impl Default for AppUserConfig {
             theme_mode: Some("system".to_string()),
             bubble_position_mode: "auto_tuck".to_string(),
             authenticated_accounts: vec![1],
+            update_mode: Some("auto".to_string()),
         }
     }
 }
@@ -81,6 +88,9 @@ impl AppUserConfig {
     }
     pub fn is_free_position_mode(&self) -> bool {
         self.bubble_position_mode == "free"
+    }
+    pub fn is_auto_update_enabled(&self) -> bool {
+        self.update_mode.as_deref().unwrap_or("auto") == "auto"
     }
 }
 
@@ -134,6 +144,7 @@ mod tests {
             theme_mode: Some("dark".to_string()),
             bubble_position_mode: "free".to_string(),
             authenticated_accounts: vec![1, 2],
+            update_mode: Some("manual".to_string()),
         };
         let serialized = serde_json::to_string(&config).unwrap();
         let deserialized: AppUserConfig = serde_json::from_str(&serialized).unwrap();
@@ -151,6 +162,7 @@ mod tests {
         assert_eq!(deserialized.is_auto_trim_enabled, false);
         assert_eq!(deserialized.is_free_position_mode(), true);
         assert_eq!(deserialized.bubble_position_mode, "free");
+        assert_eq!(deserialized.is_auto_update_enabled(), false);
         let sm_config = AppUserConfig {
             bubble_size: "sm".to_string(),
             ..AppUserConfig::default()
@@ -160,6 +172,7 @@ mod tests {
         assert_eq!(sm_config.current_theme_mode(), "system");
         assert_eq!(sm_config.is_auto_trim_enabled, true);
         assert_eq!(sm_config.is_free_position_mode(), false);
+        assert_eq!(sm_config.is_auto_update_enabled(), true);
         let legacy_json = r#"{"isDashboardOpen":true,"activeBubbleAccounts":[1],"isNotificationsEnabled":true,"mutedAccounts":[],"bubbleSize":"md","isAlwaysOnTop":true,"isAutoStart":false}"#;
         let legacy_config: AppUserConfig = serde_json::from_str(legacy_json).unwrap();
         assert_eq!(legacy_config.is_auto_trim_enabled, true);
@@ -167,5 +180,6 @@ mod tests {
         assert_eq!(legacy_config.is_free_position_mode(), false);
         assert_eq!(legacy_config.bubble_position_mode, "auto_tuck");
         assert_eq!(legacy_config.authenticated_accounts, vec![1]);
+        assert_eq!(legacy_config.is_auto_update_enabled(), true);
     }
 }

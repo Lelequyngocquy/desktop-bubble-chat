@@ -74,7 +74,7 @@ interface SettingsState {
   toggleAutoTrim: () => void;
   setThemeMode: (mode: ThemeMode, skipIpc?: boolean) => void;
   setCloseWindowAction: (action: CloseWindowAction) => void;
-  setUpdateMode: (mode: UpdateMode) => void;
+  setUpdateMode: (mode: UpdateMode, skipIpc?: boolean) => void;
   setChatWindowMode: (accountIndex: number, accountId: string, mode: ChatWindowSizeMode) => void | Promise<void>;
   updateChatWindowSize: (accountIndex: number, width: number, height: number) => void;
 }
@@ -164,7 +164,12 @@ export const useSettingsStore = create<SettingsState>()(
           }
         }
       },
-      setUpdateMode: (mode) => set({ updateMode: mode }),
+      setUpdateMode: (mode, skipIpc = false) => {
+        set({ updateMode: mode });
+        if (!skipIpc) {
+          invoke(IPC_COMMANDS.SET_UPDATE_MODE, { mode }).catch(() => {});
+        }
+      },
       setChatWindowMode: async (accountIndex, accountId, mode) => {
         set((state) => {
           const existing = state.chatWindowSettings.find((s) => s.accountIndex === accountIndex);

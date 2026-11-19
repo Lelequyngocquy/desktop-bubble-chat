@@ -25,6 +25,7 @@ export const IPC_COMMANDS = {
   SET_APP_LANGUAGE: "set_app_language",
   SET_AUTO_TRIM_ENABLED: "set_auto_trim_enabled",
   SET_THEME_MODE: "set_theme_mode",
+  SET_UPDATE_MODE: "set_update_mode",
 
   // Performance Commands
   GET_PERFORMANCE_SNAPSHOT: "get_performance_snapshot",
@@ -87,6 +88,7 @@ export const IPC_EVENTS = {
   SHOW_CLOSE_DIALOG: "show-close-dialog",
   CHAT_WINDOW_RESIZED: "chat-window-resized",
   CHAT_PIN_CHANGED: "chat-pin-changed",
+  UPDATER_STATUS: "updater-status",
 } as const;
 
 export type IpcEvent = (typeof IPC_EVENTS)[keyof typeof IPC_EVENTS];

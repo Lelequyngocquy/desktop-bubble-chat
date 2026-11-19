@@ -81,6 +81,12 @@ export function useDashboardBootstrap() {
             if (themeMode && (themeMode === "light" || themeMode === "dark" || themeMode === "system")) {
               useSettingsStore.getState().setThemeMode(themeMode as any, true);
             }
+            const updateMode = userSettings.updateMode || userSettings.update_mode;
+            if (updateMode && (updateMode === "auto" || updateMode === "manual")) {
+              useSettingsStore.getState().setUpdateMode(updateMode, true);
+            } else {
+              systemService.setUpdateMode(useSettingsStore.getState().updateMode);
+            }
           }
         } catch (err) {
           feLog.warn("[useDashboardBootstrap] Unable to sync user settings from cache:", err);

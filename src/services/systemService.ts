@@ -141,12 +141,25 @@ export const systemService = {
     themeMode?: string;
     bubble_position_mode?: "auto_tuck" | "free";
     bubblePositionMode?: "auto_tuck" | "free";
+    update_mode?: "auto" | "manual";
+    updateMode?: "auto" | "manual";
   } | null> {
     try {
       return await invoke(IPC_COMMANDS.GET_USER_SETTINGS);
     } catch (err) {
       console.warn("[SystemService] Failed to get user settings:", err);
       return null;
+    }
+  },
+
+  /**
+   * Sets update mode (auto or manual) in user configuration cache.
+   */
+  async setUpdateMode(mode: "auto" | "manual"): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.SET_UPDATE_MODE, { mode });
+    } catch (err) {
+      console.warn("[SystemService] Failed to set update mode:", err);
     }
   },
 
