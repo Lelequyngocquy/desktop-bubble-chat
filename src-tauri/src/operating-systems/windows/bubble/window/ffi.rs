@@ -64,6 +64,7 @@ unsafe extern "system" {
     ) -> usize;
     pub fn KillTimer(hWnd: *mut std::ffi::c_void, uIDEvent: usize) -> i32;
     pub fn GetSystemMetrics(nIndex: i32) -> i32;
+    pub fn ValidateRect(hWnd: *mut std::ffi::c_void, lpRect: *const RECT) -> i32;
 }
 
 #[link(name = "gdi32")]

@@ -275,7 +275,10 @@ pub unsafe extern "system" fn native_bubble_wndproc(
         }
         WM_DESTROY => 0,
         WM_ERASEBKGND => 1,
-        WM_PAINT => 0,
+        WM_PAINT => {
+            unsafe { ValidateRect(hwnd, std::ptr::null()); }
+            0
+        }
         _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) },
     }
 }
