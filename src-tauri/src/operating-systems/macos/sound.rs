@@ -1,25 +1,30 @@
 pub struct MacOSSoundPlayer;
 
 impl MacOSSoundPlayer {
-    /// Plays in-memory WAV buffer asynchronously via AppKit NSSound
-    pub fn play_wav(wav: &[u8]) {
+    /// Plays static in-memory WAV buffer asynchronously via AppKit NSSound
+    pub fn play_wav(wav: &'static [u8]) {
         #[cfg(target_os = "macos")]
         {
-            use cocoa::base::{id, nil};
+            use cocoa::base::{id, nil, BOOL, NO};
             use objc::{class, msg_send, sel, sel_impl};
-            if wav.is_empty() { return; }
-            unsafe {
+            if wav.is_empty() {
+                return;
+            }
+            super::bubble::window::ffi::run_on_macos_main_thread(move || unsafe {
                 let ns_data_class = class!(NSData);
-                let data: id = msg_send![ns_data_class, dataWithBytes:wav.as_ptr() length:wav.len()];
+                let data: id = msg_send![ns_data_class, dataWithBytes: wav.as_ptr() length: wav.len()];
                 if data != nil {
                     let sound_class = class!(NSSound);
                     let alloc_sound: id = msg_send![sound_class, alloc];
-                    let sound: id = msg_send![alloc_sound, initWithData:data];
+                    let sound: id = msg_send![alloc_sound, initWithData: data];
                     if sound != nil {
-                        let _: bool = msg_send![sound, play];
+                        let _: BOOL = msg_send![sound, play];
+                        let _: () = msg_send![sound, autorelease];
+                    } else {
+                        let _ = NO;
                     }
                 }
-            }
+            });
         }
         #[cfg(not(target_os = "macos"))]
         {

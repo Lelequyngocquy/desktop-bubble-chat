@@ -111,6 +111,8 @@ function updatePinButtonUi(isPinned) {
 function togglePinChatState() {
   const nextPinned = !window.__IS_PINNED__;
   updatePinButtonUi(nextPinned);
+  const accountIndex = window.__ACCOUNT_INDEX__ || 1;
+  invokeTauri("toggle_pin_chat", { accountIndex, pinned: nextPinned }).catch(() => {});
 }
 
 function ensurePinButtonInDom() {
@@ -137,7 +139,32 @@ function ensurePinButtonInDom() {
   }
 }
 
+function installDocumentTitlePinHook() {
+  if (window.__PIN_TITLE_HOOK_INSTALLED__) return;
+  window.__PIN_TITLE_HOOK_INSTALLED__ = true;
+  try {
+    const desc = Object.getOwnPropertyDescriptor(Document.prototype, "title");
+    if (desc && typeof desc.get === "function" && typeof desc.set === "function") {
+      Object.defineProperty(document, "title", {
+        configurable: true,
+        enumerable: true,
+        get() {
+          return desc.get.call(document);
+        },
+        set(val) {
+          let nextVal = String(val ?? "");
+          if (window.__IS_PINNED__ && !nextVal.includes(PIN_MARK)) {
+            nextVal += PIN_MARK;
+          }
+          desc.set.call(document, nextVal);
+        },
+      });
+    }
+  } catch (e) {}
+}
+
 function setupTitleObserver() {
+  installDocumentTitlePinHook();
   const titleEl = document.querySelector("title");
   if (titleEl) {
     const observer = new MutationObserver(() => {
@@ -162,6 +189,7 @@ function setupPinButtonLifecycle() {
 
 if (typeof window !== "undefined") {
   window.__updatePinButtonUi = updatePinButtonUi;
+  window.__ensurePinButtonInDom = ensurePinButtonInDom;
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", setupPinButtonLifecycle);
   } else {

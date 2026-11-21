@@ -64,6 +64,19 @@ pub fn save_user_settings(
     Ok(())
 }
 
+/// Updates display language in SSOT user cache, refreshes tray, and broadcasts settings snapshot
+pub fn apply_app_language(
+    app: &AppHandle,
+    state: &crate::state::ChatState,
+    language: &str,
+) {
+    let normalized = if language == "vi" { "vi" } else { "en" };
+    state.update_user_config(app, |c| {
+        c.locale = Some(normalized.to_string());
+    });
+    let _ = crate::tray::update_tray_menu(app);
+}
+
 /// Sets application display language, updates persistent cache, and updates system tray
 #[tauri::command]
 pub fn set_app_language(
@@ -71,10 +84,7 @@ pub fn set_app_language(
     state: tauri::State<'_, Arc<crate::state::ChatState>>,
     language: String,
 ) -> Result<(), String> {
-    state.update_user_config(&app, |c| {
-        c.locale = Some(language.clone());
-    });
-    let _ = crate::tray::update_tray_menu(&app);
+    apply_app_language(&app, &state, &language);
     Ok(())
 }
 
@@ -98,6 +108,9 @@ pub fn set_theme_mode(
     state: tauri::State<'_, Arc<crate::state::ChatState>>,
     theme_mode: String,
 ) -> Result<(), String> {
+    if !matches!(theme_mode.as_str(), "light" | "dark" | "system") {
+        return Err(format!("Invalid theme_mode '{}': expected light, dark, or system", theme_mode));
+    }
     state.update_user_config(&app, |c| {
         c.theme_mode = Some(theme_mode);
     });
@@ -111,9 +124,40 @@ pub fn set_update_mode(
     state: tauri::State<'_, Arc<crate::state::ChatState>>,
     mode: String,
 ) -> Result<(), String> {
+    if !matches!(mode.as_str(), "auto" | "manual") {
+        return Err(format!("Invalid update_mode '{}': expected auto or manual", mode));
+    }
     state.update_user_config(&app, |c| {
         c.update_mode = Some(mode);
     });
+    Ok(())
+}
+
+/// Applies global shortcut registration state for bubble toggle hotkeys
+pub fn apply_global_shortcut_registration(app: &AppHandle, enabled: bool) {
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+    for sc in ["CommandOrControl+Shift+M", "Super+Shift+M"] {
+        if let Ok(shortcut) = sc.parse::<Shortcut>() {
+            if enabled {
+                let _ = app.global_shortcut().register(shortcut);
+            } else {
+                let _ = app.global_shortcut().unregister(shortcut);
+            }
+        }
+    }
+}
+
+/// Enables or disables global bubble toggle shortcuts and persists the setting
+#[tauri::command]
+pub fn set_global_shortcut_enabled(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<crate::state::ChatState>>,
+    enabled: bool,
+) -> Result<(), String> {
+    state.update_user_config(&app, |c| {
+        c.is_global_shortcut_enabled = enabled;
+    });
+    apply_global_shortcut_registration(&app, enabled);
     Ok(())
 }
 
@@ -130,7 +174,7 @@ pub fn exit_app(app: AppHandle) {
     for (_, window) in app.webview_windows() {
         let _ = window.destroy();
     }
-    std::process::exit(0);
+    app.exit(0);
 }
 
 /// Restarts application (used for updates or resets)
@@ -158,9 +202,8 @@ pub fn set_always_on_top(app: AppHandle, enabled: bool) -> Result<(), String> {
     if let Some(main_win) = app.get_webview_window("main") {
         let _ = main_win.set_always_on_top(false);
     }
-    #[cfg(target_os = "windows")]
     crate::operating_systems::current::bubble::set_native_bubble_always_on_top(enabled);
-    for idx in 1..=5 {
+    for idx in 1..=crate::state::MAX_ACCOUNTS {
         let bubble_label = format!("bubble-{:02}", idx);
         if let Some(w) = app.get_webview_window(&bubble_label) {
             let _ = w.set_always_on_top(enabled);
@@ -180,21 +223,32 @@ pub fn set_always_on_top(app: AppHandle, enabled: bool) -> Result<(), String> {
 
 static LAST_OPENED_URL: std::sync::Mutex<Option<(String, std::time::Instant)>> = std::sync::Mutex::new(None);
 
+/// Validates external HTTP(S) URL strictly and avoids shell command injection
+fn validate_external_http_url(raw: &str) -> Result<String, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed.chars().any(|c| c.is_control() || c.is_whitespace()) {
+        return Err("Invalid external URL".into());
+    }
+    let parsed = tauri::Url::parse(trimmed).map_err(|_| "Invalid external URL".to_string())?;
+    if parsed.scheme() != "http" && parsed.scheme() != "https" {
+        return Err("Invalid URL scheme".into());
+    }
+    Ok(parsed.to_string())
+}
+
 /// Opens external URL safely using default OS browser
 #[tauri::command]
 pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
-    if !url.starts_with("http://") && !url.starts_with("https://") {
-        return Err("Invalid URL scheme".into());
-    }
+    let safe_url = validate_external_http_url(&url)?;
     if let Ok(mut guard) = LAST_OPENED_URL.lock() {
         if let Some((ref last_url, ref last_time)) = *guard
-            && last_url == &url && last_time.elapsed() < std::time::Duration::from_millis(1000) {
+            && last_url == &safe_url && last_time.elapsed() < std::time::Duration::from_millis(1000) {
                 return Ok(());
             }
-        *guard = Some((url.clone(), std::time::Instant::now()));
+        *guard = Some((safe_url.clone(), std::time::Instant::now()));
     }
     use tauri_plugin_opener::OpenerExt;
-    if app.opener().open_url(&url, None::<&str>).is_ok() {
+    if app.opener().open_url(&safe_url, None::<&str>).is_ok() {
         return Ok(());
     }
     #[cfg(target_os = "windows")]
@@ -202,7 +256,7 @@ pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
         use std::ffi::OsStr;
         use std::os::windows::ffi::OsStrExt;
         let wide_op: Vec<u16> = OsStr::new("open").encode_wide().chain(std::iter::once(0)).collect();
-        let wide_url: Vec<u16> = OsStr::new(&url).encode_wide().chain(std::iter::once(0)).collect();
+        let wide_url: Vec<u16> = OsStr::new(&safe_url).encode_wide().chain(std::iter::once(0)).collect();
         #[link(name = "shell32")]
         unsafe extern "system" {
             fn ShellExecuteW(
@@ -218,12 +272,11 @@ pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
         if res > 32 {
             return Ok(());
         }
-        let _ = std::process::Command::new("cmd").args(["/c", "start", "", &url]).spawn();
-        Ok(())
+        Err(format!("ShellExecuteW failed with code {}", res))
     }
     #[cfg(not(target_os = "windows"))]
     {
-        return Ok(());
+        Err("Failed to open external URL".to_string())
     }
 }
 
@@ -271,9 +324,10 @@ pub fn open_profiles_folder(app: AppHandle) -> Result<(), String> {
     }
 }
 
-/// Forwards log messages from Frontend / Injected scripts to terminal and log file
+/// Forwards log messages from Frontend / Injected scripts to terminal and rotated log file
 #[tauri::command]
 pub fn log_frontend(app: AppHandle, level: Option<String>, message: String) {
+    const MAX_LOG_BYTES: u64 = 2 * 1024 * 1024;
     let lvl = level.as_deref().unwrap_or("info");
     let tag = match lvl.to_lowercase().as_str() {
         "error" => "\x1b[31m[FE - ERROR]\x1b[0m",
@@ -286,10 +340,32 @@ pub fn log_frontend(app: AppHandle, level: Option<String>, message: String) {
         let log_dir = data_dir.join("logs");
         let _ = std::fs::create_dir_all(&log_dir);
         let log_file = log_dir.join("messenger_inject.log");
+        if let Ok(meta) = std::fs::metadata(&log_file)
+            && meta.len() >= MAX_LOG_BYTES {
+                let rotated = log_dir.join("messenger_inject.log.old");
+                let _ = std::fs::remove_file(&rotated);
+                let _ = std::fs::rename(&log_file, &rotated);
+            }
         use std::io::Write;
         if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_file) {
             let now = crate::utils::time::now_millis();
             let _ = writeln!(file, "[{}] [{}] {}", now, lvl.to_uppercase(), message);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_external_http_url() {
+        assert!(validate_external_http_url("https://github.com/test?a=1").is_ok());
+        assert!(validate_external_http_url("http://localhost:1420").is_ok());
+        assert!(validate_external_http_url("javascript:alert(1)").is_err());
+        assert!(validate_external_http_url("file:///C:/Windows/win.ini").is_err());
+        assert!(validate_external_http_url("https://example.com & calc.exe").is_err());
+        assert!(validate_external_http_url("https://example.com\ncalc").is_err());
+        assert!(validate_external_http_url("").is_err());
     }
 }

@@ -1,24 +1,46 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { HelpCircle, Send, CheckCircle2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CommonLargeCard } from "../../common/index";
 import { useUpdateStore } from "../../../stores/updateStore";
+import { systemService } from "../../../services/systemService";
+
+const GITHUB_ISSUES_URL = "https://github.com/Lelequyngocquy/desktop-bubble-chat/issues/new";
 
 export const FeedbackSection: React.FC = () => {
-  const { t } = useTranslation("help");
+  const { t, i18n } = useTranslation("help");
   const currentVersion = useUpdateStore((s) => s.currentVersion);
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
-  const handleSendFeedback = (e: React.FormEvent) => {
+  const sentTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    return () => {
+      clearTimeout(sentTimerRef.current);
+    };
+  }, []);
+  const handleSendFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!feedbackText.trim()) return;
+    const trimmed = feedbackText.trim();
+    if (!trimmed) return;
+    const firstLine = trimmed.split(/\r?\n/)[0].slice(0, 72);
+    const title = `[Feedback] ${firstLine}`;
+    const body = [
+      trimmed,
+      "",
+      "---",
+      `App Version: v${currentVersion || "unknown"}`,
+      `Language: ${i18n.language}`,
+      `Platform: ${typeof navigator !== "undefined" ? navigator.userAgent : "Desktop"}`,
+    ].join("\n");
+    const issueUrl = `${GITHUB_ISSUES_URL}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+    await systemService.openExternalUrl(issueUrl);
     setFeedbackSent(true);
     setFeedbackText("");
-    setTimeout(() => {
+    clearTimeout(sentTimerRef.current);
+    sentTimerRef.current = setTimeout(() => {
       setFeedbackSent(false);
-    }, 4000);
+    }, 5000);
   };
-
   return (
     <CommonLargeCard
       icon={<HelpCircle className="w-4 h-4 text-primary" />}
@@ -35,10 +57,10 @@ export const FeedbackSection: React.FC = () => {
           rows={3}
           className="w-full p-3 text-body bg-background-subtle text-content-primary placeholder:text-content-muted border border-border rounded-panel focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-none"
         />
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           {feedbackSent ? (
             <div className="flex items-center gap-1.5 text-status-success text-small font-medium">
-              <CheckCircle2 className="w-4 h-4" />
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>{t("feedback_thanks")}</span>
             </div>
           ) : (
@@ -49,7 +71,7 @@ export const FeedbackSection: React.FC = () => {
           <button
             type="submit"
             disabled={!feedbackText.trim()}
-            className="px-4 py-2 bg-primary hover:bg-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed text-content-inverse text-small font-medium rounded-panel flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="px-4 py-2 bg-primary hover:bg-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed text-content-inverse text-small font-medium rounded-panel flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
           >
             <Send className="w-3.5 h-3.5" />
             <span>{t("send_btn")}</span>

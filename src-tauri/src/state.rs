@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 #[derive(Clone, Debug, Default)]
@@ -26,12 +26,9 @@ pub const MAX_ACCOUNTS: u32 = 5;
 
 /// Multi-account SSOT state for chat and authentication
 pub struct ChatState {
-    pub last_blur_time: AtomicI64,
-    pub is_auth_mode: AtomicBool,
     pub auth_windows: Mutex<HashSet<String>>,
     pub account_auth: Mutex<HashMap<u32, AccountAuthInfo>>,
     pub is_always_on_top: AtomicBool,
-    pub previously_visible_bubbles: Mutex<Vec<u32>>,
     pub bypass_close_guard: Mutex<HashSet<String>>,
     pub transition_locks: Mutex<HashSet<u32>>,
     pub suspended_accounts: Mutex<HashSet<u32>>,
@@ -44,8 +41,11 @@ pub struct ChatState {
     pub pinned_accounts: Mutex<HashSet<u32>>,
     pub chat_window_sizes: Mutex<HashMap<u32, (u32, u32)>>,
     pub user_config: Mutex<crate::utils::user_cache::AppUserConfig>,
+    pub user_cache_write_lock: Mutex<()>,
     pub has_shown_tray_notification: AtomicBool,
     pub active_dialog_windows: Mutex<HashSet<String>>,
+    pub chat_anim_tokens: Mutex<HashMap<u32, u64>>,
+    pub session_clean_tokens: Mutex<HashMap<u32, u64>>,
 }
 
 impl Default for ChatState {
@@ -55,12 +55,9 @@ impl Default for ChatState {
             suspended.insert(idx);
         }
         Self {
-            last_blur_time: AtomicI64::new(0),
-            is_auth_mode: AtomicBool::new(false),
             auth_windows: Mutex::new(HashSet::new()),
             account_auth: Mutex::new(HashMap::new()),
             is_always_on_top: AtomicBool::new(true),
-            previously_visible_bubbles: Mutex::new(Vec::new()),
             bypass_close_guard: Mutex::new(HashSet::new()),
             transition_locks: Mutex::new(HashSet::new()),
             suspended_accounts: Mutex::new(suspended),
@@ -73,8 +70,11 @@ impl Default for ChatState {
             pinned_accounts: Mutex::new(HashSet::new()),
             chat_window_sizes: Mutex::new(HashMap::new()),
             user_config: Mutex::new(crate::utils::user_cache::AppUserConfig::default()),
+            user_cache_write_lock: Mutex::new(()),
             has_shown_tray_notification: AtomicBool::new(false),
             active_dialog_windows: Mutex::new(HashSet::new()),
+            chat_anim_tokens: Mutex::new(HashMap::new()),
+            session_clean_tokens: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -112,15 +112,13 @@ impl ChatState {
                 set.remove(label);
             }
         }
-        self.is_auth_mode.store(is_auth, Ordering::SeqCst);
     }
 
     pub fn is_window_in_auth_mode(&self, label: &str) -> bool {
-        if let Ok(set) = self.auth_windows.lock()
-            && set.contains(label) {
-                return true;
-            }
-        self.is_auth_mode.load(Ordering::SeqCst)
+        if let Ok(set) = self.auth_windows.lock() {
+            return set.contains(label);
+        }
+        false
     }
 
     pub fn set_account_auth(&self, account_index: u32, connected: bool, user_id: Option<String>) {
@@ -148,27 +146,6 @@ impl ChatState {
         if let Ok(mut map) = self.account_auth.lock() {
             map.remove(&account_index);
         }
-    }
-
-    pub fn has_any_connected_account(&self) -> bool {
-        if let Ok(map) = self.account_auth.lock() {
-            return map.values().any(|info| info.connected);
-        }
-        false
-    }
-
-    pub fn save_previously_visible_bubbles(&self, indices: Vec<u32>) {
-        if let Ok(mut prev) = self.previously_visible_bubbles.lock()
-            && !indices.is_empty() {
-                *prev = indices;
-            }
-    }
-
-    pub fn get_previously_visible_bubbles(&self) -> Vec<u32> {
-        if let Ok(prev) = self.previously_visible_bubbles.lock() {
-            return prev.clone();
-        }
-        Vec::new()
     }
 
     pub fn set_bypass_close_guard(&self, label: &str, bypass: bool) {
@@ -281,12 +258,6 @@ impl ChatState {
         0
     }
 
-    pub fn clear_unread_count(&self, account_index: u32) {
-        if let Ok(mut map) = self.unread_counts.lock() {
-            map.insert(account_index, 0);
-        }
-    }
-
     pub fn set_account_muted(&self, account_index: u32, muted: bool) {
         if let Ok(mut set) = self.muted_accounts.lock() {
             if muted {
@@ -363,8 +334,8 @@ impl ChatState {
     pub fn set_user_config(&self, app: &tauri::AppHandle, config: crate::utils::user_cache::AppUserConfig) {
         if let Ok(mut lock) = self.user_config.lock() {
             *lock = config.clone();
-            crate::utils::user_cache::save_user_cache(app, &config);
         }
+        self.persist_and_emit_user_config(app);
     }
 
     /// Updates user config with closure and saves to disk
@@ -374,8 +345,43 @@ impl ChatState {
     {
         if let Ok(mut lock) = self.user_config.lock() {
             updater(&mut lock);
-            crate::utils::user_cache::save_user_cache(app, &lock);
         }
+        self.persist_and_emit_user_config(app);
+    }
+
+    /// Serializes disk persistence and settings broadcast without holding user_config lock across I/O
+    fn persist_and_emit_user_config(&self, app: &tauri::AppHandle) {
+        let _write_guard = self.user_cache_write_lock.lock();
+        let snapshot = if let Ok(lock) = self.user_config.lock() {
+            Some(lock.clone())
+        } else {
+            None
+        };
+        if let Some(config) = snapshot {
+            crate::utils::user_cache::save_user_cache(app, &config);
+            use tauri::Emitter;
+            let _ = app.emit("user-settings-changed", config);
+        }
+    }
+
+    /// Validates that an optional account index falls within the supported range
+    pub fn validate_account_index(account_index: Option<u32>) -> Result<u32, String> {
+        let idx = account_index.unwrap_or(1);
+        if (1..=MAX_ACCOUNTS).contains(&idx) {
+            Ok(idx)
+        } else {
+            Err(format!("Invalid account_index {}: must be within 1..={}", idx, MAX_ACCOUNTS))
+        }
+    }
+
+    /// Returns true if a recent message was already recorded for this account inside the window
+    pub fn has_recent_message_within(&self, account_index: u32, now_ms: i64, window_ms: u64) -> bool {
+        if let Ok(list) = self.recent_messages.lock() {
+            return list
+                .iter()
+                .any(|m| m.account_index == account_index && now_ms.abs_diff(m.timestamp) < window_ms);
+        }
+        false
     }
 
     /// Adds incoming message to recent list (max 20 items, 3000ms sliding window deduplication)
@@ -385,7 +391,7 @@ impl ChatState {
                 m.account_index == msg.account_index
                     && m.sender_name == msg.sender_name
                     && m.body == msg.body
-                    && (msg.timestamp - m.timestamp).abs() < 3000
+                    && msg.timestamp.abs_diff(m.timestamp) < 3000
             });
             if is_duplicate {
                 return false;
@@ -423,6 +429,46 @@ impl ChatState {
     /// Marks tray notification as shown once per session
     pub fn mark_tray_notification_shown(&self) -> bool {
         self.has_shown_tray_notification.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok()
+    }
+
+    /// Increments and returns the next per-account token for monotonic cancellation checks
+    fn advance_token(map_lock: &Mutex<HashMap<u32, u64>>, account_index: u32) -> u64 {
+        if let Ok(mut map) = map_lock.lock() {
+            let entry = map.entry(account_index).or_insert(0);
+            *entry = entry.wrapping_add(1);
+            *entry
+        } else {
+            0
+        }
+    }
+
+    /// Checks whether a per-account monotonic token is still current
+    fn is_token_valid(map_lock: &Mutex<HashMap<u32, u64>>, account_index: u32, token: u64) -> bool {
+        if let Ok(map) = map_lock.lock() {
+            map.get(&account_index).copied().unwrap_or(0) == token
+        } else {
+            false
+        }
+    }
+
+    /// Increments and returns the next chat animation token for debounce cancellation
+    pub fn next_chat_anim_token(&self, account_index: u32) -> u64 {
+        Self::advance_token(&self.chat_anim_tokens, account_index)
+    }
+
+    /// Verifies if a specific chat animation token is still valid
+    pub fn is_chat_anim_token_valid(&self, account_index: u32, token: u64) -> bool {
+        Self::is_token_valid(&self.chat_anim_tokens, account_index, token)
+    }
+
+    /// Increments and returns the next session clean token to cancel stale wipe tasks
+    pub fn next_session_clean_token(&self, account_index: u32) -> u64 {
+        Self::advance_token(&self.session_clean_tokens, account_index)
+    }
+
+    /// Verifies if a session clean token is still current
+    pub fn is_session_clean_token_valid(&self, account_index: u32, token: u64) -> bool {
+        Self::is_token_valid(&self.session_clean_tokens, account_index, token)
     }
 }
 
@@ -501,5 +547,88 @@ mod tests {
         let remaining = state.get_recent_messages(None);
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].account_index, 2);
+    }
+
+    #[test]
+    fn test_chat_animation_token_lifecycle() {
+        let state = ChatState::default();
+        let tok1 = state.next_chat_anim_token(1);
+        assert_eq!(tok1, 1);
+        assert!(state.is_chat_anim_token_valid(1, tok1));
+        assert!(!state.is_chat_anim_token_valid(1, 999));
+        let tok2 = state.next_chat_anim_token(1);
+        assert_eq!(tok2, 2);
+        assert!(!state.is_chat_anim_token_valid(1, tok1));
+        assert!(state.is_chat_anim_token_valid(1, tok2));
+        let tok_other = state.next_chat_anim_token(2);
+        assert_eq!(tok_other, 1);
+        assert!(state.is_chat_anim_token_valid(2, tok_other));
+        assert!(state.is_chat_anim_token_valid(1, tok2));
+    }
+
+    #[test]
+    fn test_per_window_auth_mode_isolation() {
+        let state = ChatState::default();
+        state.set_window_auth_mode("chat-messenger-02", true);
+        assert!(state.is_window_in_auth_mode("chat-messenger-02"));
+        assert!(!state.is_window_in_auth_mode("chat-messenger-01"));
+        state.set_window_auth_mode("chat-messenger-02", false);
+        assert!(!state.is_window_in_auth_mode("chat-messenger-02"));
+    }
+
+    #[test]
+    fn test_session_clean_token_lifecycle() {
+        let state = ChatState::default();
+        let tok1 = state.next_session_clean_token(1);
+        assert_eq!(tok1, 1);
+        assert!(state.is_session_clean_token_valid(1, tok1));
+        let tok2 = state.next_session_clean_token(1);
+        assert_eq!(tok2, 2);
+        assert!(!state.is_session_clean_token_valid(1, tok1));
+        assert!(state.is_session_clean_token_valid(1, tok2));
+    }
+
+    #[test]
+    fn test_atomic_save_user_cache_to_path() {
+        let temp_dir = std::env::temp_dir().join(format!("dbc_cache_test_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        let target_path = temp_dir.join("user_cache.json");
+        let mut cfg = crate::utils::user_cache::AppUserConfig::default();
+        cfg.locale = Some("en".into());
+        crate::utils::user_cache::save_user_cache_to_path(&target_path, &cfg).expect("initial save succeeds");
+        cfg.locale = Some("vi".into());
+        crate::utils::user_cache::save_user_cache_to_path(&target_path, &cfg).expect("atomic overwrite succeeds");
+        let raw = std::fs::read_to_string(&target_path).expect("target readable");
+        let parsed: crate::utils::user_cache::AppUserConfig = serde_json::from_str(&raw).expect("valid json");
+        assert_eq!(parsed.locale.as_deref(), Some("vi"));
+        let leftover_tmp = std::fs::read_dir(&temp_dir).expect("dir readable").filter_map(|e| e.ok()).any(|e| e.file_name().to_string_lossy().ends_with(".tmp"));
+        assert!(!leftover_tmp, "temp file should be renamed cleanly");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_validate_account_index_bounds() {
+        assert_eq!(ChatState::validate_account_index(None), Ok(1));
+        assert_eq!(ChatState::validate_account_index(Some(1)), Ok(1));
+        assert_eq!(ChatState::validate_account_index(Some(MAX_ACCOUNTS)), Ok(MAX_ACCOUNTS));
+        assert!(ChatState::validate_account_index(Some(0)).is_err());
+        assert!(ChatState::validate_account_index(Some(MAX_ACCOUNTS + 1)).is_err());
+    }
+
+    #[test]
+    fn test_has_recent_message_within_window() {
+        let state = ChatState::default();
+        assert!(!state.has_recent_message_within(1, 5000, 3000));
+        state.add_recent_message(IncomingMessage {
+            account_index: 1,
+            sender_name: "Alice".into(),
+            body: "Hi".into(),
+            avatar_url: "".into(),
+            thread_id: "t1".into(),
+            timestamp: 4000,
+        });
+        assert!(state.has_recent_message_within(1, 5500, 3000));
+        assert!(!state.has_recent_message_within(1, 7500, 3000));
+        assert!(!state.has_recent_message_within(2, 5500, 3000));
     }
 }

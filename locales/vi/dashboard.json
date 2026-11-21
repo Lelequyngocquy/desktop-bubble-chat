@@ -21,7 +21,7 @@
   "sound_off_title": "Đã tắt âm thanh tab",
   "bubble_label": "Bong bóng",
   "bubble_aria_label": "Bật tắt bong bóng cho {{name}}",
-  "footer_tip": "Mẹo: Ẩn chat head không xóa cuộc trò chuyện của bạn trên các nền tảng.",
+  "footer_tip": "Mẹo: Ẩn bong bóng không xóa tài khoản của bạn.",
   "bubble_desc_need_connect": "Cần kết nối Messenger để hiển thị bong bóng",
   "bubble_desc_visible_ratio": "{{visible}}/{{total}} bong bóng đang hiển thị",
   "bubble_desc_all_hidden": "Đang ẩn tất cả bong bóng nổi",
@@ -63,7 +63,8 @@
     "dialog_title": "Xóa lịch sử thông báo",
     "dialog_content": "Bạn có chắc chắn muốn xóa toàn bộ danh sách thông báo? Thao tác này sẽ làm sạch các thông báo tin nhắn đã ghi nhận trên màn hình này.",
     "dialog_cancel": "Hủy bỏ",
-    "dialog_confirm": "Xác nhận xóa"
+    "dialog_confirm": "Xác nhận xóa",
+    "account_disconnected_warning": "Tài khoản {{account}} đã ngắt kết nối. Vui lòng kết nối lại trong mục Kết nối để mở cuộc trò chuyện."
   },
   "chatheads_page": {
     "pinned_title": "Cuộc trò chuyện đã ghim ({{count}}/6)",
@@ -217,5 +218,10 @@
       "desc": "Nhắn tin và gọi video trực tiếp trên nền tảng Meta Messenger."
     }
   },
-  "warning_heavy_load": "Bạn đang bật {{count}} bong bóng cùng lúc. Mỗi phiên WebView2 chiếm bộ nhớ. Hãy tắt các tài khoản không dùng để tiết kiệm RAM."
+  "warning_heavy_load": "Bạn đang bật {{count}} bong bóng cùng lúc. Mỗi phiên WebView2 chiếm bộ nhớ. Hãy tắt các tài khoản không dùng để tiết kiệm RAM.",
+  "time": {
+    "just_now": "Vừa xong",
+    "minutes_ago": "{{count}} phút trước",
+    "today": "Hôm nay"
+  }
 }

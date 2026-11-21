@@ -21,7 +21,7 @@
   "sound_off_title": "Tab sound is muted",
   "bubble_label": "Bubble",
   "bubble_aria_label": "Toggle bubble for {{name}}",
-  "footer_tip": "Tip: Hiding a chat head does not delete your conversation on Platforms.",
+  "footer_tip": "Tip: Hiding a bubble does not remove your account.",
   "bubble_desc_need_connect": "Messenger connection required to show bubbles",
   "bubble_desc_visible_ratio": "{{visible}}/{{total}} bubbles currently visible",
   "bubble_desc_all_hidden": "All floating bubbles hidden",
@@ -63,7 +63,8 @@
     "dialog_title": "Clear Notification History",
     "dialog_content": "Are you sure you want to clear all notifications? This will remove all logged message alerts from this view.",
     "dialog_cancel": "Cancel",
-    "dialog_confirm": "Confirm Clear"
+    "dialog_confirm": "Confirm Clear",
+    "account_disconnected_warning": "Account {{account}} is disconnected. Reconnect it in Connections to open this chat."
   },
   "chatheads_page": {
     "pinned_title": "Pinned Conversations ({{count}}/6)",
@@ -217,5 +218,10 @@
       "desc": "Messaging and video calls directly on Meta Messenger platform."
     }
   },
-  "warning_heavy_load": "You have {{count}} active bubbles. Each WebView2 instance consumes memory. Consider hiding unused accounts."
+  "warning_heavy_load": "You have {{count}} active bubbles. Each WebView2 instance consumes memory. Consider hiding unused accounts.",
+  "time": {
+    "just_now": "Just now",
+    "minutes_ago": "{{count}}m ago",
+    "today": "Today"
+  }
 }

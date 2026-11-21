@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Cpu, Activity, Snowflake } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SystemPerformanceSnapshot } from "../../types/performance";
@@ -9,7 +9,7 @@ interface PerformanceSummaryCardsProps {
   isLoading: boolean;
 }
 
-export const PerformanceSummaryCards: React.FC<PerformanceSummaryCardsProps> = ({
+export const PerformanceSummaryCards: React.FC<PerformanceSummaryCardsProps> = React.memo(({
   snapshot,
   isLoading,
 }) => {
@@ -20,13 +20,14 @@ export const PerformanceSummaryCards: React.FC<PerformanceSummaryCardsProps> = (
   const suspendedCount = snapshot?.suspendedAccountsCount ?? 0;
   const estimatedSavedMb = snapshot?.estimatedSavedRamMb ?? 0;
   const cpuCores = snapshot?.cpuCores ?? 4;
-  const formattedRam =
-    totalRamMb >= 1024
-      ? `${(totalRamMb / 1024).toFixed(2)} GB`
-      : `${Math.round(totalRamMb)} MB`;
-  const ramSecondaryText =
-    totalRamMb >= 1024 ? `~${Math.round(totalRamMb)} MB` : undefined;
-
+  const formattedRam = useMemo(
+    () => (totalRamMb >= 1024 ? `${(totalRamMb / 1024).toFixed(2)} GB` : `${Math.round(totalRamMb)} MB`),
+    [totalRamMb],
+  );
+  const ramSecondaryText = useMemo(
+    () => (totalRamMb >= 1024 ? `~${Math.round(totalRamMb)} MB` : undefined),
+    [totalRamMb],
+  );
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {/* Card 1: Total RAM usage */}
@@ -127,6 +128,6 @@ export const PerformanceSummaryCards: React.FC<PerformanceSummaryCardsProps> = (
       </div>
     </div>
   );
-};
+});
 
 export default PerformanceSummaryCards;

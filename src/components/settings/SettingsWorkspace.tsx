@@ -1,9 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useUpdateStore } from "../../stores/updateStore";
+import { useNavigationStore } from "../../stores/navigationStore";
+import { useConversationStore } from "../../stores/conversationStore";
+import { useWindowStore } from "../../stores/windowStore";
 import { useQuickSettings } from "../../hooks/useQuickSettings";
-import { messengerService } from "../../platforms/messenger";
+import { messengerService, useMessengerStore } from "../../platforms/messenger";
+import { feLog } from "../../services/loggerService";
 import { TabHeader } from "../common";
 import {
   LanguageSelectionSection,
@@ -45,32 +49,84 @@ export const SettingsWorkspace: React.FC = () => {
       s.status === "downloaded",
   );
   const [clearStatus, setClearStatus] = useState<string | null>(null);
+  const [clearError, setClearError] = useState<string | null>(null);
   const [isConfirmClearCacheOpen, setIsConfirmClearCacheOpen] = useState(false);
-  const handleClearCache = async () => {
-    try {
-      setClearStatus("clearing");
-      await messengerService.clearStorage(1);
-      setClearStatus("success");
-      setTimeout(() => setClearStatus(null), 3000);
-    } catch {
-      setClearStatus("error");
-      setTimeout(() => setClearStatus(null), 3000);
+  const clearTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const updateSectionRef = useRef<HTMLDivElement>(null);
+  const pendingScrollTarget = useNavigationStore((s) => s.pendingScrollTarget);
+  const clearPendingScrollTarget = useNavigationStore.getState().clearPendingScrollTarget;
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      clearTimeout(clearTimerRef.current);
+    };
+  }, []);
+  useEffect(() => {
+    if (pendingScrollTarget === "section-update") {
+      requestAnimationFrame(() => {
+        updateSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      clearPendingScrollTarget();
     }
+  }, [pendingScrollTarget, clearPendingScrollTarget]);
+  const handleClearCache = async (accountIndices: number[]) => {
+    clearTimeout(clearTimerRef.current);
+    setClearStatus("clearing");
+    setClearError(null);
+    const failedIndices: number[] = [];
+    const messengerStore = useMessengerStore.getState();
+    const conversationStore = useConversationStore.getState();
+    const windowStore = useWindowStore.getState();
+    for (const idx of accountIndices) {
+      try {
+        await messengerService.clearStorage(idx);
+        const accId = `messenger-${idx.toString().padStart(2, "0")}`;
+        messengerStore.updateAccount(accId, {
+          isConnected: false,
+          isAuthenticating: false,
+          isBubbleVisible: false,
+          shouldRestoreBubble: false,
+          unreadCount: 0,
+          lastSynced: "",
+        });
+        conversationStore.clearAccountConversations(idx);
+        if (windowStore.openChatAccountIndex === idx) {
+          windowStore.setOpenChatAccountIndex(null);
+        }
+      } catch (err) {
+        failedIndices.push(idx);
+        feLog.error(`[SettingsWorkspace] Failed to clear storage for account ${idx}:`, err);
+      }
+    }
+    if (!isMountedRef.current) return;
+    if (failedIndices.length > 0) {
+      setClearStatus("error");
+      setClearError(t("settings:data_cache.clear_failed"));
+    } else {
+      setClearStatus("success");
+    }
+    setIsConfirmClearCacheOpen(false);
+    clearTimerRef.current = setTimeout(() => {
+      if (isMountedRef.current) {
+        setClearStatus(null);
+        setClearError(null);
+      }
+    }, 3000);
   };
   const scrollToUpdateSection = () => {
-    document
-      .getElementById("section-update")
-      ?.scrollIntoView({ behavior: "smooth" });
+    updateSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   return (
     <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden select-none">
       {/* Settings workspace header */}
       <TabHeader
-        eyebrow={t("settings:title").toUpperCase()}
         title={t("settings:title")}
         description={t("settings:subtitle")}
         rightSlot={
           <button
+            type="button"
             onClick={scrollToUpdateSection}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-background-surface hover:bg-background-subtle border border-border rounded-pill text-small shadow-xs transition-colors cursor-pointer"
             title={t("settings:scroll_to_update")}
@@ -119,10 +175,11 @@ export const SettingsWorkspace: React.FC = () => {
 
         <DataCacheSection
           clearStatus={clearStatus}
+          clearError={clearError}
           onOpenClearDialog={() => setIsConfirmClearCacheOpen(true)}
         />
 
-        <div id="section-update">
+        <div id="section-update" ref={updateSectionRef}>
           <AppUpdateSection />
         </div>
       </main>
@@ -131,11 +188,10 @@ export const SettingsWorkspace: React.FC = () => {
       <ClearCacheDialog
         isOpen={isConfirmClearCacheOpen}
         isClearing={clearStatus === "clearing"}
-        onClose={() => setIsConfirmClearCacheOpen(false)}
-        onConfirm={async () => {
-          setIsConfirmClearCacheOpen(false);
-          await handleClearCache();
+        onClose={() => {
+          if (clearStatus !== "clearing") setIsConfirmClearCacheOpen(false);
         }}
+        onConfirm={handleClearCache}
       />
     </div>
   );

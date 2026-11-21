@@ -1,6 +1,9 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{Emitter, Manager};
+use tauri::Manager;
+
+static IS_EXIT_DIALOG_OPEN: AtomicBool = AtomicBool::new(false);
 
 use super::dialog::confirm_exit_dialog;
 use super::helpers::{toggle_main_window, toggle_single_bubble_from_tray};
@@ -22,7 +25,10 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
             let id_str = event.id.as_ref();
             match id_str {
                 "show_home" => {
-                    toggle_main_window(app_handle);
+                    let handle = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        toggle_main_window(&handle);
+                    });
                 }
                 "toggle_all_bubbles" | "toggle_bubble_item" => {
                     let handle = app_handle.clone();
@@ -37,31 +43,35 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
                         if let Some(chat_state) = handle.try_state::<Arc<crate::state::ChatState>>() {
                             let current = chat_state.get_user_config().current_locale().to_string();
                             let new_lang = if current == "vi" { "en" } else { "vi" };
-                            chat_state.update_user_config(&handle, |c| {
-                                c.locale = Some(new_lang.to_string());
-                            });
-                            let _ = update_tray_menu(&handle);
-                            let _ = handle.emit("language-changed", new_lang);
+                            crate::commands::apply_app_language(&handle, &chat_state, new_lang);
                         }
                     });
                 }
                 "quit" => {
+                    if IS_EXIT_DIALOG_OPEN.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+                        return;
+                    }
                     let locale = app_handle
                         .try_state::<Arc<crate::state::ChatState>>()
                         .map(|s| s.get_user_config().current_locale().to_string())
                         .unwrap_or_else(|| "en".to_string());
-                    if confirm_exit_dialog(&locale) {
-                        if let Some(state) = app_handle.try_state::<Arc<crate::state::ChatState>>() {
-                            state.is_explicit_exit.store(true, std::sync::atomic::Ordering::SeqCst);
-                            state.update_user_config(app_handle, |c| {
-                                c.is_dashboard_open = true;
-                            });
+                    let handle = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let confirmed = tokio::task::spawn_blocking(move || confirm_exit_dialog(&locale)).await.unwrap_or(false);
+                        IS_EXIT_DIALOG_OPEN.store(false, Ordering::SeqCst);
+                        if confirmed {
+                            if let Some(state) = handle.try_state::<Arc<crate::state::ChatState>>() {
+                                state.is_explicit_exit.store(true, Ordering::SeqCst);
+                                state.update_user_config(&handle, |c| {
+                                    c.is_dashboard_open = true;
+                                });
+                            }
+                            for (_, window) in handle.webview_windows() {
+                                let _ = window.destroy();
+                            }
+                            handle.exit(0);
                         }
-                        for (_, window) in app_handle.webview_windows() {
-                            let _ = window.destroy();
-                        }
-                        std::process::exit(0);
-                    }
+                    });
                 }
                 id if id.starts_with("toggle_bubble_") => {
                     if let Ok(idx) = id.trim_start_matches("toggle_bubble_").parse::<u32>() {
@@ -82,8 +92,10 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
                 ..
             } = event
             {
-                let app_handle = tray.app_handle();
-                toggle_main_window(app_handle);
+                let handle = tray.app_handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    toggle_main_window(&handle);
+                });
             }
         })
         .build(app)?;

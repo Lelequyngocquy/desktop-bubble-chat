@@ -2,9 +2,9 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::movement::BubbleMovementEngine;
-use crate::platforms::messenger::constants::MESSENGER_INJECT_SCRIPT;
 use crate::platforms::messenger::windows::{
-    get_messenger_window_label, get_or_create_messenger_window, hide_all_other_messenger_windows,
+    get_messenger_webview, get_messenger_window_label, get_or_create_messenger_window,
+    hide_all_other_messenger_windows,
 };
 use crate::state::{ChatState, MAX_ACCOUNTS};
 use crate::presentation::bubble::{get_bubble_window_label, tuck_bubble};
@@ -14,12 +14,13 @@ pub struct ChatService;
 impl ChatService {
     /// Docks Messenger chat window next to the corresponding bubble
     pub fn dock_chat_window(app: &AppHandle, chat_window: &tauri::WebviewWindow, account_index: u32) {
-        #[cfg(target_os = "windows")]
         let native_bounds = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(account_index);
-        #[cfg(not(target_os = "windows"))]
-        let native_bounds: Option<(i32, i32, u32, u32)> = None;
         let bubble_label = get_bubble_window_label(account_index);
         let webview_bubble = app.get_webview_window(&bubble_label);
+        let screen = crate::movement::get_target_dashboard_screen(Some(app));
+        let scale = screen.scale_factor;
+        let config = crate::movement::get_bubble_physics_config(app);
+        let default_bubble_w = (config.size * scale).round() as i32;
         let (bubble_x, bubble_y, bubble_w) = if let Some((bx, by, bw, _)) = native_bounds {
             (bx, by, bw as i32)
         } else if let Some(bw) = &webview_bubble {
@@ -30,14 +31,11 @@ impl ChatService {
             if let Some(rect) = cs.get_bubble_rect(account_index) {
                 (rect.x, rect.y, rect.width)
             } else {
-                (0, 0, 56)
+                (screen.x, screen.y, default_bubble_w)
             }
         } else {
-            (0, 0, 56)
+            (screen.x, screen.y, default_bubble_w)
         };
-        let screen = crate::movement::get_target_dashboard_screen(Some(app));
-        let scale = screen.scale_factor;
-        let config = crate::movement::get_bubble_physics_config(app);
         let (custom_w, custom_h) = app.try_state::<Arc<ChatState>>()
             .and_then(|cs| cs.get_chat_window_custom_size(account_index))
             .map(|(w, h)| (w as f64, h as f64))
@@ -75,7 +73,7 @@ impl ChatService {
             untucked_pos.x + bubble_w + gap
         };
         let min_x = screen.x + margin;
-        let max_x = screen.x + screen.width - chat_w - margin;
+        let max_x = (screen.x + screen.width - chat_w - margin).max(min_x);
         let final_x = target_x.clamp(min_x, max_x);
         let bubble_top = bubble_y;
         let min_y = screen.y + margin;
@@ -141,19 +139,25 @@ impl ChatService {
                 }
             }
         }
+        state.next_chat_anim_token(idx);
         state.set_window_auth_mode(chat_window.label(), false);
         let _ = chat_window.set_decorations(false);
         let _ = chat_window.set_skip_taskbar(true);
         Self::dock_chat_window(app, &chat_window, idx);
-        let _ = chat_window.eval(MESSENGER_INJECT_SCRIPT);
         println!("[BE - Chat] Opened Messenger {:02} chat docked next to bubble", idx);
         crate::utils::trim_controller::cancel_auto_trim(idx);
         crate::utils::trim_controller::record_user_interaction(idx);
         crate::platforms::messenger::windows::set_webview_memory_target_level(&chat_window, false);
         state.set_chat_pinned(idx, false);
-        chat_window.show().map_err(|e| e.to_string())?;
-        chat_window.set_focus().map_err(|e| e.to_string())?;
-        let _ = chat_window.eval("window.__isWindowFocused = true; window.__IS_PINNED__ = false; if (typeof window.__updatePinButtonUi === 'function') { window.__updatePinButtonUi(false); } window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('resize')); if (typeof window.__cancelAutoUnselectCountdown === 'function') { window.__cancelAutoUnselectCountdown(); } if (typeof window.__ensureChatListVisible === 'function') { window.__ensureChatListVisible(); }");
+        #[cfg(target_os = "windows")]
+        let opened_over_fullscreen = crate::operating_systems::windows::fullscreen_overlay::open_window_if_fullscreen(&chat_window);
+        #[cfg(not(target_os = "windows"))]
+        let opened_over_fullscreen = false;
+        if !opened_over_fullscreen {
+            chat_window.show().map_err(|e| e.to_string())?;
+            chat_window.set_focus().map_err(|e| e.to_string())?;
+        }
+        let _ = chat_window.eval("window.__IS_AUTH_MODE__ = false; window.__isWindowFocused = true; window.__IS_PINNED__ = false; if (typeof window.__ensurePinButtonInDom === 'function') { window.__ensurePinButtonInDom(); } if (typeof window.__updatePinButtonUi === 'function') { window.__updatePinButtonUi(false); } window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('resize')); if (typeof window.__cancelAutoUnselectCountdown === 'function') { window.__cancelAutoUnselectCountdown(); } if (typeof window.__ensureChatListVisible === 'function') { window.__ensureChatListVisible(); }");
         let _ = app.emit("bubble-visibility-changed", serde_json::json!({
             "accountIndex": idx,
             "visible": true
@@ -173,9 +177,7 @@ impl ChatService {
     ) -> Result<(), String> {
         let idx = account_index;
         let label = get_messenger_window_label(idx);
-        let chat_window = app
-            .get_webview_window(&label)
-            .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
+        let chat_window = get_messenger_webview(app, idx);
         if let Some(chat_window) = chat_window
             && chat_window.is_visible().unwrap_or(false) {
                 if let Some(cs) = app.try_state::<Arc<ChatState>>() {
@@ -191,19 +193,36 @@ impl ChatService {
                         }
                 }
                 let _ = chat_window.eval("window.__isWindowFocused = false; window.__IS_PINNED__ = false; if (typeof window.__updatePinButtonUi === 'function') { window.__updatePinButtonUi(false); } if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); } window.dispatchEvent(new Event('blur')); if (typeof window.__startAutoUnselectCountdown === 'function') { window.__startAutoUnselectCountdown(5000); }");
+                #[cfg(target_os = "windows")]
+                crate::operating_systems::windows::fullscreen_overlay::hide_window_with_fullscreen_cleanup(&chat_window);
+                #[cfg(not(target_os = "windows"))]
                 let _ = chat_window.hide();
+                let hide_token = app
+                    .try_state::<Arc<ChatState>>()
+                    .map(|cs| cs.next_chat_anim_token(idx))
+                    .unwrap_or(0);
                 let app_handle = app.clone();
                 std::thread::spawn(move || {
+                    let should_abort = || {
+                        app_handle.try_state::<Arc<ChatState>>().is_some_and(|cs| {
+                            cs.is_explicit_exit.load(std::sync::atomic::Ordering::SeqCst)
+                                || (hide_token != 0 && !cs.is_chat_anim_token_valid(idx, hide_token))
+                        })
+                    };
                     std::thread::sleep(std::time::Duration::from_millis(60));
+                    if should_abort() {
+                        return;
+                    }
                     let _ = app_handle.emit("chat-visibility-changed", serde_json::json!({
                         "accountIndex": idx,
                         "visible": false,
                         "windowLabel": label
                     }));
                     std::thread::sleep(std::time::Duration::from_millis(220));
-                    if let Some(cw) = app_handle
-                        .get_webview_window(&label)
-                        .or_else(|| if idx == 1 { app_handle.get_webview_window("chat-messenger") } else { None })
+                    if should_abort() {
+                        return;
+                    }
+                    if let Some(cw) = get_messenger_webview(&app_handle, idx)
                         && !cw.is_visible().unwrap_or(false) {
                             tuck_bubble(&app_handle, Some(idx));
                         }
@@ -236,12 +255,8 @@ impl ChatService {
         account_index: u32,
     ) -> Result<(), String> {
         let idx = account_index;
-        let label = get_messenger_window_label(idx);
         println!("[BE - Messenger] Reloading Messenger session {:02}", idx);
-        let win = app
-            .get_webview_window(&label)
-            .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
-        if let Some(chat_window) = win {
+        if let Some(chat_window) = get_messenger_webview(app, idx) {
             let _ = chat_window.eval("window.location.reload();");
         }
         Ok(())

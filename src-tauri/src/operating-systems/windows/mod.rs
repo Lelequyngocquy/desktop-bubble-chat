@@ -2,6 +2,7 @@ pub mod autostart;
 pub mod bubble;
 pub mod cursor;
 pub mod dialog;
+pub mod fullscreen_overlay;
 pub mod memory;
 pub mod sound;
 pub mod theme;

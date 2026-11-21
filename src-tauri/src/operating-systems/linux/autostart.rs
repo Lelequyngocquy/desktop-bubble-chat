@@ -11,8 +11,9 @@ impl LinuxAutostartManager {
         Some(base_dir.join("autostart/desktop-bubble-chat.desktop"))
     }
 
-    /// Generates standard XDG autostart desktop entry content
+    /// Generates standard XDG autostart desktop entry content with escaped Exec value
     pub fn generate_desktop_entry(exe_path: &str) -> String {
+        let escaped = exe_path.replace('\\', "\\\\").replace('"', "\\\"");
         format!(
             "[Desktop Entry]\n\
             Type=Application\n\
@@ -22,14 +23,14 @@ impl LinuxAutostartManager {
             Comment=Floating Bubble Chat for Messenger\n\
             X-GNOME-Autostart-enabled=true\n\
             Terminal=false\n",
-            exe_path
+            escaped
         )
     }
 
     /// Retrieves user display name via getent passwd GECOS field
     pub fn get_windows_display_name(username: &str) -> Option<String> {
-        if let Ok(output) = std::process::Command::new("getent").args(&["passwd", username]).output() {
-            if output.status.success() {
+        if let Ok(output) = std::process::Command::new("getent").args(["passwd", username]).output()
+            && output.status.success() {
                 let line = String::from_utf8_lossy(&output.stdout);
                 let fields: Vec<&str> = line.trim().split(':').collect();
                 if fields.len() >= 5 {
@@ -39,7 +40,6 @@ impl LinuxAutostartManager {
                     }
                 }
             }
-        }
         None
     }
 
@@ -54,10 +54,8 @@ impl LinuxAutostartManager {
             }
             let content = Self::generate_desktop_entry(&exe_str);
             std::fs::write(&path, content).map_err(|e| e.to_string())?;
-        } else {
-            if path.exists() {
-                let _ = std::fs::remove_file(&path);
-            }
+        } else if path.exists() {
+            let _ = std::fs::remove_file(&path);
         }
         Ok(enabled)
     }

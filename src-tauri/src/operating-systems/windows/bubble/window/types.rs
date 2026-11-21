@@ -100,18 +100,95 @@ pub struct WNDCLASSEXW {
 pub const WS_EX_LAYERED: u32 = 0x00080000;
 pub const WS_EX_TOPMOST: u32 = 0x00000008;
 pub const WS_EX_TOOLWINDOW: u32 = 0x00000080;
+pub const WS_EX_NOACTIVATE: u32 = 0x08000000;
 pub const WS_POPUP: u32 = 0x80000000;
+pub const WS_CAPTION: u32 = 0x00C00000;
+pub const WS_THICKFRAME: u32 = 0x00040000;
 
 pub const CS_HREDRAW: u32 = 0x0002;
 pub const CS_VREDRAW: u32 = 0x0001;
 
 pub const SW_SHOWNOACTIVATE: i32 = 4;
+pub const SW_SHOWNA: i32 = 8;
 pub const SW_HIDE: i32 = 0;
 
 pub const SWP_NOSIZE: u32 = 0x0001;
 pub const SWP_NOMOVE: u32 = 0x0002;
 pub const SWP_NOZORDER: u32 = 0x0004;
 pub const SWP_NOACTIVATE: u32 = 0x0010;
+pub const SWP_SHOWWINDOW: u32 = 0x0040;
+pub const SWP_HIDEWINDOW: u32 = 0x0080;
+
+pub const PM_NOREMOVE: u32 = 0x0000;
+pub const EVENT_SYSTEM_FOREGROUND: u32 = 0x0003;
+pub const WINEVENT_OUTOFCONTEXT: u32 = 0x0000;
+pub const WINEVENT_SKIPOWNPROCESS: u32 = 0x0002;
+
+pub type WinEventProc = unsafe extern "system" fn(
+    *mut std::ffi::c_void,
+    u32,
+    *mut std::ffi::c_void,
+    i32,
+    i32,
+    u32,
+    u32,
+);
+
+pub const ASFW_ANY: u32 = 0xFFFFFFFF;
+pub const INPUT_KEYBOARD: u32 = 1;
+pub const KEYEVENTF_EXTENDEDKEY: u32 = 0x0001;
+pub const KEYEVENTF_KEYUP: u32 = 0x0002;
+pub const VK_LMENU: u16 = 0xA4;
+pub const MAPVK_VK_TO_VSC: u32 = 0;
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct GUITHREADINFO {
+    pub cb_size: u32,
+    pub flags: u32,
+    pub hwnd_active: *mut std::ffi::c_void,
+    pub hwnd_focus: *mut std::ffi::c_void,
+    pub hwnd_capture: *mut std::ffi::c_void,
+    pub hwnd_menu_owner: *mut std::ffi::c_void,
+    pub hwnd_move_size: *mut std::ffi::c_void,
+    pub hwnd_caret: *mut std::ffi::c_void,
+    pub rc_caret: RECT,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct MOUSEINPUT {
+    pub dx: i32,
+    pub dy: i32,
+    pub mouse_data: u32,
+    pub dw_flags: u32,
+    pub time: u32,
+    pub dw_extra_info: usize,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct KEYBDINPUT {
+    pub w_vk: u16,
+    pub w_scan: u16,
+    pub dw_flags: u32,
+    pub time: u32,
+    pub dw_extra_info: usize,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union INPUT_UNION {
+    pub mi: MOUSEINPUT,
+    pub ki: KEYBDINPUT,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct INPUT {
+    pub r#type: u32,
+    pub anonymous: INPUT_UNION,
+}
 
 pub const ULW_ALPHA: u32 = 0x00000002;
 pub const AC_SRC_OVER: u8 = 0x00;
@@ -122,6 +199,7 @@ pub const BI_RGB: u32 = 0;
 pub const IDC_ARROW: usize = 32512;
 pub const IDC_HAND: usize = 32649;
 
+pub const GWL_STYLE: i32 = -16;
 pub const GWLP_USERDATA: i32 = -21;
 
 pub const WM_DESTROY: u32 = 0x0002;

@@ -75,15 +75,29 @@ impl WindowsMemoryOptimizer {
     pub fn is_webview_process(name: &str) -> bool {
         name.to_lowercase().contains("msedgewebview2")
     }
-    /// Terminates WebView2 processes matching needle without spawning PowerShell
+    /// Terminates WebView2 processes matching non-empty needle without spawning PowerShell
     pub fn terminate_profile_process(needle: &str) {
-        let mut system = sysinfo::System::new_all();
-        system.refresh_all();
+        let trimmed = needle.trim();
+        if trimmed.is_empty() {
+            return;
+        }
+        let needle_lower = trimmed.to_lowercase();
+        let system = sysinfo::System::new_with_specifics(
+            sysinfo::RefreshKind::nothing().with_processes(
+                sysinfo::ProcessRefreshKind::nothing().with_cmd(sysinfo::UpdateKind::Always),
+            ),
+        );
         for process in system.processes().values() {
             let name = process.name().to_string_lossy().to_lowercase();
             if name.contains("msedgewebview2") {
-                let cmd = process.cmd().iter().map(|s| s.to_string_lossy()).collect::<Vec<_>>().join(" ");
-                if cmd.contains(needle) {
+                let cmd = process
+                    .cmd()
+                    .iter()
+                    .map(|s| s.to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+                    .to_lowercase();
+                if cmd.contains(&needle_lower) {
                     let _ = process.kill_with(sysinfo::Signal::Term);
                 }
             }

@@ -14,10 +14,26 @@ pub const RE_NOTIFY_INTERVAL: Duration = Duration::from_secs(4 * 3600);
 /// Global guard preventing concurrent updater executions
 static IS_UPDATING: AtomicBool = AtomicBool::new(false);
 
-/// Cleans up stale installer and updater temporary files from OS temp directory
-pub fn cleanup_stale_update_artifacts() {
-    let temp_dir = std::env::temp_dir();
-    if let Ok(entries) = std::fs::read_dir(&temp_dir) {
+struct UpdatingGuard;
+
+impl UpdatingGuard {
+    fn acquire() -> Option<Self> {
+        IS_UPDATING
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .ok()
+            .map(|_| Self)
+    }
+}
+
+impl Drop for UpdatingGuard {
+    fn drop(&mut self) {
+        IS_UPDATING.store(false, Ordering::SeqCst);
+    }
+}
+
+/// Cleans up stale installer and updater temporary files inside a specific directory
+pub fn cleanup_stale_update_artifacts_in(temp_dir: &std::path::Path) {
+    if let Ok(entries) = std::fs::read_dir(temp_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
@@ -34,6 +50,11 @@ pub fn cleanup_stale_update_artifacts() {
             }
         }
     }
+}
+
+/// Cleans up stale installer and updater temporary files from OS temp directory
+pub fn cleanup_stale_update_artifacts() {
+    cleanup_stale_update_artifacts_in(&std::env::temp_dir());
 }
 
 /// Performs update check, downloads and installs if auto-update enabled, or notifies user
@@ -57,19 +78,18 @@ pub async fn check_and_apply_update(
                 .map(|s| s.get_user_config())
                 .unwrap_or_default();
             if user_config.is_auto_update_enabled() {
-                if IS_UPDATING.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+                let Some(_updating_guard) = UpdatingGuard::acquire() else {
                     println!("[UpdateNotifier] Update download already in progress, skipping.");
                     return;
-                }
+                };
                 println!("[UpdateNotifier] Auto-update active: Found v{}. Downloading...", ver);
-                cleanup_stale_update_artifacts();
+                let _ = tokio::task::spawn_blocking(cleanup_stale_update_artifacts).await;
                 let _ = app.emit("updater-status", serde_json::json!({ "status": "downloading", "version": &ver }));
                 if user_config.is_notifications_enabled {
                     let (title, body) = get_auto_update_notification_text(app, &ver);
                     let _ = app.notification().builder().title(title).body(body).show();
                 }
                 let install_res = update.download_and_install(|_chunk, _total| {}, || {}).await;
-                IS_UPDATING.store(false, Ordering::SeqCst);
                 match install_res {
                     Ok(_) => {
                         let _ = app.emit("updater-status", serde_json::json!({ "status": "installing", "version": &ver }));
@@ -164,11 +184,17 @@ mod tests {
 
     #[test]
     fn test_cleanup_stale_update_artifacts() {
-        let temp_dir = std::env::temp_dir();
-        let dummy_file = temp_dir.join("desktopbubblechat-test-updater-dummy.exe");
-        let _ = std::fs::write(&dummy_file, b"dummy content");
+        let isolated_dir = std::env::temp_dir().join(format!("dbc_updater_test_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&isolated_dir);
+        std::fs::create_dir_all(&isolated_dir).expect("create isolated temp dir");
+        let dummy_file = isolated_dir.join("desktopbubblechat-test-updater-dummy.exe");
+        let keep_file = isolated_dir.join("unrelated-file.txt");
+        std::fs::write(&dummy_file, b"dummy content").expect("write dummy");
+        std::fs::write(&keep_file, b"keep content").expect("write keep");
         assert!(dummy_file.exists());
-        cleanup_stale_update_artifacts();
+        cleanup_stale_update_artifacts_in(&isolated_dir);
         assert!(!dummy_file.exists());
+        assert!(keep_file.exists());
+        let _ = std::fs::remove_dir_all(&isolated_dir);
     }
 }

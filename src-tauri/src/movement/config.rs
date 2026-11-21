@@ -11,17 +11,36 @@ pub struct ScreenMetrics {
 
 impl ScreenMetrics {
     pub fn from_monitor(monitor: &Monitor) -> Self {
-        let pos = monitor.position();
-        let size = monitor.size();
         let scale = monitor.scale_factor();
-        Self {
-            x: pos.x,
-            y: pos.y,
-            width: size.width as i32,
-            height: size.height as i32,
-            scale_factor: scale,
+        let work = monitor.work_area();
+        if work.size.width > 0 && work.size.height > 0 {
+            Self {
+                x: work.position.x,
+                y: work.position.y,
+                width: work.size.width as i32,
+                height: work.size.height as i32,
+                scale_factor: scale,
+            }
+        } else {
+            let pos = monitor.position();
+            let size = monitor.size();
+            Self {
+                x: pos.x,
+                y: pos.y,
+                width: size.width as i32,
+                height: size.height as i32,
+                scale_factor: scale,
+            }
         }
     }
+}
+
+fn screen_metrics_match(a: &ScreenMetrics, b: &ScreenMetrics) -> bool {
+    a.x == b.x
+        && a.y == b.y
+        && a.width == b.width
+        && a.height == b.height
+        && (a.scale_factor - b.scale_factor).abs() <= 0.001
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -104,10 +123,6 @@ pub fn update_target_dashboard_screen(metrics: ScreenMetrics) -> Option<(ScreenM
 }
 
 pub fn get_target_dashboard_screen(app: Option<&tauri::AppHandle>) -> ScreenMetrics {
-    if let Ok(lock) = TARGET_DASHBOARD_SCREEN.read()
-        && let Some(metrics) = *lock {
-            return metrics;
-        }
     if let Some(app_handle) = app {
         use tauri::Manager;
         if let Some(main_win) = app_handle.get_webview_window("main")
@@ -116,12 +131,23 @@ pub fn get_target_dashboard_screen(app: Option<&tauri::AppHandle>) -> ScreenMetr
                 update_target_dashboard_screen(screen);
                 return screen;
             }
+        if let Ok(lock) = TARGET_DASHBOARD_SCREEN.read()
+            && let Some(cached) = *lock
+            && let Ok(monitors) = app_handle.available_monitors() {
+                let still_valid = monitors.iter().any(|m| screen_metrics_match(&ScreenMetrics::from_monitor(m), &cached));
+                if still_valid {
+                    return cached;
+                }
+            }
         if let Ok(Some(mon)) = app_handle.primary_monitor() {
             let screen = ScreenMetrics::from_monitor(&mon);
             update_target_dashboard_screen(screen);
             return screen;
         }
-    }
+    } else if let Ok(lock) = TARGET_DASHBOARD_SCREEN.read()
+        && let Some(metrics) = *lock {
+            return metrics;
+        }
     #[cfg(target_os = "windows")]
     {
         use crate::operating_systems::windows::bubble::window::{GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN};

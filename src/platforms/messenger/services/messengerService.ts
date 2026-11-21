@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { MessengerAuthStatus } from "../types";
 import { IPC_COMMANDS, IncomingMessagePayload } from "../../../types/ipc";
 import { systemService } from "../../../services/systemService";
+import { normalizeThreadId } from "../../../utils/threadValidation";
 
 /**
  * Service encapsulating all Tauri IPC commands for the Messenger platform.
@@ -42,7 +43,12 @@ export const messengerService = {
    * Open a specific conversation thread and dock chat window next to Bubble.
    */
   async openThread(threadId: string, accountIndex: number = 1): Promise<void> {
-    await invoke(IPC_COMMANDS.OPEN_THREAD, { threadId, accountIndex });
+    const validThreadId = normalizeThreadId(threadId);
+    if (!validThreadId) {
+      await this.openChat(accountIndex);
+      return;
+    }
+    await invoke(IPC_COMMANDS.OPEN_THREAD, { threadId: validThreadId, accountIndex });
   },
 
   /**
@@ -153,7 +159,11 @@ export const messengerService = {
   async toggleAllBubbles(visible?: boolean, accountIndices: number[] = [1, 2, 3, 4, 5]): Promise<void> {
     try {
       await invoke(IPC_COMMANDS.TOGGLE_ALL_BUBBLES, { visible, accountIndices });
-    } catch {
+    } catch (err) {
+      if (typeof visible !== "boolean") {
+        console.warn("[MessengerService] toggle_all_bubbles failed without explicit visibility boolean:", err);
+        return;
+      }
       for (const idx of accountIndices) {
         await invoke(IPC_COMMANDS.TOGGLE_BUBBLE, { visible, accountIndex: idx });
         if (visible) {

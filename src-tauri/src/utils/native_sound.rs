@@ -1,7 +1,9 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
+use std::time::Instant;
 
-static LAST_PLAY_TIME: AtomicU64 = AtomicU64::new(0);
+static SOUND_EPOCH: OnceLock<Instant> = OnceLock::new();
+static LAST_PLAY_OFFSET_MS: AtomicU64 = AtomicU64::new(0);
 const THROTTLE_MS: u64 = 1500;
 
 /// Generates 44.1kHz 16-bit Mono WAV in-memory buffer for bubble pop sound effect
@@ -42,17 +44,20 @@ fn generate_bubble_pop_wav() -> Vec<u8> {
 
 static BUBBLE_WAV_CACHE: OnceLock<Vec<u8>> = OnceLock::new();
 
-/// Plays native bubble pop sound effect in Rust Core
+/// Plays native bubble pop sound effect in Rust Core using monotonic atomic throttle
 pub fn play_bubble_pop() {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0);
-    let last = LAST_PLAY_TIME.load(Ordering::Relaxed);
-    if now.saturating_sub(last) < THROTTLE_MS {
+    let epoch = SOUND_EPOCH.get_or_init(Instant::now);
+    let now_offset = (epoch.elapsed().as_millis() as u64).saturating_add(1);
+    let allowed = LAST_PLAY_OFFSET_MS.try_update(Ordering::SeqCst, Ordering::SeqCst, |last| {
+        if last == 0 || now_offset.saturating_sub(last) >= THROTTLE_MS {
+            Some(now_offset)
+        } else {
+            None
+        }
+    });
+    if allowed.is_err() {
         return;
     }
-    LAST_PLAY_TIME.store(now, Ordering::Relaxed);
     let wav = BUBBLE_WAV_CACHE.get_or_init(generate_bubble_pop_wav);
     crate::operating_systems::current::SoundPlayer::play_wav(wav);
 }

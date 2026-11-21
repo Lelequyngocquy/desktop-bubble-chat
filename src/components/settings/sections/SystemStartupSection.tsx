@@ -55,6 +55,7 @@ export const SystemStartupSection: React.FC<SystemStartupSectionProps> = ({
           <SwitchButton
             checked={isAutoStart}
             onChange={onToggleAutoStart}
+            ariaLabel={t("settings:startup.autostart")}
           />
         </div>
 
@@ -70,6 +71,7 @@ export const SystemStartupSection: React.FC<SystemStartupSectionProps> = ({
           <SwitchButton
             checked={isAlwaysOnTop}
             onChange={onToggleAlwaysOnTop}
+            ariaLabel={t("settings:startup.always_on_top")}
           />
         </div>
 
@@ -85,6 +87,7 @@ export const SystemStartupSection: React.FC<SystemStartupSectionProps> = ({
           <SwitchButton
             checked={isNotificationsEnabled}
             onChange={onToggleNotifications}
+            ariaLabel={t("settings:startup.notifications")}
           />
         </div>
 
@@ -100,6 +103,7 @@ export const SystemStartupSection: React.FC<SystemStartupSectionProps> = ({
           <SwitchButton
             checked={isAutoTrimEnabled}
             onChange={onToggleAutoTrim}
+            ariaLabel={t("settings:startup.auto_trim")}
           />
         </div>
 
@@ -117,6 +121,7 @@ export const SystemStartupSection: React.FC<SystemStartupSectionProps> = ({
               <button
                 key={opt.id}
                 type="button"
+                aria-pressed={closeAction === opt.id}
                 onClick={() => handleSetCloseAction(opt.id)}
                 className={`p-2.5 rounded-control border text-center transition-all cursor-pointer ${
                   closeAction === opt.id

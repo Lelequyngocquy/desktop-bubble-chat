@@ -14,7 +14,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use state::ChatState;
 use tauri::Manager;
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+use tauri_plugin_global_shortcut::{Shortcut, ShortcutState};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -71,6 +71,13 @@ pub fn run() {
                             || "CommandOrControl+Shift+M".parse::<Shortcut>().map(|s| &s == shortcut).unwrap_or(false)
                             || "Super+Shift+M".parse::<Shortcut>().map(|s| &s == shortcut).unwrap_or(false);
                         if is_match {
+                            let is_enabled = app_handle
+                                .try_state::<Arc<ChatState>>()
+                                .map(|s| s.get_user_config().is_global_shortcut_enabled)
+                                .unwrap_or(true);
+                            if !is_enabled {
+                                return;
+                            }
                             let handle = app_handle.clone();
                             tauri::async_runtime::spawn(async move {
                                 commands::toggle_all_bubbles_impl(&handle, None, None).await;
@@ -128,6 +135,7 @@ pub fn run() {
             commands::set_auto_trim_enabled,
             commands::set_theme_mode,
             commands::set_update_mode,
+            commands::set_global_shortcut_enabled,
             commands::exit_app,
             commands::restart_app,
             commands::set_always_on_top,
@@ -147,11 +155,7 @@ pub fn run() {
             commands::reload_messenger_window,
             commands::set_chat_window_size_config,
             commands::toggle_pin_chat,
-            commands::is_chat_pinned,
-            commands::prompt_save_file,
-            commands::save_blob_chunk,
-            commands::show_file_in_folder,
-            commands::notify_download_complete
+            commands::is_chat_pinned
         ])
         .setup(move |app| {
             if let Err(err) = tray::setup_system_tray(app) {
@@ -184,8 +188,16 @@ pub fn run() {
                     }
                 }
             }
-            #[cfg(target_os = "windows")]
             crate::operating_systems::current::bubble::set_native_bubble_always_on_top(initial_config.is_always_on_top);
+            let settle_state = Arc::clone(&chat_state_clone);
+            std::thread::spawn(move || {
+                for delay_secs in [2u64, 3u64] {
+                    std::thread::sleep(std::time::Duration::from_secs(delay_secs));
+                    if settle_state.is_always_on_top.load(Ordering::SeqCst) {
+                        crate::operating_systems::current::bubble::reassert_native_bubble_topmost();
+                    }
+                }
+            });
             if initial_config.is_dashboard_open {
                 println!("[Startup] Dashboard configured ON -> Showing Dashboard");
                 let _ = presentation::main_window::get_or_create_main_window(&handle);
@@ -198,10 +210,8 @@ pub fn run() {
             platforms::messenger::daemons::start_hover_and_autoclose_monitor(handle.clone(), Arc::clone(&chat_state_clone));
             utils::trim_controller::start_idle_trim_sweeper(handle.clone());
             utils::update_notifier::start_background_update_notifier(handle.clone());
-            for sc in ["Ctrl+Shift+M", "CommandOrControl+Shift+M"] {
-                if let Ok(shortcut) = sc.parse::<Shortcut>() {
-                    let _ = app.global_shortcut().register(shortcut);
-                }
+            if initial_config.is_global_shortcut_enabled {
+                commands::apply_global_shortcut_registration(&handle, true);
             }
             let _ = tray::update_tray_menu(&handle);
             Ok(())
@@ -220,11 +230,11 @@ pub fn run() {
                     api.prevent_exit();
                 } else {
                     println!("[Tauri Lifecycle] User confirmed explicit app exit (Exit code: {:?})", code);
-                    std::process::exit(code.unwrap_or(0));
                 }
             }
             tauri::RunEvent::Exit => {
-                std::process::exit(0);
+                crate::operating_systems::current::bubble::shutdown_native_bubbles();
+                println!("[Tauri Lifecycle] Application event loop exited cleanly.");
             }
             #[cfg(target_os = "macos")]
             tauri::RunEvent::Reopen { .. } => {

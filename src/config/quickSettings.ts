@@ -1,8 +1,12 @@
+import type { ParseKeys } from "i18next";
+
+export type QuickSettingTranslationKey = ParseKeys<"dashboard">;
+
 export interface QuickSettingItem {
   id: string;
-  labelKey: string;
-  descriptionActiveKey: string;
-  descriptionInactiveKey: string;
+  labelKey: QuickSettingTranslationKey;
+  descriptionActiveKey: QuickSettingTranslationKey;
+  descriptionInactiveKey: QuickSettingTranslationKey;
   iconName: "MessageSquare" | "Pin" | "Bell" | "Power";
   requiresConnection: boolean;
 }

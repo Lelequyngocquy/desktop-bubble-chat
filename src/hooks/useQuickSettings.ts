@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore, BubbleSize, BUBBLE_SIZE_PIXELS } from "../stores/settingsStore";
 import {
   useMessengerStore,
   selectIsMessengerConnected,
+  selectConnectedAccountCount,
   selectAreAnyBubblesVisible,
   selectAreAllBubblesVisible,
   selectVisibleBubbleCount,
@@ -21,62 +22,69 @@ export function useQuickSettings() {
   const toggleAlwaysOnTop = useSettingsStore((s) => s.toggleAlwaysOnTop);
   const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled);
   const isAutoStart = useSettingsStore((s) => s.isAutoStart);
-  const setAutoStart = useSettingsStore((s) => s.setAutoStart);
   const toggleAutoStart = useSettingsStore((s) => s.toggleAutoStart);
   const bubbleSize = useSettingsStore((s) => s.bubbleSize);
   const setBubbleSize = useSettingsStore((s) => s.setBubbleSize);
   const isConnected = useMessengerStore(selectIsMessengerConnected);
-  const accounts = useMessengerStore((s) => s.accounts);
-  const connectedAccounts = useMemo(() => accounts.filter((a) => a.isConnected), [accounts]);
+  const connectedCount = useMessengerStore(selectConnectedAccountCount);
   const areAnyBubblesVisible = useMessengerStore(selectAreAnyBubblesVisible);
   const areAllBubblesVisible = useMessengerStore(selectAreAllBubblesVisible);
   const visibleBubbleCount = useMessengerStore(selectVisibleBubbleCount);
-  const setAllBubblesVisibility = useMessengerStore((s) => s.setAllBubblesVisibility);
   const areAnySoundsEnabled = useMessengerStore(selectAreAnySoundsEnabled);
   const areAllSoundsEnabled = useMessengerStore(selectAreAllSoundsEnabled);
   const soundEnabledCount = useMessengerStore(selectSoundEnabledCount);
-  const setAllAccountsSound = useMessengerStore((s) => s.setAllAccountsSound);
+  const { setAllBubblesVisibility, setAllAccountsSound } = useMessengerStore.getState();
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
-
+  const warningTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
-    systemService.isAutostartEnabled().then((enabled) => {
-      setAutoStart(enabled);
-    });
-    systemService.setAlwaysOnTop(isAlwaysOnTop);
-    systemService.setBubbleConfig(BUBBLE_SIZE_PIXELS[bubbleSize]);
-    setNotificationsEnabled(areAnySoundsEnabled);
+    return () => {
+      clearTimeout(warningTimerRef.current);
+    };
   }, []);
-
+  const clearWarning = useCallback(() => {
+    clearTimeout(warningTimerRef.current);
+    setWarningMessage(null);
+  }, []);
   const handleSetBubbleSize = useCallback(
     async (size: BubbleSize) => {
+      const prevSize = bubbleSize;
       setBubbleSize(size);
-      await systemService.setBubbleConfig(BUBBLE_SIZE_PIXELS[size]);
+      try {
+        await systemService.setBubbleConfig(BUBBLE_SIZE_PIXELS[size]);
+      } catch (err) {
+        setBubbleSize(prevSize);
+        console.warn("[useQuickSettings] Failed to update bubble size:", err);
+      }
     },
-    [setBubbleSize]
+    [bubbleSize, setBubbleSize],
   );
-
   const handleToggleBubble = useCallback(async () => {
     if (!isConnected && !areAnyBubblesVisible) {
       setWarningMessage(t("warning_connect_first"));
-      setTimeout(() => setWarningMessage(null), 3500);
+      clearTimeout(warningTimerRef.current);
+      warningTimerRef.current = setTimeout(() => setWarningMessage(null), 3500);
       return;
     }
     const nextVal = !areAnyBubblesVisible;
     setAllBubblesVisibility(nextVal);
     try {
-      const targetIndices = connectedAccounts.map((a) => a.index);
+      const targetIndices = useMessengerStore.getState().accounts.filter((a) => a.isConnected).map((a) => a.index);
       await messengerService.toggleAllBubbles(nextVal, targetIndices.length > 0 ? targetIndices : [1]);
     } catch (err) {
+      setAllBubblesVisibility(!nextVal);
       console.warn("[useQuickSettings] Failed to toggle all bubbles visibility:", err);
     }
-  }, [isConnected, areAnyBubblesVisible, setAllBubblesVisibility, connectedAccounts, t]);
-
+  }, [isConnected, areAnyBubblesVisible, setAllBubblesVisibility, t]);
   const handleToggleAlwaysOnTop = useCallback(async () => {
     const nextVal = !isAlwaysOnTop;
     toggleAlwaysOnTop();
-    await systemService.setAlwaysOnTop(nextVal);
+    try {
+      await systemService.setAlwaysOnTop(nextVal);
+    } catch (err) {
+      toggleAlwaysOnTop();
+      console.warn("[useQuickSettings] Failed to toggle always on top:", err);
+    }
   }, [isAlwaysOnTop, toggleAlwaysOnTop]);
-
   const handleToggleNotifications = useCallback(async () => {
     const nextVal = !areAnySoundsEnabled;
     setAllAccountsSound(nextVal);
@@ -85,31 +93,32 @@ export function useQuickSettings() {
       await notificationService.requestPermission();
     }
   }, [areAnySoundsEnabled, setAllAccountsSound, setNotificationsEnabled]);
-
   const handleToggleAutoStart = useCallback(async () => {
     const nextVal = !isAutoStart;
     toggleAutoStart();
-    await systemService.toggleAutostart(nextVal);
+    try {
+      await systemService.toggleAutostart(nextVal);
+    } catch (err) {
+      toggleAutoStart();
+      console.warn("[useQuickSettings] Failed to toggle auto start:", err);
+    }
   }, [isAutoStart, toggleAutoStart]);
-
   const bubbleDescription = !isConnected
     ? t("bubble_desc_need_connect")
     : areAnyBubblesVisible
       ? t("bubble_desc_visible_ratio", {
           visible: visibleBubbleCount,
-          total: connectedAccounts.length,
+          total: connectedCount,
         })
       : t("bubble_desc_all_hidden");
-
   const notificationsDescription = !isConnected
     ? (areAnySoundsEnabled ? t("notif_desc_sound_on") : t("notif_desc_sound_off"))
     : areAnySoundsEnabled
       ? t("notif_desc_accounts_on", {
           count: soundEnabledCount,
-          total: connectedAccounts.length,
+          total: connectedCount,
         })
       : t("notif_desc_accounts_off");
-
   return {
     isBubbleEnabled: areAnyBubblesVisible,
     areAllBubblesVisible,
@@ -125,7 +134,7 @@ export function useQuickSettings() {
     bubbleSize,
     isConnected,
     warningMessage,
-    clearWarning: () => setWarningMessage(null),
+    clearWarning,
     handleToggleBubble,
     handleSetBubbleSize,
     handleToggleAlwaysOnTop,

@@ -31,11 +31,14 @@ pub fn ensure_window_class_registered() {
             lpsz_class_name: class_name_u16.as_ptr(),
             h_icon_sm: std::ptr::null_mut(),
         };
-        RegisterClassExW(&wndclass);
+        let atom = RegisterClassExW(&wndclass);
+        if atom == 0 {
+            eprintln!("[NativeBubble WARN] RegisterClassExW returned 0");
+        }
     });
 }
 
-/// Represents a native Win32 Layered Window bubble.
+/// Represents a native Win32 Layered Window bubble (confined to dedicated UI worker thread).
 pub struct NativeBubbleWindow {
     pub hwnd: *mut std::ffi::c_void,
     pub account_index: u32,
@@ -43,9 +46,6 @@ pub struct NativeBubbleWindow {
     pub width: u32,
     pub height: u32,
 }
-
-unsafe impl Send for NativeBubbleWindow {}
-unsafe impl Sync for NativeBubbleWindow {}
 
 impl NativeBubbleWindow {
     /// Creates native 32-bit ARGB layered bubble window with mouse interactions.
@@ -74,7 +74,7 @@ impl NativeBubbleWindow {
             let hinstance = GetModuleHandleW(std::ptr::null());
             let topmost_flag = if is_on_top { WS_EX_TOPMOST } else { 0 };
             let hwnd = CreateWindowExW(
-                WS_EX_LAYERED | topmost_flag | WS_EX_TOOLWINDOW,
+                WS_EX_LAYERED | topmost_flag | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
                 class_name_u16.as_ptr(),
                 title_u16.as_ptr(),
                 WS_POPUP,
@@ -95,7 +95,13 @@ impl NativeBubbleWindow {
             }
             let hdc_screen = GetDC(std::ptr::null_mut());
             let hdc_mem = CreateCompatibleDC(hdc_screen);
-            ReleaseDC(std::ptr::null_mut(), hdc_screen);
+            if !hdc_screen.is_null() {
+                ReleaseDC(std::ptr::null_mut(), hdc_screen);
+            }
+            if hdc_mem.is_null() {
+                DestroyWindow(hwnd);
+                return Err("Failed to CreateCompatibleDC for NativeBubble".into());
+            }
             let mut bmi: BITMAPINFO = std::mem::zeroed();
             bmi.bmi_header.bi_size = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
             bmi.bmi_header.bi_width = canvas_w as i32;
@@ -243,6 +249,14 @@ impl NativeBubbleWindow {
     /// Checks if the window is visible.
     pub fn is_visible(&self) -> bool {
         unsafe { IsWindowVisible(self.hwnd) != 0 }
+    }
+
+    /// Checks if the bubble is currently being dragged.
+    pub fn is_dragging(&self) -> bool {
+        unsafe {
+            let ptr = GetWindowLongPtrW(self.hwnd, GWLP_USERDATA) as *mut BubbleWindowState;
+            ptr.as_ref().map(|s| s.is_dragging).unwrap_or(false)
+        }
     }
 
     /// Updates unread count and redraws badge.

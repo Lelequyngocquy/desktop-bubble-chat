@@ -8,7 +8,6 @@ import { Color, Dimen } from "../../../../constants/design";
 
 interface ConnectedAccountRowProps {
   account: MessengerAccount;
-  onOpenChat: (account: MessengerAccount) => void;
   onToggleBubble: (account: MessengerAccount) => void;
 }
 
@@ -57,6 +56,7 @@ export const ConnectedAccountRow: React.FC<ConnectedAccountRowProps> = ({
           type="button"
           onClick={() => toggleAccountSound(account.index)}
           title={isSoundOn ? t("sound_on_title") : t("sound_off_title")}
+          aria-label={isSoundOn ? t("sound_on_title") : t("sound_off_title")}
           className={`p-1.5 rounded-control border transition-all cursor-pointer ${
             isSoundOn
               ? "text-content-secondary hover:text-primary hover:bg-background-surface border-transparent hover:border-border"

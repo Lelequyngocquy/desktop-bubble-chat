@@ -1,10 +1,10 @@
 import React from "react";
-import { Color, Dimen } from "../../constants/design";
+import { Dimen } from "../../constants/design";
 
 export interface AvatarSquareRoundedProps {
-  size?: number; // Pixel square size (default 38px)
-  radius?: number | string; // Corner radius (default 8px)
-  bg?: string; // Background color (hex or class)
+  size?: number;
+  radius?: number | string;
+  bg?: string;
   textColor?: string;
   icon?: React.ReactNode;
   src?: string;
@@ -17,8 +17,8 @@ export interface AvatarSquareRoundedProps {
 export const AvatarSquareRounded: React.FC<AvatarSquareRoundedProps> = ({
   size = 38,
   radius = Dimen.borderRadius.panel,
-  bg = Color.background.app,
-  textColor = Color.text.primary,
+  bg = "bg-background-app",
+  textColor = "text-content-primary",
   icon,
   src,
   text,
@@ -27,12 +27,8 @@ export const AvatarSquareRounded: React.FC<AvatarSquareRoundedProps> = ({
   className = "",
 }) => {
   const borderRadius = typeof radius === "number" ? `${radius}px` : radius;
-  const borderStyle =
-    typeof border === "string"
-      ? border
-      : border
-      ? `1px solid ${Color.border.default}`
-      : "none";
+  const borderClass = border === true ? "border border-border" : "";
+  const borderStyle = typeof border === "string" ? border : border === false ? "none" : undefined;
   const isBgHex = bg.startsWith("#") || bg.startsWith("rgb");
   const isTextHex = textColor.startsWith("#") || textColor.startsWith("rgb");
   return (
@@ -45,7 +41,7 @@ export const AvatarSquareRounded: React.FC<AvatarSquareRoundedProps> = ({
         color: isTextHex ? textColor : undefined,
         border: borderStyle,
       }}
-      className={`flex items-center justify-center shrink-0 overflow-hidden select-none ${
+      className={`flex items-center justify-center shrink-0 overflow-hidden select-none ${borderClass} ${
         shadow ? "shadow-sm" : ""
       } ${!isBgHex ? bg : ""} ${!isTextHex ? textColor : ""} ${className}`}
     >

@@ -1,9 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   Layers,
   Snowflake,
-  Play,
-  CheckCircle2,
   Cpu,
   Monitor,
   HardDrive,
@@ -15,8 +13,9 @@ import {
   SystemPerformanceSnapshot,
 } from "../../types/performance";
 import { messengerService } from "../../platforms/messenger/services/messengerService";
-import { CommonBadge } from "../common";
 import { usePerformanceStore } from "../../stores/performanceStore";
+import { ProcessMetricRow } from "./ProcessMetricRow";
+import { MessengerAccountProcessCard } from "./MessengerAccountProcessCard";
 
 const getHostEngineLabel = () => {
   const ua = typeof navigator !== "undefined" ? navigator.userAgent.toLowerCase() : "";
@@ -30,66 +29,98 @@ interface ProcessDetailCardProps {
   isLoading: boolean;
 }
 
-export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
+export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = React.memo(({
   snapshot,
-  isLoading: _isLoading,
+  isLoading,
 }) => {
   const { t } = useTranslation("performance");
-  const [actingAccountIndex, setActingAccountIndex] = useState<number | null>(
-    null,
+  const [actingAccountIndices, setActingAccountIndices] = useState<Set<number>>(
+    () => new Set(),
   );
-  const hostItems: ProcessMetricItem[] = [];
-  const dashboardItems: ProcessMetricItem[] = [];
-  const messengerItemsMap = new Map<number, ProcessMetricItem[]>();
-  const gpuUtilityItems: ProcessMetricItem[] = [];
-  if (snapshot?.items) {
-    for (const item of snapshot.items) {
-      if (item.category === "host") {
-        hostItems.push(item);
-      } else if (item.category === "dashboard") {
-        dashboardItems.push(item);
-      } else if (item.category === "messenger" && item.accountIndex) {
-        const list = messengerItemsMap.get(item.accountIndex) || [];
-        list.push(item);
-        messengerItemsMap.set(item.accountIndex, list);
+  const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    const timers = timersRef.current;
+    return () => {
+      isMountedRef.current = false;
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
+    };
+  }, []);
+  const setAccountActing = (accountIndex: number, acting: boolean) => {
+    if (!isMountedRef.current) return;
+    setActingAccountIndices((prev) => {
+      const next = new Set(prev);
+      if (acting) {
+        next.add(accountIndex);
       } else {
-        gpuUtilityItems.push(item);
+        next.delete(accountIndex);
+      }
+      return next;
+    });
+  };
+  const { hostItems, dashboardItems, messengerAccounts, gpuUtilityItems } = useMemo(() => {
+    const host: ProcessMetricItem[] = [];
+    const dashboard: ProcessMetricItem[] = [];
+    const messengerMap = new Map<number, ProcessMetricItem[]>();
+    const gpuUtility: ProcessMetricItem[] = [];
+    if (snapshot?.items) {
+      for (const item of snapshot.items) {
+        if (item.category === "host") {
+          host.push(item);
+        } else if (item.category === "dashboard") {
+          dashboard.push(item);
+        } else if (item.category === "messenger" && item.accountIndex) {
+          const list = messengerMap.get(item.accountIndex) || [];
+          list.push(item);
+          messengerMap.set(item.accountIndex, list);
+        } else {
+          gpuUtility.push(item);
+        }
       }
     }
-  }
-  const messengerAccounts = Array.from(messengerItemsMap.entries()).sort(
-    ([a], [b]) => a - b,
-  );
+    return {
+      hostItems: host,
+      dashboardItems: dashboard,
+      messengerAccounts: Array.from(messengerMap.entries()).sort(([a], [b]) => a - b),
+      gpuUtilityItems: gpuUtility,
+    };
+  }, [snapshot]);
+  const scheduleRefreshAndClear = (accountIndex: number, delayMs: number) => {
+    const timer = setTimeout(() => {
+      timersRef.current.delete(timer);
+      if (!isMountedRef.current) return;
+      usePerformanceStore.getState().fetchSnapshot();
+      setAccountActing(accountIndex, false);
+    }, delayMs);
+    timersRef.current.add(timer);
+  };
   const handleFreezeAccount = async (accountIndex: number) => {
     try {
-      setActingAccountIndex(accountIndex);
+      setAccountActing(accountIndex, true);
       await messengerService.toggleBubble(false, accountIndex);
-      setTimeout(() => {
-        usePerformanceStore.getState().fetchSnapshot();
-        setActingAccountIndex(null);
-      }, 500);
+      if (!isMountedRef.current) return;
+      scheduleRefreshAndClear(accountIndex, 500);
     } catch (err) {
       console.error("[ProcessDetailCard] Error freezing account:", err);
-      setActingAccountIndex(null);
+      setAccountActing(accountIndex, false);
     }
   };
   const handleWakeAccount = async (accountIndex: number) => {
     try {
-      setActingAccountIndex(accountIndex);
+      setAccountActing(accountIndex, true);
       await messengerService.openChat(accountIndex);
-      setTimeout(() => {
-        usePerformanceStore.getState().fetchSnapshot();
-        setActingAccountIndex(null);
-      }, 800);
+      if (!isMountedRef.current) return;
+      scheduleRefreshAndClear(accountIndex, 800);
     } catch (err) {
       console.error("[ProcessDetailCard] Error waking account:", err);
-      setActingAccountIndex(null);
+      setAccountActing(accountIndex, false);
     }
   };
-
+  const hostEngine = getHostEngineLabel();
   return (
     <div className="bg-background-surface border border-border rounded-panel p-5 shadow-xs flex flex-col gap-5">
-      {/* 1. Header Card with Realtime Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-primary" />
@@ -104,10 +135,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
           </div>
         </div>
       </div>
-
-      {/* 2. Process groups */}
       <div className="flex flex-col gap-4 divide-y divide-border">
-        {/* Group 1: Host Core */}
         <div className="flex flex-col gap-2 pt-1 first:pt-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -124,41 +152,18 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
             </span>
           </div>
           {hostItems.map((item) => (
-            <div
+            <ProcessMetricRow
               key={item.pid}
-              className="p-3 bg-background-app/50 border border-border rounded-control flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-            >
-              <div className="flex flex-col gap-0.5">
-                <span className="text-small font-medium text-content-primary">
-                  {item.name}
-                </span>
-                <span className="text-caption text-content-muted">
-                  PID: {item.pid} · {getHostEngineLabel()}
-                </span>
-              </div>
-              <div className="flex items-center gap-4 text-small">
-                <div className="flex flex-col items-end">
-                  <span className="font-semibold text-content-primary">
-                    {item.workingSetMb.toFixed(1)} MB
-                  </span>
-                  <span className="text-caption text-content-secondary">
-                    {t("ram_working_set")}
-                  </span>
-                </div>
-                <div className="flex flex-col items-end w-14">
-                  <span className="font-semibold text-content-primary">
-                    {item.cpuPercent.toFixed(1)}%
-                  </span>
-                  <span className="text-caption text-content-secondary">
-                    {t("cpu")}
-                  </span>
-                </div>
-              </div>
-            </div>
+              name={item.name}
+              pid={item.pid}
+              subtitle={hostEngine}
+              workingSetMb={item.workingSetMb}
+              ramLabel={t("ram_working_set")}
+              cpuPercent={item.cpuPercent}
+              cpuLabel={t("cpu")}
+            />
           ))}
         </div>
-
-        {/* Group 2: Dashboard UI */}
         <div className="flex flex-col gap-2 pt-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -176,46 +181,23 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
           </div>
           {dashboardItems.length === 0 ? (
             <div className="p-3 bg-background-app/30 border border-border rounded-control text-caption text-content-muted">
-              {t("dashboard_hibernating")}
+              {!snapshot && isLoading ? t("refresh_running") : t("dashboard_hibernating")}
             </div>
           ) : (
             dashboardItems.map((item) => (
-              <div
+              <ProcessMetricRow
                 key={item.pid}
-                className="p-3 bg-background-app/50 border border-border rounded-control flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-              >
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-small font-medium text-content-primary">
-                    {item.name}
-                  </span>
-                  <span className="text-caption text-content-muted">
-                    PID: {item.pid} · React 19 Dashboard UI
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 text-small">
-                  <div className="flex flex-col items-end">
-                    <span className="font-semibold text-content-primary">
-                      {item.workingSetMb.toFixed(1)} MB
-                    </span>
-                    <span className="text-caption text-content-secondary">
-                      {t("ram")}
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-end w-14">
-                    <span className="font-semibold text-content-primary">
-                      {item.cpuPercent.toFixed(1)}%
-                    </span>
-                    <span className="text-caption text-content-secondary">
-                      {t("cpu")}
-                    </span>
-                  </div>
-                </div>
-              </div>
+                name={item.name}
+                pid={item.pid}
+                subtitle="React 19 Dashboard UI"
+                workingSetMb={item.workingSetMb}
+                ramLabel={t("ram")}
+                cpuPercent={item.cpuPercent}
+                cpuLabel={t("cpu")}
+              />
             ))
           )}
         </div>
-
-        {/* Group 3: Messenger Accounts */}
         <div className="flex flex-col gap-2.5 pt-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -235,156 +217,18 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
               {t("no_accounts_linked")}
             </div>
           ) : (
-            messengerAccounts.map(([accountIndex, procList]) => {
-              const isSuspended = procList.every((p) => p.isSuspended);
-              const totalAccountRam = procList.reduce(
-                (sum, p) => sum + p.workingSetMb,
-                0,
-              );
-              const totalAccountCpu = procList.reduce(
-                (sum, p) => sum + p.cpuPercent,
-                0,
-              );
-              const displayName =
-                procList[0]?.accountName ||
-                `Messenger ${accountIndex.toString().padStart(2, "0")}`;
-              const isActing = actingAccountIndex === accountIndex;
-
-              return (
-                <div
-                  key={accountIndex}
-                  className={`p-3.5 border rounded-panel flex flex-col gap-3 transition-colors ${
-                    isSuspended
-                      ? "bg-slate-50 dark:bg-background-subtle  border-slate-200 dark:border-border"
-                      : "bg-background-surface border-border shadow-xs"
-                  }`}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-small shrink-0 ${
-                          isSuspended
-                            ? "bg-slate-200 dark:bg-background-app text-slate-500 dark:text-content-muted"
-                            : "bg-gradient-to-br from-blue-500 to-sky-400 text-white shadow-xs"
-                        }`}
-                      >
-                        {accountIndex.toString().padStart(2, "0")}
-                      </div>
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2">
-                          <span className="text-small font-semibold text-content-primary">
-                            {displayName}
-                          </span>
-                          {isSuspended ? (
-                            <CommonBadge
-                              status={t("status_frozen")}
-                              color="secondary"
-                              icon={<Snowflake className="w-3 h-3" />}
-                            />
-                          ) : (
-                            <CommonBadge
-                              status={t("status_active")}
-                              color="success"
-                              icon={<CheckCircle2 className="w-3 h-3" />}
-                            />
-                          )}
-                        </div>
-                        <span className="text-caption text-content-muted">
-                          {t("profile_dir")}: profiles/messenger_
-                          {accountIndex.toString().padStart(2, "0")}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 self-end sm:self-auto">
-                      <div className="flex items-center gap-3 text-small mr-2">
-                        <div className="flex flex-col items-end">
-                          <span
-                            className={`font-semibold ${
-                              isSuspended
-                                ? "text-emerald-600 font-bold"
-                                : "text-content-primary"
-                            }`}
-                          >
-                            {isSuspended
-                              ? "0 MB"
-                              : `${totalAccountRam.toFixed(1)} MB`}
-                          </span>
-                          <span className="text-caption text-content-muted">
-                            {isSuspended ? t("savings_tag") : t("total_ram")}
-                          </span>
-                        </div>
-                        <div className="flex flex-col items-end w-12">
-                          <span className="font-semibold text-content-primary">
-                            {isSuspended
-                              ? "0.0%"
-                              : `${totalAccountCpu.toFixed(1)}%`}
-                          </span>
-                          <span className="text-caption text-content-muted">
-                            {t("cpu")}
-                          </span>
-                        </div>
-                      </div>
-                      {isSuspended ? (
-                        <button
-                          onClick={() => handleWakeAccount(accountIndex)}
-                          disabled={isActing}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-control text-small font-medium shadow-xs transition-colors cursor-pointer disabled:opacity-60"
-                          title={t("wake_tooltip")}
-                        >
-                          <Play
-                            className={`w-3.5 h-3.5 fill-current ${isActing ? "animate-spin" : ""}`}
-                          />
-                          <span>
-                            {isActing ? t("wake_running") : t("wake_account")}
-                          </span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleFreezeAccount(accountIndex)}
-                          disabled={isActing}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-control text-small font-medium transition-colors cursor-pointer disabled:opacity-60"
-                          title={t("freeze_tooltip")}
-                        >
-                          <Snowflake
-                            className={`w-3.5 h-3.5 ${isActing ? "animate-spin" : ""}`}
-                          />
-                          <span>
-                            {isActing
-                              ? t("freeze_running")
-                              : t("freeze_account")}
-                          </span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {!isSuspended && procList.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-border">
-                      {procList.map((p) => (
-                        <div
-                          key={p.pid}
-                          className="px-2.5 py-1.5 bg-background-app/50 rounded-control text-caption flex items-center gap-2"
-                        >
-                          <span
-                            className="w-[70%] min-w-0 truncate text-content-secondary"
-                            title={`${p.name} (PID: ${p.pid})`}
-                          >
-                            {p.name} (PID: {p.pid})
-                          </span>
-                          <span className="w-[30%] shrink-0 text-right font-semibold text-content-primary whitespace-nowrap">
-                            {p.workingSetMb.toFixed(1)} MB ·{" "}
-                            {p.cpuPercent.toFixed(1)}%
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })
+            messengerAccounts.map(([accountIndex, procList]) => (
+              <MessengerAccountProcessCard
+                key={accountIndex}
+                accountIndex={accountIndex}
+                procList={procList}
+                isActing={actingAccountIndices.has(accountIndex)}
+                onFreeze={handleFreezeAccount}
+                onWake={handleWakeAccount}
+              />
+            ))
           )}
         </div>
-
-        {/* Group 4: GPU & Utility */}
         <div className="flex flex-col gap-2 pt-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -401,31 +245,21 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {gpuUtilityItems.map((item) => (
-              <div
+              <ProcessMetricRow
                 key={item.pid}
-                className="p-2.5 bg-background-app/40 border border-border rounded-control flex items-center justify-between text-caption"
-              >
-                <div className="flex flex-col">
-                  <span className="font-medium text-content-primary">
-                    {item.name}
-                  </span>
-                  <span className="text-content-muted">PID: {item.pid}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold text-content-primary">
-                    {item.workingSetMb.toFixed(1)} MB
-                  </span>
-                  <span className="text-content-secondary">
-                    {item.cpuPercent.toFixed(1)}% {t("cpu")}
-                  </span>
-                </div>
-              </div>
+                name={item.name}
+                pid={item.pid}
+                workingSetMb={item.workingSetMb}
+                cpuPercent={item.cpuPercent}
+                cpuLabel={t("cpu")}
+                variant="compact"
+              />
             ))}
           </div>
         </div>
       </div>
     </div>
   );
-};
+});
 
 export default ProcessDetailCard;

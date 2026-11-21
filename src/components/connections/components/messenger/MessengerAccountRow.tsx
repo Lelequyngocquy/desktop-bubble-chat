@@ -18,10 +18,8 @@ import { getAccountThemeColor, Color, Dimen } from "../../../../constants/design
 interface MessengerAccountRowProps {
   account: MessengerAccount;
   onOpen: (account: MessengerAccount) => void;
-  onRefresh: (account: MessengerAccount) => void;
   onRemove: (account: MessengerAccount) => void;
   onCancelAuth?: (account: MessengerAccount) => void;
-  isRefreshing?: boolean;
 }
 
 export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
@@ -111,6 +109,7 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
               <button
                 type="button"
                 title={t("connections_page.cancel_auth_tooltip")}
+                aria-label={t("connections_page.cancel_auth_tooltip")}
                 onClick={() => onCancelAuth(account)}
                 className="p-2 rounded-control text-content-secondary hover:text-status-error hover:bg-status-errorBg border border-border transition-all cursor-pointer"
               >
@@ -139,6 +138,9 @@ export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({
         <button
           type="button"
           title={t("connections_page.remove_account_tooltip", {
+            name: account.name,
+          })}
+          aria-label={t("connections_page.remove_account_tooltip", {
             name: account.name,
           })}
           onClick={() => onRemove(account)}

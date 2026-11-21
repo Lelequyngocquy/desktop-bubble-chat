@@ -15,15 +15,15 @@ export const MessengerAccountList: React.FC = () => {
   const { t } = useTranslation("dashboard");
   const {
     accounts,
-    refreshingId,
     openAccount,
     cancelAuth,
-    refreshAccount,
     removeAccount,
     addAccount,
   } = useMessengerAccounts();
   const [accountToRemove, setAccountToRemove] = useState<MessengerAccount | null>(null);
   const [accountToWake, setAccountToWake] = useState<MessengerAccount | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [isWaking, setIsWaking] = useState(false);
   const handleOpenAccount = (account: MessengerAccount) => {
     if (account.isConnected && !account.isBubbleVisible) {
       setAccountToWake(account);
@@ -55,10 +55,8 @@ export const MessengerAccountList: React.FC = () => {
               key={account.id}
               account={account}
               onOpen={handleOpenAccount}
-              onRefresh={refreshAccount}
               onRemove={(acc) => setAccountToRemove(acc)}
               onCancelAuth={cancelAuth}
-              isRefreshing={refreshingId === account.id}
             />
           ))}
         </div>
@@ -70,7 +68,7 @@ export const MessengerAccountList: React.FC = () => {
       />
       <CommonDialog
         isOpen={Boolean(accountToRemove)}
-        onClose={() => setAccountToRemove(null)}
+        onClose={() => !isRemoving && setAccountToRemove(null)}
         eyebrow={t("connections_page.dialog_remove_eyebrow")}
         titleIcon={<Trash2 className="w-5 h-5 text-status-error" />}
         title={t("connections_page.dialog_remove_title", {
@@ -108,23 +106,29 @@ export const MessengerAccountList: React.FC = () => {
         }
         backButton={{
           label: t("connections_page.dialog_remove_cancel"),
+          disabled: isRemoving,
           onClick: () => setAccountToRemove(null),
         }}
         rightButton={{
           label: t("connections_page.dialog_remove_confirm"),
           variant: "danger",
+          loading: isRemoving,
           onClick: async () => {
-            if (accountToRemove) {
-              const target = accountToRemove;
-              setAccountToRemove(null);
+            if (!accountToRemove || isRemoving) return;
+            const target = accountToRemove;
+            setIsRemoving(true);
+            try {
               await removeAccount(target);
+              setAccountToRemove(null);
+            } finally {
+              setIsRemoving(false);
             }
           },
         }}
       />
       <CommonDialog
         isOpen={Boolean(accountToWake)}
-        onClose={() => setAccountToWake(null)}
+        onClose={() => !isWaking && setAccountToWake(null)}
         eyebrow={t("connections_page.dialog_wake_eyebrow")}
         titleIcon={<Moon className="w-5 h-5 text-primary" />}
         title={t("connections_page.dialog_wake_title", {
@@ -160,16 +164,22 @@ export const MessengerAccountList: React.FC = () => {
         }
         backButton={{
           label: t("connections_page.dialog_wake_stay_hibernating"),
+          disabled: isWaking,
           onClick: () => setAccountToWake(null),
         }}
         rightButton={{
           label: t("connections_page.dialog_wake_confirm"),
           variant: "primary",
+          loading: isWaking,
           onClick: async () => {
-            if (accountToWake) {
-              const target = accountToWake;
-              setAccountToWake(null);
+            if (!accountToWake || isWaking) return;
+            const target = accountToWake;
+            setIsWaking(true);
+            try {
               await openAccount(target);
+              setAccountToWake(null);
+            } finally {
+              setIsWaking(false);
             }
           },
         }}

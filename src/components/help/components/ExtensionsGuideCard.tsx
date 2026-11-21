@@ -1,15 +1,16 @@
 import React from "react";
 import { Puzzle, FolderOpen, AlertTriangle, RotateCcw, FolderPlus, Info } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { invoke } from "@tauri-apps/api/core";
+import { useShallow } from "zustand/react/shallow";
 import { CommonLargeCard, CommonHintLine } from "../../common/index";
 import { useMessengerStore } from "../../../platforms/messenger";
+import { systemService } from "../../../services/systemService";
 
 export const ExtensionsGuideCard: React.FC = () => {
   const { t } = useTranslation("help");
-  const accounts = useMessengerStore((s) => s.accounts);
+  const accountIndices = useMessengerStore(useShallow((s) => s.accounts.map((a) => a.index)));
   const openFolder = (index: number) => {
-    invoke("open_profile_extensions_folder", { accountIndex: index }).catch(() => {});
+    systemService.openProfileExtensionsFolder(index);
   };
   return (
     <CommonLargeCard
@@ -17,7 +18,7 @@ export const ExtensionsGuideCard: React.FC = () => {
       title={t("ext_title")}
       subTitle={
         <span className="px-2 py-0.5 bg-background-subtle text-content-secondary border border-border rounded-pill text-caption font-semibold">
-          Windows only
+          {t("ext_windows_only")}
         </span>
       }
       className="w-full shrink-0 p-6 justify-between gap-5 select-none"
@@ -43,13 +44,14 @@ export const ExtensionsGuideCard: React.FC = () => {
             </span>
             {/* Quick-open buttons — only for existing accounts */}
             <div className="flex flex-wrap gap-1.5 mt-1">
-              {accounts.map((acc) => (
+              {accountIndices.map((idx) => (
                 <button
-                  key={acc.index}
-                  onClick={() => openFolder(acc.index)}
+                  key={idx}
+                  type="button"
+                  onClick={() => openFolder(idx)}
                   className="px-2 py-0.5 rounded-pill bg-background-surface border border-border text-caption text-primary hover:bg-background-subtle transition-colors cursor-pointer"
                 >
-                  #{acc.index}
+                  #{idx}
                 </button>
               ))}
             </div>

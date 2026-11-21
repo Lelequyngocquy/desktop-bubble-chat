@@ -16,7 +16,6 @@ export const HomeWorkspace: React.FC = () => {
   return (
     <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden">
       <TabHeader
-        eyebrow={t("workspace_eyebrow")}
         title={t("welcome_user", { user: systemUser })}
         description={t("workspace_desc")}
         rightSlot={

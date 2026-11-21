@@ -15,16 +15,18 @@ interface ActiveIndicator {
 export const BubbleSpawnIndicator: React.FC = () => {
   const [indicators, setIndicators] = useState<ActiveIndicator[]>([]);
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-
+  const isMountedRef = useRef(true);
+  const nextIdRef = useRef(0);
   const removeIndicator = useCallback((id: string) => {
     setIndicators((prev) => prev.filter((item) => item.id !== id));
-    const timer = timersRef.current.get(id);
-    if (timer) {
-      clearTimeout(timer);
-      timersRef.current.delete(id);
+    for (const key of [id, `${id}-fade`]) {
+      const timer = timersRef.current.get(key);
+      if (timer) {
+        clearTimeout(timer);
+        timersRef.current.delete(key);
+      }
     }
   }, []);
-
   const addIndicator = useCallback(
     async (accountIndex: number, bubbleX?: number, bubbleY?: number) => {
       let y = typeof window !== "undefined" ? window.innerHeight / 2 : 400;
@@ -36,6 +38,7 @@ export const BubbleSpawnIndicator: React.FC = () => {
           appWin.outerSize(),
           currentMonitor(),
         ]);
+        if (!isMountedRef.current) return;
         const scale = monitor?.scaleFactor || window.devicePixelRatio || 1;
         const centerX = winPos.x + winSize.width / 2;
         if (bubbleX !== undefined) {
@@ -49,12 +52,14 @@ export const BubbleSpawnIndicator: React.FC = () => {
           y = Math.max(topBoundary, Math.min(bottomBoundary, relativeY));
         }
       } catch {
+        if (!isMountedRef.current) return;
         if (bubbleX !== undefined) {
           isLeft = bubbleX < 500;
         }
       }
+      if (!isMountedRef.current) return;
       const color = getAccountThemeColor(accountIndex);
-      const id = `${accountIndex}-${Date.now()}`;
+      const id = `${accountIndex}-${Date.now()}-${++nextIdRef.current}`;
       timersRef.current.forEach((t, key) => {
         if (key.startsWith(`${accountIndex}-`)) {
           clearTimeout(t);
@@ -73,11 +78,15 @@ export const BubbleSpawnIndicator: React.FC = () => {
         },
       ]);
       const fadeTimer = setTimeout(() => {
+        timersRef.current.delete(`${id}-fade`);
+        if (!isMountedRef.current) return;
         setIndicators((prev) =>
           prev.map((item) => (item.id === id ? { ...item, isFadingOut: true } : item))
         );
       }, 800);
       const destroyTimer = setTimeout(() => {
+        timersRef.current.delete(id);
+        if (!isMountedRef.current) return;
         removeIndicator(id);
       }, 1000);
       timersRef.current.set(`${id}-fade`, fadeTimer);
@@ -85,19 +94,19 @@ export const BubbleSpawnIndicator: React.FC = () => {
     },
     [removeIndicator]
   );
-
   const lastBubbleSpawn = useWindowStore((s) => s.lastBubbleSpawn);
-
   useEffect(() => {
     if (lastBubbleSpawn) {
       addIndicator(lastBubbleSpawn.accountIndex, lastBubbleSpawn.x, lastBubbleSpawn.y);
     }
   }, [lastBubbleSpawn, addIndicator]);
-
   useEffect(() => {
+    isMountedRef.current = true;
+    const timers = timersRef.current;
     return () => {
-      timersRef.current.forEach((t) => clearTimeout(t));
-      timersRef.current.clear();
+      isMountedRef.current = false;
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
     };
   }, []);
 

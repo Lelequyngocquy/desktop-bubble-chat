@@ -15,48 +15,30 @@ pub struct IncomingMessageDto {
     pub timestamp: u64,
 }
 
-/// Command receiving new message notification from injected script
+/// Command receiving new message notification via unified pipeline
 #[tauri::command]
 pub fn report_new_message(
     app: AppHandle,
+    state: State<'_, Arc<ChatState>>,
     sender_name: String,
     body: Option<String>,
     avatar_url: Option<String>,
     thread_id: Option<String>,
     account_index: Option<u32>,
 ) -> Result<(), String> {
-    let idx = account_index.unwrap_or(1);
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0);
-    let payload = IncomingMessageDto {
-        account_index: idx,
-        sender_name,
-        body,
-        avatar_url,
-        thread_id,
-        timestamp: now,
-    };
-    crate::utils::native_sound::play_bubble_pop();
-    crate::operating_systems::current::bubble::trigger_native_bubble_pulse(idx);
-    crate::utils::trim_controller::schedule_auto_trim_on_message(idx, app.clone());
-    use tauri_plugin_notification::NotificationExt;
-    let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
-    let is_chat_open = app
-        .get_webview_window(&chat_label)
-        .map(|w| w.is_visible().unwrap_or(false))
-        .unwrap_or(false);
-    if !is_chat_open {
-        let notif_body = payload.body.as_deref().unwrap_or("You have a new message");
-        let _ = app
-            .notification()
-            .builder()
-            .title(&payload.sender_name)
-            .body(notif_body)
-            .show();
-    }
-    app.emit("new-message-received", &payload).map_err(|e| e.to_string())
+    let idx = ChatState::validate_account_index(account_index)?;
+    let ts = crate::utils::time::now_millis();
+    crate::commands::notification::dispatch_incoming_message(
+        &app,
+        &state,
+        idx,
+        &sender_name,
+        body.as_deref().unwrap_or(""),
+        avatar_url.as_deref().unwrap_or(""),
+        thread_id.as_deref().unwrap_or(""),
+        ts,
+    );
+    Ok(())
 }
 
 /// Command receiving recent conversations extracted from webview
@@ -84,8 +66,17 @@ pub async fn open_chat(
     state: State<'_, Arc<ChatState>>,
     account_index: Option<u32>,
 ) -> Result<(), String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     ChatService::open_chat(&app, &state, idx)
+}
+
+/// Validates a Messenger thread ID against safe path characters and rejects synthetic prefixes
+fn is_valid_thread_id(thread_id: &str) -> bool {
+    let clean = thread_id.trim();
+    !clean.is_empty()
+        && !clean.starts_with("sender-")
+        && !clean.starts_with("account-msg-")
+        && clean.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
 }
 
 /// Command opening a specific conversation thread and docking next to bubble
@@ -96,20 +87,20 @@ pub async fn open_thread(
     thread_id: String,
     account_index: Option<u32>,
 ) -> Result<(), String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     let is_connected = state.get_account_auth(idx).map(|a| a.connected).unwrap_or(false);
     if !is_connected || state.is_account_suspended(idx) {
         return Err(format!("Account {} is not active or connected", idx));
     }
     ChatService::open_chat(&app, &state, idx)?;
-    let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
-    let chat_win = app.get_webview_window(&chat_label).or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
-    if let Some(chat_window) = chat_win {
+    if let Some(chat_window) = crate::platforms::messenger::windows::get_messenger_webview(&app, idx) {
         let clean_id = thread_id.trim();
-        if !clean_id.is_empty() && !clean_id.starts_with("sender-") {
+        if is_valid_thread_id(clean_id) {
             let url = format!("https://www.messenger.com/t/{}", clean_id);
-            let script = format!("window.location.href = '{}';", url);
-            let _ = chat_window.eval(&script);
+            if let Ok(quoted_url) = serde_json::to_string(&url) {
+                let script = format!("window.location.href = {};", quoted_url);
+                let _ = chat_window.eval(&script);
+            }
         }
     }
     Ok(())
@@ -122,7 +113,7 @@ pub async fn toggle_chat(
     state: State<'_, Arc<ChatState>>,
     account_index: Option<u32>,
 ) -> Result<bool, String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     ChatService::toggle_chat(&app, &state, idx)
 }
 
@@ -132,7 +123,7 @@ pub fn refresh_messenger(
     app: AppHandle,
     account_index: Option<u32>,
 ) -> Result<(), String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     ChatService::refresh(&app, idx)
 }
 
@@ -143,7 +134,7 @@ pub fn close_messenger_window(
     state: State<'_, Arc<ChatState>>,
     account_index: Option<u32>,
 ) -> Result<(), String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     StorageService::clean_account_session(&app, &state, idx)
 }
 
@@ -154,7 +145,7 @@ pub fn clear_account_storage(
     state: State<'_, Arc<ChatState>>,
     account_index: Option<u32>,
 ) -> Result<(), String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     StorageService::clean_account_session(&app, &state, idx)
 }
 
@@ -165,7 +156,7 @@ pub async fn preload_chat(
     state: State<'_, Arc<ChatState>>,
     account_index: Option<u32>,
 ) -> Result<(), String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     let _ = crate::platforms::messenger::windows::get_or_create_messenger_window(&app, idx, Arc::clone(&state))?;
     Ok(())
 }
@@ -178,7 +169,7 @@ pub fn set_account_muted(
     account_index: Option<u32>,
     muted: bool,
 ) -> Result<(), String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     state.set_account_muted(idx, muted);
     state.update_user_config(&app, |c| {
         if muted {
@@ -189,7 +180,6 @@ pub fn set_account_muted(
         } else {
             c.muted_accounts.retain(|&x| x != idx);
         }
-        c.is_notifications_enabled = c.muted_accounts.len() < 5;
     });
     let label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
     println!(
@@ -242,7 +232,7 @@ pub fn set_chat_window_size_config(
     width: Option<u32>,
     height: Option<u32>,
 ) -> Result<Option<(u32, u32)>, String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     let label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
     let win_opt = app.get_webview_window(&label);
     let size = if is_custom {
@@ -282,10 +272,17 @@ pub fn toggle_pin_chat(
     account_index: Option<u32>,
     pinned: Option<bool>,
 ) -> Result<bool, String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     let next_state = pinned.unwrap_or_else(|| !state.is_chat_pinned(idx));
     state.set_chat_pinned(idx, next_state);
     println!("\x1b[34m[BE - Pin] toggle_pin_chat: account_index={}, pinned={}\x1b[0m", idx, next_state);
+    let label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
+    if let Some(win) = app.get_webview_window(&label) {
+        let _ = win.eval(format!(
+            "if (typeof window.__updatePinButtonUi === 'function') {{ window.__updatePinButtonUi({}); }}",
+            next_state
+        ));
+    }
     let _ = app.emit("chat-pin-changed", serde_json::json!({
         "accountIndex": idx,
         "pinned": next_state
@@ -299,6 +296,23 @@ pub fn is_chat_pinned(
     state: State<'_, Arc<ChatState>>,
     account_index: Option<u32>,
 ) -> Result<bool, String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     Ok(state.is_chat_pinned(idx))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_valid_thread_id;
+
+    #[test]
+    fn test_is_valid_thread_id() {
+        assert!(is_valid_thread_id("1234567890"));
+        assert!(is_valid_thread_id("t_abc.123-xyz"));
+        assert!(!is_valid_thread_id(""));
+        assert!(!is_valid_thread_id("   "));
+        assert!(!is_valid_thread_id("sender-alice"));
+        assert!(!is_valid_thread_id("account-msg-1"));
+        assert!(!is_valid_thread_id("123';alert(1)//"));
+        assert!(!is_valid_thread_id("e2ee/t/123"));
+    }
 }

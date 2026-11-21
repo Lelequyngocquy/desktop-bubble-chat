@@ -56,17 +56,27 @@ impl MacOSMemoryOptimizer {
         n.contains("com.apple.webkit.webcontent") || n.contains("com.apple.webkit.networking")
     }
 
-    /// Terminates WebKit processes matching needle profile path
+    /// Terminates WebKit processes matching non-empty needle profile path
     pub fn terminate_profile_process(needle: &str) {
-        let mut system = sysinfo::System::new_all();
-        system.refresh_all();
-        for (_pid, process) in system.processes() {
+        let trimmed = needle.trim();
+        if trimmed.is_empty() {
+            return;
+        }
+        let needle_lower = trimmed.to_lowercase();
+        let system = sysinfo::System::new_with_specifics(
+            sysinfo::RefreshKind::nothing().with_processes(
+                sysinfo::ProcessRefreshKind::nothing().with_cmd(sysinfo::UpdateKind::Always),
+            ),
+        );
+        for process in system.processes().values() {
+            if process.thread_kind().is_some() {
+                continue;
+            }
             let name = process.name().to_string_lossy().to_lowercase();
-            if Self::is_webview_process(&name) {
-                let cmd = process.cmd().iter().map(|s| s.to_string_lossy()).collect::<Vec<_>>().join(" ");
-                if cmd.contains(needle) {
-                    let _ = process.kill_with(sysinfo::Signal::Term);
-                }
+            let cmd = process.cmd().iter().map(|s| s.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
+            if (Self::is_webview_process(&name) || Self::is_webview_process(&cmd))
+                && cmd.contains(&needle_lower) {
+                let _ = process.kill_with(sysinfo::Signal::Term);
             }
         }
     }

@@ -31,9 +31,9 @@ pub struct AutoTrimController {
 static AUTO_TRIM_CONTROLLER: OnceLock<AutoTrimController> = OnceLock::new();
 
 fn is_chat_window_visible(app: &AppHandle, account_index: u32) -> bool {
-    let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(account_index);
-    let win = app.get_webview_window(&chat_label).or_else(|| if account_index == 1 { app.get_webview_window("chat-messenger") } else { None });
-    win.and_then(|w| w.is_visible().ok()).unwrap_or(false)
+    crate::platforms::messenger::windows::get_messenger_webview(app, account_index)
+        .and_then(|w| w.is_visible().ok())
+        .unwrap_or(false)
 }
 
 impl Default for AutoTrimController {
@@ -101,6 +101,13 @@ impl AutoTrimController {
             lock.remove(&account_index);
         }
     }
+    /// Clears pending trim token only if it matches the completed token
+    pub fn cancel_pending_trim_if_matches(&self, account_index: u32, token: u64) {
+        if let Ok(mut lock) = self.pending_tokens.lock()
+            && lock.get(&account_index).copied() == Some(token) {
+                lock.remove(&account_index);
+            }
+    }
     /// Generates and assigns a new debounce token for an account
     pub fn next_token(&self, account_index: u32) -> u64 {
         let token = self.token_counter.fetch_add(1, Ordering::SeqCst);
@@ -121,13 +128,12 @@ impl AutoTrimController {
             true
         }
     }
-    /// Executes targeted working set trim on WebView2 processes belonging to account_index
-    pub fn trim_account_process_tree(&self, account_index: u32) -> usize {
-        let pids = crate::utils::performance::get_account_process_pids(account_index);
-        let count = pids.len();
-        for pid in &pids {
+    /// Trims working sets for pre-collected PIDs belonging to account_index
+    pub fn trim_account_pids(&self, account_index: u32, pids: &[u32]) -> usize {
+        for pid in pids {
             crate::utils::performance::trim_single_process_working_set(*pid);
         }
+        let count = pids.len();
         if count > 0 {
             self.record_trim(account_index);
             println!(
@@ -137,35 +143,52 @@ impl AutoTrimController {
         }
         count
     }
-    /// Schedules an auto-trim task after bubble/window is tucked (5s debounce)
-    pub fn on_account_tucked(&self, account_index: u32, app: AppHandle) {
-        self.set_tucked_state(account_index, true);
+    /// Executes targeted working set trim on WebView2 processes belonging to account_index
+    pub fn trim_account_process_tree(&self, account_index: u32) -> usize {
+        let pids = crate::utils::performance::get_account_process_pids(account_index);
+        self.trim_account_pids(account_index, &pids)
+    }
+    fn schedule_debounced_trim(
+        &self,
+        account_index: u32,
+        app: AppHandle,
+        delay: Duration,
+        interaction_window: Option<Duration>,
+        preload_log: bool,
+    ) {
         let token = self.next_token(account_index);
         let controller = Self::global();
         tauri::async_runtime::spawn(async move {
-            tokio::time::sleep(TUCK_DEBOUNCE_DURATION).await;
-            if !controller.is_token_valid(account_index, token) {
-                return;
-            }
-            if !controller.is_account_tucked(account_index) {
-                return;
-            }
-            if controller.has_recent_interaction(account_index, TUCK_DEBOUNCE_DURATION) {
-                return;
-            }
-            if is_chat_window_visible(&app, account_index) {
-                return;
-            }
-            if !controller.is_auto_trim_enabled(&app) {
-                return;
-            }
-            if !controller.can_trim(account_index) {
+            tokio::time::sleep(delay).await;
+            if let Some(cs) = app.try_state::<std::sync::Arc<crate::state::ChatState>>()
+                && cs.is_explicit_exit.load(Ordering::SeqCst) {
+                    return;
+                }
+            if !controller.is_token_valid(account_index, token)
+                || !controller.is_account_tucked(account_index)
+                || interaction_window.is_some_and(|w| controller.has_recent_interaction(account_index, w))
+                || is_chat_window_visible(&app, account_index)
+                || !controller.is_auto_trim_enabled(&app)
+                || !controller.can_trim(account_index) {
                 return;
             }
             crate::platforms::messenger::windows::set_chat_window_memory_target(&app, account_index, true);
-            controller.trim_account_process_tree(account_index);
-            controller.cancel_pending_trim(account_index);
+            let trimmed = tokio::task::spawn_blocking(move || {
+                AutoTrimController::global().trim_account_process_tree(account_index)
+            }).await.unwrap_or(0);
+            if preload_log && trimmed > 0 {
+                println!(
+                    "\x1b[32m[AutoTrimEngine] Post-preload settle trim executed for Messenger {:02} ({} processes trimmed)\x1b[0m",
+                    account_index, trimmed
+                );
+            }
+            controller.cancel_pending_trim_if_matches(account_index, token);
         });
+    }
+    /// Schedules an auto-trim task after bubble/window is tucked (5s debounce)
+    pub fn on_account_tucked(&self, account_index: u32, app: AppHandle) {
+        self.set_tucked_state(account_index, true);
+        self.schedule_debounced_trim(account_index, app, TUCK_DEBOUNCE_DURATION, Some(TUCK_DEBOUNCE_DURATION), false);
     }
     /// Cancels auto-trim when user untucks/interacts with bubble or window
     pub fn on_account_untucked(&self, account_index: u32) {
@@ -175,64 +198,11 @@ impl AutoTrimController {
     }
     /// Schedules an auto-trim task after receiving a message notification (5s debounce)
     pub fn on_new_message(&self, account_index: u32, app: AppHandle) {
-        let token = self.next_token(account_index);
-        let controller = Self::global();
-        tauri::async_runtime::spawn(async move {
-            tokio::time::sleep(MESSAGE_DEBOUNCE_DURATION).await;
-            if !controller.is_token_valid(account_index, token) {
-                return;
-            }
-            if !controller.is_account_tucked(account_index) {
-                return;
-            }
-            if controller.has_recent_interaction(account_index, MESSAGE_DEBOUNCE_DURATION) {
-                return;
-            }
-            if is_chat_window_visible(&app, account_index) {
-                return;
-            }
-            if !controller.is_auto_trim_enabled(&app) {
-                return;
-            }
-            if !controller.can_trim(account_index) {
-                return;
-            }
-            crate::platforms::messenger::windows::set_chat_window_memory_target(&app, account_index, true);
-            controller.trim_account_process_tree(account_index);
-            controller.cancel_pending_trim(account_index);
-        });
+        self.schedule_debounced_trim(account_index, app, MESSAGE_DEBOUNCE_DURATION, Some(MESSAGE_DEBOUNCE_DURATION), false);
     }
     /// Schedules an auto-trim task after webview preloading finishes (5.0s settle duration)
     pub fn on_preload_finished(&self, account_index: u32, app: AppHandle) {
-        let token = self.next_token(account_index);
-        let controller = Self::global();
-        tauri::async_runtime::spawn(async move {
-            tokio::time::sleep(PRELOAD_SETTLE_DURATION).await;
-            if !controller.is_token_valid(account_index, token) {
-                return;
-            }
-            if !controller.is_account_tucked(account_index) {
-                return;
-            }
-            if is_chat_window_visible(&app, account_index) {
-                return;
-            }
-            if !controller.is_auto_trim_enabled(&app) {
-                return;
-            }
-            if !controller.can_trim(account_index) {
-                return;
-            }
-            crate::platforms::messenger::windows::set_chat_window_memory_target(&app, account_index, true);
-            let trimmed = controller.trim_account_process_tree(account_index);
-            if trimmed > 0 {
-                println!(
-                    "\x1b[32m[AutoTrimEngine] Post-preload settle trim executed for Messenger {:02} ({} processes trimmed)\x1b[0m",
-                    account_index, trimmed
-                );
-            }
-            controller.cancel_pending_trim(account_index);
-        });
+        self.schedule_debounced_trim(account_index, app, PRELOAD_SETTLE_DURATION, None, true);
     }
 }
 
@@ -259,26 +229,32 @@ pub fn start_idle_trim_sweeper(app: AppHandle) {
         let controller = AutoTrimController::global();
         loop {
             interval.tick().await;
+            if let Some(cs) = app.try_state::<std::sync::Arc<crate::state::ChatState>>()
+                && cs.is_explicit_exit.load(Ordering::SeqCst) {
+                    break;
+                }
             if !controller.is_auto_trim_enabled(&app) {
                 continue;
             }
-            for account_index in 1..=5 {
-                if !controller.is_account_tucked(account_index) {
+            for account_index in 1..=crate::state::MAX_ACCOUNTS {
+                if let Some(cs) = app.try_state::<std::sync::Arc<crate::state::ChatState>>()
+                    && cs.is_account_suspended(account_index) {
+                        continue;
+                    }
+                if !controller.is_account_tucked(account_index)
+                    || controller.has_recent_interaction(account_index, Duration::from_secs(30))
+                    || is_chat_window_visible(&app, account_index)
+                    || !controller.can_trim(account_index) {
                     continue;
                 }
-                if controller.has_recent_interaction(account_index, Duration::from_secs(30)) {
-                    continue;
-                }
-                if is_chat_window_visible(&app, account_index) {
-                    continue;
-                }
-                if !controller.can_trim(account_index) {
-                    continue;
-                }
-                let pids = crate::utils::performance::get_account_process_pids(account_index);
+                let pids = tokio::task::spawn_blocking(move || {
+                    crate::utils::performance::get_account_process_pids(account_index)
+                }).await.unwrap_or_default();
                 if !pids.is_empty() {
                     crate::platforms::messenger::windows::set_chat_window_memory_target(&app, account_index, true);
-                    controller.trim_account_process_tree(account_index);
+                    let _ = tokio::task::spawn_blocking(move || {
+                        AutoTrimController::global().trim_account_pids(account_index, &pids)
+                    }).await;
                 }
             }
         }

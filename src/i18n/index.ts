@@ -10,8 +10,6 @@ import enSettings from "@locales/en/settings.json";
 import viSettings from "@locales/vi/settings.json";
 import enHelp from "@locales/en/help.json";
 import viHelp from "@locales/vi/help.json";
-import enTray from "@locales/en/tray.json";
-import viTray from "@locales/vi/tray.json";
 
 export const defaultNS = "common";
 export const resources = {
@@ -21,7 +19,6 @@ export const resources = {
     performance: viPerformance,
     settings: viSettings,
     help: viHelp,
-    tray: viTray,
   },
   en: {
     common: enCommon,
@@ -29,19 +26,23 @@ export const resources = {
     performance: enPerformance,
     settings: enSettings,
     help: enHelp,
-    tray: enTray,
   },
 } as const;
 
-// Initialize i18next instance
+const initialLanguage: "en" | "vi" = "en";
 i18n.use(initReactI18next).init({
   resources,
-  lng: "en",
+  lng: initialLanguage,
   fallbackLng: "en",
   defaultNS,
   interpolation: {
     escapeValue: false,
   },
+});
+i18n.on("languageChanged", (lng) => {
+  if (typeof document !== "undefined") {
+    document.documentElement.lang = lng;
+  }
 });
 
 export default i18n;

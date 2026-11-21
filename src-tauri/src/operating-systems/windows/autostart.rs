@@ -41,21 +41,30 @@ impl WindowsAutostartManager {
         }
         None
     }
-    /// Toggles Windows registry Run key
+    /// Toggles Windows registry Run key and validates reg.exe exit status
     pub fn toggle_autostart_registry(enabled: bool) -> Result<bool, String> {
         let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
         let exe_path = current_exe.to_string_lossy().to_string();
         const CREATE_NO_WINDOW: u32 = 0x08000000;
-        if enabled {
-            let _ = std::process::Command::new("reg")
+        let output = if enabled {
+            std::process::Command::new("reg")
                 .args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "DesktopBubbleChat", "/t", "REG_SZ", "/d", &format!("\"{}\"", exe_path), "/f"])
                 .creation_flags(CREATE_NO_WINDOW)
-                .output();
+                .output()
+                .map_err(|e| format!("Failed to spawn reg add: {}", e))?
         } else {
-            let _ = std::process::Command::new("reg")
+            std::process::Command::new("reg")
                 .args(["delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "DesktopBubbleChat", "/f"])
                 .creation_flags(CREATE_NO_WINDOW)
-                .output();
+                .output()
+                .map_err(|e| format!("Failed to spawn reg delete: {}", e))?
+        };
+        if !output.status.success() {
+            if !enabled && !Self::is_autostart_registry_enabled() {
+                return Ok(false);
+            }
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            return Err(format!("Registry autostart command failed ({}): {}", output.status, stderr));
         }
         Ok(enabled)
     }

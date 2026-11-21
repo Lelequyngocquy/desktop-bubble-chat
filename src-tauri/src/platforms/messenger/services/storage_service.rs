@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
-use crate::platforms::messenger::windows::get_messenger_window_label;
+use crate::platforms::messenger::windows::get_messenger_webview;
 use crate::state::ChatState;
 use crate::presentation::bubble::get_bubble_window_label;
 
@@ -16,7 +16,6 @@ impl StorageService {
         account_index: u32,
     ) -> Result<(), String> {
         let idx = account_index;
-        let label = get_messenger_window_label(idx);
         println!("[StorageService] Closing window and cleaning profile for Messenger {:02}", idx);
         state.clear_account_auth(idx);
         state.set_account_suspended(idx, true);
@@ -26,10 +25,7 @@ impl StorageService {
             c.active_bubble_accounts.retain(|&x| x != idx);
         });
         let _ = crate::tray::update_tray_menu(app);
-        let win = app
-            .get_webview_window(&label)
-            .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
-        if let Some(chat_window) = win {
+        if let Some(chat_window) = get_messenger_webview(app, idx) {
             let _ = chat_window.hide();
             let _ = chat_window.destroy();
         }
@@ -42,12 +38,22 @@ impl StorageService {
         if let Some(bw) = app.get_webview_window(&bubble_label) {
             let _ = bw.hide();
         }
+        let clean_token = state.next_session_clean_token(idx);
         let target_needle = format!("messenger_{:02}", idx);
         let app_handle = app.clone();
+        let state_clone = Arc::clone(state);
         std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(100));
+            if !state_clone.is_session_clean_token_valid(idx, clean_token)
+                || state_clone.is_explicit_exit.load(std::sync::atomic::Ordering::SeqCst) {
+                return;
+            }
             crate::operating_systems::current::MemoryOptimizer::terminate_profile_process(&target_needle);
             std::thread::sleep(Duration::from_millis(150));
+            if !state_clone.is_session_clean_token_valid(idx, clean_token)
+                || state_clone.is_explicit_exit.load(std::sync::atomic::Ordering::SeqCst) {
+                return;
+            }
             match app_handle.path().app_data_dir() {
                 Ok(mut profile_dir) => {
                     profile_dir.push("profiles");
@@ -55,6 +61,11 @@ impl StorageService {
                     if profile_dir.exists() {
                         let mut deleted = false;
                         for attempt in 1..=5 {
+                            if !state_clone.is_session_clean_token_valid(idx, clean_token)
+                                || state_clone.is_explicit_exit.load(std::sync::atomic::Ordering::SeqCst) {
+                                println!("[StorageService] Aborting clean for Messenger {:02} due to new auth session or app exit", idx);
+                                return;
+                            }
                             match std::fs::remove_dir_all(&profile_dir) {
                                 Ok(_) => {
                                     println!(

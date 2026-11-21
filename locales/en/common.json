@@ -9,6 +9,7 @@
   "enable": "Enable",
   "disable": "Disable",
   "loading": "Loading...",
+  "loading_workspace": "Loading workspace...",
   "success": "Success",
   "error": "Error",
   "warning": "Warning",

@@ -1,24 +1,24 @@
 import { useEffect, useRef } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { listen } from "@tauri-apps/api/event";
 import { useAppLifecycleStore } from "../stores/appLifecycleStore";
 import { useSystemUserStore } from "../stores/systemUserStore";
 import { useSettingsStore } from "../stores/settingsStore";
+import { useUpdateStore } from "../stores/updateStore";
 import { useMessengerStore } from "../platforms/messenger/stores/messengerStore";
 import { systemService } from "../services/systemService";
+import { applyBackendUserSettings } from "../services/userSettingsSyncService";
 import { messengerService } from "../platforms/messenger/services/messengerService";
 import { feLog } from "../services/loggerService";
-import { IPC_EVENTS } from "../types/ipc";
 
 /**
- * Coordinates bootstrap lifecycle and initial state hydration for main Dashboard
+ * Single startup bootstrap coordinator hydrating user settings, version, accounts, and bubble states.
  */
 export function useDashboardBootstrap() {
   const isBootstrappingRef = useRef(false);
   const setDashboardStatus = useAppLifecycleStore((s) => s.setDashboardStatus);
   const markDashboardReady = useAppLifecycleStore((s) => s.markDashboardReady);
   const isDashboardReady = useAppLifecycleStore((s) => s.isDashboardReady);
-
   useEffect(() => {
     let isMainWindow = true;
     try {
@@ -43,67 +43,48 @@ export function useDashboardBootstrap() {
     const runBootstrap = async () => {
       try {
         setDashboardStatus("rehydrating");
-        try {
-          const username = await systemService.getSystemUsername();
-          useSystemUserStore.getState().setSystemUser(username);
-        } catch (err) {
-          feLog.warn("[useDashboardBootstrap] Unable to get system username:", err);
+        const [usernameRes, autostartRes, settingsRes, versionRes] = await Promise.allSettled([
+          systemService.getSystemUsername(),
+          systemService.isAutostartEnabled(),
+          systemService.getUserSettings(),
+          getVersion(),
+        ]);
+        if (usernameRes.status === "fulfilled") {
+          useSystemUserStore.getState().setSystemUser(usernameRes.value);
+        } else {
+          feLog.warn("[useDashboardBootstrap] Unable to get system username:", usernameRes.reason);
         }
-        try {
-          const autostart = await systemService.isAutostartEnabled();
-          useSettingsStore.getState().setAutoStart(autostart);
-        } catch (err) {
-          feLog.warn("[useDashboardBootstrap] Unable to check autostart:", err);
+        if (autostartRes.status === "fulfilled") {
+          useSettingsStore.getState().setAutoStart(autostartRes.value);
+        } else {
+          feLog.warn("[useDashboardBootstrap] Unable to check autostart:", autostartRes.reason);
         }
-        try {
-          const userSettings = await systemService.getUserSettings();
-          if (userSettings) {
-            const bubbleSize = userSettings.bubbleSize || userSettings.bubble_size;
-            if (bubbleSize && (bubbleSize === "sm" || bubbleSize === "md" || bubbleSize === "lg")) {
-              useSettingsStore.getState().setBubbleSize(bubbleSize);
-            }
-            const positionMode = userSettings.bubblePositionMode || userSettings.bubble_position_mode;
-            if (positionMode && (positionMode === "auto_tuck" || positionMode === "free")) {
-              useSettingsStore.getState().setBubblePositionMode(positionMode, true);
-            }
-            const alwaysOnTop = typeof userSettings.isAlwaysOnTop === "boolean" ? userSettings.isAlwaysOnTop : userSettings.is_always_on_top;
-            if (typeof alwaysOnTop === "boolean") {
-              useSettingsStore.getState().setAlwaysOnTop(alwaysOnTop);
-            }
-            if (userSettings.locale && (userSettings.locale === "en" || userSettings.locale === "vi")) {
-              useSettingsStore.getState().setLanguage(userSettings.locale, true);
-            }
-            const autoTrim = typeof userSettings.isAutoTrimEnabled === "boolean" ? userSettings.isAutoTrimEnabled : userSettings.is_auto_trim_enabled;
-            if (typeof autoTrim === "boolean") {
-              useSettingsStore.getState().setAutoTrimEnabled(autoTrim, true);
-            }
-            const themeMode = userSettings.themeMode || userSettings.theme_mode;
-            if (themeMode && (themeMode === "light" || themeMode === "dark" || themeMode === "system")) {
-              useSettingsStore.getState().setThemeMode(themeMode as any, true);
-            }
-            const updateMode = userSettings.updateMode || userSettings.update_mode;
-            if (updateMode && (updateMode === "auto" || updateMode === "manual")) {
-              useSettingsStore.getState().setUpdateMode(updateMode, true);
-            } else {
-              systemService.setUpdateMode(useSettingsStore.getState().updateMode);
-            }
-          }
-        } catch (err) {
-          feLog.warn("[useDashboardBootstrap] Unable to sync user settings from cache:", err);
+        if (versionRes.status === "fulfilled" && versionRes.value) {
+          useUpdateStore.getState().setCurrentVersion(versionRes.value);
         }
-        setDashboardStatus("rehydrating");
+        if (settingsRes.status === "fulfilled" && settingsRes.value) {
+          applyBackendUserSettings(settingsRes.value, { syncMissingUpdateMode: true });
+        } else if (settingsRes.status === "rejected") {
+          feLog.warn("[useDashboardBootstrap] Unable to sync user settings from cache:", settingsRes.reason);
+        }
         try {
           const accounts = useMessengerStore.getState().accounts;
-          for (const acc of accounts) {
-            try {
-              const res = await messengerService.checkAuth(acc.index);
-              if (res && res.connected) {
-                useMessengerStore.getState().updateAccount(acc.id, {
-                  isConnected: true,
-                });
+          await Promise.all(
+            accounts.map(async (acc) => {
+              try {
+                const res = await messengerService.checkAuth(acc.index);
+                if (res && typeof res.connected === "boolean") {
+                  useMessengerStore.getState().updateAccount(acc.id, {
+                    isConnected: res.connected,
+                    isAuthenticating: false,
+                    isBubbleVisible: res.connected ? acc.isBubbleVisible : false,
+                  });
+                }
+              } catch (err) {
+                feLog.warn(`[useDashboardBootstrap] Auth check skipped for account ${acc.index}:`, err);
               }
-            } catch {}
-          }
+            }),
+          );
         } catch (err) {
           feLog.warn("[useDashboardBootstrap] Unable to sync Messenger accounts:", err);
         }
@@ -130,7 +111,6 @@ export function useDashboardBootstrap() {
         } catch (err) {
           feLog.warn("[useDashboardBootstrap] Unable to sync chat window size configs:", err);
         }
-        await new Promise((resolve) => setTimeout(resolve, 200));
         feLog.info("[useDashboardBootstrap] Bootstrap completed! Dashboard is ready.");
         markDashboardReady();
       } catch (err) {
@@ -140,22 +120,11 @@ export function useDashboardBootstrap() {
         clearTimeout(safetyTimer);
       }
     };
-    let unlistenLang: (() => void) | undefined;
-    listen<string>(IPC_EVENTS.LANGUAGE_CHANGED, (event) => {
-      const newLang = event.payload;
-      if (newLang === "en" || newLang === "vi") {
-        useSettingsStore.getState().setLanguage(newLang, true);
-      }
-    }).then((unsub) => {
-      unlistenLang = unsub;
-    }).catch(() => {});
     runBootstrap();
     return () => {
       clearTimeout(safetyTimer);
-      unlistenLang?.();
     };
   }, [setDashboardStatus, markDashboardReady]);
-
   return { isDashboardReady };
 }
 

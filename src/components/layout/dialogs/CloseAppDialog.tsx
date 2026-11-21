@@ -11,8 +11,7 @@ export interface CloseAppDialogProps {
   onExitApp: () => void;
 }
 
-export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
-  isOpen,
+const CloseAppDialogBody: React.FC<Omit<CloseAppDialogProps, "isOpen">> = ({
   onClose,
   onHideToTray,
   onExitApp,
@@ -42,10 +41,9 @@ export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
     }
     onExitApp();
   };
-
   return (
     <CommonDialog
-      isOpen={isOpen}
+      isOpen={true}
       onClose={onClose}
       eyebrow={t("close_dialog.eyebrow")}
       title={t("close_dialog.title")}
@@ -70,17 +68,20 @@ export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
           <p className="m-0 text-small text-content-secondary leading-relaxed">
             {t("close_dialog.desc")}
           </p>
-          <div className="grid grid-cols-1 gap-2.5">
-            <div
+          <div role="radiogroup" aria-label={t("close_dialog.title")} className="grid grid-cols-1 gap-2.5">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selectedAction === "hide_to_tray"}
               onClick={() => setSelectedAction("hide_to_tray")}
               onDoubleClick={handleDirectHide}
-              className={`p-3.5 rounded-panel border transition-all cursor-pointer select-none flex items-start gap-3 ${
+              className={`w-full text-left p-3.5 rounded-panel border transition-all cursor-pointer select-none flex items-start gap-3 ${
                 selectedAction === "hide_to_tray"
                   ? "bg-primary-subtle border-primary ring-1 ring-primary"
                   : "bg-background-surface border-border hover:border-border hover:bg-background-subtle"
               }`}
             >
-              <div
+              <span
                 className={`w-8 h-8 rounded-control flex items-center justify-center shrink-0 ${
                   selectedAction === "hide_to_tray"
                     ? "bg-primary text-content-inverse"
@@ -88,31 +89,34 @@ export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
                 }`}
               >
                 <MessageSquare className="w-4 h-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
+              </span>
+              <span className="flex-1 min-w-0 block">
+                <span className="flex items-center justify-between gap-2">
                   <span className="text-small font-semibold text-content-primary">
                     {t("close_dialog.hide_title")}
                   </span>
                   <span className="text-[11px] font-medium px-2 py-0.5 rounded-pill bg-primary/10 text-primary shrink-0">
                     {t("close_dialog.hide_badge")}
                   </span>
-                </div>
-                <p className="mt-1 mb-0 text-caption text-content-secondary leading-relaxed">
+                </span>
+                <span className="block mt-1 text-caption text-content-secondary leading-relaxed">
                   {t("close_dialog.hide_desc")}
-                </p>
-              </div>
-            </div>
-            <div
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selectedAction === "exit_app"}
               onClick={() => setSelectedAction("exit_app")}
               onDoubleClick={handleDirectExit}
-              className={`p-3.5 rounded-panel border transition-all cursor-pointer select-none flex items-start gap-3 ${
+              className={`w-full text-left p-3.5 rounded-panel border transition-all cursor-pointer select-none flex items-start gap-3 ${
                 selectedAction === "exit_app"
                   ? "bg-status-errorBg border-status-error ring-1 ring-status-error"
                   : "bg-background-surface border-border hover:border-border hover:bg-background-subtle"
               }`}
             >
-              <div
+              <span
                 className={`w-8 h-8 rounded-control flex items-center justify-center shrink-0 ${
                   selectedAction === "exit_app"
                     ? "bg-status-error text-content-inverse"
@@ -120,21 +124,21 @@ export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
                 }`}
               >
                 <Power className="w-4 h-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
+              </span>
+              <span className="flex-1 min-w-0 block">
+                <span className="flex items-center justify-between gap-2">
                   <span className="text-small font-semibold text-content-primary">
                     {t("close_dialog.exit_title")}
                   </span>
                   <span className="text-[11px] font-medium px-2 py-0.5 rounded-pill bg-status-error/10 text-status-error shrink-0">
                     {t("close_dialog.exit_badge")}
                   </span>
-                </div>
-                <p className="mt-1 mb-0 text-caption text-content-secondary leading-relaxed">
+                </span>
+                <span className="block mt-1 text-caption text-content-secondary leading-relaxed">
                   {t("close_dialog.exit_desc")}
-                </p>
-              </div>
-            </div>
+                </span>
+              </span>
+            </button>
           </div>
           <div className="pt-2 border-t border-border flex items-center justify-between">
             <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -154,6 +158,11 @@ export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
       }
     />
   );
+};
+
+export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({ isOpen, ...props }) => {
+  if (!isOpen) return null;
+  return <CloseAppDialogBody {...props} />;
 };
 
 export default CloseAppDialog;

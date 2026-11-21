@@ -13,7 +13,6 @@ import {
 interface MessengerPlatformHeaderProps {
   totalConnected: number;
   totalAccounts: number;
-  areAnyBubblesVisible: boolean;
   onManage: () => void;
 }
 

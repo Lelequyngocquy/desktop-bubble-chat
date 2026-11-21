@@ -6,12 +6,18 @@ impl LinuxDialogManager {
         #[cfg(target_os = "linux")]
         {
             if let Ok(output) = std::process::Command::new("zenity")
-                .args(&["--question", &format!("--title={}", title), &format!("--text={}", text)])
+                .args(["--question", "--no-markup", &format!("--title={}", title), &format!("--text={}", text)])
                 .output()
             {
                 return output.status.success();
             }
-            true
+            if let Ok(output) = std::process::Command::new("kdialog")
+                .args(["--title", title, "--yesno", text])
+                .output()
+            {
+                return output.status.success();
+            }
+            false
         }
         #[cfg(not(target_os = "linux"))]
         {

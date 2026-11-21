@@ -17,11 +17,8 @@ pub fn get_available_account_indices(app_handle: &AppHandle) -> Vec<u32> {
 
 /// Checks if a bubble (Native or Webview) is currently visible
 pub fn is_bubble_visible(app_handle: &AppHandle, account_index: u32) -> bool {
-    #[cfg(target_os = "windows")]
-    {
-        if crate::operating_systems::current::bubble::has_native_bubble(account_index) {
-            return true;
-        }
+    if crate::operating_systems::current::bubble::has_native_bubble(account_index) {
+        return true;
     }
     let label = format!("bubble-{:02}", account_index);
     app_handle

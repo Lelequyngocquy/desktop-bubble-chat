@@ -35,6 +35,7 @@ export const GlobalShortcutSection: React.FC<GlobalShortcutSectionProps> = ({
         <SwitchButton
           checked={isGlobalShortcutEnabled}
           onChange={onToggleGlobalShortcut}
+          ariaLabel={t("settings:shortcuts.toggle_label")}
         />
       </div>
     </CommonLargeCard>

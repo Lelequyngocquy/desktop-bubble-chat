@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { IPC_COMMANDS } from "../types/ipc";
+import { IPC_COMMANDS, type UserSettingsSnapshot } from "../types/ipc";
 import { SystemPerformanceSnapshot } from "../types/performance";
 
 export const systemService = {
@@ -119,31 +119,7 @@ export const systemService = {
   /**
    * Gets persisted user settings snapshot from Backend cache.
    */
-  async getUserSettings(): Promise<{
-    is_dashboard_open?: boolean;
-    isDashboardOpen?: boolean;
-    active_bubble_accounts?: number[];
-    activeBubbleAccounts?: number[];
-    is_notifications_enabled?: boolean;
-    isNotificationsEnabled?: boolean;
-    muted_accounts?: number[];
-    mutedAccounts?: number[];
-    bubble_size?: "sm" | "md" | "lg";
-    bubbleSize?: "sm" | "md" | "lg";
-    is_always_on_top?: boolean;
-    isAlwaysOnTop?: boolean;
-    is_auto_start?: boolean;
-    isAutoStart?: boolean;
-    locale?: string;
-    is_auto_trim_enabled?: boolean;
-    isAutoTrimEnabled?: boolean;
-    theme_mode?: string;
-    themeMode?: string;
-    bubble_position_mode?: "auto_tuck" | "free";
-    bubblePositionMode?: "auto_tuck" | "free";
-    update_mode?: "auto" | "manual";
-    updateMode?: "auto" | "manual";
-  } | null> {
+  async getUserSettings(): Promise<UserSettingsSnapshot | null> {
     try {
       return await invoke(IPC_COMMANDS.GET_USER_SETTINGS);
     } catch (err) {
@@ -164,6 +140,17 @@ export const systemService = {
   },
 
   /**
+   * Enables or disables global keyboard shortcuts in backend and cache.
+   */
+  async setGlobalShortcutEnabled(enabled: boolean): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.SET_GLOBAL_SHORTCUT_ENABLED, { enabled });
+    } catch (err) {
+      console.warn("[SystemService] Failed to set global shortcut enabled:", err);
+    }
+  },
+
+  /**
    * Updates application theme mode in persistent user cache.
    */
   async setThemeMode(themeMode: string): Promise<void> {
@@ -171,6 +158,28 @@ export const systemService = {
       await invoke(IPC_COMMANDS.SET_THEME_MODE, { themeMode });
     } catch (err) {
       console.warn("[SystemService] Failed to set theme mode:", err);
+    }
+  },
+
+  /**
+   * Updates application display language in persistent user cache.
+   */
+  async setAppLanguage(language: string): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.SET_APP_LANGUAGE, { language });
+    } catch (err) {
+      console.warn("[SystemService] Failed to set app language:", err);
+    }
+  },
+
+  /**
+   * Opens the unpacked browser extensions folder for a specific Messenger account profile.
+   */
+  async openProfileExtensionsFolder(accountIndex: number): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.OPEN_PROFILE_EXTENSIONS_FOLDER, { accountIndex });
+    } catch (err) {
+      console.warn(`[SystemService] Failed to open extensions folder for account ${accountIndex}:`, err);
     }
   },
 

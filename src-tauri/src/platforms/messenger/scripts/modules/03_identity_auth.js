@@ -1,5 +1,5 @@
 // ============================================================================
-// MODULE 02: IDENTITY RECOGNITION & AUTHENTICATION ENGINE
+// MODULE 03: IDENTITY RECOGNITION & AUTHENTICATION ENGINE
 // ============================================================================
 // 1. Detects Facebook user UID via c_user cookie and Meta client runtime
 // 2. Monitors authentication, 2FA, and checkpoint flows on Meta domains

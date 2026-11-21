@@ -11,7 +11,7 @@ pub async fn open_messenger_auth(
     state: State<'_, Arc<ChatState>>,
     account_index: Option<u32>,
 ) -> Result<(), String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     AuthService::open_auth(&app, &state, idx).await
 }
 
@@ -22,7 +22,7 @@ pub fn check_messenger_auth(
     state: State<'_, Arc<ChatState>>,
     account_index: Option<u32>,
 ) -> Result<serde_json::Value, String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     AuthService::check_auth(&app, &state, idx)
 }
 
@@ -35,7 +35,7 @@ pub fn report_auth_status(
     name: Option<String>,
     account_index: Option<u32>,
 ) -> Result<(), String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     AuthService::report_status(&app, &state, connected, name, idx)
 }
 
@@ -46,6 +46,6 @@ pub fn disconnect_messenger(
     state: State<'_, Arc<ChatState>>,
     account_index: Option<u32>,
 ) -> Result<(), String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     AuthService::disconnect(&app, &state, idx)
 }

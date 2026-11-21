@@ -10,32 +10,31 @@ import {
 } from "../../../platforms/messenger";
 import { CommonWidget } from "../../common";
 import { Conversation } from "../../../types/conversation";
+import { normalizeThreadId } from "../../../utils/threadValidation";
 import { ActiveChatHeadItem } from "./ActiveChatHeadItem";
 
 export const ActiveChatHeads: React.FC = () => {
   const { t } = useTranslation("dashboard");
   const conversations = useConversationStore((s) => s.conversations);
-  const removeConversation = useConversationStore((s) => s.removeConversation);
-  const togglePinConversation = useConversationStore(
-    (s) => s.togglePinConversation,
-  );
-  const markConversationRead = useConversationStore(
-    (s) => s.markConversationRead,
-  );
+  const { removeConversation, togglePinConversation, markConversationRead } = useConversationStore.getState();
   const isMessengerConnected = useMessengerStore(selectIsMessengerConnected);
-  const accounts = useMessengerStore((s) => s.accounts);
-  const setActiveTab = useNavigationStore((s) => s.setActiveTab);
+  const setActiveTab = useNavigationStore.getState().setActiveTab;
   const pinnedCount = conversations.filter((c) => c.isPinned).length;
   const handleOpenConversation = (item: Conversation) => {
     const accountIdx = item.accountIndex || 1;
     const accountId = `messenger-${accountIdx.toString().padStart(2, "0")}`;
-    const targetAccount = accounts.find((a) => a.id === accountId);
+    const targetAccount = useMessengerStore.getState().accounts.find((a) => a.id === accountId);
     if (!targetAccount || !targetAccount.isConnected) {
       removeConversation(item.id);
       return;
     }
     markConversationRead(item.id);
-    messengerService.openThread(item.threadId || item.id, accountIdx).catch(() => {});
+    const validThreadId = normalizeThreadId(item.threadId);
+    if (validThreadId) {
+      messengerService.openThread(validThreadId, accountIdx).catch(() => {});
+    } else {
+      messengerService.openChat(accountIdx).catch(() => {});
+    }
   };
   return (
     <CommonWidget
@@ -47,6 +46,7 @@ export const ActiveChatHeads: React.FC = () => {
           type="button"
           disabled
           title={t("chatheads.feature_not_available")}
+          aria-label={t("chatheads.feature_not_available")}
           className="w-avatar-sm h-avatar-sm flex items-center justify-center text-content-secondary opacity-50 cursor-not-allowed rounded-control transition-colors"
         >
           <MoreHorizontal className="w-5 h-5" />

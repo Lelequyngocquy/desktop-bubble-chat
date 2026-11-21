@@ -1,10 +1,9 @@
 // ============================================================================
-// MODULE 04: OFFLINE RESILIENCE & AUTO-RECONNECT
+// MODULE 05: OFFLINE RESILIENCE & AUTO-RECONNECT
 // ============================================================================
-// Nhiệm vụ:
-// 1. Lắng nghe trạng thái kết nối mạng của hệ thống (online / offline).
-// 2. Hiển thị banner cảnh báo mất kết nối trực quan kèm nút bấm thử lại.
-// 3. Tự động reload lại phiên Messenger khi mạng Internet được phục hồi.
+// 1. Monitors system network connectivity events (online / offline)
+// 2. Renders offline warning banner with manual retry button
+// 3. Automatically reloads Messenger session when network connectivity is restored
 
 function setupOfflineHandler() {
   logDebug("OFFLINE-INIT", "Đang cài đặt Offline/Online Event Listeners...");

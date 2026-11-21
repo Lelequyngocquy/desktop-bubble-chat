@@ -1,10 +1,9 @@
 // ============================================================================
-// MODULE 06: LIFECYCLE SCHEDULER & BOOTSTRAP ORCHESTRATION
+// MODULE 07: LIFECYCLE SCHEDULER & BOOTSTRAP ORCHESTRATION
 // ============================================================================
-// Nhiệm vụ:
-// 1. Cung cấp cơ chế điều phối chu kỳ thích ứng (Adaptive Interval) giảm tải CPU & RAM khi ẩn.
-// 2. Lên lịch giám sát định kỳ trạng thái auth và URL (chặn chuyển hướng ngoài ý muốn).
-// 3. Khởi tạo các module styles và offline handler khi DOM sẵn sàng.
+// 1. Provides adaptive interval scheduling to reduce CPU and RAM usage when hidden
+// 2. Periodically monitors authentication status and guards against unexpected redirects
+// 3. Initializes styles and offline resilience handlers once DOM is ready
 
 // 0. Focus state manager to prevent Auto-Seen and detect hidden window states
 if (!window.__FOCUS_INTERCEPTOR_INSTALLED__) {
@@ -39,6 +38,31 @@ if (!window.__CONTEXT_MENU_GUARD_INSTALLED__) {
       e.preventDefault();
     }
   }, true);
+}
+
+// Hardware-accelerated entrance and exit animation triggers
+if (!window.__CHAT_TRANSITIONS_INSTALLED__) {
+  window.__CHAT_TRANSITIONS_INSTALLED__ = true;
+  window.__playChatEntrance = function (direction) {
+    if (!document.body) return;
+    document.body.classList.remove("dbc-chat-enter-from-right", "dbc-chat-enter-from-left", "dbc-chat-exit-to-right", "dbc-chat-exit-to-left", "dbc-chat-origin-left");
+    if (direction === "left") {
+      document.body.classList.add("dbc-chat-origin-left");
+    }
+    void document.body.offsetWidth;
+    const cls = direction === "left" ? "dbc-chat-enter-from-left" : "dbc-chat-enter-from-right";
+    document.body.classList.add(cls);
+  };
+  window.__playChatExit = function (direction) {
+    if (!document.body) return;
+    document.body.classList.remove("dbc-chat-enter-from-right", "dbc-chat-enter-from-left", "dbc-chat-origin-left");
+    if (direction === "left") {
+      document.body.classList.add("dbc-chat-origin-left");
+    }
+    void document.body.offsetWidth;
+    const cls = direction === "left" ? "dbc-chat-exit-to-left" : "dbc-chat-exit-to-right";
+    document.body.classList.add(cls);
+  };
 }
 
 /**

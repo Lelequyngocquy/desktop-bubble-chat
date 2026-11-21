@@ -22,6 +22,7 @@ impl AuthService {
         let idx = account_index;
         println!("\x1b[32m[BE - Auth] ========================================================\x1b[0m");
         println!("\x1b[32m[BE - Auth] >>> Received command to open auth popup: account_index = {} \x1b[0m", idx);
+        state.next_session_clean_token(idx);
         state.clear_account_auth(idx);
         state.set_account_suspended(idx, false);
         let chat_window = match get_or_create_messenger_window(app, idx, Arc::clone(state)) {
@@ -161,6 +162,7 @@ impl AuthService {
                     }
                 });
                 state.set_window_auth_mode(&label, false);
+                let _ = chat_window.eval("window.__IS_AUTH_MODE__ = false; if (typeof window.__ensurePinButtonInDom === 'function') { window.__ensurePinButtonInDom(); }");
                 let _ = chat_window.set_title("Messenger");
                 let _ = chat_window.hide();
                 let _ = chat_window.set_decorations(false);
@@ -201,6 +203,10 @@ impl AuthService {
             "\x1b[32m[BE - Auth] report_auth_status received from webview: account={:02}, connected={}, user={:?}\x1b[0m",
             idx, connected, name
         );
+        if connected && state.is_account_suspended(idx) && !state.is_window_in_auth_mode(&label) {
+            println!("[BE - Auth] Ignoring late report_status(connected=true) for suspended account {:02}", idx);
+            return Ok(());
+        }
         state.set_account_auth(idx, connected, name.clone());
         state.set_chat_ready(idx, true);
         if connected {

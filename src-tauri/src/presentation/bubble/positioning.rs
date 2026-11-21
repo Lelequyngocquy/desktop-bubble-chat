@@ -146,20 +146,32 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
                         y: target_y,
                     }
                 );
+                crate::operating_systems::current::bubble::update_cached_bubble_bounds(
+                    account_index,
+                    x,
+                    target_y,
+                    bubble_w as u32,
+                    bubble_w as u32,
+                );
             }
             for slot in layout {
                 if slot.account_index != account_index {
+                    let sibling_x = other_bubbles
+                        .iter()
+                        .find(|b| b.account_index == slot.account_index)
+                        .map(|b| b.x)
+                        .unwrap_or(x);
                     crate::operating_systems::current::bubble::NativeBubbleManager::global().dispatch(
                         crate::operating_systems::current::bubble::NativeBubbleAction::AnimateTo {
                             account_index: slot.account_index,
-                            target_x: x,
+                            target_x: sibling_x,
                             target_y: slot.target_y,
                             duration_ms: 160,
                         }
                     );
                     crate::operating_systems::current::bubble::update_cached_bubble_bounds(
                         slot.account_index,
-                        x,
+                        sibling_x,
                         slot.target_y,
                         bubble_w as u32,
                         bubble_w as u32,
@@ -169,7 +181,7 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
                             slot.account_index,
                             BubbleRect {
                                 account_index: slot.account_index,
-                                x,
+                                x: sibling_x,
                                 y: slot.target_y,
                                 width: bubble_w,
                                 height: bubble_w,
@@ -261,10 +273,10 @@ pub fn tuck_bubble(app: &AppHandle, account_index: Option<u32>) {
             && cs.is_chat_pinned(idx) {
                 continue;
             }
-        crate::utils::trim_controller::schedule_auto_trim_on_tuck(idx, app.clone());
         let label = get_bubble_window_label(idx);
         let win = app.get_webview_window(&label);
         if let Some(bubble_window) = win {
+            crate::utils::trim_controller::schedule_auto_trim_on_tuck(idx, app.clone());
             let screen = crate::movement::get_target_dashboard_screen(Some(app));
             let win_pos = bubble_window.outer_position().unwrap_or_default();
             let tucked_pos = BubbleMovementEngine::calculate_hover_pos(
