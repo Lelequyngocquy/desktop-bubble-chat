@@ -19,7 +19,7 @@ export const CommonHintLine: React.FC<CommonHintLineProps> = ({
   return (
     <div
       className={cn(
-        "bg-background-app/60 rounded-panel flex items-center gap-2 text-caption",
+        "bg-background-app/60 rounded-panel flex items-center gap-2 text-caption p-3",
         color,
         className,
       )}

@@ -14,14 +14,14 @@
   color-scheme: light;
 
   /* Backgrounds */
-  --color-bg-app: 238 242 249;
+  --color-bg-app: 222 228 238;
   --color-bg-workspace: 244 247 252;
   --color-bg-surface: 255 255 255;
-  --color-bg-subtle: 248 250 253;
+  --color-bg-subtle: 251 252 254;
 
   /* Typography & Content */
   --color-text-primary: 32 39 51;
-  --color-text-secondary: 107 116 131;
+  --color-text-secondary: 82 91 106;
   --color-text-muted: 146 154 167;
   --color-text-inverse: 255 255 255;
 

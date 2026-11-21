@@ -21,7 +21,7 @@
   "sound_off_title": "Đã tắt âm thanh tab",
   "bubble_label": "Bong bóng",
   "bubble_aria_label": "Bật tắt bong bóng cho {{name}}",
-  "footer_tip": "Mẹo: Ẩn chat head không xóa cuộc trò chuyện của bạn trên các nền tảng.",
+  "footer_tip": "Mẹo: Ẩn bong bóng không xóa tài khoản của bạn.",
   "bubble_desc_need_connect": "Cần kết nối Messenger để hiển thị bong bóng",
   "bubble_desc_visible_ratio": "{{visible}}/{{total}} bong bóng đang hiển thị",
   "bubble_desc_all_hidden": "Đang ẩn tất cả bong bóng nổi",
