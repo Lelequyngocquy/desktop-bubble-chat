@@ -100,6 +100,7 @@ pub struct WNDCLASSEXW {
 pub const WS_EX_LAYERED: u32 = 0x00080000;
 pub const WS_EX_TOPMOST: u32 = 0x00000008;
 pub const WS_EX_TOOLWINDOW: u32 = 0x00000080;
+pub const WS_EX_NOACTIVATE: u32 = 0x08000000;
 pub const WS_POPUP: u32 = 0x80000000;
 pub const WS_CAPTION: u32 = 0x00C00000;
 pub const WS_THICKFRAME: u32 = 0x00040000;
@@ -108,12 +109,14 @@ pub const CS_HREDRAW: u32 = 0x0002;
 pub const CS_VREDRAW: u32 = 0x0001;
 
 pub const SW_SHOWNOACTIVATE: i32 = 4;
+pub const SW_SHOWNA: i32 = 8;
 pub const SW_HIDE: i32 = 0;
 
 pub const SWP_NOSIZE: u32 = 0x0001;
 pub const SWP_NOMOVE: u32 = 0x0002;
 pub const SWP_NOZORDER: u32 = 0x0004;
 pub const SWP_NOACTIVATE: u32 = 0x0010;
+pub const SWP_SHOWWINDOW: u32 = 0x0040;
 
 pub const PM_NOREMOVE: u32 = 0x0000;
 pub const EVENT_SYSTEM_FOREGROUND: u32 = 0x0003;

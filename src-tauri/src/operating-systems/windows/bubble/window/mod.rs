@@ -74,7 +74,7 @@ impl NativeBubbleWindow {
             let hinstance = GetModuleHandleW(std::ptr::null());
             let topmost_flag = if is_on_top { WS_EX_TOPMOST } else { 0 };
             let hwnd = CreateWindowExW(
-                WS_EX_LAYERED | topmost_flag | WS_EX_TOOLWINDOW,
+                WS_EX_LAYERED | topmost_flag | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
                 class_name_u16.as_ptr(),
                 title_u16.as_ptr(),
                 WS_POPUP,

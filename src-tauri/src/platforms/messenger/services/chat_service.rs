@@ -151,8 +151,14 @@ impl ChatService {
         crate::utils::trim_controller::record_user_interaction(idx);
         crate::platforms::messenger::windows::set_webview_memory_target_level(&chat_window, false);
         state.set_chat_pinned(idx, false);
-        chat_window.show().map_err(|e| e.to_string())?;
-        chat_window.set_focus().map_err(|e| e.to_string())?;
+        #[cfg(target_os = "windows")]
+        let opened_over_fullscreen = crate::operating_systems::windows::fullscreen_overlay::open_window_if_fullscreen(&chat_window);
+        #[cfg(not(target_os = "windows"))]
+        let opened_over_fullscreen = false;
+        if !opened_over_fullscreen {
+            chat_window.show().map_err(|e| e.to_string())?;
+            chat_window.set_focus().map_err(|e| e.to_string())?;
+        }
         let _ = chat_window.eval("window.__isWindowFocused = true; window.__IS_PINNED__ = false; if (typeof window.__updatePinButtonUi === 'function') { window.__updatePinButtonUi(false); } window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('resize')); if (typeof window.__cancelAutoUnselectCountdown === 'function') { window.__cancelAutoUnselectCountdown(); } if (typeof window.__ensureChatListVisible === 'function') { window.__ensureChatListVisible(); }");
         let _ = app.emit("bubble-visibility-changed", serde_json::json!({
             "accountIndex": idx,
@@ -192,6 +198,8 @@ impl ChatService {
                 }
                 let _ = chat_window.eval("window.__isWindowFocused = false; window.__IS_PINNED__ = false; if (typeof window.__updatePinButtonUi === 'function') { window.__updatePinButtonUi(false); } if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); } window.dispatchEvent(new Event('blur')); if (typeof window.__startAutoUnselectCountdown === 'function') { window.__startAutoUnselectCountdown(5000); }");
                 let _ = chat_window.hide();
+                #[cfg(target_os = "windows")]
+                crate::operating_systems::windows::fullscreen_overlay::clear_window_fullscreen_overlay(&chat_window);
                 let app_handle = app.clone();
                 std::thread::spawn(move || {
                     std::thread::sleep(std::time::Duration::from_millis(60));
