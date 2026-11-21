@@ -7,6 +7,7 @@ export interface SwitchButtonProps {
   size?: "sm" | "md";
   className?: string;
   ariaLabel?: string;
+  "aria-label"?: string;
 }
 
 export const SwitchButton: React.FC<SwitchButtonProps> = ({
@@ -16,6 +17,7 @@ export const SwitchButton: React.FC<SwitchButtonProps> = ({
   size = "md",
   className = "",
   ariaLabel,
+  "aria-label": ariaLabelProp,
 }) => {
   const isSm = size === "sm";
   const trackSize = isSm ? "w-[30px] h-4" : "w-[38px] h-5";
@@ -27,12 +29,13 @@ export const SwitchButton: React.FC<SwitchButtonProps> = ({
     : checked
     ? "translate-x-[18px]"
     : "translate-x-0";
+  const resolvedAriaLabel = ariaLabel ?? ariaLabelProp;
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
-      aria-label={ariaLabel}
+      aria-label={resolvedAriaLabel}
       disabled={disabled}
       onClick={() => !disabled && onChange?.(!checked)}
       className={`rounded-pill p-[2px] transition-colors relative shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${trackSize} ${
@@ -41,8 +44,8 @@ export const SwitchButton: React.FC<SwitchButtonProps> = ({
           : "bg-transparent border border-border-strong"
       } ${className}`}
     >
-      <div
-        className={`rounded-pill transition-transform ${thumbSize} ${translateClass} ${
+      <span
+        className={`block rounded-pill transition-transform ${thumbSize} ${translateClass} ${
           checked ? "bg-content-inverse" : "bg-content-secondary"
         }`}
       />

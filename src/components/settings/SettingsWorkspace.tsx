@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useUpdateStore } from "../../stores/updateStore";
+import { useNavigationStore } from "../../stores/navigationStore";
 import { useConversationStore } from "../../stores/conversationStore";
 import { useWindowStore } from "../../stores/windowStore";
 import { useQuickSettings } from "../../hooks/useQuickSettings";
@@ -51,6 +52,9 @@ export const SettingsWorkspace: React.FC = () => {
   const [clearError, setClearError] = useState<string | null>(null);
   const [isConfirmClearCacheOpen, setIsConfirmClearCacheOpen] = useState(false);
   const clearTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const updateSectionRef = useRef<HTMLDivElement>(null);
+  const pendingScrollTarget = useNavigationStore((s) => s.pendingScrollTarget);
+  const clearPendingScrollTarget = useNavigationStore.getState().clearPendingScrollTarget;
   const isMountedRef = useRef(true);
   useEffect(() => {
     isMountedRef.current = true;
@@ -59,6 +63,14 @@ export const SettingsWorkspace: React.FC = () => {
       clearTimeout(clearTimerRef.current);
     };
   }, []);
+  useEffect(() => {
+    if (pendingScrollTarget === "section-update") {
+      requestAnimationFrame(() => {
+        updateSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      clearPendingScrollTarget();
+    }
+  }, [pendingScrollTarget, clearPendingScrollTarget]);
   const handleClearCache = async (accountIndices: number[]) => {
     clearTimeout(clearTimerRef.current);
     setClearStatus("clearing");
@@ -104,9 +116,7 @@ export const SettingsWorkspace: React.FC = () => {
     }, 3000);
   };
   const scrollToUpdateSection = () => {
-    document
-      .getElementById("section-update")
-      ?.scrollIntoView({ behavior: "smooth" });
+    updateSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   return (
     <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden select-none">
@@ -117,6 +127,7 @@ export const SettingsWorkspace: React.FC = () => {
         description={t("settings:subtitle")}
         rightSlot={
           <button
+            type="button"
             onClick={scrollToUpdateSection}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-background-surface hover:bg-background-subtle border border-border rounded-pill text-small shadow-xs transition-colors cursor-pointer"
             title={t("settings:scroll_to_update")}
@@ -169,7 +180,7 @@ export const SettingsWorkspace: React.FC = () => {
           onOpenClearDialog={() => setIsConfirmClearCacheOpen(true)}
         />
 
-        <div id="section-update">
+        <div id="section-update" ref={updateSectionRef}>
           <AppUpdateSection />
         </div>
       </main>

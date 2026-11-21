@@ -46,6 +46,7 @@ export const ActiveChatHeads: React.FC = () => {
           type="button"
           disabled
           title={t("chatheads.feature_not_available")}
+          aria-label={t("chatheads.feature_not_available")}
           className="w-avatar-sm h-avatar-sm flex items-center justify-center text-content-secondary opacity-50 cursor-not-allowed rounded-control transition-colors"
         >
           <MoreHorizontal className="w-5 h-5" />

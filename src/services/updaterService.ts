@@ -1,4 +1,5 @@
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
+import i18n from "../i18n";
 import { useUpdateStore } from "../stores/updateStore";
 import { systemService } from "./systemService";
 import { notificationService } from "./notificationService";
@@ -38,13 +39,14 @@ function formatCheckTimestamp(): string {
 }
 
 function mapCheckErrorMessage(err: unknown): string {
-  let message = err instanceof Error ? err.message : typeof err === "string" ? err : "Unable to connect to update server.";
-  if (message.includes("Could not fetch a valid release JSON") || message.includes("404")) {
-    message = "New release are not available!";
-  } else if (message.toLowerCase().includes("network") || message.toLowerCase().includes("failed to fetch")) {
-    message = "Network error: Unable to access GitHub Releases server.";
+  const raw = err instanceof Error ? err.message : typeof err === "string" ? err : "";
+  if (raw.includes("Could not fetch a valid release JSON") || raw.includes("404")) {
+    return i18n.t("settings:update.error_no_release");
   }
-  return message;
+  if (raw.toLowerCase().includes("network") || raw.toLowerCase().includes("failed to fetch")) {
+    return i18n.t("settings:update.error_network");
+  }
+  return raw || i18n.t("settings:update.error_connect");
 }
 
 export const updaterService = {
@@ -66,8 +68,8 @@ export const updaterService = {
           try {
             const granted = await notificationService.requestPermission();
             if (granted) {
-              notificationService.sendNotification("DesktopBubbleChat · Bản cập nhật mới", {
-                body: `Đã có phiên bản mới v${update.version}. Mở Cài đặt để cập nhật.`,
+              notificationService.sendNotification(i18n.t("settings:update.noti_new_title"), {
+                body: i18n.t("settings:update.noti_new_body", { version: update.version }),
               });
             }
           } catch (notiErr) {

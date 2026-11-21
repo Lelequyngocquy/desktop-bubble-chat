@@ -18,7 +18,7 @@ export const ExtensionsGuideCard: React.FC = () => {
       title={t("ext_title")}
       subTitle={
         <span className="px-2 py-0.5 bg-background-subtle text-content-secondary border border-border rounded-pill text-caption font-semibold">
-          Windows only
+          {t("ext_windows_only")}
         </span>
       }
       className="w-full shrink-0 p-6 justify-between gap-5 select-none"

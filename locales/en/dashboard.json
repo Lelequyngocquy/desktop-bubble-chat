@@ -217,5 +217,10 @@
       "desc": "Messaging and video calls directly on Meta Messenger platform."
     }
   },
-  "warning_heavy_load": "You have {{count}} active bubbles. Each WebView2 instance consumes memory. Consider hiding unused accounts."
+  "warning_heavy_load": "You have {{count}} active bubbles. Each WebView2 instance consumes memory. Consider hiding unused accounts.",
+  "time": {
+    "just_now": "Just now",
+    "minutes_ago": "{{count}}m ago",
+    "today": "Today"
+  }
 }

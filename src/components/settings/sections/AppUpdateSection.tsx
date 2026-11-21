@@ -154,6 +154,7 @@ export const AppUpdateSection: React.FC = () => {
       }
       linkTitle={
         <button
+          type="button"
           onClick={handleOpenGitHubReleases}
           className="flex items-center gap-1.5 text-caption text-primary hover:underline font-medium transition-colors cursor-pointer"
           title={t("update.github_releases_tooltip")}
@@ -234,7 +235,7 @@ export const AppUpdateSection: React.FC = () => {
                 <button
                   type="button"
                   onClick={cancelDownload}
-                  className="flex items-center gap-2 px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-control text-small font-semibold transition-colors cursor-pointer"
+                  className="flex items-center gap-2 px-3.5 py-1.5 bg-status-errorBg hover:bg-status-errorBg/80 text-status-error border border-status-errorBorder rounded-control text-small font-semibold transition-colors cursor-pointer"
                 >
                   <Pause className="w-4 h-4" />
                   <span>{t("update.pause_btn")}</span>
@@ -260,6 +261,7 @@ export const AppUpdateSection: React.FC = () => {
               )}
               {!isDownloading && !isInstalling && (
                 <button
+                  type="button"
                   onClick={() => checkForUpdates(false)}
                   disabled={isChecking}
                   className={`flex items-center gap-2 px-3 py-1.5 border border-border hover:bg-background-subtle bg-background-surface text-content-primary rounded-control text-small font-medium transition-colors cursor-pointer ${
@@ -292,7 +294,7 @@ export const AppUpdateSection: React.FC = () => {
                   {formatBytes(downloadedBytes)} / {formatBytes(totalBytes)}
                 </span>
               </div>
-              <div className="w-full h-2.5 bg-slate-100 dark:bg-background-app rounded-pill overflow-hidden border border-border p-0.5">
+              <div className="w-full h-2.5 bg-background-app rounded-pill overflow-hidden border border-border p-0.5">
                 <div
                   className={`h-full rounded-pill transition-all duration-300 ${
                     isDownloaded
@@ -305,14 +307,15 @@ export const AppUpdateSection: React.FC = () => {
             </div>
           )}
           {errorMessage && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-control text-rose-700 text-small flex items-center justify-between gap-2">
+            <div className="p-3 bg-status-errorBg border border-status-errorBorder rounded-control text-status-error text-small flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Info className="w-4 h-4 shrink-0 text-rose-500" />
+                <Info className="w-4 h-4 shrink-0 text-status-error" />
                 <span>{errorMessage}</span>
               </div>
               <button
+                type="button"
                 onClick={() => checkForUpdates(false)}
-                className="text-xs font-semibold text-rose-700 underline hover:no-underline shrink-0 cursor-pointer"
+                className="text-xs font-semibold text-status-error underline hover:no-underline shrink-0 cursor-pointer"
               >
                 {t("update.retry")}
               </button>
@@ -415,68 +418,71 @@ export const AppUpdateSection: React.FC = () => {
                   rel.tag === currentVersion;
                 return (
                   <div key={rel.tag || idx} className="flex flex-col">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleRelease(rel.tag)}
-                      aria-expanded={isExpanded}
-                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors cursor-pointer ${
+                    <div
+                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors ${
                         isExpanded
                           ? "bg-background-subtle/80"
                           : "hover:bg-background-subtle/40 bg-transparent"
                       }`}
-                      title={t("update.collapse_tip")}
                     >
-                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                        <span className="text-small font-semibold text-content-primary">
-                          {rel.tag}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleRelease(rel.tag)}
+                        aria-expanded={isExpanded}
+                        title={t("update.collapse_tip")}
+                        className="flex items-center justify-between gap-3 min-w-0 flex-1 text-left cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2 min-w-0 flex-wrap">
+                          <span className="text-small font-semibold text-content-primary">
+                            {rel.tag}
+                          </span>
+                          {isLatest && (
+                            <span className="px-1.5 py-0.5 rounded-pill text-[10px] font-semibold bg-primary text-white shadow-xs">
+                              {t("update.latest_badge")}
+                            </span>
+                          )}
+                          {isCurrent && (
+                            <span className="px-1.5 py-0.5 rounded-pill text-[10px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                              {t("update.current_badge")}
+                            </span>
+                          )}
+                          {rel.name && rel.name !== rel.tag && (
+                            <span className="text-caption text-content-secondary truncate max-w-[200px] sm:max-w-[320px]">
+                              {rel.name}
+                            </span>
+                          )}
                         </span>
-                        {isLatest && (
-                          <span className="px-1.5 py-0.5 rounded-pill text-[10px] font-semibold bg-primary text-white shadow-xs">
-                            {t("update.latest_badge")}
-                          </span>
-                        )}
-                        {isCurrent && (
-                          <span className="px-1.5 py-0.5 rounded-pill text-[10px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                            {t("update.current_badge")}
-                          </span>
-                        )}
-                        {rel.name && rel.name !== rel.tag && (
-                          <span className="text-caption text-content-secondary truncate max-w-[200px] sm:max-w-[320px]">
-                            {rel.name}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
                         {rel.publishedAt && (
-                          <span className="text-caption text-content-muted hidden sm:inline">
+                          <span className="text-caption text-content-muted hidden sm:inline shrink-0">
                             {formatReleaseDate(rel.publishedAt)}
                           </span>
                         )}
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            systemService.openExternalUrl(rel.htmlUrl);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.stopPropagation();
-                              systemService.openExternalUrl(rel.htmlUrl);
-                            }
-                          }}
+                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => systemService.openExternalUrl(rel.htmlUrl)}
                           title={t("update.open_in_github")}
-                          className="p-1 rounded-md text-content-muted hover:text-primary hover:bg-background-app transition-colors"
+                          aria-label={t("update.open_in_github")}
+                          className="p-1 rounded-md text-content-muted hover:text-primary hover:bg-background-app transition-colors cursor-pointer"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
-                        </span>
-                        <ChevronDown
-                          className={`w-4 h-4 text-content-muted transition-transform duration-200 ${
-                            isExpanded ? "rotate-180 text-primary" : ""
-                          }`}
-                        />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleRelease(rel.tag)}
+                          aria-expanded={isExpanded}
+                          aria-label={t("update.collapse_tip")}
+                          className="p-1 rounded-md text-content-muted hover:text-primary transition-colors cursor-pointer"
+                        >
+                          <ChevronDown
+                            className={`w-4 h-4 transition-transform duration-200 ${
+                              isExpanded ? "rotate-180 text-primary" : ""
+                            }`}
+                          />
+                        </button>
                       </div>
-                    </button>
+                    </div>
                     {isExpanded && (
                       <div className="px-4 py-3.5 bg-background-app/40 border-t border-border">
                         <div className="text-small text-content-primary leading-relaxed whitespace-pre-wrap font-sans select-text max-h-[380px] overflow-y-auto custom-scrollbar">

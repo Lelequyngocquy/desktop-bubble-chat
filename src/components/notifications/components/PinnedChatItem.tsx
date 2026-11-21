@@ -39,6 +39,7 @@ export const PinnedChatItem: React.FC<PinnedChatItemProps> = ({
           type="button"
           onClick={() => onOpenThread(item)}
           title={t("chatheads_page.open_chat")}
+          aria-label={t("chatheads_page.open_chat")}
           className="w-8 h-8 flex items-center justify-center rounded-panel text-primary hover:bg-primary-subtle transition-colors cursor-pointer"
         >
           <ArrowUpRight className="w-4 h-4" />
@@ -47,6 +48,7 @@ export const PinnedChatItem: React.FC<PinnedChatItemProps> = ({
           type="button"
           onClick={() => onUnpin(item.id)}
           title={t("chatheads_page.unpin")}
+          aria-label={t("chatheads_page.unpin")}
           className="w-8 h-8 flex items-center justify-center rounded-panel text-primary hover:bg-status-errorBg hover:text-status-error transition-colors cursor-pointer"
         >
           <Pin className="w-4 h-4 fill-current -rotate-45" />

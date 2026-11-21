@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { TFunction } from "i18next";
 import { Conversation } from "../types/conversation";
 import { IncomingMessagePayload } from "../types/ipc";
 import { normalizeThreadId } from "../utils/threadValidation";
@@ -9,13 +10,17 @@ if (typeof window !== "undefined" && window.localStorage) {
   } catch {}
 }
 
-export function formatMessageTime(timestamp?: number): string {
-  if (!timestamp) return "Just now";
+export function formatMessageTime(
+  timestamp?: number,
+  t?: TFunction<"dashboard">,
+): string {
+  if (!timestamp) return t ? t("time.just_now") : "Just now";
   const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return t ? t("time.just_now") : "Just now";
   const now = new Date();
   const diffMinutes = Math.floor((now.getTime() - date.getTime()) / 60000);
-  if (diffMinutes < 1) return "Just now";
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffMinutes < 1) return t ? t("time.just_now") : "Just now";
+  if (diffMinutes < 60) return t ? t("time.minutes_ago", { count: diffMinutes }) : `${diffMinutes}m ago`;
   const hours = date.getHours().toString().padStart(2, "0");
   const minutes = date.getMinutes().toString().padStart(2, "0");
   return `${hours}:${minutes}`;
@@ -95,13 +100,15 @@ export const useConversationStore = create<ConversationState>()((set) => ({
       const existing = existingIndex >= 0 ? state.conversations[existingIndex] : null;
       const existingThreadId = normalizeThreadId(existing?.threadId);
       const resolvedThreadId = validThreadId || existingThreadId;
+      const timestampMs = msg.timestamp || Date.now();
       const updatedItem: Conversation = {
         id: existing ? existing.id : resolvedThreadId || buildConversationFallbackId(accountIdx, displayName),
         name: displayName,
         avatarUrl: "",
         avatarText: "",
         lastMessage: msg.body && msg.body.trim().length > 0 ? msg.body : "New message",
-        timestamp: formatMessageTime(msg.timestamp),
+        timestamp: formatMessageTime(timestampMs),
+        timestampMs,
         unreadCount: (existing?.unreadCount || 0) + 1,
         accountIndex: accountIdx,
         threadId: resolvedThreadId,
@@ -128,13 +135,15 @@ export const useConversationStore = create<ConversationState>()((set) => ({
         const existing = existingIndex >= 0 ? current[existingIndex] : null;
         const existingThreadId = normalizeThreadId(existing?.threadId);
         const resolvedThreadId = validThreadId || existingThreadId;
+        const timestampMs = msg.timestamp || Date.now();
         const updatedItem: Conversation = {
           id: existing ? existing.id : resolvedThreadId || buildConversationFallbackId(accountIdx, displayName),
           name: displayName,
           avatarUrl: "",
           avatarText: "",
           lastMessage: msg.body && msg.body.trim().length > 0 ? msg.body : "New message",
-          timestamp: formatMessageTime(msg.timestamp),
+          timestamp: formatMessageTime(timestampMs),
+          timestampMs,
           unreadCount: existing?.unreadCount || 0,
           accountIndex: accountIdx,
           threadId: resolvedThreadId,
@@ -180,15 +189,18 @@ export const useConversationStore = create<ConversationState>()((set) => ({
             threadId: validThreadId || existingThreadId,
             avatarUrl: item.avatarUrl || updated[idx].avatarUrl,
             accountIndex: accountIdx,
+            timestampMs: item.timestamp || updated[idx].timestampMs,
           };
         } else {
+          const timestampMs = item.timestamp || Date.now();
           updated.push({
             id: validThreadId || buildConversationFallbackId(accountIdx, displayName),
             name: displayName,
             avatarUrl: item.avatarUrl,
             avatarText: displayName.slice(0, 2).toUpperCase(),
             lastMessage: item.body || "Sent a message",
-            timestamp: "Today",
+            timestamp: formatMessageTime(timestampMs),
+            timestampMs,
             unreadCount: 0,
             accountIndex: accountIdx,
             threadId: validThreadId,

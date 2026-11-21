@@ -217,5 +217,10 @@
       "desc": "Nhắn tin và gọi video trực tiếp trên nền tảng Meta Messenger."
     }
   },
-  "warning_heavy_load": "Bạn đang bật {{count}} bong bóng cùng lúc. Mỗi phiên WebView2 chiếm bộ nhớ. Hãy tắt các tài khoản không dùng để tiết kiệm RAM."
+  "warning_heavy_load": "Bạn đang bật {{count}} bong bóng cùng lúc. Mỗi phiên WebView2 chiếm bộ nhớ. Hãy tắt các tài khoản không dùng để tiết kiệm RAM.",
+  "time": {
+    "just_now": "Vừa xong",
+    "minutes_ago": "{{count}} phút trước",
+    "today": "Hôm nay"
+  }
 }

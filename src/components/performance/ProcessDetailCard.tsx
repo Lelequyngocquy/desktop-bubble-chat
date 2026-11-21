@@ -287,7 +287,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = React.memo(({
                   key={accountIndex}
                   className={`p-3.5 border rounded-panel flex flex-col gap-3 transition-colors ${
                     isSuspended
-                      ? "bg-slate-50 dark:bg-background-subtle  border-slate-200 dark:border-border"
+                      ? "bg-background-subtle border-border"
                       : "bg-background-surface border-border shadow-xs"
                   }`}
                 >
@@ -296,7 +296,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = React.memo(({
                       <div
                         className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-small shrink-0 ${
                           isSuspended
-                            ? "bg-slate-200 dark:bg-background-app text-slate-500 dark:text-content-muted"
+                            ? "bg-background-app text-content-muted"
                             : "bg-gradient-to-br from-blue-500 to-sky-400 text-white shadow-xs"
                         }`}
                       >
@@ -358,6 +358,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = React.memo(({
                       </div>
                       {isSuspended ? (
                         <button
+                          type="button"
                           onClick={() => handleWakeAccount(accountIndex)}
                           disabled={isActing}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-foreground text-white rounded-control text-small font-medium shadow-xs transition-colors cursor-pointer disabled:opacity-60"
@@ -372,9 +373,10 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = React.memo(({
                         </button>
                       ) : (
                         <button
+                          type="button"
                           onClick={() => handleFreezeAccount(accountIndex)}
                           disabled={isActing}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-control text-small font-medium transition-colors cursor-pointer disabled:opacity-60"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-subtle hover:bg-primary/20 text-primary-foreground border border-primary/25 rounded-control text-small font-medium transition-colors cursor-pointer disabled:opacity-60"
                           title={t("freeze_tooltip")}
                         >
                           <Snowflake

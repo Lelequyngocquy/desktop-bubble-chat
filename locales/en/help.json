@@ -36,6 +36,7 @@
   "app_version": "App version: v{{version}} · DesktopBubbleChat - Contact: lengocquytdts@gmail.com",
   "send_btn": "Send Feedback",
   "ext_title": "Browser Extensions",
+  "ext_windows_only": "Windows only",
   "ext_desc": "DesktopBubbleChat supports loading unpacked Chrome extensions into each account's Messenger WebView2. Each account has its own isolated extensions folder with no cross-account interference.",
   "ext_step1_title": "1. Open extensions folder",
   "ext_step1_desc": "Click the account number button to open that account's extensions folder in File Explorer.",

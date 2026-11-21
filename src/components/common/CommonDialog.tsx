@@ -1,5 +1,7 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useId, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X, RefreshCw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { CommonButton, CommonButtonProps } from "./CommonButton";
 
 export type DialogSize = "sm" | "md" | "lg" | "xl";
@@ -42,6 +44,18 @@ const DIALOG_SIZE_MAP: Record<DialogSize, string> = {
   xl: "w-dialog-xl max-w-[90vw]",
 };
 
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function isActionLoadingState(action: boolean | DialogActionProps | React.ReactNode | undefined): boolean {
+  return Boolean(
+    action &&
+      typeof action === "object" &&
+      !React.isValidElement(action) &&
+      (action as DialogActionProps).loading,
+  );
+}
+
 export const CommonDialog: React.FC<CommonDialogProps> = ({
   isOpen,
   onClose,
@@ -60,28 +74,71 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
   className = "",
   bodyClassName = "",
 }) => {
+  const { t } = useTranslation("common");
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const isBusy = isActionLoadingState(backButton) || isActionLoadingState(rightButton);
+  const canCloseOnEscape = closeOnEscape && !isBusy;
+  const canCloseOnBackdrop = closeOnBackdropClick && !isBusy;
+  const onCloseRef = useRef(onClose);
+  const canCloseOnEscapeRef = useRef(canCloseOnEscape);
+  onCloseRef.current = onClose;
+  canCloseOnEscapeRef.current = canCloseOnEscape;
   useEffect(() => {
-    if (!isOpen || !closeOnEscape) return;
+    if (!isOpen) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const rafId = requestAnimationFrame(() => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      const focusable = panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+      if (focusable.length > 0) {
+        focusable[0].focus();
+      } else {
+        panel.focus();
+      }
+    });
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        if (canCloseOnEscapeRef.current) {
+          onCloseRef.current();
+        }
+        return;
+      }
+      if (e.key === "Tab" && panelRef.current) {
+        const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+        if (focusable.length === 0) {
+          e.preventDefault();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && (document.activeElement === first || !panelRef.current.contains(document.activeElement))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, closeOnEscape, onClose]);
-
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("keydown", handleKeyDown);
+      if (previousFocus && typeof previousFocus.focus === "function" && previousFocus.isConnected) {
+        previousFocus.focus();
+      }
+    };
+  }, [isOpen]);
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (closeOnBackdropClick && e.target === e.currentTarget) {
+      if (canCloseOnBackdrop && e.target === e.currentTarget) {
         onClose();
       }
     },
-    [closeOnBackdropClick, onClose],
+    [canCloseOnBackdrop, onClose],
   );
-
-  if (!isOpen) return null;
-
+  if (!isOpen || typeof document === "undefined") return null;
   const renderAction = (
     action: boolean | DialogActionProps | React.ReactNode | undefined,
     defaultLabel: string,
@@ -92,14 +149,9 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
     if (React.isValidElement(action)) {
       return action;
     }
-    const config: DialogActionProps =
-      typeof action === "object" ? (action as DialogActionProps) : {};
+    const config: DialogActionProps = typeof action === "object" ? (action as DialogActionProps) : {};
     const isSpinning = Boolean(config.loading);
-    const leadingIcon = isSpinning ? (
-      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-    ) : (
-      config.iconLeading
-    );
+    const leadingIcon = isSpinning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : config.iconLeading;
     return (
       <CommonButton
         variant={config.variant || defaultVariant}
@@ -114,21 +166,22 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
       </CommonButton>
     );
   };
-
-  const renderedBack = renderAction(backButton, "Cancel", "outline", onClose);
-  const renderedRight = renderAction(rightButton, "Confirm", "primary");
+  const renderedBack = renderAction(backButton, t("cancel"), "outline", onClose);
+  const renderedRight = renderAction(rightButton, t("confirm"), "primary");
   const hasFooter = Boolean(renderedBack || renderedRight);
-
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
+      aria-labelledby={titleId}
       onClick={handleBackdropClick}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-content-primary/45 backdrop-blur-sm animate-dialog-fade select-none"
     >
       <div
+        ref={panelRef}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className={`${DIALOG_SIZE_MAP[size]} bg-background-surface border border-border rounded-modal shadow-window flex flex-col max-h-[90vh] overflow-hidden animate-dialog-zoom ${className}`}
+        className={`${DIALOG_SIZE_MAP[size]} bg-background-surface border border-border rounded-modal shadow-window flex flex-col max-h-[90vh] overflow-hidden animate-dialog-zoom outline-none ${className}`}
       >
         <div className="px-6 pt-5 pb-4 border-b border-border flex items-start justify-between gap-4 shrink-0 bg-background-surface">
           <div className="flex flex-col gap-1 min-w-0">
@@ -143,7 +196,7 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
                   {titleIcon}
                 </span>
               )}
-              <h2 className="text-section font-semibold text-content-primary tracking-tight leading-snug m-0 truncate">
+              <h2 id={titleId} className="text-section font-semibold text-content-primary tracking-tight leading-snug m-0 truncate">
                 {title}
               </h2>
             </div>
@@ -151,10 +204,11 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
           {showCloseButton && (
             <button
               type="button"
+              disabled={isBusy}
               onClick={onClose}
-              title="Close (Esc)"
-              aria-label="Close"
-              className="w-7 h-7 -mr-1.5 -mt-1 rounded-control flex items-center justify-center text-content-secondary hover:text-content-primary hover:bg-background-app active:bg-border transition-colors cursor-pointer shrink-0"
+              title={t("close")}
+              aria-label={t("close")}
+              className="w-7 h-7 -mr-1.5 -mt-1 rounded-control flex items-center justify-center text-content-secondary hover:text-content-primary hover:bg-background-app active:bg-border transition-colors cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <X className="w-4 h-4" />
             </button>
@@ -165,16 +219,10 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
         >
           {content && (
             <div className="text-body text-content-secondary leading-relaxed">
-              {typeof content === "string" ? (
-                <p className="m-0">{content}</p>
-              ) : (
-                content
-              )}
+              {typeof content === "string" ? <p className="m-0">{content}</p> : content}
             </div>
           )}
-          {widget && (
-            <div className="w-full mt-3 shrink-0 flex flex-col">{widget}</div>
-          )}
+          {widget && <div className="w-full mt-3 shrink-0 flex flex-col">{widget}</div>}
         </div>
         {hasFooter && (
           <div
@@ -196,7 +244,8 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

@@ -27,7 +27,7 @@ import { AvatarCircle } from "../common";
 export const Sidebar: React.FC = () => {
   const { t } = useTranslation(["common", "dashboard", "settings"]);
   const activeTab = useNavigationStore((s) => s.activeTab);
-  const setActiveTab = useNavigationStore.getState().setActiveTab;
+  const { setActiveTab, navigateToSection } = useNavigationStore.getState();
   const totalUnread = useConversationStore((s) =>
     s.conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0),
   );
@@ -43,15 +43,8 @@ export const Sidebar: React.FC = () => {
     updateStatus === "available" ||
     updateStatus === "downloading" ||
     updateStatus === "downloaded";
-
   const handleNavigateToUpdate = () => {
-    setActiveTab("settings");
-    setTimeout(() => {
-      const section = document.getElementById("section-update");
-      if (section) {
-        section.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    }, 100);
+    navigateToSection("settings", "section-update");
   };
   const navIconMap: Record<NavigationItemConfig["iconName"], React.ReactNode> =
     {
@@ -119,24 +112,25 @@ export const Sidebar: React.FC = () => {
       {/* Top section: Profile & Primary Nav */}
       <div className="flex flex-col gap-6">
         {/* Profile - User Header */}
-        <div
+        <button
+          type="button"
           onClick={() => setActiveTab("home")}
-          className="flex items-center gap-[11px] px-[10px] pb-2 cursor-pointer hover:opacity-90 transition-opacity"
+          className="w-full text-left flex items-center gap-[11px] px-[10px] pb-2 cursor-pointer hover:opacity-90 transition-opacity"
         >
           <AvatarCircle
             size={42}
             text={systemUserInitials}
             className="shadow-xs"
           />
-          <div className="flex flex-col gap-[2px] overflow-hidden">
+          <span className="flex flex-col gap-[2px] overflow-hidden min-w-0">
             <span className="text-nav font-semibold text-content-primary truncate leading-tight">
               {systemUser}
             </span>
             <span className="text-caption text-content-secondary truncate leading-tight">
               {t("common:personal_space")}
             </span>
-          </div>
-        </div>
+          </span>
+        </button>
 
         {/* Primary Navigation */}
         <nav className="flex flex-col gap-[5px]">
@@ -145,8 +139,10 @@ export const Sidebar: React.FC = () => {
             return (
               <button
                 key={item.id}
+                type="button"
+                aria-current={isActive ? "page" : undefined}
                 onClick={() => setActiveTab(item.id)}
-                className={`relative flex items-center justify-between h-[42px] px-3 rounded-control transition-all text-left group ${
+                className={`relative flex items-center justify-between h-[42px] px-3 rounded-control transition-all text-left group cursor-pointer ${
                   isActive
                     ? "bg-white/70 dark:bg-white/10 shadow-sm"
                     : "hover:bg-white/40 dark:hover:bg-white/5 active:bg-white/60 dark:active:bg-white/10"
@@ -195,35 +191,28 @@ export const Sidebar: React.FC = () => {
       {/* Bottom section: Background service, Secondary Nav, Language Switcher & Version */}
       <div className="flex flex-col gap-3">
         {/* Software Update Card */}
-        <div
-          role="button"
-          tabIndex={0}
+        <button
+          type="button"
           onClick={handleNavigateToUpdate}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              handleNavigateToUpdate();
-            }
-          }}
-          className="bg-sidebar-card border border-sidebar-cardBorder hover:border-primary/50 dark:hover:border-primary/50 rounded-panel p-[14px] flex flex-col gap-2 cursor-pointer transition-all shadow-xs group"
+          className="w-full text-left bg-sidebar-card border border-sidebar-cardBorder hover:border-primary/50 dark:hover:border-primary/50 rounded-panel p-[14px] flex flex-col gap-2 cursor-pointer transition-all shadow-xs group"
           title={t("settings:scroll_to_update")}
         >
-          <div className="flex items-center justify-between text-content-primary">
-            <div className="flex items-center gap-2 min-w-0">
+          <span className="w-full flex items-center justify-between text-content-primary">
+            <span className="flex items-center gap-2 min-w-0">
               <Sparkles
                 className={`w-4 h-4 shrink-0 ${hasUpdate ? "text-primary" : "text-content-secondary group-hover:text-primary transition-colors"}`}
               />
               <span className="text-small font-medium leading-none truncate">
                 {t("common:update_widget_title")}
               </span>
-            </div>
+            </span>
             {hasUpdate && (
               <span className="px-1.5 py-0.5 bg-status-error text-content-inverse text-[10px] font-bold rounded-pill animate-pulse leading-none shadow-xs shrink-0">
                 {t("common:new_badge_tag")}
               </span>
             )}
-          </div>
-          <p className="text-caption text-content-secondary leading-snug m-0 group-hover:text-content-primary transition-colors">
+          </span>
+          <span className="text-caption text-content-secondary leading-snug group-hover:text-content-primary transition-colors block">
             {hasUpdate
               ? availableVersion
                 ? t("common:update_widget_desc_ver", {
@@ -237,8 +226,8 @@ export const Sidebar: React.FC = () => {
                       version: currentVersion,
                     })
                   : t("settings:update.status_uptodate")}
-          </p>
-        </div>
+          </span>
+        </button>
 
         {/* Background Service Status Card */}
         <div className="bg-sidebar-card border border-sidebar-cardBorder rounded-panel p-[14px] flex flex-col gap-2">
@@ -260,8 +249,10 @@ export const Sidebar: React.FC = () => {
             return (
               <button
                 key={item.id}
+                type="button"
+                aria-current={isActive ? "page" : undefined}
                 onClick={() => setActiveTab(item.id)}
-                className={`relative flex items-center justify-between h-[38px] px-3 rounded-control transition-all text-left group ${
+                className={`relative flex items-center justify-between h-[38px] px-3 rounded-control transition-all text-left group cursor-pointer ${
                   isActive
                     ? "bg-white/70 dark:bg-white/10 shadow-sm"
                     : "hover:bg-white/40 dark:hover:bg-white/5 active:bg-white/60 dark:active:bg-white/10"
@@ -300,6 +291,7 @@ export const Sidebar: React.FC = () => {
         <div className="flex items-center justify-center gap-1 pt-1 text-caption">
           <button
             type="button"
+            aria-pressed={currentLanguage === "en"}
             onClick={() => setLanguage("en")}
             className={`px-2 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5 ${
               currentLanguage === "en"
@@ -314,6 +306,7 @@ export const Sidebar: React.FC = () => {
           <span className="text-border/70 select-none">/</span>
           <button
             type="button"
+            aria-pressed={currentLanguage === "vi"}
             onClick={() => setLanguage("vi")}
             className={`px-2 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5 ${
               currentLanguage === "vi"
@@ -328,13 +321,14 @@ export const Sidebar: React.FC = () => {
         </div>
 
         {/* App Version */}
-        <div
+        <button
+          type="button"
           onClick={handleNavigateToUpdate}
           className="pt-1 text-caption text-content-muted hover:text-primary cursor-pointer transition-colors flex items-center justify-center gap-1.5"
-          title="Open Settings & Updates"
+          title={t("settings:scroll_to_update")}
         >
           <span>DesktopBubbleChat v{currentVersion}</span>
-        </div>
+        </button>
       </div>
     </aside>
   );

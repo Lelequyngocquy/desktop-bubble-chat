@@ -1,13 +1,13 @@
 import React from "react";
-import { Color, Dimen } from "../../constants/design";
+import { Dimen } from "../../constants/design";
 
 export interface AvatarCircleProps {
   src?: string;
   text?: string;
   icon?: React.ReactNode;
-  size?: number; // Size in pixels (default 40px)
-  bg?: string; // Background color (hex or class)
-  textColor?: string; // Text color (hex or class)
+  size?: number;
+  bg?: string;
+  textColor?: string;
   border?: boolean | string;
   className?: string;
 }
@@ -17,19 +17,15 @@ export const AvatarCircle: React.FC<AvatarCircleProps> = ({
   text,
   icon,
   size = Dimen.layout.avatarLg,
-  bg = Color.primary.subtle,
-  textColor = Color.primary.foreground,
+  bg = "bg-primary-subtle",
+  textColor = "text-primary-foreground",
   border = true,
   className = "",
 }) => {
-  const borderStyle =
-    typeof border === "string"
-      ? border
-      : border
-      ? "1px solid rgba(8, 102, 255, 0.12)"
-      : "none";
   const isBgHex = bg.startsWith("#") || bg.startsWith("rgb");
   const isTextHex = textColor.startsWith("#") || textColor.startsWith("rgb");
+  const borderClass = border === true ? "border border-primary/15" : "";
+  const borderStyle = typeof border === "string" ? border : border === false ? "none" : undefined;
   const fontSize = Math.max(10, Math.round(size * 0.35));
   return (
     <div
@@ -41,7 +37,7 @@ export const AvatarCircle: React.FC<AvatarCircleProps> = ({
         color: isTextHex ? textColor : undefined,
         border: borderStyle,
       }}
-      className={`rounded-pill flex items-center justify-center font-semibold shrink-0 overflow-hidden select-none ${
+      className={`rounded-pill flex items-center justify-center font-semibold shrink-0 overflow-hidden select-none ${borderClass} ${
         !isBgHex ? bg : ""
       } ${!isTextHex ? textColor : ""} ${className}`}
     >

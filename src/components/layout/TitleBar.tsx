@@ -80,22 +80,28 @@ export const TitleBar: React.FC = () => {
           <>
             <div data-tauri-drag-region className="group flex items-center gap-2 pl-4 h-full">
               <button
+                type="button"
                 onClick={handleCloseClick}
                 title={t("titlebar.close")}
+                aria-label={t("titlebar.close")}
                 className="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E]/50 flex items-center justify-center cursor-pointer shadow-xs active:brightness-90 transition-all"
               >
                 <X className="w-2 h-2 text-[#4A0002] opacity-0 group-hover:opacity-100 transition-opacity stroke-[2.5]" />
               </button>
               <button
+                type="button"
                 onClick={handleMinimize}
                 title={t("titlebar.minimize")}
+                aria-label={t("titlebar.minimize")}
                 className="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123]/50 flex items-center justify-center cursor-pointer shadow-xs active:brightness-90 transition-all"
               >
                 <Minus className="w-2 h-2 text-[#5E3B00] opacity-0 group-hover:opacity-100 transition-opacity stroke-[2.5]" />
               </button>
               <button
+                type="button"
                 onClick={handleToggleMaximize}
                 title={isMaximized ? t("titlebar.restore") : t("titlebar.maximize")}
+                aria-label={isMaximized ? t("titlebar.restore") : t("titlebar.maximize")}
                 className="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29]/50 flex items-center justify-center cursor-pointer shadow-xs active:brightness-90 transition-all"
               >
                 <Plus className="w-2 h-2 text-[#003B0B] opacity-0 group-hover:opacity-100 transition-opacity stroke-[2.5]" />
@@ -131,15 +137,19 @@ export const TitleBar: React.FC = () => {
             <div data-tauri-drag-region className="flex-1 h-full" />
             <div className="flex items-stretch h-full">
               <button
+                type="button"
                 onClick={handleMinimize}
                 title={t("titlebar.minimize")}
+                aria-label={t("titlebar.minimize")}
                 className="w-[46px] h-full flex items-center justify-center text-content-secondary hover:text-content-primary hover:bg-white/60 active:bg-white/90 dark:hover:bg-white/10 dark:active:bg-white/20 transition-colors cursor-pointer"
               >
                 <Minus className="w-[14px] h-[14px]" />
               </button>
               <button
+                type="button"
                 onClick={handleToggleMaximize}
                 title={isMaximized ? t("titlebar.restore") : t("titlebar.maximize")}
+                aria-label={isMaximized ? t("titlebar.restore") : t("titlebar.maximize")}
                 className="w-[46px] h-full flex items-center justify-center text-content-secondary hover:text-content-primary hover:bg-white/60 active:bg-white/90 dark:hover:bg-white/10 dark:active:bg-white/20 transition-colors cursor-pointer"
               >
                 {isMaximized ? (
@@ -149,8 +159,10 @@ export const TitleBar: React.FC = () => {
                 )}
               </button>
               <button
+                type="button"
                 onClick={handleCloseClick}
                 title={t("titlebar.close")}
+                aria-label={t("titlebar.close")}
                 className="w-[46px] h-full flex items-center justify-center text-content-secondary hover:text-content-inverse hover:bg-status-error active:bg-status-error/90 transition-colors cursor-pointer"
               >
                 <X className="w-[15px] h-[15px]" />

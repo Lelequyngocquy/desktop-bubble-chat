@@ -4,6 +4,7 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { HomeWorkspace } from "./components/home";
 import { BubbleSpawnIndicator } from "./components/common/BubbleSpawnIndicator";
 import { DashboardLoadingOverlay } from "./components/common/DashboardLoadingOverlay";
+import { RouteLoadingFallback } from "./components/common/RouteLoadingFallback";
 import { useDashboardBootstrap, useAutoUpdaterLifecycle, useThemeSync } from "./hooks";
 import { useUnreadListener } from "./hooks/useUnreadListener";
 import { useNavigationStore } from "./stores/navigationStore";
@@ -26,7 +27,7 @@ export const App: React.FC = () => {
       <TitleBar />
       <div className="relative flex flex-1 min-h-0 min-w-0 overflow-hidden">
         <Sidebar />
-        <Suspense fallback={<DashboardLoadingOverlay />}>
+        <Suspense fallback={<RouteLoadingFallback />}>
           {activeTab === "connections" ? (
             <ConnectionsWorkspace />
           ) : activeTab === "notifications" || (activeTab as string) === "chat-heads" ? (

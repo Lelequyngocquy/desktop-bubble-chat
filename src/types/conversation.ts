@@ -6,6 +6,7 @@ export interface Conversation {
   isGroup?: boolean;
   lastMessage: string;
   timestamp: string;
+  timestampMs?: number;
   unreadCount: number;
   accountIndex?: number;
   threadId?: string;

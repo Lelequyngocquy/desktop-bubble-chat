@@ -65,17 +65,18 @@ export const QuickSettings: React.FC = () => {
   const settings = QUICK_SETTINGS_CONFIG.map((item) => {
     const action = actionMap[item.id];
     const isAvailable = !item.requiresConnection || isConnected;
+    const isActiveDescription = item.id === "always-on-top" ? Boolean(action?.value) : isAvailable;
     const description: string =
       item.id === "bubble"
         ? bubbleDescription
         : item.id === "notifications"
           ? notificationsDescription
-          : isAvailable
-            ? (t(item.descriptionActiveKey as any) as string)
-            : (t(item.descriptionInactiveKey as any) as string);
+          : isActiveDescription
+            ? t(item.descriptionActiveKey)
+            : t(item.descriptionInactiveKey);
     return {
       id: item.id,
-      label: t(item.labelKey as any) as string,
+      label: t(item.labelKey),
       description,
       icon: iconMap[item.iconName],
       value: action?.value ?? false,
@@ -96,16 +97,17 @@ export const QuickSettings: React.FC = () => {
       }
       banner={
         warningMessage ? (
-          <div
+          <button
+            type="button"
             onClick={() => setActiveTab("connections")}
-            className="p-2 bg-status-warningBg border border-status-warningBorder rounded-control flex items-center gap-2 text-status-warning text-caption cursor-pointer hover:bg-status-warningBg/80 transition-colors"
+            className="w-full text-left p-2 bg-status-warningBg border border-status-warningBorder rounded-control flex items-center gap-2 text-status-warning text-caption cursor-pointer hover:bg-status-warningBg/80 transition-colors"
           >
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
             <span className="flex-1 font-medium">{warningMessage}</span>
             <span className="text-badge underline font-semibold">
               {t("connect_now")}
             </span>
-          </div>
+          </button>
         ) : undefined
       }
       bodyClassName="py-1 flex flex-col justify-between"
