@@ -46,6 +46,7 @@ pub struct ChatState {
     pub user_config: Mutex<crate::utils::user_cache::AppUserConfig>,
     pub has_shown_tray_notification: AtomicBool,
     pub active_dialog_windows: Mutex<HashSet<String>>,
+    pub chat_anim_tokens: Mutex<HashMap<u32, u64>>,
 }
 
 impl Default for ChatState {
@@ -75,6 +76,7 @@ impl Default for ChatState {
             user_config: Mutex::new(crate::utils::user_cache::AppUserConfig::default()),
             has_shown_tray_notification: AtomicBool::new(false),
             active_dialog_windows: Mutex::new(HashSet::new()),
+            chat_anim_tokens: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -424,6 +426,26 @@ impl ChatState {
     pub fn mark_tray_notification_shown(&self) -> bool {
         self.has_shown_tray_notification.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok()
     }
+
+    /// Increments and returns the next chat animation token for debounce cancellation
+    pub fn next_chat_anim_token(&self, account_index: u32) -> u64 {
+        if let Ok(mut map) = self.chat_anim_tokens.lock() {
+            let entry = map.entry(account_index).or_insert(0);
+            *entry = entry.wrapping_add(1);
+            *entry
+        } else {
+            0
+        }
+    }
+
+    /// Verifies if a specific chat animation token is still valid
+    pub fn is_chat_anim_token_valid(&self, account_index: u32, token: u64) -> bool {
+        if let Ok(map) = self.chat_anim_tokens.lock() {
+            map.get(&account_index).copied().unwrap_or(0) == token
+        } else {
+            false
+        }
+    }
 }
 
 #[cfg(test)]
@@ -501,5 +523,22 @@ mod tests {
         let remaining = state.get_recent_messages(None);
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].account_index, 2);
+    }
+
+    #[test]
+    fn test_chat_animation_token_lifecycle() {
+        let state = ChatState::default();
+        let tok1 = state.next_chat_anim_token(1);
+        assert_eq!(tok1, 1);
+        assert!(state.is_chat_anim_token_valid(1, tok1));
+        assert!(!state.is_chat_anim_token_valid(1, 999));
+        let tok2 = state.next_chat_anim_token(1);
+        assert_eq!(tok2, 2);
+        assert!(!state.is_chat_anim_token_valid(1, tok1));
+        assert!(state.is_chat_anim_token_valid(1, tok2));
+        let tok_other = state.next_chat_anim_token(2);
+        assert_eq!(tok_other, 1);
+        assert!(state.is_chat_anim_token_valid(2, tok_other));
+        assert!(state.is_chat_anim_token_valid(1, tok2));
     }
 }

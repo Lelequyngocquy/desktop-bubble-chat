@@ -41,6 +41,31 @@ if (!window.__CONTEXT_MENU_GUARD_INSTALLED__) {
   }, true);
 }
 
+// Hardware-accelerated entrance and exit animation triggers
+if (!window.__CHAT_TRANSITIONS_INSTALLED__) {
+  window.__CHAT_TRANSITIONS_INSTALLED__ = true;
+  window.__playChatEntrance = function (direction) {
+    if (!document.body) return;
+    document.body.classList.remove("dbc-chat-enter-from-right", "dbc-chat-enter-from-left", "dbc-chat-exit-to-right", "dbc-chat-exit-to-left", "dbc-chat-origin-left");
+    if (direction === "left") {
+      document.body.classList.add("dbc-chat-origin-left");
+    }
+    void document.body.offsetWidth;
+    const cls = direction === "left" ? "dbc-chat-enter-from-left" : "dbc-chat-enter-from-right";
+    document.body.classList.add(cls);
+  };
+  window.__playChatExit = function (direction) {
+    if (!document.body) return;
+    document.body.classList.remove("dbc-chat-enter-from-right", "dbc-chat-enter-from-left", "dbc-chat-origin-left");
+    if (direction === "left") {
+      document.body.classList.add("dbc-chat-origin-left");
+    }
+    void document.body.offsetWidth;
+    const cls = direction === "left" ? "dbc-chat-exit-to-left" : "dbc-chat-exit-to-right";
+    document.body.classList.add(cls);
+  };
+}
+
 /**
  * Smart periodic interval with adaptive throttling when tab/webview is hidden or unfocused
  * @param {Function} fn Function to execute

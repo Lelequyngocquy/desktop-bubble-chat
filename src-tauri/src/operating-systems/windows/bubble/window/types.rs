@@ -101,6 +101,8 @@ pub const WS_EX_LAYERED: u32 = 0x00080000;
 pub const WS_EX_TOPMOST: u32 = 0x00000008;
 pub const WS_EX_TOOLWINDOW: u32 = 0x00000080;
 pub const WS_POPUP: u32 = 0x80000000;
+pub const WS_CAPTION: u32 = 0x00C00000;
+pub const WS_THICKFRAME: u32 = 0x00040000;
 
 pub const CS_HREDRAW: u32 = 0x0002;
 pub const CS_VREDRAW: u32 = 0x0001;
@@ -113,6 +115,21 @@ pub const SWP_NOMOVE: u32 = 0x0002;
 pub const SWP_NOZORDER: u32 = 0x0004;
 pub const SWP_NOACTIVATE: u32 = 0x0010;
 
+pub const PM_NOREMOVE: u32 = 0x0000;
+pub const EVENT_SYSTEM_FOREGROUND: u32 = 0x0003;
+pub const WINEVENT_OUTOFCONTEXT: u32 = 0x0000;
+pub const WINEVENT_SKIPOWNPROCESS: u32 = 0x0002;
+
+pub type WinEventProc = unsafe extern "system" fn(
+    *mut std::ffi::c_void,
+    u32,
+    *mut std::ffi::c_void,
+    i32,
+    i32,
+    u32,
+    u32,
+);
+
 pub const ULW_ALPHA: u32 = 0x00000002;
 pub const AC_SRC_OVER: u8 = 0x00;
 pub const AC_SRC_ALPHA: u8 = 0x01;
@@ -122,6 +139,8 @@ pub const BI_RGB: u32 = 0;
 pub const IDC_ARROW: usize = 32512;
 pub const IDC_HAND: usize = 32649;
 
+pub const GWL_STYLE: i32 = -16;
+pub const GWL_EXSTYLE: i32 = -20;
 pub const GWLP_USERDATA: i32 = -21;
 
 pub const WM_DESTROY: u32 = 0x0002;
