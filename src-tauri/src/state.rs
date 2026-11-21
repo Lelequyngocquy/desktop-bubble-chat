@@ -27,7 +27,6 @@ pub const MAX_ACCOUNTS: u32 = 5;
 /// Multi-account SSOT state for chat and authentication
 pub struct ChatState {
     pub last_blur_time: AtomicI64,
-    pub is_auth_mode: AtomicBool,
     pub auth_windows: Mutex<HashSet<String>>,
     pub account_auth: Mutex<HashMap<u32, AccountAuthInfo>>,
     pub is_always_on_top: AtomicBool,
@@ -57,7 +56,6 @@ impl Default for ChatState {
         }
         Self {
             last_blur_time: AtomicI64::new(0),
-            is_auth_mode: AtomicBool::new(false),
             auth_windows: Mutex::new(HashSet::new()),
             account_auth: Mutex::new(HashMap::new()),
             is_always_on_top: AtomicBool::new(true),
@@ -114,15 +112,13 @@ impl ChatState {
                 set.remove(label);
             }
         }
-        self.is_auth_mode.store(is_auth, Ordering::SeqCst);
     }
 
     pub fn is_window_in_auth_mode(&self, label: &str) -> bool {
-        if let Ok(set) = self.auth_windows.lock()
-            && set.contains(label) {
-                return true;
-            }
-        self.is_auth_mode.load(Ordering::SeqCst)
+        if let Ok(set) = self.auth_windows.lock() {
+            return set.contains(label);
+        }
+        false
     }
 
     pub fn set_account_auth(&self, account_index: u32, connected: bool, user_id: Option<String>) {
@@ -549,5 +545,15 @@ mod tests {
         assert_eq!(tok_other, 1);
         assert!(state.is_chat_anim_token_valid(2, tok_other));
         assert!(state.is_chat_anim_token_valid(1, tok2));
+    }
+
+    #[test]
+    fn test_per_window_auth_mode_isolation() {
+        let state = ChatState::default();
+        state.set_window_auth_mode("chat-messenger-02", true);
+        assert!(state.is_window_in_auth_mode("chat-messenger-02"));
+        assert!(!state.is_window_in_auth_mode("chat-messenger-01"));
+        state.set_window_auth_mode("chat-messenger-02", false);
+        assert!(!state.is_window_in_auth_mode("chat-messenger-02"));
     }
 }

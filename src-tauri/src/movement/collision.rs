@@ -169,7 +169,7 @@ impl CollisionResolver {
         let margin = (config.margin * scale) as i32;
         let taskbar_margin = (config.taskbar_margin * scale) as i32;
         let min_x = screen.x + margin;
-        let max_x = screen.x + screen.width - bubble_size - margin;
+        let max_x = (screen.x + screen.width - bubble_size - margin).max(min_x);
         let min_y = screen.y + margin;
         let max_y = (screen.y + screen.height - bubble_size - taskbar_margin).max(min_y);
         let mut cur_x = desired_x.clamp(min_x, max_x);
@@ -556,5 +556,14 @@ mod tests {
         assert!(ry >= margin);
         let dist = (((rx - margin).pow(2) + (ry - margin).pow(2)) as f64).sqrt();
         assert!(dist >= (bubble_size + config.gap as i32) as f64 - 1.0);
+    }
+
+    #[test]
+    fn test_resolve_2d_free_collision_narrow_viewport_no_panic() {
+        let screen = ScreenMetrics { x: 0, y: 0, width: 40, height: 40, scale_factor: 1.0 };
+        let config = BubblePhysicsConfig::default();
+        let (rx, ry) = CollisionResolver::resolve_2d_free_collision(1, 10, 10, &screen, &config, &[]);
+        assert_eq!(rx, config.margin as i32);
+        assert_eq!(ry, config.margin as i32);
     }
 }

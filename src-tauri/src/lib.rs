@@ -155,11 +155,7 @@ pub fn run() {
             commands::reload_messenger_window,
             commands::set_chat_window_size_config,
             commands::toggle_pin_chat,
-            commands::is_chat_pinned,
-            commands::prompt_save_file,
-            commands::save_blob_chunk,
-            commands::show_file_in_folder,
-            commands::notify_download_complete
+            commands::is_chat_pinned
         ])
         .setup(move |app| {
             if let Err(err) = tray::setup_system_tray(app) {

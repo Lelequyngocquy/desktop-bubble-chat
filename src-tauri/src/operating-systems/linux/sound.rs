@@ -1,8 +1,8 @@
 pub struct LinuxSoundPlayer;
 
 impl LinuxSoundPlayer {
-    /// Plays in-memory WAV buffer asynchronously via Linux audio backend
-    pub fn play_wav(wav: &[u8]) {
+    /// Plays static in-memory WAV buffer asynchronously via Linux audio backend
+    pub fn play_wav(wav: &'static [u8]) {
         #[cfg(target_os = "linux")]
         {
             if wav.is_empty() {

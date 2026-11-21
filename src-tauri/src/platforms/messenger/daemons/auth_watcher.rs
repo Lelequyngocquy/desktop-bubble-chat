@@ -17,6 +17,7 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
             std::thread::sleep(Duration::from_millis(2000));
             for idx in 1..=5 {
                 if chat_state.is_account_suspended(idx) {
+                    logged_in_map.insert(idx, false);
                     continue;
                 }
                 let label = get_messenger_window_label(idx);
@@ -80,7 +81,7 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                                 }));
                                 let _ = ensure_bubble_positioned_and_visible(&app_handle, idx);
                             }
-                        } else {
+                        } else if !chat_state.is_window_in_auth_mode(&win_label) {
                             chat_state.clear_account_auth(idx);
                             chat_state.set_account_suspended(idx, true);
                             let _ = chat_window.eval("window.__IS_AUTH_MODE__ = true;");

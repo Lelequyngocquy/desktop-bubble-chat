@@ -218,21 +218,32 @@ pub fn set_always_on_top(app: AppHandle, enabled: bool) -> Result<(), String> {
 
 static LAST_OPENED_URL: std::sync::Mutex<Option<(String, std::time::Instant)>> = std::sync::Mutex::new(None);
 
+/// Validates external HTTP(S) URL strictly and avoids shell command injection
+fn validate_external_http_url(raw: &str) -> Result<String, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed.chars().any(|c| c.is_control() || c.is_whitespace()) {
+        return Err("Invalid external URL".into());
+    }
+    let parsed = tauri::Url::parse(trimmed).map_err(|_| "Invalid external URL".to_string())?;
+    if parsed.scheme() != "http" && parsed.scheme() != "https" {
+        return Err("Invalid URL scheme".into());
+    }
+    Ok(parsed.to_string())
+}
+
 /// Opens external URL safely using default OS browser
 #[tauri::command]
 pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
-    if !url.starts_with("http://") && !url.starts_with("https://") {
-        return Err("Invalid URL scheme".into());
-    }
+    let safe_url = validate_external_http_url(&url)?;
     if let Ok(mut guard) = LAST_OPENED_URL.lock() {
         if let Some((ref last_url, ref last_time)) = *guard
-            && last_url == &url && last_time.elapsed() < std::time::Duration::from_millis(1000) {
+            && last_url == &safe_url && last_time.elapsed() < std::time::Duration::from_millis(1000) {
                 return Ok(());
             }
-        *guard = Some((url.clone(), std::time::Instant::now()));
+        *guard = Some((safe_url.clone(), std::time::Instant::now()));
     }
     use tauri_plugin_opener::OpenerExt;
-    if app.opener().open_url(&url, None::<&str>).is_ok() {
+    if app.opener().open_url(&safe_url, None::<&str>).is_ok() {
         return Ok(());
     }
     #[cfg(target_os = "windows")]
@@ -240,7 +251,7 @@ pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
         use std::ffi::OsStr;
         use std::os::windows::ffi::OsStrExt;
         let wide_op: Vec<u16> = OsStr::new("open").encode_wide().chain(std::iter::once(0)).collect();
-        let wide_url: Vec<u16> = OsStr::new(&url).encode_wide().chain(std::iter::once(0)).collect();
+        let wide_url: Vec<u16> = OsStr::new(&safe_url).encode_wide().chain(std::iter::once(0)).collect();
         #[link(name = "shell32")]
         unsafe extern "system" {
             fn ShellExecuteW(
@@ -256,12 +267,11 @@ pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
         if res > 32 {
             return Ok(());
         }
-        let _ = std::process::Command::new("cmd").args(["/c", "start", "", &url]).spawn();
-        Ok(())
+        Err(format!("ShellExecuteW failed with code {}", res))
     }
     #[cfg(not(target_os = "windows"))]
     {
-        return Ok(());
+        Err("Failed to open external URL".to_string())
     }
 }
 
@@ -329,5 +339,21 @@ pub fn log_frontend(app: AppHandle, level: Option<String>, message: String) {
             let now = crate::utils::time::now_millis();
             let _ = writeln!(file, "[{}] [{}] {}", now, lvl.to_uppercase(), message);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_external_http_url() {
+        assert!(validate_external_http_url("https://github.com/test?a=1").is_ok());
+        assert!(validate_external_http_url("http://localhost:1420").is_ok());
+        assert!(validate_external_http_url("javascript:alert(1)").is_err());
+        assert!(validate_external_http_url("file:///C:/Windows/win.ini").is_err());
+        assert!(validate_external_http_url("https://example.com & calc.exe").is_err());
+        assert!(validate_external_http_url("https://example.com\ncalc").is_err());
+        assert!(validate_external_http_url("").is_err());
     }
 }

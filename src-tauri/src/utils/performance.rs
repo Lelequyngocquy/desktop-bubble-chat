@@ -108,7 +108,7 @@ pub fn collect_performance_snapshot(
         .unwrap_or_default()
         .as_millis() as i64;
     let sys_mutex = get_performance_system();
-    let mut sys = sys_mutex.lock().unwrap();
+    let mut sys = sys_mutex.lock().unwrap_or_else(|e| e.into_inner());
     sys.refresh_processes_specifics(
         ProcessesToUpdate::All,
         true,
@@ -367,7 +367,7 @@ pub fn collect_performance_snapshot(
         } else {
             a.account_index
                 .cmp(&b.account_index)
-                .then(b.working_set_mb.partial_cmp(&a.working_set_mb).unwrap())
+                .then(b.working_set_mb.total_cmp(&a.working_set_mb))
         }
     });
     SystemPerformanceSnapshot {

@@ -75,7 +75,7 @@ impl ChatService {
             untucked_pos.x + bubble_w + gap
         };
         let min_x = screen.x + margin;
-        let max_x = screen.x + screen.width - chat_w - margin;
+        let max_x = (screen.x + screen.width - chat_w - margin).max(min_x);
         let final_x = target_x.clamp(min_x, max_x);
         let bubble_top = bubble_y;
         let min_y = screen.y + margin;

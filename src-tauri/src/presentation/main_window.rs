@@ -44,7 +44,9 @@ pub fn relocate_bubbles_to_screen(
                         0.3
                     };
                     let target_y = new_screen.y + (rel_y_ratio * new_screen.height as f64) as i32;
-                    let clamped_y = target_y.clamp(new_screen.y + margin, new_screen.y + new_screen.height - margin - bubble_w);
+                    let min_y = new_screen.y + margin;
+                    let max_y = (new_screen.y + new_screen.height - margin - bubble_w).max(min_y);
+                    let clamped_y = target_y.clamp(min_y, max_y);
                     let target_x = if is_left {
                         new_screen.x
                     } else {

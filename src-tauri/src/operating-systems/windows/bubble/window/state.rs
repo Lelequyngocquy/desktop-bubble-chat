@@ -45,12 +45,9 @@ impl BubbleWindowState {
         if self.bubble_size == new_size {
             return;
         }
-        self.bubble_size = new_size;
         let canvas_w = new_size + 2 * (BUBBLE_CANVAS_PAD_X as u32);
         let canvas_h = new_size + 2 * (BUBBLE_CANVAS_PAD_Y as u32);
-        self.width = canvas_w;
-        self.height = canvas_h;
-        unsafe {
+        let allocated = unsafe {
             let mut bmi: BITMAPINFO = std::mem::zeroed();
             bmi.bmi_header.bi_size = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
             bmi.bmi_header.bi_width = canvas_w as i32;
@@ -67,13 +64,27 @@ impl BubbleWindowState {
                 std::ptr::null_mut(),
                 0,
             );
-            if !new_hbitmap.is_null() && !p_bits.is_null() {
+            if new_hbitmap.is_null() || p_bits.is_null() {
+                if !new_hbitmap.is_null() {
+                    DeleteObject(new_hbitmap);
+                }
+                false
+            } else {
                 SelectObject(self.hdc_mem, self.old_bitmap);
                 DeleteObject(self.hbitmap);
                 self.hbitmap = new_hbitmap;
                 self.old_bitmap = SelectObject(self.hdc_mem, new_hbitmap);
                 self.p_bits = p_bits;
+                true
             }
+        };
+        if !allocated {
+            return;
+        }
+        self.bubble_size = new_size;
+        self.width = canvas_w;
+        self.height = canvas_h;
+        unsafe {
             SetWindowPos(
                 self.hwnd,
                 std::ptr::null_mut(),

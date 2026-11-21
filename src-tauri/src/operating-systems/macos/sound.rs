@@ -1,8 +1,8 @@
 pub struct MacOSSoundPlayer;
 
 impl MacOSSoundPlayer {
-    /// Plays in-memory WAV buffer asynchronously via AppKit NSSound
-    pub fn play_wav(wav: &[u8]) {
+    /// Plays static in-memory WAV buffer asynchronously via AppKit NSSound
+    pub fn play_wav(wav: &'static [u8]) {
         #[cfg(target_os = "macos")]
         {
             use cocoa::base::{id, nil};
