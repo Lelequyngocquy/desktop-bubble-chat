@@ -88,6 +88,15 @@ pub async fn open_chat(
     ChatService::open_chat(&app, &state, idx)
 }
 
+/// Validates a Messenger thread ID against safe path characters and rejects synthetic prefixes
+fn is_valid_thread_id(thread_id: &str) -> bool {
+    let clean = thread_id.trim();
+    !clean.is_empty()
+        && !clean.starts_with("sender-")
+        && !clean.starts_with("account-msg-")
+        && clean.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+}
+
 /// Command opening a specific conversation thread and docking next to bubble
 #[tauri::command]
 pub async fn open_thread(
@@ -106,10 +115,12 @@ pub async fn open_thread(
     let chat_win = app.get_webview_window(&chat_label).or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
     if let Some(chat_window) = chat_win {
         let clean_id = thread_id.trim();
-        if !clean_id.is_empty() && !clean_id.starts_with("sender-") {
+        if is_valid_thread_id(clean_id) {
             let url = format!("https://www.messenger.com/t/{}", clean_id);
-            let script = format!("window.location.href = '{}';", url);
-            let _ = chat_window.eval(&script);
+            if let Ok(quoted_url) = serde_json::to_string(&url) {
+                let script = format!("window.location.href = {};", quoted_url);
+                let _ = chat_window.eval(&script);
+            }
         }
     }
     Ok(())
@@ -301,4 +312,21 @@ pub fn is_chat_pinned(
 ) -> Result<bool, String> {
     let idx = account_index.unwrap_or(1);
     Ok(state.is_chat_pinned(idx))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_valid_thread_id;
+
+    #[test]
+    fn test_is_valid_thread_id() {
+        assert!(is_valid_thread_id("1234567890"));
+        assert!(is_valid_thread_id("t_abc.123-xyz"));
+        assert!(!is_valid_thread_id(""));
+        assert!(!is_valid_thread_id("   "));
+        assert!(!is_valid_thread_id("sender-alice"));
+        assert!(!is_valid_thread_id("account-msg-1"));
+        assert!(!is_valid_thread_id("123';alert(1)//"));
+        assert!(!is_valid_thread_id("e2ee/t/123"));
+    }
 }

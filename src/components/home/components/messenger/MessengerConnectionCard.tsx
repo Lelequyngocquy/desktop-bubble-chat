@@ -113,7 +113,7 @@ export const MessengerConnectionCard: React.FC = () => {
         rightChildren={
           <button
             onClick={() => systemService.openProfilesFolder()}
-            className="flex items-center gap-1.5 text-caption font-semibold text-primary hover:text-primary-hover hover:underline transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 text-caption font-semibold text-primary hover:text-primary-foreground hover:underline transition-colors cursor-pointer"
             title={t("open_folder_tooltip")}
           >
             <span>{t("open_folder_btn")}</span>

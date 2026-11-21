@@ -4,7 +4,7 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { HomeWorkspace } from "./components/home";
 import { BubbleSpawnIndicator } from "./components/common/BubbleSpawnIndicator";
 import { DashboardLoadingOverlay } from "./components/common/DashboardLoadingOverlay";
-import { useBubbleAutoRestore, useDashboardBootstrap, useAutoUpdater, useThemeSync } from "./hooks";
+import { useBubbleAutoRestore, useDashboardBootstrap, useAutoUpdaterLifecycle, useThemeSync } from "./hooks";
 import { useUnreadListener } from "./hooks/useUnreadListener";
 import { useSystemUser } from "./hooks/useSystemUser";
 import { useNavigationStore } from "./stores/navigationStore";
@@ -23,7 +23,7 @@ export const App: React.FC = () => {
   useUnreadListener();
   useSystemUser();
   useBubbleAutoRestore();
-  useAutoUpdater();
+  useAutoUpdaterLifecycle();
   return (
     <div className="flex flex-col h-screen w-screen bg-background-app overflow-hidden text-content-primary select-none font-sans border border-border shadow-window">
       <TitleBar />

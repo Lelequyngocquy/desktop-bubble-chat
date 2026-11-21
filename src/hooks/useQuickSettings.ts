@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore, BubbleSize, BUBBLE_SIZE_PIXELS } from "../stores/settingsStore";
 import {
@@ -21,7 +21,6 @@ export function useQuickSettings() {
   const toggleAlwaysOnTop = useSettingsStore((s) => s.toggleAlwaysOnTop);
   const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled);
   const isAutoStart = useSettingsStore((s) => s.isAutoStart);
-  const setAutoStart = useSettingsStore((s) => s.setAutoStart);
   const toggleAutoStart = useSettingsStore((s) => s.toggleAutoStart);
   const bubbleSize = useSettingsStore((s) => s.bubbleSize);
   const setBubbleSize = useSettingsStore((s) => s.setBubbleSize);
@@ -37,28 +36,28 @@ export function useQuickSettings() {
   const soundEnabledCount = useMessengerStore(selectSoundEnabledCount);
   const setAllAccountsSound = useMessengerStore((s) => s.setAllAccountsSound);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
-
+  const warningTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
-    systemService.isAutostartEnabled().then((enabled) => {
-      setAutoStart(enabled);
-    });
-    systemService.setAlwaysOnTop(isAlwaysOnTop);
-    systemService.setBubbleConfig(BUBBLE_SIZE_PIXELS[bubbleSize]);
-    setNotificationsEnabled(areAnySoundsEnabled);
+    return () => {
+      clearTimeout(warningTimerRef.current);
+    };
   }, []);
-
+  const clearWarning = useCallback(() => {
+    clearTimeout(warningTimerRef.current);
+    setWarningMessage(null);
+  }, []);
   const handleSetBubbleSize = useCallback(
     async (size: BubbleSize) => {
       setBubbleSize(size);
       await systemService.setBubbleConfig(BUBBLE_SIZE_PIXELS[size]);
     },
-    [setBubbleSize]
+    [setBubbleSize],
   );
-
   const handleToggleBubble = useCallback(async () => {
     if (!isConnected && !areAnyBubblesVisible) {
       setWarningMessage(t("warning_connect_first"));
-      setTimeout(() => setWarningMessage(null), 3500);
+      clearTimeout(warningTimerRef.current);
+      warningTimerRef.current = setTimeout(() => setWarningMessage(null), 3500);
       return;
     }
     const nextVal = !areAnyBubblesVisible;
@@ -70,13 +69,11 @@ export function useQuickSettings() {
       console.warn("[useQuickSettings] Failed to toggle all bubbles visibility:", err);
     }
   }, [isConnected, areAnyBubblesVisible, setAllBubblesVisibility, connectedAccounts, t]);
-
   const handleToggleAlwaysOnTop = useCallback(async () => {
     const nextVal = !isAlwaysOnTop;
     toggleAlwaysOnTop();
     await systemService.setAlwaysOnTop(nextVal);
   }, [isAlwaysOnTop, toggleAlwaysOnTop]);
-
   const handleToggleNotifications = useCallback(async () => {
     const nextVal = !areAnySoundsEnabled;
     setAllAccountsSound(nextVal);
@@ -85,13 +82,11 @@ export function useQuickSettings() {
       await notificationService.requestPermission();
     }
   }, [areAnySoundsEnabled, setAllAccountsSound, setNotificationsEnabled]);
-
   const handleToggleAutoStart = useCallback(async () => {
     const nextVal = !isAutoStart;
     toggleAutoStart();
     await systemService.toggleAutostart(nextVal);
   }, [isAutoStart, toggleAutoStart]);
-
   const bubbleDescription = !isConnected
     ? t("bubble_desc_need_connect")
     : areAnyBubblesVisible
@@ -100,7 +95,6 @@ export function useQuickSettings() {
           total: connectedAccounts.length,
         })
       : t("bubble_desc_all_hidden");
-
   const notificationsDescription = !isConnected
     ? (areAnySoundsEnabled ? t("notif_desc_sound_on") : t("notif_desc_sound_off"))
     : areAnySoundsEnabled
@@ -109,7 +103,6 @@ export function useQuickSettings() {
           total: connectedAccounts.length,
         })
       : t("notif_desc_accounts_off");
-
   return {
     isBubbleEnabled: areAnyBubblesVisible,
     areAllBubblesVisible,
@@ -125,7 +118,7 @@ export function useQuickSettings() {
     bubbleSize,
     isConnected,
     warningMessage,
-    clearWarning: () => setWarningMessage(null),
+    clearWarning,
     handleToggleBubble,
     handleSetBubbleSize,
     handleToggleAlwaysOnTop,

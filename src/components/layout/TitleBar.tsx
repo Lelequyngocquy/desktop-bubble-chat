@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Minus, Square, Copy, X, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { windowService } from "../../services/windowService";
+import { safeSubscribe } from "../../utils/tauriEvents";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useWindowStore } from "../../stores/windowStore";
 import { CloseAppDialog } from "./dialogs/CloseAppDialog";
@@ -14,20 +15,31 @@ export const TitleBar: React.FC = () => {
   const [isMac, setIsMac] = useState(false);
   useEffect(() => {
     setIsMac(typeof navigator !== "undefined" && (/Macintosh|Mac OS X/i.test(navigator.userAgent) || (Boolean(navigator.platform) && navigator.platform.startsWith("Mac"))));
+    let disposed = false;
     let unlisten: (() => void) | undefined;
     const checkMaximized = async () => {
       try {
-        setIsMaximized(await windowService.isMaximized());
-        unlisten = await windowService.onResized(async () => {
-          try {
-            setIsMaximized(await windowService.isMaximized());
-          } catch {}
-        });
+        const maximized = await windowService.isMaximized();
+        if (disposed) return;
+        setIsMaximized(maximized);
+        await safeSubscribe(
+          windowService.onResized(async () => {
+            try {
+              const nextMaximized = await windowService.isMaximized();
+              if (!disposed) setIsMaximized(nextMaximized);
+            } catch {}
+          }),
+          () => disposed,
+          (fn) => {
+            unlisten = fn;
+          },
+        );
       } catch {}
     };
     checkMaximized();
     return () => {
-      if (unlisten) unlisten();
+      disposed = true;
+      unlisten?.();
     };
   }, []);
   const handleMinimize = async () => {

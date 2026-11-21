@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { Conversation } from "../types/conversation";
 import { IncomingMessagePayload } from "../types/ipc";
+import { normalizeThreadId } from "../utils/threadValidation";
 
 if (typeof window !== "undefined" && window.localStorage) {
   try {
@@ -32,6 +33,26 @@ export function formatSenderName(name: string, accountIndex?: number): string {
     return `New message for Messenger ${idx.toString().padStart(2, "0")}`;
   }
   return trimmed;
+}
+
+function buildConversationFallbackId(accountIndex: number, displayName: string): string {
+  return `sender-${accountIndex}-${displayName.trim().toLowerCase()}`;
+}
+
+function findMatchingConversationIndex(
+  list: Conversation[],
+  accountIndex: number,
+  displayName: string,
+  validThreadId?: string,
+): number {
+  if (validThreadId) {
+    const byThread = list.findIndex((c) => c.threadId === validThreadId || c.id === validThreadId);
+    if (byThread >= 0) return byThread;
+  }
+  const normalizedName = displayName.trim().toLowerCase();
+  return list.findIndex(
+    (c) => (c.accountIndex ?? 1) === accountIndex && c.name.trim().toLowerCase() === normalizedName,
+  );
 }
 
 interface ConversationState {
@@ -67,25 +88,23 @@ export const useConversationStore = create<ConversationState>()((set) => ({
     })),
   upsertConversationFromMessage: (msg) =>
     set((state) => {
-      const displayName = formatSenderName(msg.senderName, msg.accountIndex);
-      const id = msg.threadId || (msg.accountIndex ? `account-msg-${msg.accountIndex}` : `sender-${displayName.toLowerCase()}`);
-      const existingIndex = state.conversations.findIndex(
-        (c) =>
-          c.id === id ||
-          c.name.toLowerCase() === displayName.toLowerCase() ||
-          (msg.accountIndex && c.accountIndex === msg.accountIndex)
-      );
+      const accountIdx = msg.accountIndex || 1;
+      const displayName = formatSenderName(msg.senderName, accountIdx);
+      const validThreadId = normalizeThreadId(msg.threadId);
+      const existingIndex = findMatchingConversationIndex(state.conversations, accountIdx, displayName, validThreadId);
       const existing = existingIndex >= 0 ? state.conversations[existingIndex] : null;
+      const existingThreadId = normalizeThreadId(existing?.threadId);
+      const resolvedThreadId = validThreadId || existingThreadId;
       const updatedItem: Conversation = {
-        id: existing ? existing.id : id,
+        id: existing ? existing.id : resolvedThreadId || buildConversationFallbackId(accountIdx, displayName),
         name: displayName,
         avatarUrl: "",
         avatarText: "",
         lastMessage: msg.body && msg.body.trim().length > 0 ? msg.body : "New message",
         timestamp: formatMessageTime(msg.timestamp),
         unreadCount: (existing?.unreadCount || 0) + 1,
-        accountIndex: msg.accountIndex,
-        threadId: msg.threadId || existing?.threadId,
+        accountIndex: accountIdx,
+        threadId: resolvedThreadId,
         isPinned: existing?.isPinned ?? false,
       };
       const filtered = state.conversations.filter((_, idx) => idx !== existingIndex);
@@ -99,28 +118,26 @@ export const useConversationStore = create<ConversationState>()((set) => ({
   syncRecentIncomingMessages: (list) =>
     set((state) => {
       if (!list || list.length === 0) return state;
-      let current = [...state.conversations];
+      const current = [...state.conversations];
       const reversed = [...list].reverse();
       for (const msg of reversed) {
-        const displayName = formatSenderName(msg.senderName, msg.accountIndex);
-        const id = msg.threadId || (msg.accountIndex ? `account-msg-${msg.accountIndex}` : `sender-${displayName.toLowerCase()}`);
-        const existingIndex = current.findIndex(
-          (c) =>
-            c.id === id ||
-            c.name.toLowerCase() === displayName.toLowerCase() ||
-            (msg.accountIndex && c.accountIndex === msg.accountIndex)
-        );
+        const accountIdx = msg.accountIndex || 1;
+        const displayName = formatSenderName(msg.senderName, accountIdx);
+        const validThreadId = normalizeThreadId(msg.threadId);
+        const existingIndex = findMatchingConversationIndex(current, accountIdx, displayName, validThreadId);
         const existing = existingIndex >= 0 ? current[existingIndex] : null;
+        const existingThreadId = normalizeThreadId(existing?.threadId);
+        const resolvedThreadId = validThreadId || existingThreadId;
         const updatedItem: Conversation = {
-          id: existing ? existing.id : id,
+          id: existing ? existing.id : resolvedThreadId || buildConversationFallbackId(accountIdx, displayName),
           name: displayName,
           avatarUrl: "",
           avatarText: "",
           lastMessage: msg.body && msg.body.trim().length > 0 ? msg.body : "New message",
           timestamp: formatMessageTime(msg.timestamp),
           unreadCount: existing?.unreadCount || 0,
-          accountIndex: msg.accountIndex,
-          threadId: msg.threadId || existing?.threadId,
+          accountIndex: accountIdx,
+          threadId: resolvedThreadId,
           isPinned: existing?.isPinned ?? false,
         };
         if (existingIndex >= 0) {
@@ -141,45 +158,40 @@ export const useConversationStore = create<ConversationState>()((set) => ({
       if (!item.isPinned && currentlyPinnedCount >= 6) {
         return state;
       }
-      const updated = state.conversations.map((c) =>
-        c.id === id ? { ...c, isPinned: !c.isPinned } : c
-      );
-      return {
-        conversations: updated.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0)),
-      };
+      const updated = state.conversations.map((c) => (c.id === id ? { ...c, isPinned: !c.isPinned } : c));
+      return { conversations: updated.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0)) };
     }),
   markConversationRead: (id) =>
     set((state) => ({
-      conversations: state.conversations.map((c) =>
-        c.id === id ? { ...c, unreadCount: 0 } : c
-      ),
+      conversations: state.conversations.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)),
     })),
   syncRecentConversations: (accountIndex, list) =>
     set((state) => {
-      let updated = [...state.conversations];
+      const accountIdx = accountIndex || 1;
+      const updated = [...state.conversations];
       for (const item of list) {
-        const id = item.threadId || `sender-${item.senderName.trim().toLowerCase()}`;
-        const idx = updated.findIndex(
-          (c) => c.id === id || c.name.toLowerCase() === item.senderName.toLowerCase()
-        );
+        const displayName = formatSenderName(item.senderName, accountIdx);
+        const validThreadId = normalizeThreadId(item.threadId);
+        const idx = findMatchingConversationIndex(updated, accountIdx, displayName, validThreadId);
         if (idx >= 0) {
+          const existingThreadId = normalizeThreadId(updated[idx].threadId);
           updated[idx] = {
             ...updated[idx],
-            threadId: item.threadId || updated[idx].threadId,
+            threadId: validThreadId || existingThreadId,
             avatarUrl: item.avatarUrl || updated[idx].avatarUrl,
-            accountIndex: accountIndex,
+            accountIndex: accountIdx,
           };
         } else {
           updated.push({
-            id: id,
-            name: item.senderName,
+            id: validThreadId || buildConversationFallbackId(accountIdx, displayName),
+            name: displayName,
             avatarUrl: item.avatarUrl,
-            avatarText: item.senderName.slice(0, 2).toUpperCase(),
+            avatarText: displayName.slice(0, 2).toUpperCase(),
             lastMessage: item.body || "Sent a message",
             timestamp: "Today",
             unreadCount: 0,
-            accountIndex: accountIndex,
-            threadId: item.threadId,
+            accountIndex: accountIdx,
+            threadId: validThreadId,
             isPinned: false,
           });
         }

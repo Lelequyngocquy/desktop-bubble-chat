@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { MessengerAuthStatus } from "../types";
 import { IPC_COMMANDS, IncomingMessagePayload } from "../../../types/ipc";
 import { systemService } from "../../../services/systemService";
+import { normalizeThreadId } from "../../../utils/threadValidation";
 
 /**
  * Service encapsulating all Tauri IPC commands for the Messenger platform.
@@ -42,7 +43,12 @@ export const messengerService = {
    * Open a specific conversation thread and dock chat window next to Bubble.
    */
   async openThread(threadId: string, accountIndex: number = 1): Promise<void> {
-    await invoke(IPC_COMMANDS.OPEN_THREAD, { threadId, accountIndex });
+    const validThreadId = normalizeThreadId(threadId);
+    if (!validThreadId) {
+      await this.openChat(accountIndex);
+      return;
+    }
+    await invoke(IPC_COMMANDS.OPEN_THREAD, { threadId: validThreadId, accountIndex });
   },
 
   /**

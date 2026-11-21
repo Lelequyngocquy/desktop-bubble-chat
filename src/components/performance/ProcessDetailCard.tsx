@@ -328,7 +328,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
                         <button
                           onClick={() => handleWakeAccount(accountIndex)}
                           disabled={isActing}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-control text-small font-medium shadow-xs transition-colors cursor-pointer disabled:opacity-60"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-foreground text-white rounded-control text-small font-medium shadow-xs transition-colors cursor-pointer disabled:opacity-60"
                           title={t("wake_tooltip")}
                         >
                           <Play

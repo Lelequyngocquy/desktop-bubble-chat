@@ -10,6 +10,7 @@ import {
 } from "../../../platforms/messenger";
 import { CommonWidget } from "../../common";
 import { Conversation } from "../../../types/conversation";
+import { normalizeThreadId } from "../../../utils/threadValidation";
 import { ActiveChatHeadItem } from "./ActiveChatHeadItem";
 
 export const ActiveChatHeads: React.FC = () => {
@@ -35,7 +36,12 @@ export const ActiveChatHeads: React.FC = () => {
       return;
     }
     markConversationRead(item.id);
-    messengerService.openThread(item.threadId || item.id, accountIdx).catch(() => {});
+    const validThreadId = normalizeThreadId(item.threadId);
+    if (validThreadId) {
+      messengerService.openThread(validThreadId, accountIdx).catch(() => {});
+    } else {
+      messengerService.openChat(accountIdx).catch(() => {});
+    }
   };
   return (
     <CommonWidget

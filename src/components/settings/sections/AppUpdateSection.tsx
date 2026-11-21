@@ -12,7 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { CommonLargeCard, SwitchButton } from "../../common";
+import { CommonDialog, CommonLargeCard, SwitchButton } from "../../common";
 import { formatBytes, useAutoUpdater } from "../../../hooks/useAutoUpdater";
 import { systemService } from "../../../services/systemService";
 
@@ -26,7 +26,7 @@ interface GitHubReleaseItem {
 }
 
 export const AppUpdateSection: React.FC = () => {
-  const { t, i18n } = useTranslation("settings");
+  const { t, i18n } = useTranslation(["settings", "common"]);
   const {
     status,
     currentVersion,
@@ -52,11 +52,13 @@ export const AppUpdateSection: React.FC = () => {
   const isInstalling = status === "installing";
   const isAvailable = status === "available";
   const isUpToDate = status === "up-to-date";
-  const hasUpdate = isAvailable || isDownloading || isDownloaded;
+  const isError = status === "error";
+  const hasUpdate = isAvailable || isDownloading || isDownloaded || isInstalling;
   const [releases, setReleases] = useState<GitHubReleaseItem[]>([]);
   const [expandedTag, setExpandedTag] = useState<string | null>(null);
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
   const [notesError, setNotesError] = useState<string | null>(null);
+  const [isConfirmInstallOpen, setIsConfirmInstallOpen] = useState(false);
   const fetchAllGitHubReleases = useCallback(async () => {
     setIsLoadingNotes(true);
     setNotesError(null);
@@ -168,6 +170,7 @@ export const AppUpdateSection: React.FC = () => {
     if (isDownloaded)
       return t("update.status_downloaded", { version: availableVersion });
     if (isInstalling) return t("update.status_installing");
+    if (isError) return t("update.status_error");
     if (isAvailable)
       return t("update.status_available", { version: availableVersion });
     if (isUpToDate) return t("update.status_uptodate");
@@ -184,6 +187,8 @@ export const AppUpdateSection: React.FC = () => {
       });
     }
     if (isDownloaded) return t("update.desc_downloaded");
+    if (isInstalling) return t("update.desc_installing");
+    if (isError) return errorMessage || t("update.desc_error");
     if (isAvailable)
       return t("update.desc_available", { version: availableVersion });
     if (isUpToDate)
@@ -275,8 +280,9 @@ export const AppUpdateSection: React.FC = () => {
             <div className="flex items-center gap-2 flex-wrap shrink-0">
               {isAvailable && (
                 <button
+                  type="button"
                   onClick={startDownload}
-                  className="flex items-center gap-2 px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-control text-small font-semibold shadow-xs transition-colors cursor-pointer"
+                  className="flex items-center gap-2 px-3.5 py-1.5 bg-primary hover:bg-primary-foreground text-white rounded-control text-small font-semibold shadow-xs transition-colors cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   <span>{t("update.download_btn")}</span>
@@ -284,6 +290,7 @@ export const AppUpdateSection: React.FC = () => {
               )}
               {isDownloading && (
                 <button
+                  type="button"
                   onClick={cancelDownload}
                   className="flex items-center gap-2 px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-control text-small font-semibold transition-colors cursor-pointer"
                 >
@@ -291,9 +298,10 @@ export const AppUpdateSection: React.FC = () => {
                   <span>{t("update.pause_btn")}</span>
                 </button>
               )}
-              {isDownloaded && (
+              {(isDownloaded || isInstalling) && (
                 <button
-                  onClick={installAndRelaunch}
+                  type="button"
+                  onClick={() => setIsConfirmInstallOpen(true)}
                   disabled={isInstalling}
                   title={t("update.relaunch_tooltip")}
                   className="flex items-center gap-2 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-control text-small font-semibold shadow-xs transition-colors disabled:opacity-60 animate-pulse cursor-pointer"
@@ -543,6 +551,34 @@ export const AppUpdateSection: React.FC = () => {
           )}
         </div>
       </div>
+      <CommonDialog
+        isOpen={isConfirmInstallOpen}
+        onClose={() => {
+          if (!isInstalling) setIsConfirmInstallOpen(false);
+        }}
+        closeOnBackdropClick={!isInstalling}
+        closeOnEscape={!isInstalling}
+        showCloseButton={!isInstalling}
+        size="sm"
+        eyebrow={t("common:confirm").toUpperCase()}
+        titleIcon={<RotateCcw className="w-5 h-5 text-primary" />}
+        title={t("update.confirm_install_title")}
+        content={t("update.confirm_install_desc", { version: availableVersion || currentVersion })}
+        backButton={{
+          label: t("common:cancel"),
+          disabled: isInstalling,
+          onClick: () => setIsConfirmInstallOpen(false),
+        }}
+        rightButton={{
+          label: isInstalling ? t("update.applying_btn") : t("update.confirm_install_btn"),
+          variant: "primary",
+          loading: isInstalling,
+          onClick: async () => {
+            setIsConfirmInstallOpen(false);
+            await installAndRelaunch();
+          },
+        }}
+      />
     </CommonLargeCard>
   );
 };

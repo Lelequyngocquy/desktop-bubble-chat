@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { listen } from "@tauri-apps/api/event";
+import { safeListen } from "../utils/tauriEvents";
 import { useAppLifecycleStore } from "../stores/appLifecycleStore";
 import { useSystemUserStore } from "../stores/systemUserStore";
 import { useSettingsStore } from "../stores/settingsStore";
@@ -140,17 +140,24 @@ export function useDashboardBootstrap() {
         clearTimeout(safetyTimer);
       }
     };
+    let disposed = false;
     let unlistenLang: (() => void) | undefined;
-    listen<string>(IPC_EVENTS.LANGUAGE_CHANGED, (event) => {
-      const newLang = event.payload;
-      if (newLang === "en" || newLang === "vi") {
-        useSettingsStore.getState().setLanguage(newLang, true);
-      }
-    }).then((unsub) => {
-      unlistenLang = unsub;
-    }).catch(() => {});
+    safeListen<string>(
+      IPC_EVENTS.LANGUAGE_CHANGED,
+      (event) => {
+        const newLang = event.payload;
+        if (newLang === "en" || newLang === "vi") {
+          useSettingsStore.getState().setLanguage(newLang, true);
+        }
+      },
+      () => disposed,
+      (unsub) => {
+        unlistenLang = unsub;
+      },
+    ).catch(() => {});
     runBootstrap();
     return () => {
+      disposed = true;
       clearTimeout(safetyTimer);
       unlistenLang?.();
     };

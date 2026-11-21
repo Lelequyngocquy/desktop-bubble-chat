@@ -4,6 +4,7 @@ import { useConversationStore } from "../../stores/conversationStore";
 import { messengerService, useMessengerStore } from "../../platforms/messenger";
 import { TabHeader } from "../common";
 import { Conversation } from "../../types/conversation";
+import { normalizeThreadId } from "../../utils/threadValidation";
 import {
   NotificationsHeaderActions,
   NotificationListCard,
@@ -38,7 +39,12 @@ export const NotificationsWorkspace: React.FC = () => {
       return;
     }
     markConversationRead(item.id);
-    messengerService.openThread(item.threadId || item.id, accountIdx).catch(() => {});
+    const validThreadId = normalizeThreadId(item.threadId);
+    if (validThreadId) {
+      messengerService.openThread(validThreadId, accountIdx).catch(() => {});
+    } else {
+      messengerService.openChat(accountIdx).catch(() => {});
+    }
   };
   return (
     <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden select-none">

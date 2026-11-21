@@ -220,7 +220,7 @@ export const Sidebar: React.FC = () => {
               </span>
             </div>
             {hasUpdate && (
-              <span className="px-1.5 py-0.5 bg-status-errorBg text-white text-[10px] font-bold rounded-pill animate-pulse leading-none shadow-xs shrink-0">
+              <span className="px-1.5 py-0.5 bg-status-error text-content-inverse text-[10px] font-bold rounded-pill animate-pulse leading-none shadow-xs shrink-0">
                 {t("common:new_badge_tag")}
               </span>
             )}

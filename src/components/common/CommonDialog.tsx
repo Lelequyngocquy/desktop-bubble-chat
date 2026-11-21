@@ -124,11 +124,11 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
       role="dialog"
       aria-modal="true"
       onClick={handleBackdropClick}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-content-primary/45 backdrop-blur-xs animate-in fade-in duration-150 select-none"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-content-primary/45 backdrop-blur-sm animate-dialog-fade select-none"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`${DIALOG_SIZE_MAP[size]} bg-background-surface border border-border rounded-modal shadow-window flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-150 ${className}`}
+        className={`${DIALOG_SIZE_MAP[size]} bg-background-surface border border-border rounded-modal shadow-window flex flex-col max-h-[90vh] overflow-hidden animate-dialog-zoom ${className}`}
       >
         <div className="px-6 pt-5 pb-4 border-b border-border flex items-start justify-between gap-4 shrink-0 bg-background-surface">
           <div className="flex flex-col gap-1 min-w-0">
@@ -161,7 +161,7 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
           )}
         </div>
         <div
-          className={`px-6 py-5 overflow-y-auto flex-1 flex flex-col gap-4.5 custom-scrollbar ${bodyClassName}`}
+          className={`px-6 py-5 overflow-y-auto flex-1 flex flex-col gap-4 custom-scrollbar ${bodyClassName}`}
         >
           {content && (
             <div className="text-body text-content-secondary leading-relaxed">
