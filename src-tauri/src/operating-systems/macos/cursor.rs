@@ -22,7 +22,7 @@ unsafe extern "C" {
 pub struct MacOSCursorTracker;
 
 impl MacOSCursorTracker {
-    /// Returns current global cursor position with macOS coordinate flipped to top-left origin
+    /// Returns current global cursor position in physical top-left pixels matching ScreenMetrics
     #[cfg(target_os = "macos")]
     pub fn get_cursor_position() -> Option<(i32, i32)> {
         unsafe {
@@ -32,10 +32,10 @@ impl MacOSCursorTracker {
             }
             let loc = CGEventGetLocation(event);
             CFRelease(event);
-            let main_disp = CGMainDisplayID();
-            let screen_h = CGDisplayPixelsHigh(main_disp) as f64;
-            let top_left_y = Self::flip_y_coordinate(loc.y, screen_h);
-            Some((loc.x.round() as i32, top_left_y))
+            let _ = (CGMainDisplayID, CGDisplayPixelsHigh);
+            let screen = crate::movement::get_target_dashboard_screen(None);
+            let scale = screen.scale_factor.max(1.0);
+            Some(((loc.x * scale).round() as i32, (loc.y * scale).round() as i32))
         }
     }
 
@@ -95,7 +95,7 @@ mod tests {
     fn test_fallback_button_state() {
         #[cfg(not(target_os = "macos"))]
         {
-            assert_eq!(MacOSCursorTracker::is_lbutton_down(), false);
+            assert!(!MacOSCursorTracker::is_lbutton_down());
             assert_eq!(MacOSCursorTracker::get_cursor_position(), None);
         }
     }

@@ -1,5 +1,5 @@
-pub const BUBBLE_CANVAS_PAD_X: i32 = 18;
-pub const BUBBLE_CANVAS_PAD_Y: i32 = 18;
+pub const BUBBLE_CANVAS_PAD_X: i32 = 30;
+pub const BUBBLE_CANVAS_PAD_Y: i32 = 12;
 
 pub const NS_WINDOW_STYLE_MASK_BORDERLESS: usize = 0;
 pub const NS_WINDOW_STYLE_MASK_NONACTIVATING_PANEL: usize = 1 << 7;
@@ -7,5 +7,5 @@ pub const NS_WINDOW_STYLE_MASK_NONACTIVATING_PANEL: usize = 1 << 7;
 pub const NS_WINDOW_COLLECTION_BEHAVIOR_CAN_JOIN_ALL_SPACES: usize = 1 << 0;
 pub const NS_WINDOW_COLLECTION_BEHAVIOR_FULL_SCREEN_AUXILIARY: usize = 1 << 8;
 
-pub const NS_FLOATING_WINDOW_LEVEL: i32 = 3;
-pub const NS_NORMAL_WINDOW_LEVEL: i32 = 0;
+pub const NS_FLOATING_WINDOW_LEVEL: isize = 3;
+pub const NS_NORMAL_WINDOW_LEVEL: isize = 0;

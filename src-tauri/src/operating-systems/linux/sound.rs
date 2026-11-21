@@ -9,24 +9,25 @@ impl LinuxSoundPlayer {
                 return;
             }
             use std::io::Write;
-            if let Ok(mut child) = std::process::Command::new("paplay")
+            let spawned = std::process::Command::new("paplay")
                 .stdin(std::process::Stdio::piped())
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null())
                 .spawn()
-            {
+                .or_else(|_| {
+                    std::process::Command::new("aplay")
+                        .stdin(std::process::Stdio::piped())
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null())
+                        .spawn()
+                });
+            if let Ok(mut child) = spawned {
                 if let Some(mut stdin) = child.stdin.take() {
                     let _ = stdin.write_all(wav);
                 }
-            } else if let Ok(mut child) = std::process::Command::new("aplay")
-                .stdin(std::process::Stdio::piped())
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .spawn()
-            {
-                if let Some(mut stdin) = child.stdin.take() {
-                    let _ = stdin.write_all(wav);
-                }
+                std::thread::spawn(move || {
+                    let _ = child.wait();
+                });
             }
         }
         #[cfg(not(target_os = "linux"))]

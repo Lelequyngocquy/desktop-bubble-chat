@@ -12,12 +12,27 @@ pub fn update_wayland_cursor(pos: Option<(i32, i32)>, lbutton_down: bool) {
 }
 
 #[cfg(target_os = "linux")]
+static X11_DISPLAY: std::sync::Mutex<usize> = std::sync::Mutex::new(0);
+#[cfg(target_os = "linux")]
+static X11_INIT_ONCE: std::sync::Once = std::sync::Once::new();
+
+#[cfg(target_os = "linux")]
 fn query_x11_pointer() -> Option<((i32, i32), bool)> {
+    X11_INIT_ONCE.call_once(|| unsafe {
+        x11::xlib::XInitThreads();
+    });
+    let Ok(mut disp_guard) = X11_DISPLAY.lock() else {
+        return None;
+    };
     unsafe {
-        let display = x11::xlib::XOpenDisplay(std::ptr::null());
-        if display.is_null() {
-            return None;
+        if *disp_guard == 0 {
+            let opened = x11::xlib::XOpenDisplay(std::ptr::null());
+            if opened.is_null() {
+                return None;
+            }
+            *disp_guard = opened as usize;
         }
+        let display = *disp_guard as *mut x11::xlib::Display;
         let root = x11::xlib::XDefaultRootWindow(display);
         let mut root_return = 0;
         let mut child_return = 0;
@@ -30,9 +45,7 @@ fn query_x11_pointer() -> Option<((i32, i32), bool)> {
             display, root, &mut root_return, &mut child_return,
             &mut root_x, &mut root_y, &mut win_x, &mut win_y, &mut mask_return,
         );
-        x11::xlib::XCloseDisplay(display);
         if res != 0 {
-            // Button1Mask in X11 is (1 << 8)
             let is_btn1_down = (mask_return & (1 << 8)) != 0;
             Some(((root_x, root_y), is_btn1_down))
         } else {
@@ -131,7 +144,7 @@ mod tests {
         #[cfg(not(target_os = "linux"))]
         {
             assert_eq!(LinuxCursorTracker::get_cursor_position(), None);
-            assert_eq!(LinuxCursorTracker::is_lbutton_down(), false);
+            assert!(!LinuxCursorTracker::is_lbutton_down());
         }
     }
 }

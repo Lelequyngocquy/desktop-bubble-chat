@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 use super::panel::MacOSPanelController;
 use super::types::*;
-use tauri::PhysicalPosition;
+use tauri::{Manager, PhysicalPosition};
 use crate::movement::BubbleMovementEngine;
 use crate::operating_systems::macos::bubble::animator::SpringAnimationState;
 use crate::operating_systems::macos::bubble::renderer::{render_bubble_bgra, BubbleRenderOptions};
@@ -15,14 +15,17 @@ pub struct MacOSBubbleWindowState {
     pub unread_count: u32,
     pub is_hovered: bool,
     pub is_left_edge: bool,
+    pub is_always_on_top: bool,
     pub is_visible: bool,
     pub is_dragging: bool,
+    pub has_dragged: bool,
     pub drag_start_mouse_x: i32,
     pub drag_start_mouse_y: i32,
     pub drag_start_bubble_x: i32,
     pub drag_start_bubble_y: i32,
     pub is_tucked: bool,
     pub anim_state: SpringAnimationState,
+    pub app_handle: Option<tauri::AppHandle>,
 }
 
 unsafe impl Send for MacOSBubbleWindowState {}
@@ -32,8 +35,29 @@ impl MacOSBubbleWindowState {
     pub fn new(account_index: u32, x: i32, y: i32, bubble_size: u32) -> Self {
         let canvas_w = bubble_size + 2 * (BUBBLE_CANVAS_PAD_X as u32);
         let canvas_h = bubble_size + 2 * (BUBBLE_CANVAS_PAD_Y as u32);
-        let panel = MacOSPanelController::create_floating_bubble_panel(x as f64, y as f64, canvas_w as f64, canvas_h as f64);
-        Self {
+        let screen = crate::movement::get_target_dashboard_screen(None);
+        let is_left_edge = x + (bubble_size as i32 / 2) < (screen.x + screen.width / 2);
+        let cocoa_rect = MacOSPanelController::top_left_physical_to_cocoa_rect(
+            x,
+            y,
+            canvas_w,
+            canvas_h,
+            screen.y,
+            screen.height,
+            screen.scale_factor,
+        );
+        let panel = if cfg!(test) {
+            std::ptr::null_mut()
+        } else {
+            MacOSPanelController::create_floating_bubble_panel(
+                account_index,
+                cocoa_rect.origin.x,
+                cocoa_rect.origin.y,
+                cocoa_rect.size.width,
+                cocoa_rect.size.height,
+            )
+        };
+        let mut inst = Self {
             account_index,
             panel,
             x,
@@ -41,20 +65,46 @@ impl MacOSBubbleWindowState {
             bubble_size,
             unread_count: 0,
             is_hovered: false,
-            is_left_edge: true,
+            is_left_edge,
+            is_always_on_top: true,
             is_visible: false,
             is_dragging: false,
+            has_dragged: false,
             drag_start_mouse_x: 0,
             drag_start_mouse_y: 0,
             drag_start_bubble_x: x,
             drag_start_bubble_y: y,
             is_tucked: false,
             anim_state: SpringAnimationState::default(),
+            app_handle: None,
+        };
+        if !inst.panel.is_null() {
+            inst.render_and_update();
         }
+        inst
+    }
+
+    /// Updates dynamic left/right edge orientation based on screen midpoint
+    pub fn refresh_edge_side(&mut self) -> bool {
+        let screen = crate::movement::get_target_dashboard_screen(self.app_handle.as_ref());
+        let mid_x = screen.x + screen.width / 2;
+        let next_left = self.x + (self.bubble_size as i32 / 2) < mid_x;
+        if self.is_left_edge != next_left {
+            self.is_left_edge = next_left;
+            return true;
+        }
+        false
+    }
+
+    /// Updates always-on-top NSPanel level
+    pub fn set_always_on_top(&mut self, enabled: bool) {
+        self.is_always_on_top = enabled;
+        MacOSPanelController::set_panel_always_on_top(self.panel, enabled);
     }
 
     /// Renders tiny-skia pixel buffer and commits to CALayer
     pub fn render_and_update(&mut self) {
+        self.refresh_edge_side();
         let canvas_w = self.bubble_size + 2 * (BUBBLE_CANVAS_PAD_X as u32);
         let canvas_h = self.bubble_size + 2 * (BUBBLE_CANVAS_PAD_Y as u32);
         let opts = BubbleRenderOptions {
@@ -84,15 +134,31 @@ impl MacOSBubbleWindowState {
         self.is_visible = visible;
         MacOSPanelController::set_panel_visible(self.panel, visible);
         if visible {
+            MacOSPanelController::set_panel_always_on_top(self.panel, self.is_always_on_top);
             self.render_and_update();
         }
     }
 
-    /// Updates position
+    /// Updates physical position and converts to Cocoa bottom-left logical coordinates
     pub fn set_position(&mut self, x: i32, y: i32) {
         self.x = x;
         self.y = y;
-        MacOSPanelController::set_panel_position(self.panel, x as f64, y as f64);
+        let canvas_w = self.bubble_size + 2 * (BUBBLE_CANVAS_PAD_X as u32);
+        let canvas_h = self.bubble_size + 2 * (BUBBLE_CANVAS_PAD_Y as u32);
+        let screen = crate::movement::get_target_dashboard_screen(self.app_handle.as_ref());
+        let cocoa_rect = MacOSPanelController::top_left_physical_to_cocoa_rect(
+            x,
+            y,
+            canvas_w,
+            canvas_h,
+            screen.y,
+            screen.height,
+            screen.scale_factor,
+        );
+        MacOSPanelController::set_panel_position(self.panel, cocoa_rect.origin.x, cocoa_rect.origin.y);
+        if self.refresh_edge_side() && self.unread_count > 0 && !self.panel.is_null() {
+            self.render_and_update();
+        }
     }
 
     /// Begins dragging gesture
@@ -152,28 +218,52 @@ impl MacOSBubbleWindowState {
         }
         let screen = crate::movement::get_target_dashboard_screen(Some(app));
         let target_pos = BubbleMovementEngine::calculate_hover_pos(&screen, &config, self.x, self.y, false);
-        self.anim_state.start(self.x, self.y, target_pos.x, target_pos.y, 180);
+        if self.x != target_pos.x || self.y != target_pos.y {
+            self.anim_state.start(self.x, self.y, target_pos.x, target_pos.y, 180);
+        }
         self.is_tucked = true;
     }
 
-    /// Triggers spring animation to untuck from screen edge
-    pub fn untuck(&mut self, app: &tauri::AppHandle) {
+    /// Triggers spring animation to untuck from screen edge and returns sibling animations
+    pub fn untuck(&mut self, app: &tauri::AppHandle) -> Vec<(u32, i32, i32, u64)> {
         crate::utils::trim_controller::cancel_auto_trim(self.account_index);
         crate::utils::trim_controller::record_user_interaction(self.account_index);
+        crate::platforms::messenger::windows::set_chat_window_memory_target(app, self.account_index, false);
         let config = crate::movement::get_bubble_physics_config(app);
         if config.is_free_position {
-            return;
+            return Vec::new();
         }
         let screen = crate::movement::get_target_dashboard_screen(Some(app));
         let target_pos = BubbleMovementEngine::calculate_hover_pos(&screen, &config, self.x, self.y, true);
-        self.anim_state.start(self.x, self.y, target_pos.x, target_pos.y, 180);
+        let mid_x = screen.x + screen.width / 2;
+        let is_left_edge = self.x + (self.bubble_size as i32 / 2) < mid_x;
+        let all_bubbles = crate::presentation::bubble::get_active_bubble_rects(app, None);
+        let slots = crate::movement::collision::CollisionResolver::resolve_mutual_column_layout(
+            self.account_index,
+            self.y,
+            is_left_edge,
+            &screen,
+            &config,
+            &all_bubbles,
+        );
+        let resolved_y = slots.iter().find(|s| s.account_index == self.account_index).map(|s| s.target_y).unwrap_or(self.y);
+        if self.x != target_pos.x || self.y != resolved_y {
+            self.anim_state.start(self.x, self.y, target_pos.x, resolved_y, 180);
+        }
+        let mut sibling_moves = Vec::new();
+        for slot in &slots {
+            if slot.account_index != self.account_index {
+                let sibling_x = all_bubbles.iter().find(|b| b.account_index == slot.account_index).map(|b| b.x).unwrap_or(target_pos.x);
+                sibling_moves.push((slot.account_index, sibling_x, slot.target_y, 180));
+            }
+        }
         self.is_tucked = false;
+        sibling_moves
     }
 
     /// Animates bubble to target coordinates
     pub fn animate_to(&mut self, target_x: i32, target_y: i32, duration_ms: u64) {
         self.anim_state.start(self.x, self.y, target_x, target_y, duration_ms);
-        self.set_position(target_x, target_y);
     }
 
     /// Returns current bubble bounds
@@ -181,14 +271,152 @@ impl MacOSBubbleWindowState {
         (self.x, self.y, self.bubble_size, self.bubble_size)
     }
 
-    /// Resizes bubble canvas
+    /// Resizes bubble canvas and updates Cocoa panel frame
     pub fn resize(&mut self, size: u32) {
         self.bubble_size = size;
+        let canvas_w = size + 2 * (BUBBLE_CANVAS_PAD_X as u32);
+        let canvas_h = size + 2 * (BUBBLE_CANVAS_PAD_Y as u32);
+        let screen = crate::movement::get_target_dashboard_screen(self.app_handle.as_ref());
+        let cocoa_rect = MacOSPanelController::top_left_physical_to_cocoa_rect(
+            self.x,
+            self.y,
+            canvas_w,
+            canvas_h,
+            screen.y,
+            screen.height,
+            screen.scale_factor,
+        );
+        MacOSPanelController::set_panel_frame(self.panel, cocoa_rect);
         self.render_and_update();
     }
 
     /// Triggers bubble pulse animation
     pub fn trigger_pulse(&mut self) {}
+
+    /// Handles mouse button press
+    pub fn on_mouse_down(&mut self, mouse_x: i32, mouse_y: i32) {
+        self.start_drag(mouse_x, mouse_y);
+        self.has_dragged = false;
+        crate::utils::trim_controller::record_user_interaction(self.account_index);
+        if let Some(app) = &self.app_handle {
+            crate::platforms::messenger::windows::set_chat_window_memory_target(app, self.account_index, false);
+            crate::utils::trim_controller::cancel_auto_trim(self.account_index);
+        }
+    }
+
+    /// Handles mouse motion during drag with bottom dismiss opacity fade
+    pub fn on_mouse_move(&mut self, mouse_x: i32, mouse_y: i32) {
+        if self.is_dragging {
+            let dx = mouse_x - self.drag_start_mouse_x;
+            let dy = mouse_y - self.drag_start_mouse_y;
+            if dx * dx + dy * dy >= 16 {
+                self.has_dragged = true;
+            }
+            if self.has_dragged {
+                let new_x = self.drag_start_bubble_x + dx;
+                let new_y = self.drag_start_bubble_y + dy;
+                self.set_position(new_x, new_y);
+                let screen = crate::movement::get_target_dashboard_screen(self.app_handle.as_ref());
+                let bottom_edge = screen.y + screen.height;
+                let dist = bottom_edge - new_y;
+                let start_fade_dist = (340.0 * screen.scale_factor) as i32;
+                let max_fade_dist = (140.0 * screen.scale_factor) as i32;
+                let alpha_f64 = if dist >= start_fade_dist {
+                    1.0
+                } else if dist <= max_fade_dist {
+                    0.25
+                } else {
+                    let ratio = (start_fade_dist - dist) as f64 / (start_fade_dist - max_fade_dist) as f64;
+                    (1.0 - ratio * 0.75).clamp(0.25, 1.0)
+                };
+                MacOSPanelController::set_panel_alpha(self.panel, alpha_f64);
+            }
+        } else if !self.is_hovered {
+            let _ = self.on_mouse_enter();
+        }
+    }
+
+    /// Handles mouse button release for snap or click and returns sibling animations
+    pub fn on_mouse_up(&mut self, _mouse_x: i32, _mouse_y: i32) -> Vec<(u32, i32, i32, u64)> {
+        self.is_dragging = false;
+        MacOSPanelController::set_panel_alpha(self.panel, 1.0);
+        let app_opt = self.app_handle.clone();
+        let mut sibling_moves = Vec::new();
+        if self.has_dragged {
+            self.is_hovered = false;
+            let (target_x, target_y, should_dismiss) = self.end_drag(app_opt.as_ref());
+            if should_dismiss {
+                self.set_visible(false);
+                if let Some(app) = app_opt {
+                    let idx = self.account_index;
+                    tauri::async_runtime::spawn(async move {
+                        crate::commands::bubble::dismiss_bubble_from_drag(app, idx).await;
+                    });
+                }
+            } else {
+                self.anim_state.start(self.x, self.y, target_x, target_y, 180);
+                if let Some(app) = &app_opt {
+                    let all_bubbles = crate::presentation::bubble::get_active_bubble_rects(app, None);
+                    let screen = crate::movement::get_target_dashboard_screen(Some(app));
+                    let config = crate::movement::get_bubble_physics_config(app);
+                    let mid_x = screen.x + screen.width / 2;
+                    let is_left_edge = target_x + (self.bubble_size as i32 / 2) < mid_x;
+                    let slots = crate::movement::collision::CollisionResolver::resolve_mutual_column_layout(
+                        self.account_index,
+                        target_y,
+                        is_left_edge,
+                        &screen,
+                        &config,
+                        &all_bubbles,
+                    );
+                    for slot in slots {
+                        if slot.account_index != self.account_index {
+                            sibling_moves.push((slot.account_index, target_x, slot.target_y, 180));
+                        }
+                    }
+                }
+            }
+        } else if let Some(app) = app_opt {
+            let idx = self.account_index;
+            tauri::async_runtime::spawn(async move {
+                if let Some(chat_state) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
+                    let _ = crate::platforms::messenger::services::ChatService::toggle_chat(&app, &chat_state, idx);
+                }
+            });
+        }
+        sibling_moves
+    }
+
+    /// Handles mouse cursor enter with pre-warm and untuck, returning sibling animations
+    pub fn on_mouse_enter(&mut self) -> Vec<(u32, i32, i32, u64)> {
+        if !self.is_hovered {
+            self.is_hovered = true;
+            self.render_and_update();
+            crate::utils::trim_controller::record_user_interaction(self.account_index);
+            let app_opt = self.app_handle.clone();
+            if let Some(app) = app_opt {
+                crate::platforms::messenger::windows::set_chat_window_memory_target(&app, self.account_index, false);
+                crate::utils::trim_controller::cancel_auto_trim(self.account_index);
+                return self.untuck(&app);
+            }
+        }
+        Vec::new()
+    }
+
+    /// Handles mouse cursor leave
+    pub fn on_mouse_leave(&mut self) {
+        if self.is_hovered {
+            self.is_hovered = false;
+            self.render_and_update();
+        }
+    }
+}
+
+impl Drop for MacOSBubbleWindowState {
+    fn drop(&mut self) {
+        MacOSPanelController::destroy_panel(self.panel);
+        self.panel = std::ptr::null_mut();
+    }
 }
 
 #[cfg(test)]

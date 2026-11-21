@@ -34,14 +34,7 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                     let over_bubble = app_handle
                         .get_webview_window(&bubble_label)
                         .map(|b| is_cursor_over_bubble(&b))
-                        .unwrap_or_else(|| {
-                            #[cfg(target_os = "windows")]
-                            {
-                                crate::operating_systems::current::bubble::is_cursor_over_native_bubble(idx)
-                            }
-                            #[cfg(not(target_os = "windows"))]
-                            false
-                        });
+                        .unwrap_or_else(|| crate::operating_systems::current::bubble::is_cursor_over_native_bubble(idx));
                     let over_chat = is_cursor_over_window(&chat_clone);
                     if !over_bubble && !over_chat {
                         state_clone.last_blur_time.store(now_millis(), Ordering::SeqCst);

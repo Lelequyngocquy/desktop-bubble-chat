@@ -27,14 +27,10 @@ impl MemoryOptimizerTrait for LinuxMemoryOptimizer {
 }
 
 impl LinuxMemoryOptimizer {
-    /// Trims memory working set of target PID to standby list
+    /// Trims memory working set of target PID if it matches current host process
     pub fn trim_single_process_working_set(pid: u32) {
         if pid == std::process::id() {
             Self::trim_current_process_working_set();
-        }
-        #[cfg(target_os = "linux")]
-        {
-            let _ = std::fs::write(format!("/proc/{}/clear_refs", pid), "1\n");
         }
     }
 
@@ -66,6 +62,10 @@ impl LinuxMemoryOptimizer {
                 Self::trim_current_process_working_set();
             }
         }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = (window, is_low);
+        }
     }
 
     /// Checks if process name belongs to WebKitGTK helper processes
@@ -74,10 +74,18 @@ impl LinuxMemoryOptimizer {
         n.contains("webkitweb") || n.contains("webkitnetwork") || n.contains("webkitgpu")
     }
 
-    /// Terminates WebKit processes matching needle profile path
+    /// Terminates WebKit processes matching non-empty needle profile path
     pub fn terminate_profile_process(needle: &str) {
-        let mut system = sysinfo::System::new_all();
-        system.refresh_all();
+        let trimmed = needle.trim();
+        if trimmed.is_empty() {
+            return;
+        }
+        let needle_lower = trimmed.to_lowercase();
+        let system = sysinfo::System::new_with_specifics(
+            sysinfo::RefreshKind::nothing().with_processes(
+                sysinfo::ProcessRefreshKind::nothing().with_cmd(sysinfo::UpdateKind::Always),
+            ),
+        );
         for (pid, process) in system.processes() {
             if process.thread_kind().is_some() {
                 continue;
@@ -85,20 +93,22 @@ impl LinuxMemoryOptimizer {
             let name = process.name().to_string_lossy().to_lowercase();
             let cmd = process.cmd().iter().map(|s| s.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
             if Self::is_webview_process(&name) || Self::is_webview_process(&cmd) {
-                let mut matched = cmd.contains(needle);
+                #[allow(unused_mut)]
+                let mut matched = cmd.contains(&needle_lower);
                 #[cfg(target_os = "linux")]
-                if !matched {
-                    if let Ok(file) = std::fs::File::open(format!("/proc/{}/maps", pid.as_u32())) {
+                if !matched
+                    && let Ok(file) = std::fs::File::open(format!("/proc/{}/maps", pid.as_u32())) {
                         use std::io::BufRead;
                         let reader = std::io::BufReader::new(file);
-                        for line in reader.lines().flatten() {
-                            if line.contains(needle) {
+                        for line in reader.lines().map_while(Result::ok) {
+                            if line.to_lowercase().contains(&needle_lower) {
                                 matched = true;
                                 break;
                             }
                         }
                     }
-                }
+                #[cfg(not(target_os = "linux"))]
+                let _ = pid;
                 if matched {
                     let _ = process.kill_with(sysinfo::Signal::Term);
                 }

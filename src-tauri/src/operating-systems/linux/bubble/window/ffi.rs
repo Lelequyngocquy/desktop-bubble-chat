@@ -26,7 +26,6 @@ unsafe extern "C" {
     pub fn gtk_widget_hide(widget: *mut c_void);
     pub fn gtk_widget_queue_draw(widget: *mut c_void);
     pub fn gtk_widget_get_screen(widget: *mut c_void) -> *mut c_void;
-    pub fn gdk_screen_get_rgba_visual(screen: *mut c_void) -> *mut c_void;
     pub fn gtk_widget_set_visual(widget: *mut c_void, visual: *mut c_void);
     pub fn gtk_widget_add_events(widget: *mut c_void, events: i32);
     pub fn gtk_widget_set_size_request(widget: *mut c_void, width: i32, height: i32);
@@ -41,17 +40,26 @@ unsafe extern "C" {
     pub fn gtk_widget_set_opacity(widget: *mut c_void, opacity: f64);
     pub fn gtk_widget_realize(widget: *mut c_void);
     pub fn gtk_widget_get_window(widget: *mut c_void) -> *mut c_void;
+    pub fn gtk_widget_destroy(widget: *mut c_void);
+}
+
+#[cfg(target_os = "linux")]
+#[link(name = "gdk-3")]
+unsafe extern "C" {
+    pub fn gdk_screen_get_rgba_visual(screen: *mut c_void) -> *mut c_void;
     pub fn gdk_display_get_default() -> *mut c_void;
     pub fn gdk_cursor_new_from_name(display: *mut c_void, name: *const std::ffi::c_char) -> *mut c_void;
     pub fn gdk_window_set_cursor(window: *mut c_void, cursor: *mut c_void);
-    pub fn gtk_widget_destroy(widget: *mut c_void);
 }
 
 #[cfg(target_os = "linux")]
 #[link(name = "glib-2.0")]
 unsafe extern "C" {
+    pub fn g_idle_add(function: Option<unsafe extern "C" fn(*mut c_void) -> i32>, data: *mut c_void) -> u32;
     pub fn g_timeout_add(interval: u32, function: Option<unsafe extern "C" fn(*mut c_void) -> i32>, data: *mut c_void) -> u32;
     pub fn g_source_remove(tag: u32) -> i32;
+    pub fn g_main_context_default() -> *mut c_void;
+    pub fn g_main_context_is_owner(context: *mut c_void) -> i32;
 }
 
 #[cfg(target_os = "linux")]

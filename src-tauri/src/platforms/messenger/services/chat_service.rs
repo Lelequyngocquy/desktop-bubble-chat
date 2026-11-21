@@ -13,10 +13,7 @@ pub struct ChatService;
 impl ChatService {
     /// Docks Messenger chat window next to the corresponding bubble
     pub fn dock_chat_window(app: &AppHandle, chat_window: &tauri::WebviewWindow, account_index: u32) {
-        #[cfg(target_os = "windows")]
         let native_bounds = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(account_index);
-        #[cfg(not(target_os = "windows"))]
-        let native_bounds: Option<(i32, i32, u32, u32)> = None;
         let bubble_label = get_bubble_window_label(account_index);
         let webview_bubble = app.get_webview_window(&bubble_label);
         let screen = crate::movement::get_target_dashboard_screen(Some(app));

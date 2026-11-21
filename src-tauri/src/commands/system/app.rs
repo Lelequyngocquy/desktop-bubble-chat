@@ -202,9 +202,8 @@ pub fn set_always_on_top(app: AppHandle, enabled: bool) -> Result<(), String> {
     if let Some(main_win) = app.get_webview_window("main") {
         let _ = main_win.set_always_on_top(false);
     }
-    #[cfg(target_os = "windows")]
     crate::operating_systems::current::bubble::set_native_bubble_always_on_top(enabled);
-    for idx in 1..=5 {
+    for idx in 1..=crate::state::MAX_ACCOUNTS {
         let bubble_label = format!("bubble-{:02}", idx);
         if let Some(w) = app.get_webview_window(&bubble_label) {
             let _ = w.set_always_on_top(enabled);

@@ -1,5 +1,7 @@
+#[cfg(target_os = "linux")]
 use std::collections::HashMap;
 use std::ffi::c_void;
+#[cfg(target_os = "linux")]
 use std::sync::{LazyLock, Mutex};
 #[allow(unused_imports)]
 use super::ffi::*;
@@ -8,6 +10,7 @@ use super::types::*;
 
 pub struct LinuxGtkWindowController;
 
+#[cfg(target_os = "linux")]
 static SURFACE_CACHE: LazyLock<Mutex<HashMap<usize, (Vec<u8>, usize, usize)>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
 #[cfg(target_os = "linux")]
@@ -39,6 +42,7 @@ unsafe extern "C" fn on_button_press(_widget: *mut c_void, event: *mut GdkEventB
     let account_index = user_data as usize as u32;
     if !event.is_null() && unsafe { (*event).button } == 1 {
         let (rx, ry) = unsafe { ((*event).x_root as i32, (*event).y_root as i32) };
+        crate::operating_systems::linux::cursor::update_wayland_cursor(Some((rx, ry)), true);
         crate::operating_systems::linux::bubble::manager::NativeBubbleManager::global().handle_mouse_down(account_index, rx, ry);
     }
     0
@@ -49,6 +53,8 @@ unsafe extern "C" fn on_motion_notify(_widget: *mut c_void, event: *mut GdkEvent
     let account_index = user_data as usize as u32;
     if !event.is_null() {
         let (rx, ry) = unsafe { ((*event).x_root as i32, (*event).y_root as i32) };
+        let lbtn_down = unsafe { ((*event).state & (1 << 8)) != 0 };
+        crate::operating_systems::linux::cursor::update_wayland_cursor(Some((rx, ry)), lbtn_down);
         crate::operating_systems::linux::bubble::manager::NativeBubbleManager::global().handle_mouse_move(account_index, rx, ry);
     }
     0
@@ -59,6 +65,7 @@ unsafe extern "C" fn on_button_release(_widget: *mut c_void, event: *mut GdkEven
     let account_index = user_data as usize as u32;
     if !event.is_null() && unsafe { (*event).button } == 1 {
         let (rx, ry) = unsafe { ((*event).x_root as i32, (*event).y_root as i32) };
+        crate::operating_systems::linux::cursor::update_wayland_cursor(Some((rx, ry)), false);
         crate::operating_systems::linux::bubble::manager::NativeBubbleManager::global().handle_mouse_up(account_index, rx, ry);
     }
     0
@@ -234,6 +241,21 @@ impl LinuxGtkWindowController {
     /// Fallback for non-Linux target
     #[cfg(not(target_os = "linux"))]
     pub fn set_window_visible(_window: *mut c_void, _visible: bool) {}
+
+    /// Sets GTK window always-on-top hint
+    #[cfg(target_os = "linux")]
+    pub fn set_window_keep_above(window: *mut c_void, enabled: bool) {
+        if window.is_null() {
+            return;
+        }
+        unsafe {
+            gtk_window_set_keep_above(window, if enabled { 1 } else { 0 });
+        }
+    }
+
+    /// Fallback for non-Linux target
+    #[cfg(not(target_os = "linux"))]
+    pub fn set_window_keep_above(_window: *mut c_void, _enabled: bool) {}
 
     /// Destroys GTK window and cleans up surface cache
     #[cfg(target_os = "linux")]

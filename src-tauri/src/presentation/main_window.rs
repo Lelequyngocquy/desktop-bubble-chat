@@ -36,7 +36,6 @@ pub fn relocate_bubbles_to_screen(
     let dpi_changed = (new_screen.scale_factor - old_screen.scale_factor).abs() > 0.001;
     let mut relocated: Vec<crate::movement::BubbleRect> = Vec::new();
     for idx in 1..=crate::state::MAX_ACCOUNTS {
-        #[cfg(target_os = "windows")]
         {
             if crate::operating_systems::current::bubble::has_native_bubble(idx)
                 && let Some((cur_x, cur_y, _, _)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {

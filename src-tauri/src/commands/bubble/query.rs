@@ -170,18 +170,9 @@ pub fn get_bubble_hover_coords(
     account_index: Option<u32>,
 ) -> Result<SnapCoordsDto, String> {
     let idx = ChatState::validate_account_index(account_index)?;
-    let native_pos = {
-        #[cfg(target_os = "windows")]
-        {
-            crate::operating_systems::current::bubble::NativeBubbleManager::global()
-                .get_bounds(idx)
-                .map(|(x, y, _, _)| PhysicalPosition { x, y })
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            None::<PhysicalPosition<i32>>
-        }
-    };
+    let native_pos = crate::operating_systems::current::bubble::NativeBubbleManager::global()
+        .get_bounds(idx)
+        .map(|(x, y, _, _)| PhysicalPosition { x, y });
     let pos_opt = if let Some(p) = native_pos {
         Some(p)
     } else {

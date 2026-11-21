@@ -7,13 +7,13 @@ impl MacOSThemeManager {
     pub fn apply_window_theme_color(window: &WebviewWindow, _hex: &str, _border_hex: &str) {
         #[cfg(target_os = "macos")]
         {
-            use cocoa::base::id;
+            use cocoa::base::{id, YES};
             use objc::{msg_send, sel, sel_impl};
             if let Ok(ns_win) = window.ns_window() {
-                unsafe {
+                super::bubble::window::ffi::with_autorelease_pool(|| unsafe {
                     let win = ns_win as id;
-                    let _: () = msg_send![win, setTitlebarAppearsTransparent: true];
-                }
+                    let _: () = msg_send![win, setTitlebarAppearsTransparent: YES];
+                });
             }
         }
         #[cfg(not(target_os = "macos"))]

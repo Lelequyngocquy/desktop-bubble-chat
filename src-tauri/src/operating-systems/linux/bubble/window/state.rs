@@ -15,6 +15,7 @@ pub struct LinuxBubbleWindowState {
     pub unread_count: u32,
     pub is_hovered: bool,
     pub is_left_edge: bool,
+    pub is_always_on_top: bool,
     pub is_visible: bool,
     pub is_dragging: bool,
     pub has_dragged: bool,
@@ -41,6 +42,8 @@ impl LinuxBubbleWindowState {
         } else {
             LinuxGtkWindowController::create_floating_bubble_window(account_index, x as f64, y as f64, canvas_w as f64, canvas_h as f64)
         };
+        let screen = crate::movement::get_target_dashboard_screen(None);
+        let is_left_edge = x + (bubble_size as i32 / 2) < (screen.x + screen.width / 2);
         let mut inst = Self {
             account_index,
             window,
@@ -49,7 +52,8 @@ impl LinuxBubbleWindowState {
             bubble_size,
             unread_count: 0,
             is_hovered: false,
-            is_left_edge: true,
+            is_left_edge,
+            is_always_on_top: true,
             is_visible: false,
             is_dragging: false,
             has_dragged: false,
@@ -69,8 +73,27 @@ impl LinuxBubbleWindowState {
         inst
     }
 
+    /// Updates dynamic left/right edge orientation based on screen midpoint
+    pub fn refresh_edge_side(&mut self) -> bool {
+        let screen = crate::movement::get_target_dashboard_screen(self.app_handle.as_ref());
+        let mid_x = screen.x + screen.width / 2;
+        let next_left = self.x + (self.bubble_size as i32 / 2) < mid_x;
+        if self.is_left_edge != next_left {
+            self.is_left_edge = next_left;
+            return true;
+        }
+        false
+    }
+
+    /// Sets always-on-top keep-above window hint
+    pub fn set_always_on_top(&mut self, enabled: bool) {
+        self.is_always_on_top = enabled;
+        LinuxGtkWindowController::set_window_keep_above(self.window, enabled);
+    }
+
     /// Renders tiny-skia pixel buffer and commits to Cairo/GTK surface
     pub fn render_and_update(&mut self) {
+        self.refresh_edge_side();
         let canvas_w = self.bubble_size + 2 * (BUBBLE_CANVAS_PAD_X as u32);
         let canvas_h = self.bubble_size + 2 * (BUBBLE_CANVAS_PAD_Y as u32);
         let opts = BubbleRenderOptions {
@@ -100,15 +123,19 @@ impl LinuxBubbleWindowState {
         self.is_visible = visible;
         LinuxGtkWindowController::set_window_visible(self.window, visible);
         if visible {
+            LinuxGtkWindowController::set_window_keep_above(self.window, self.is_always_on_top);
             self.render_and_update();
         }
     }
 
-    /// Updates position
+    /// Updates position and re-renders badge orientation if crossing screen center
     pub fn set_position(&mut self, x: i32, y: i32) {
         self.x = x;
         self.y = y;
         LinuxGtkWindowController::set_window_position(self.window, x, y);
+        if self.refresh_edge_side() && self.unread_count > 0 && !self.window.is_null() {
+            self.render_and_update();
+        }
     }
 
     /// Begins dragging gesture
@@ -227,14 +254,14 @@ impl LinuxBubbleWindowState {
         self.is_tucked = true;
     }
 
-    /// Triggers spring animation to untuck from screen edge and cascades siblings
-    pub fn untuck(&mut self, app: &tauri::AppHandle) {
+    /// Triggers spring animation to untuck from screen edge and returns sibling animations
+    pub fn untuck(&mut self, app: &tauri::AppHandle) -> Vec<(u32, i32, i32, u64)> {
         crate::utils::trim_controller::cancel_auto_trim(self.account_index);
         crate::utils::trim_controller::record_user_interaction(self.account_index);
         crate::platforms::messenger::windows::set_chat_window_memory_target(app, self.account_index, false);
         let config = crate::movement::get_bubble_physics_config(app);
         if config.is_free_position {
-            return;
+            return Vec::new();
         }
         let screen = crate::movement::get_target_dashboard_screen(Some(app));
         let target_pos = BubbleMovementEngine::calculate_hover_pos(&screen, &config, self.x, self.y, true);
@@ -254,20 +281,15 @@ impl LinuxBubbleWindowState {
             self.anim_state.start(self.x, self.y, target_pos.x, resolved_y, 180);
             self.start_spring_timer();
         }
+        let mut sibling_moves = Vec::new();
         for slot in &slots {
             if slot.account_index != self.account_index {
                 let sibling_x = all_bubbles.iter().find(|b| b.account_index == slot.account_index).map(|b| b.x).unwrap_or(target_pos.x);
-                crate::operating_systems::linux::bubble::manager::NativeBubbleManager::global().dispatch(
-                    crate::operating_systems::linux::bubble::manager::NativeBubbleAction::AnimateTo {
-                        account_index: slot.account_index,
-                        target_x: sibling_x,
-                        target_y: slot.target_y,
-                        duration_ms: 180,
-                    },
-                );
+                sibling_moves.push((slot.account_index, sibling_x, slot.target_y, 180));
             }
         }
         self.is_tucked = false;
+        sibling_moves
     }
 
     /// Animates bubble to target coordinates
@@ -334,23 +356,25 @@ impl LinuxBubbleWindowState {
                 LinuxGtkWindowController::set_window_opacity(self.window, alpha_f64);
             }
         } else if !self.is_hovered {
-            self.on_mouse_enter();
+            let _ = self.on_mouse_enter();
         }
     }
 
-    /// Handles mouse button release for snap or click
-    pub fn on_mouse_up(&mut self, _mouse_x: i32, _mouse_y: i32) {
+    /// Handles mouse button release for snap or click and returns sibling animations
+    pub fn on_mouse_up(&mut self, _mouse_x: i32, _mouse_y: i32) -> Vec<(u32, i32, i32, u64)> {
         self.is_dragging = false;
         LinuxGtkWindowController::set_window_opacity(self.window, 1.0);
         let app_opt = self.app_handle.clone();
+        let mut sibling_moves = Vec::new();
         if self.has_dragged {
+            self.is_hovered = false;
             let (target_x, target_y, should_dismiss) = self.end_drag(app_opt.as_ref());
             if should_dismiss {
                 self.set_visible(false);
                 if let Some(app) = app_opt {
                     let idx = self.account_index;
                     tauri::async_runtime::spawn(async move {
-                        let _ = crate::commands::bubble::toggle_bubble(app, false, Some(idx)).await;
+                        crate::commands::bubble::dismiss_bubble_from_drag(app, idx).await;
                     });
                 }
             } else {
@@ -372,14 +396,7 @@ impl LinuxBubbleWindowState {
                     );
                     for slot in slots {
                         if slot.account_index != self.account_index {
-                            crate::operating_systems::linux::bubble::manager::NativeBubbleManager::global().dispatch(
-                                crate::operating_systems::linux::bubble::manager::NativeBubbleAction::AnimateTo {
-                                    account_index: slot.account_index,
-                                    target_x,
-                                    target_y: slot.target_y,
-                                    duration_ms: 180,
-                                },
-                            );
+                            sibling_moves.push((slot.account_index, target_x, slot.target_y, 180));
                         }
                     }
                 }
@@ -392,10 +409,11 @@ impl LinuxBubbleWindowState {
                 }
             });
         }
+        sibling_moves
     }
 
-    /// Handles mouse cursor enter with pre-warm and untuck
-    pub fn on_mouse_enter(&mut self) {
+    /// Handles mouse cursor enter with pre-warm and untuck, returning sibling animations
+    pub fn on_mouse_enter(&mut self) -> Vec<(u32, i32, i32, u64)> {
         self.stop_hover_leave_timer();
         if !self.is_hovered {
             self.is_hovered = true;
@@ -405,9 +423,10 @@ impl LinuxBubbleWindowState {
             if let Some(app) = app_opt {
                 crate::platforms::messenger::windows::set_chat_window_memory_target(&app, self.account_index, false);
                 crate::utils::trim_controller::cancel_auto_trim(self.account_index);
-                self.untuck(&app);
+                return self.untuck(&app);
             }
         }
+        Vec::new()
     }
 
     /// Handles mouse cursor leave by starting debounce timer

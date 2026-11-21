@@ -65,7 +65,17 @@ pub fn set_native_bubble_always_on_top(enabled: bool) {
     NativeBubbleManager::global().dispatch(NativeBubbleAction::SetAlwaysOnTop { enabled });
 }
 
+/// Re-asserts topmost Z-order for visible native bubbles if enabled
+pub fn reassert_native_bubble_topmost() {
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::AssertTopmost);
+}
+
 /// Resizes native bubble canvas and triggers redraw
 pub fn set_native_bubble_size(account_index: u32, size: u32) {
     NativeBubbleManager::global().dispatch(NativeBubbleAction::SetSize { account_index, size });
+}
+
+/// Shuts down native bubbles cleanly on application exit
+pub fn shutdown_native_bubbles() {
+    NativeBubbleManager::shutdown_if_initialized();
 }
