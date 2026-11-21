@@ -19,6 +19,10 @@ impl ChatService {
         let native_bounds: Option<(i32, i32, u32, u32)> = None;
         let bubble_label = get_bubble_window_label(account_index);
         let webview_bubble = app.get_webview_window(&bubble_label);
+        let screen = crate::movement::get_target_dashboard_screen(Some(app));
+        let scale = screen.scale_factor;
+        let config = crate::movement::get_bubble_physics_config(app);
+        let default_bubble_w = (config.size * scale).round() as i32;
         let (bubble_x, bubble_y, bubble_w) = if let Some((bx, by, bw, _)) = native_bounds {
             (bx, by, bw as i32)
         } else if let Some(bw) = &webview_bubble {
@@ -29,14 +33,11 @@ impl ChatService {
             if let Some(rect) = cs.get_bubble_rect(account_index) {
                 (rect.x, rect.y, rect.width)
             } else {
-                (0, 0, 56)
+                (screen.x, screen.y, default_bubble_w)
             }
         } else {
-            (0, 0, 56)
+            (screen.x, screen.y, default_bubble_w)
         };
-        let screen = crate::movement::get_target_dashboard_screen(Some(app));
-        let scale = screen.scale_factor;
-        let config = crate::movement::get_bubble_physics_config(app);
         let (custom_w, custom_h) = app.try_state::<Arc<ChatState>>()
             .and_then(|cs| cs.get_chat_window_custom_size(account_index))
             .map(|(w, h)| (w as f64, h as f64))

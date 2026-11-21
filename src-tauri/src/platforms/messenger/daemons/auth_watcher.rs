@@ -3,7 +3,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::platforms::messenger::parser::parse_unread_from_title;
 use crate::platforms::messenger::verifier::is_window_logged_in;
 use crate::platforms::messenger::windows::get_messenger_window_label;
 use crate::state::ChatState;
@@ -13,7 +12,6 @@ use crate::presentation::bubble::ensure_bubble_positioned_and_visible;
 pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
     std::thread::spawn(move || {
         let mut logged_in_map: std::collections::HashMap<u32, bool> = std::collections::HashMap::new();
-        let mut unread_map: std::collections::HashMap<u32, u32> = std::collections::HashMap::new();
         loop {
             for _ in 0..8 {
                 if chat_state.is_explicit_exit.load(Ordering::SeqCst) {
@@ -109,26 +107,12 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                     }
                     if is_logged_in
                         && let Ok(title) = chat_window.title() {
-                            if !title.contains("Messenger") {
-                                continue;
-                            }
-                            let count = parse_unread_from_title(&title);
-                            let prev_count = chat_state.get_unread_count(idx);
-                            if count != prev_count {
-                                unread_map.insert(idx, count);
-                                if count > prev_count {
-                                    crate::operating_systems::current::bubble::trigger_native_bubble_pulse(idx);
-                                }
-                                chat_state.set_unread_count(idx, count);
-                                if count == 0 {
-                                    chat_state.clear_recent_messages_for_account(idx);
-                                }
-                                crate::operating_systems::current::bubble::set_native_bubble_unread_count(idx, count);
-                                let _ = app_handle.emit("badge-updated", serde_json::json!({
-                                    "accountIndex": idx,
-                                    "count": count
-                                }));
-                            }
+                            crate::commands::notification::sync_unread_from_window_title(
+                                &app_handle,
+                                &chat_state,
+                                idx,
+                                &title,
+                            );
                         }
                 }
             }

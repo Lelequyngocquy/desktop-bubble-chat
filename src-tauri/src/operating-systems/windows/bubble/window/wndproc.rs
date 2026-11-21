@@ -434,7 +434,7 @@ unsafe fn finish_drag_and_snap(hwnd: *mut std::ffi::c_void, state_ptr: *mut Bubb
         unsafe { ShowWindow(hwnd, SW_HIDE); }
         if let Some(app_clone) = app_opt {
             tauri::async_runtime::spawn(async move {
-                let _ = crate::commands::bubble::toggle_bubble(app_clone, false, Some(account_index)).await;
+                crate::commands::bubble::dismiss_bubble_from_drag(app_clone, account_index).await;
             });
         }
     } else {

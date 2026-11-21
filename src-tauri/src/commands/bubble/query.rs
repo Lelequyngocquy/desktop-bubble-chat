@@ -114,9 +114,11 @@ pub fn get_bubble_snap_coords(
     current_y: i32,
     account_index: Option<u32>,
 ) -> Result<SnapCoordsDto, String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     let label = get_bubble_window_label(idx);
-    if let Some(_window) = app.get_webview_window(&label) {
+    let has_bubble = crate::operating_systems::current::bubble::has_native_bubble(idx)
+        || app.get_webview_window(&label).is_some();
+    if has_bubble {
         let screen = crate::movement::get_target_dashboard_screen(Some(&app));
         let win_pos = PhysicalPosition {
             x: current_x,
@@ -147,7 +149,7 @@ pub fn get_bubble_default_coords(
     app: AppHandle,
     account_index: Option<u32>,
 ) -> Result<SnapCoordsDto, String> {
-    let _idx = account_index.unwrap_or(1);
+    let _idx = ChatState::validate_account_index(account_index)?;
     let screen = crate::movement::get_target_dashboard_screen(Some(&app));
     let config = get_bubble_physics_config(&app);
     let all_bubbles = get_active_bubble_rects(&app, None);
@@ -167,13 +169,32 @@ pub fn get_bubble_hover_coords(
     is_hovered: bool,
     account_index: Option<u32>,
 ) -> Result<SnapCoordsDto, String> {
-    let idx = account_index.unwrap_or(1);
-    let label = get_bubble_window_label(idx);
-    if let Some(window) = app.get_webview_window(&label) {
-        let win_pos = match window.outer_position() {
-            Ok(pos) => pos,
-            Err(_) => return Err("Failed to get window position".into()),
-        };
+    let idx = ChatState::validate_account_index(account_index)?;
+    let native_pos = {
+        #[cfg(target_os = "windows")]
+        {
+            crate::operating_systems::current::bubble::NativeBubbleManager::global()
+                .get_bounds(idx)
+                .map(|(x, y, _, _)| PhysicalPosition { x, y })
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            None::<PhysicalPosition<i32>>
+        }
+    };
+    let pos_opt = if let Some(p) = native_pos {
+        Some(p)
+    } else {
+        let label = get_bubble_window_label(idx);
+        if let Some(window) = app.get_webview_window(&label) {
+            Some(window.outer_position().map_err(|_| "Failed to get window position".to_string())?)
+        } else {
+            app.try_state::<Arc<ChatState>>()
+                .and_then(|s| s.get_bubble_rect(idx))
+                .map(|r| PhysicalPosition { x: r.x, y: r.y })
+        }
+    };
+    if let Some(win_pos) = pos_opt {
         let screen = crate::movement::get_target_dashboard_screen(Some(&app));
         let config = get_bubble_physics_config(&app);
         let target_pos = BubbleMovementEngine::calculate_hover_pos(

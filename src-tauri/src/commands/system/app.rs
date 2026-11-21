@@ -108,6 +108,9 @@ pub fn set_theme_mode(
     state: tauri::State<'_, Arc<crate::state::ChatState>>,
     theme_mode: String,
 ) -> Result<(), String> {
+    if !matches!(theme_mode.as_str(), "light" | "dark" | "system") {
+        return Err(format!("Invalid theme_mode '{}': expected light, dark, or system", theme_mode));
+    }
     state.update_user_config(&app, |c| {
         c.theme_mode = Some(theme_mode);
     });
@@ -121,6 +124,9 @@ pub fn set_update_mode(
     state: tauri::State<'_, Arc<crate::state::ChatState>>,
     mode: String,
 ) -> Result<(), String> {
+    if !matches!(mode.as_str(), "auto" | "manual") {
+        return Err(format!("Invalid update_mode '{}': expected auto or manual", mode));
+    }
     state.update_user_config(&app, |c| {
         c.update_mode = Some(mode);
     });
@@ -130,7 +136,7 @@ pub fn set_update_mode(
 /// Applies global shortcut registration state for bubble toggle hotkeys
 pub fn apply_global_shortcut_registration(app: &AppHandle, enabled: bool) {
     use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
-    for sc in ["Ctrl+Shift+M", "CommandOrControl+Shift+M"] {
+    for sc in ["CommandOrControl+Shift+M", "Super+Shift+M"] {
         if let Ok(shortcut) = sc.parse::<Shortcut>() {
             if enabled {
                 let _ = app.global_shortcut().register(shortcut);

@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, State};
 
 use crate::state::ChatState;
 
@@ -11,16 +11,8 @@ pub fn update_unread_badge(
     count: u32,
     account_index: Option<u32>,
 ) -> Result<(), String> {
-    let idx = account_index.unwrap_or(1);
-    state.set_unread_count(idx, count);
-    if count == 0 {
-        state.clear_recent_messages_for_account(idx);
-    }
-    crate::operating_systems::current::bubble::set_native_bubble_unread_count(idx, count);
-    let _ = app.emit("badge-updated", serde_json::json!({
-        "accountIndex": idx,
-        "count": count
-    }));
+    let idx = ChatState::validate_account_index(account_index)?;
+    crate::commands::notification::apply_badge_state(&app, &state, idx, count);
     Ok(())
 }
 
@@ -32,16 +24,8 @@ pub fn set_badge_count(
     count: u32,
     account_index: Option<u32>,
 ) -> Result<(), String> {
-    let idx = account_index.unwrap_or(1);
-    state.set_unread_count(idx, count);
-    if count == 0 {
-        state.clear_recent_messages_for_account(idx);
-    }
-    crate::operating_systems::current::bubble::set_native_bubble_unread_count(idx, count);
-    let _ = app.emit("badge-updated", serde_json::json!({
-        "accountIndex": idx,
-        "count": count
-    }));
+    let idx = ChatState::validate_account_index(account_index)?;
+    crate::commands::notification::apply_badge_state(&app, &state, idx, count);
     Ok(())
 }
 
@@ -51,7 +35,7 @@ pub fn get_unread_count(
     state: State<'_, Arc<ChatState>>,
     account_index: Option<u32>,
 ) -> Result<u32, String> {
-    let idx = account_index.unwrap_or(1);
+    let idx = ChatState::validate_account_index(account_index)?;
     Ok(state.get_unread_count(idx))
 }
 

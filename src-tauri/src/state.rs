@@ -395,6 +395,26 @@ impl ChatState {
         }
     }
 
+    /// Validates that an optional account index falls within the supported range
+    pub fn validate_account_index(account_index: Option<u32>) -> Result<u32, String> {
+        let idx = account_index.unwrap_or(1);
+        if (1..=MAX_ACCOUNTS).contains(&idx) {
+            Ok(idx)
+        } else {
+            Err(format!("Invalid account_index {}: must be within 1..={}", idx, MAX_ACCOUNTS))
+        }
+    }
+
+    /// Returns true if a recent message was already recorded for this account inside the window
+    pub fn has_recent_message_within(&self, account_index: u32, now_ms: i64, window_ms: u64) -> bool {
+        if let Ok(list) = self.recent_messages.lock() {
+            return list
+                .iter()
+                .any(|m| m.account_index == account_index && now_ms.abs_diff(m.timestamp) < window_ms);
+        }
+        false
+    }
+
     /// Adds incoming message to recent list (max 20 items, 3000ms sliding window deduplication)
     pub fn add_recent_message(&self, msg: IncomingMessage) -> bool {
         if let Ok(mut list) = self.recent_messages.lock() {
@@ -402,7 +422,7 @@ impl ChatState {
                 m.account_index == msg.account_index
                     && m.sender_name == msg.sender_name
                     && m.body == msg.body
-                    && (msg.timestamp - m.timestamp).abs() < 3000
+                    && msg.timestamp.abs_diff(m.timestamp) < 3000
             });
             if is_duplicate {
                 return false;
@@ -615,5 +635,31 @@ mod tests {
         let leftover_tmp = std::fs::read_dir(&temp_dir).expect("dir readable").filter_map(|e| e.ok()).any(|e| e.file_name().to_string_lossy().ends_with(".tmp"));
         assert!(!leftover_tmp, "temp file should be renamed cleanly");
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_validate_account_index_bounds() {
+        assert_eq!(ChatState::validate_account_index(None), Ok(1));
+        assert_eq!(ChatState::validate_account_index(Some(1)), Ok(1));
+        assert_eq!(ChatState::validate_account_index(Some(MAX_ACCOUNTS)), Ok(MAX_ACCOUNTS));
+        assert!(ChatState::validate_account_index(Some(0)).is_err());
+        assert!(ChatState::validate_account_index(Some(MAX_ACCOUNTS + 1)).is_err());
+    }
+
+    #[test]
+    fn test_has_recent_message_within_window() {
+        let state = ChatState::default();
+        assert!(!state.has_recent_message_within(1, 5000, 3000));
+        state.add_recent_message(IncomingMessage {
+            account_index: 1,
+            sender_name: "Alice".into(),
+            body: "Hi".into(),
+            avatar_url: "".into(),
+            thread_id: "t1".into(),
+            timestamp: 4000,
+        });
+        assert!(state.has_recent_message_within(1, 5500, 3000));
+        assert!(!state.has_recent_message_within(1, 7500, 3000));
+        assert!(!state.has_recent_message_within(2, 5500, 3000));
     }
 }

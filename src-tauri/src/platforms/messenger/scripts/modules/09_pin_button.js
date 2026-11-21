@@ -6,7 +6,6 @@
 
 const PIN_BTN_ID = "bubble-chat-pin-btn";
 const PIN_STYLE_ID = "bubble-chat-pin-style";
-const PIN_MARK = " [PINNED]";
 const PIN_SVG_UNPINNED = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(-35deg); transform-origin: center;"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>';
 const PIN_SVG_PINNED = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>';
 
@@ -79,19 +78,8 @@ function injectPinButtonStyles() {
   else document.addEventListener("DOMContentLoaded", () => { if (document.head) document.head.appendChild(style); });
 }
 
-function applyPinnedTitle(pinned) {
-  try {
-    if (pinned) {
-      if (!document.title.includes(PIN_MARK)) document.title += PIN_MARK;
-    } else {
-      if (document.title.includes(PIN_MARK)) document.title = document.title.replaceAll(PIN_MARK, "").trim();
-    }
-  } catch (e) {}
-}
-
 function updatePinButtonUi(isPinned) {
   window.__IS_PINNED__ = !!isPinned;
-  applyPinnedTitle(window.__IS_PINNED__);
   if (window.__IS_PINNED__ && typeof window.__cancelAutoUnselectCountdown === "function") window.__cancelAutoUnselectCountdown();
   const btn = document.getElementById(PIN_BTN_ID);
   if (!btn) return;
@@ -111,6 +99,10 @@ function updatePinButtonUi(isPinned) {
 function togglePinChatState() {
   const nextPinned = !window.__IS_PINNED__;
   updatePinButtonUi(nextPinned);
+  const accountIndex = window.__ACCOUNT_INDEX__ || 1;
+  invokeTauri("toggle_pin_chat", { accountIndex, pinned: nextPinned }).catch(() => {
+    updatePinButtonUi(!nextPinned);
+  });
 }
 
 function ensurePinButtonInDom() {
@@ -137,23 +129,8 @@ function ensurePinButtonInDom() {
   }
 }
 
-function setupTitleObserver() {
-  const titleEl = document.querySelector("title");
-  if (titleEl) {
-    const observer = new MutationObserver(() => {
-      if (window.__IS_PINNED__ && !document.title.includes(PIN_MARK)) {
-        document.title += PIN_MARK;
-      } else if (!window.__IS_PINNED__ && document.title.includes(PIN_MARK)) {
-        document.title = document.title.replaceAll(PIN_MARK, "").trim();
-      }
-    });
-    observer.observe(titleEl, { childList: true, characterData: true, subtree: true });
-  }
-}
-
 function setupPinButtonLifecycle() {
   ensurePinButtonInDom();
-  setupTitleObserver();
   const observer = new MutationObserver(() => {
     if (!document.getElementById(PIN_BTN_ID) && document.body) ensurePinButtonInDom();
   });

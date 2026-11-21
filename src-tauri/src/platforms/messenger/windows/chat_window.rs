@@ -5,7 +5,6 @@ use tauri_plugin_notification::NotificationExt;
 
 use super::theme::{apply_window_theme_color, get_account_theme};
 use crate::platforms::messenger::constants::{MESSENGER_BASE_URL, MESSENGER_INJECT_SCRIPT};
-use crate::platforms::messenger::parser::parse_unread_from_title;
 use crate::platforms::messenger::services::ChatService;
 use crate::state::{ChatState, MAX_ACCOUNTS};
 use crate::utils::time::now_millis;
@@ -75,7 +74,9 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                 let _ = ChatService::hide_chat(&app_handle, idx);
             }
             tauri::WindowEvent::Resized(physical_size)
-                if physical_size.width > 0 && physical_size.height > 0 => {
+                if physical_size.width > 0
+                    && physical_size.height > 0
+                    && !state_clone.is_window_in_auth_mode(&win_label) => {
                     let scale = chat_clone.scale_factor().unwrap_or(1.0);
                     let logical_w = (physical_size.width as f64 / scale).round() as u32;
                     let logical_h = (physical_size.height as f64 / scale).round() as u32;
@@ -225,56 +226,12 @@ pub fn get_or_create_messenger_window(
     .additional_browser_args(crate::platforms::messenger::constants::CHROMIUM_BROWSER_ARGS)
     .visible(false)
     .on_document_title_changed(move |win, title| {
-        let is_pinned = title.contains("[PINNED]");
-        state_title.set_chat_pinned(account_index, is_pinned);
-        let clean_title = title.replace("[PINNED]", "").trim().to_string();
-        let count = parse_unread_from_title(&clean_title);
-        let prev = state_title.get_unread_count(account_index);
-        let _ = win.set_title(&clean_title);
-        if !clean_title.contains("Messenger") {
-            return;
-        }
-        if count != prev {
-            state_title.set_unread_count(account_index, count);
-            if count == 0 {
-                state_title.clear_recent_messages_for_account(account_index);
-            }
-            crate::operating_systems::current::bubble::set_native_bubble_unread_count(account_index, count);
-            if count > prev && count > 0 {
-                let display_title = format!("New message for Messenger {:02}", account_index);
-                let account_tag = format!("M{:02}", account_index);
-                let ts = now_millis();
-                let msg = crate::state::IncomingMessage {
-                    account_index,
-                    sender_name: display_title.clone(),
-                    body: "New message".to_string(),
-                    avatar_url: String::new(),
-                    thread_id: String::new(),
-                    timestamp: ts,
-                };
-                if state_title.add_recent_message(msg) {
-                    let time_str = crate::utils::time::format_current_time();
-                    let log_msg = format!(
-                        "[{}:MSG] New message for Messenger {:02} | Time: {}",
-                        account_tag, account_index, time_str
-                    );
-                    println!("\x1b[32m{}\x1b[0m", log_msg);
-                    crate::commands::system::app::log_frontend(win.app_handle().clone(), Some("info".into()), log_msg);
-                    let _ = win.app_handle().emit("new-message-received", serde_json::json!({
-                        "accountIndex": account_index,
-                        "senderName": display_title,
-                        "body": "New message",
-                        "avatarUrl": "",
-                        "threadId": "",
-                        "timestamp": ts,
-                    }));
-                }
-            }
-            let _ = win.app_handle().emit("badge-updated", serde_json::json!({
-                "accountIndex": account_index,
-                "count": count
-            }));
-        }
+        crate::commands::notification::sync_unread_from_window_title(
+            win.app_handle(),
+            &state_title,
+            account_index,
+            &title,
+        );
     })
     .on_page_load(move |win, payload| {
         let in_auth = state_page_load.is_window_in_auth_mode(win.label());

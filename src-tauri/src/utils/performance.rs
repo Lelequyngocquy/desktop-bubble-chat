@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
 
-use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System, UpdateKind};
+use sysinfo::{CpuRefreshKind, Pid, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System, UpdateKind};
 
 use crate::state::ChatState;
 use crate::tray::helpers::get_available_account_indices;
@@ -42,12 +42,14 @@ static PERFORMANCE_SYSTEM: OnceLock<Mutex<System>> = OnceLock::new();
 fn get_performance_system() -> &'static Mutex<System> {
     PERFORMANCE_SYSTEM.get_or_init(|| {
         let mut sys = System::new_with_specifics(
-            RefreshKind::nothing().with_processes(
-                ProcessRefreshKind::nothing()
-                    .with_cpu()
-                    .with_memory()
-                    .with_cmd(UpdateKind::Always),
-            ),
+            RefreshKind::nothing()
+                .with_cpu(CpuRefreshKind::everything())
+                .with_processes(
+                    ProcessRefreshKind::nothing()
+                        .with_cpu()
+                        .with_memory()
+                        .with_cmd(UpdateKind::Always),
+                ),
         );
         sys.refresh_processes_specifics(
             ProcessesToUpdate::All,
@@ -393,17 +395,21 @@ pub fn trim_all_app_processes_memory(app: &AppHandle) -> f64 {
         crate::operating_systems::current::MemoryOptimizer::set_webview_memory_target_level(&dash_win, true);
     }
     let host_pid = std::process::id();
-    let mut target_pids = Vec::new();
-    target_pids.push(host_pid);
-    let sys_mutex = get_performance_system();
-    if let Ok(mut sys) = sys_mutex.lock() {
+    let target_pids: Vec<u32> = {
+        let sys_mutex = get_performance_system();
+        let Ok(mut sys) = sys_mutex.lock() else {
+            return 0.0;
+        };
         sys.refresh_processes_specifics(
             ProcessesToUpdate::All,
             true,
-            ProcessRefreshKind::nothing().with_memory(),
+            ProcessRefreshKind::nothing()
+                .with_memory()
+                .with_cmd(UpdateKind::Always),
         );
         let mut app_pids = HashSet::new();
         app_pids.insert(host_pid);
+        let mut pids = vec![host_pid];
         let mut added = true;
         while added {
             added = false;
@@ -427,41 +433,53 @@ pub fn trim_all_app_processes_memory(app: &AppHandle) -> f64 {
                     .unwrap_or(false)
                 {
                     app_pids.insert(pid_u32);
-                    target_pids.push(pid_u32);
+                    pids.push(pid_u32);
                     added = true;
                 }
             }
         }
-        let ram_before: u64 = target_pids
+        pids
+    };
+    let ram_before: u64 = {
+        let sys_mutex = get_performance_system();
+        let Ok(sys) = sys_mutex.lock() else {
+            return 0.0;
+        };
+        target_pids
             .iter()
             .filter_map(|p| sys.processes().get(&Pid::from_u32(*p)))
             .map(|p| p.memory())
-            .sum();
-        for pid in &target_pids {
-            trim_single_process_working_set(*pid);
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
+            .sum()
+    };
+    for pid in &target_pids {
+        trim_single_process_working_set(*pid);
+    }
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    let pid_list: Vec<Pid> = target_pids.iter().map(|p| Pid::from_u32(*p)).collect();
+    let ram_after: u64 = {
+        let sys_mutex = get_performance_system();
+        let Ok(mut sys) = sys_mutex.lock() else {
+            return 0.0;
+        };
         sys.refresh_processes_specifics(
-            ProcessesToUpdate::All,
+            ProcessesToUpdate::Some(&pid_list),
             true,
             ProcessRefreshKind::nothing().with_memory(),
         );
-        let ram_after: u64 = target_pids
+        pid_list
             .iter()
-            .filter_map(|p| sys.processes().get(&Pid::from_u32(*p)))
+            .filter_map(|p| sys.processes().get(p))
             .map(|p| p.memory())
-            .sum();
-        let diff_bytes = ram_before.saturating_sub(ram_after);
-        let diff_mb = (diff_bytes as f64) / (1024.0 * 1024.0);
-        println!(
-            "\x1b[32m[Performance] Trim Working Set completed for {} processes. Reclaimed: {:.2} MB RAM.\x1b[0m",
-            target_pids.len(),
-            diff_mb
-        );
-        (diff_mb * 100.0).round() / 100.0
-    } else {
-        0.0
-    }
+            .sum()
+    };
+    let diff_bytes = ram_before.saturating_sub(ram_after);
+    let diff_mb = (diff_bytes as f64) / (1024.0 * 1024.0);
+    println!(
+        "\x1b[32m[Performance] Trim Working Set completed for {} processes. Reclaimed: {:.2} MB RAM.\x1b[0m",
+        target_pids.len(),
+        diff_mb
+    );
+    (diff_mb * 100.0).round() / 100.0
 }
 
 /// Returns all process IDs belonging to a specific account index

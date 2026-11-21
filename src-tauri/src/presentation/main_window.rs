@@ -30,54 +30,94 @@ pub fn relocate_bubbles_to_screen(
     new_screen: crate::movement::ScreenMetrics,
 ) {
     let config = crate::movement::get_bubble_physics_config(app);
-    let bubble_w = (config.size * new_screen.scale_factor) as i32;
-    let margin = (config.margin * new_screen.scale_factor) as i32;
-    for idx in 1..=5 {
+    let old_bubble_w = (config.size * old_screen.scale_factor).round() as i32;
+    let bubble_w = (config.size * new_screen.scale_factor).round() as i32;
+    let margin = (config.margin * new_screen.scale_factor).round() as i32;
+    let dpi_changed = (new_screen.scale_factor - old_screen.scale_factor).abs() > 0.001;
+    let mut relocated: Vec<crate::movement::BubbleRect> = Vec::new();
+    for idx in 1..=crate::state::MAX_ACCOUNTS {
         #[cfg(target_os = "windows")]
         {
             if crate::operating_systems::current::bubble::has_native_bubble(idx)
                 && let Some((cur_x, cur_y, _, _)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
-                    let is_left = cur_x + (bubble_w / 2) < old_screen.x + (old_screen.width / 2);
+                    if dpi_changed {
+                        crate::operating_systems::current::bubble::set_native_bubble_size(idx, bubble_w as u32);
+                    }
                     let rel_y_ratio = if old_screen.height > 0 {
                         (cur_y - old_screen.y) as f64 / old_screen.height as f64
                     } else {
                         0.3
                     };
-                    let target_y = new_screen.y + (rel_y_ratio * new_screen.height as f64) as i32;
-                    let min_y = new_screen.y + margin;
-                    let max_y = (new_screen.y + new_screen.height - margin - bubble_w).max(min_y);
-                    let clamped_y = target_y.clamp(min_y, max_y);
-                    let target_x = if is_left {
-                        new_screen.x
+                    let mapped_y = new_screen.y + (rel_y_ratio * new_screen.height as f64) as i32;
+                    let (target_x, target_y) = if config.is_free_position {
+                        let rel_x_ratio = if old_screen.width > 0 {
+                            (cur_x - old_screen.x) as f64 / old_screen.width as f64
+                        } else {
+                            0.05
+                        };
+                        let mapped_x = new_screen.x + (rel_x_ratio * new_screen.width as f64) as i32;
+                        crate::movement::CollisionResolver::resolve_2d_free_collision(
+                            idx,
+                            mapped_x,
+                            mapped_y,
+                            &new_screen,
+                            &config,
+                            &relocated,
+                        )
                     } else {
-                        new_screen.x + new_screen.width - bubble_w
+                        let is_left = cur_x + (old_bubble_w / 2) < old_screen.x + (old_screen.width / 2);
+                        let min_y = new_screen.y + margin;
+                        let taskbar_margin = (config.taskbar_margin * new_screen.scale_factor).round() as i32;
+                        let max_y = (new_screen.y + new_screen.height - taskbar_margin - bubble_w).max(min_y);
+                        let clamped_y = mapped_y.clamp(min_y, max_y);
+                        let ratio = if crate::operating_systems::current::bubble::is_cursor_over_native_bubble(idx) {
+                            config.appear_ratio
+                        } else {
+                            config.tuck_ratio
+                        };
+                        let probe_x = if is_left { new_screen.x } else { new_screen.x + new_screen.width };
+                        let edge_x = crate::movement::BubbleMovementEngine::calculate_edge_x(
+                            &new_screen,
+                            &config,
+                            probe_x,
+                            ratio,
+                        );
+                        let slots = crate::movement::CollisionResolver::resolve_mutual_column_layout(
+                            idx,
+                            clamped_y,
+                            is_left,
+                            &new_screen,
+                            &config,
+                            &relocated,
+                        );
+                        let resolved_y = slots.iter().find(|s| s.account_index == idx).map(|s| s.target_y).unwrap_or(clamped_y);
+                        (edge_x, resolved_y)
                     };
                     crate::operating_systems::current::bubble::NativeBubbleManager::global().dispatch(
                         crate::operating_systems::current::bubble::NativeBubbleAction::AnimateTo {
                             account_index: idx,
                             target_x,
-                            target_y: clamped_y,
+                            target_y,
                             duration_ms: 200,
                         },
                     );
                     crate::operating_systems::current::bubble::manager::update_cached_bubble_bounds(
                         idx,
                         target_x,
-                        clamped_y,
+                        target_y,
                         bubble_w as u32,
                         bubble_w as u32,
                     );
+                    let rect = crate::movement::BubbleRect {
+                        account_index: idx,
+                        x: target_x,
+                        y: target_y,
+                        width: bubble_w,
+                        height: bubble_w,
+                    };
+                    relocated.push(rect);
                     if let Some(cs) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
-                        cs.set_bubble_rect(
-                            idx,
-                            crate::movement::BubbleRect {
-                                account_index: idx,
-                                x: target_x,
-                                y: clamped_y,
-                                width: bubble_w,
-                                height: bubble_w,
-                            },
-                        );
+                        cs.set_bubble_rect(idx, rect);
                     }
                 }
         }
