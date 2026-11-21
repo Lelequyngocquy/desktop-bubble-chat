@@ -2,11 +2,13 @@ import { useWindowStore } from "../../stores/windowStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useMessengerStore } from "../../platforms/messenger";
 import { windowService } from "../../services/windowService";
+import { applyBackendUserSettings } from "../../services/userSettingsSyncService";
 import {
   IPC_EVENTS,
   BubbleSpawnedPayload,
   ChatVisibilityPayload,
   ChatWindowResizedPayload,
+  UserSettingsSnapshot,
 } from "../../types/ipc";
 import { UnreadListenerContext } from "./types";
 
@@ -51,6 +53,11 @@ export async function registerWindowAndLayoutEvents(
   if (!(await register<BubbleSpawnedPayload>(IPC_EVENTS.BUBBLE_SPAWNED, (payload) => {
     if (payload) {
       useWindowStore.getState().setLastBubbleSpawn(payload);
+    }
+  }))) return false;
+  if (!(await register<UserSettingsSnapshot>(IPC_EVENTS.USER_SETTINGS_CHANGED, (settings) => {
+    if (settings) {
+      applyBackendUserSettings(settings);
     }
   }))) return false;
   return register<ChatWindowResizedPayload>(IPC_EVENTS.CHAT_WINDOW_RESIZED, (data) => {

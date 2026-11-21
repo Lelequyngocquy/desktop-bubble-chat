@@ -64,6 +64,19 @@ pub fn save_user_settings(
     Ok(())
 }
 
+/// Updates display language in SSOT user cache, refreshes tray, and broadcasts settings snapshot
+pub fn apply_app_language(
+    app: &AppHandle,
+    state: &crate::state::ChatState,
+    language: &str,
+) {
+    let normalized = if language == "vi" { "vi" } else { "en" };
+    state.update_user_config(app, |c| {
+        c.locale = Some(normalized.to_string());
+    });
+    let _ = crate::tray::update_tray_menu(app);
+}
+
 /// Sets application display language, updates persistent cache, and updates system tray
 #[tauri::command]
 pub fn set_app_language(
@@ -71,10 +84,7 @@ pub fn set_app_language(
     state: tauri::State<'_, Arc<crate::state::ChatState>>,
     language: String,
 ) -> Result<(), String> {
-    state.update_user_config(&app, |c| {
-        c.locale = Some(language.clone());
-    });
-    let _ = crate::tray::update_tray_menu(&app);
+    apply_app_language(&app, &state, &language);
     Ok(())
 }
 

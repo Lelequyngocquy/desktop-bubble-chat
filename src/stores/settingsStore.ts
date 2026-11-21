@@ -223,7 +223,11 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "desktop_bubble_chat_settings",
-      version: 1,
+      version: 2,
+      partialize: (state) => ({
+        closeWindowAction: state.closeWindowAction,
+        chatWindowSettings: state.chatWindowSettings,
+      }),
       migrate: (persistedState: unknown, version: number) => {
         const state = (persistedState && typeof persistedState === "object" ? { ...(persistedState as Record<string, unknown>) } : {}) as Record<string, unknown>;
         if (version < 1 && typeof localStorage !== "undefined") {
@@ -233,64 +237,25 @@ export const useSettingsStore = create<SettingsState>()(
               state.closeWindowAction = legacyClose;
             }
             localStorage.removeItem("dbc_close_window_action");
-            const oldUpdate = localStorage.getItem("desktop_bubble_chat_update_settings");
-            if (oldUpdate && !state.updateMode) {
-              const parsed = JSON.parse(oldUpdate);
-              if (parsed?.state?.updateMode === "auto" || parsed?.state?.updateMode === "manual") {
-                state.updateMode = parsed.state.updateMode;
-              }
-            }
           } catch (err) {
             console.warn("[settingsStore] Legacy settings migration skipped:", err);
           }
         }
-        return state as unknown as SettingsState;
-      },
-      onRehydrateStorage: () => (state) => {
-        if (state?.language) {
-          i18n.changeLanguage(state.language);
-        }
-        if (state?.themeMode) {
-          applyThemeMode(state.themeMode);
-        }
+        return extractValidPersistedSettings(state) as unknown as SettingsState;
       },
     },
   ),
 );
 
 type PersistedSettingsPatch = Partial<
-  Pick<
-    SettingsState,
-    | "isAlwaysOnTop"
-    | "isNotificationsEnabled"
-    | "isAutoStart"
-    | "isGlobalShortcutEnabled"
-    | "bubbleSize"
-    | "bubblePositionMode"
-    | "language"
-    | "isAutoTrimEnabled"
-    | "themeMode"
-    | "closeWindowAction"
-    | "updateMode"
-    | "chatWindowSettings"
-  >
+  Pick<SettingsState, "closeWindowAction" | "chatWindowSettings">
 >;
 
 function extractValidPersistedSettings(raw: unknown): PersistedSettingsPatch {
   if (!raw || typeof raw !== "object") return {};
   const src = raw as Record<string, unknown>;
   const patch: PersistedSettingsPatch = {};
-  if (typeof src.isAlwaysOnTop === "boolean") patch.isAlwaysOnTop = src.isAlwaysOnTop;
-  if (typeof src.isNotificationsEnabled === "boolean") patch.isNotificationsEnabled = src.isNotificationsEnabled;
-  if (typeof src.isAutoStart === "boolean") patch.isAutoStart = src.isAutoStart;
-  if (typeof src.isGlobalShortcutEnabled === "boolean") patch.isGlobalShortcutEnabled = src.isGlobalShortcutEnabled;
-  if (typeof src.isAutoTrimEnabled === "boolean") patch.isAutoTrimEnabled = src.isAutoTrimEnabled;
-  if (src.bubbleSize === "sm" || src.bubbleSize === "md" || src.bubbleSize === "lg") patch.bubbleSize = src.bubbleSize;
-  if (src.bubblePositionMode === "auto_tuck" || src.bubblePositionMode === "free") patch.bubblePositionMode = src.bubblePositionMode;
-  if (src.language === "en" || src.language === "vi") patch.language = src.language;
-  if (src.themeMode === "light" || src.themeMode === "dark" || src.themeMode === "system") patch.themeMode = src.themeMode;
   if (src.closeWindowAction === "ask" || src.closeWindowAction === "hide_to_tray" || src.closeWindowAction === "exit_app") patch.closeWindowAction = src.closeWindowAction;
-  if (src.updateMode === "auto" || src.updateMode === "manual") patch.updateMode = src.updateMode;
   if (Array.isArray(src.chatWindowSettings)) {
     patch.chatWindowSettings = src.chatWindowSettings.filter((item): item is ChatWindowSizeSetting => {
       if (!item || typeof item !== "object") return false;
@@ -316,12 +281,6 @@ if (typeof window !== "undefined") {
         const validated = extractValidPersistedSettings(parsed?.state);
         if (Object.keys(validated).length > 0) {
           useSettingsStore.setState(validated);
-          if (validated.language) {
-            i18n.changeLanguage(validated.language);
-          }
-          if (validated.themeMode) {
-            applyThemeMode(validated.themeMode);
-          }
         }
       } catch (err) {
         console.warn("[SettingsStore] Failed to sync storage event:", err);

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { IPC_COMMANDS } from "../types/ipc";
+import { IPC_COMMANDS, type UserSettingsSnapshot } from "../types/ipc";
 import { SystemPerformanceSnapshot } from "../types/performance";
 
 export const systemService = {
@@ -119,35 +119,7 @@ export const systemService = {
   /**
    * Gets persisted user settings snapshot from Backend cache.
    */
-  async getUserSettings(): Promise<{
-    is_dashboard_open?: boolean;
-    isDashboardOpen?: boolean;
-    active_bubble_accounts?: number[];
-    activeBubbleAccounts?: number[];
-    is_notifications_enabled?: boolean;
-    isNotificationsEnabled?: boolean;
-    muted_accounts?: number[];
-    mutedAccounts?: number[];
-    bubble_size?: "sm" | "md" | "lg";
-    bubbleSize?: "sm" | "md" | "lg";
-    is_always_on_top?: boolean;
-    isAlwaysOnTop?: boolean;
-    is_auto_start?: boolean;
-    isAutoStart?: boolean;
-    locale?: string;
-    is_auto_trim_enabled?: boolean;
-    isAutoTrimEnabled?: boolean;
-    theme_mode?: string;
-    themeMode?: string;
-    bubble_position_mode?: "auto_tuck" | "free";
-    bubblePositionMode?: "auto_tuck" | "free";
-    update_mode?: "auto" | "manual";
-    updateMode?: "auto" | "manual";
-    authenticated_accounts?: number[];
-    authenticatedAccounts?: number[];
-    is_global_shortcut_enabled?: boolean;
-    isGlobalShortcutEnabled?: boolean;
-  } | null> {
+  async getUserSettings(): Promise<UserSettingsSnapshot | null> {
     try {
       return await invoke(IPC_COMMANDS.GET_USER_SETTINGS);
     } catch (err) {

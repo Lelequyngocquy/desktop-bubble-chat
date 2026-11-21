@@ -367,6 +367,8 @@ impl ChatState {
             *lock = config.clone();
             crate::utils::user_cache::save_user_cache(app, &config);
         }
+        use tauri::Emitter;
+        let _ = app.emit("user-settings-changed", config);
     }
 
     /// Updates user config with closure and saves to disk
@@ -374,9 +376,16 @@ impl ChatState {
     where
         F: FnOnce(&mut crate::utils::user_cache::AppUserConfig),
     {
-        if let Ok(mut lock) = self.user_config.lock() {
+        let updated_snapshot = if let Ok(mut lock) = self.user_config.lock() {
             updater(&mut lock);
             crate::utils::user_cache::save_user_cache(app, &lock);
+            Some(lock.clone())
+        } else {
+            None
+        };
+        if let Some(config) = updated_snapshot {
+            use tauri::Emitter;
+            let _ = app.emit("user-settings-changed", config);
         }
     }
 

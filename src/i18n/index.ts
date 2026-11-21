@@ -29,23 +29,7 @@ export const resources = {
   },
 } as const;
 
-function detectInitialLanguage(): "en" | "vi" {
-  try {
-    if (typeof localStorage !== "undefined") {
-      const raw = localStorage.getItem("desktop_bubble_chat_settings");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const saved = parsed?.state?.language;
-        if (saved === "vi" || saved === "en") return saved;
-      }
-    }
-  } catch (err) {
-    console.warn("[i18n] Could not read saved locale from storage:", err);
-  }
-  return "en";
-}
-
-const initialLanguage = detectInitialLanguage();
+const initialLanguage: "en" | "vi" = "en";
 i18n.use(initReactI18next).init({
   resources,
   lng: initialLanguage,
