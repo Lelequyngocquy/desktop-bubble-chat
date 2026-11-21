@@ -89,6 +89,12 @@ pub fn set_native_bubble_always_on_top(enabled: bool) {
     NativeBubbleManager::global().dispatch(NativeBubbleAction::SetAlwaysOnTop { enabled });
 }
 
+/// Re-asserts topmost Z-order for visible native bubbles if enabled and not fullscreen.
+#[cfg(target_os = "windows")]
+pub fn reassert_native_bubble_topmost() {
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::AssertTopmost);
+}
+
 /// Sets display size for the native bubble.
 #[cfg(target_os = "windows")]
 pub fn set_native_bubble_size(account_index: u32, size: u32) {
@@ -119,6 +125,9 @@ pub fn untuck_native_bubble(_app: &tauri::AppHandle, _account_index: u32) {}
 
 #[cfg(not(target_os = "windows"))]
 pub fn set_native_bubble_always_on_top(_enabled: bool) {}
+
+#[cfg(not(target_os = "windows"))]
+pub fn reassert_native_bubble_topmost() {}
 
 #[cfg(not(target_os = "windows"))]
 pub fn set_native_bubble_size(_account_index: u32, _size: u32) {}

@@ -140,7 +140,6 @@ pub const IDC_ARROW: usize = 32512;
 pub const IDC_HAND: usize = 32649;
 
 pub const GWL_STYLE: i32 = -16;
-pub const GWL_EXSTYLE: i32 = -20;
 pub const GWLP_USERDATA: i32 = -21;
 
 pub const WM_DESTROY: u32 = 0x0002;

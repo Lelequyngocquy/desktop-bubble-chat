@@ -185,7 +185,18 @@ pub fn run() {
                 }
             }
             #[cfg(target_os = "windows")]
-            crate::operating_systems::current::bubble::set_native_bubble_always_on_top(initial_config.is_always_on_top);
+            {
+                crate::operating_systems::current::bubble::set_native_bubble_always_on_top(initial_config.is_always_on_top);
+                let settle_state = Arc::clone(&chat_state_clone);
+                std::thread::spawn(move || {
+                    for delay_secs in [2u64, 3u64] {
+                        std::thread::sleep(std::time::Duration::from_secs(delay_secs));
+                        if settle_state.is_always_on_top.load(Ordering::SeqCst) {
+                            crate::operating_systems::current::bubble::reassert_native_bubble_topmost();
+                        }
+                    }
+                });
+            }
             if initial_config.is_dashboard_open {
                 println!("[Startup] Dashboard configured ON -> Showing Dashboard");
                 let _ = presentation::main_window::get_or_create_main_window(&handle);

@@ -245,6 +245,14 @@ impl NativeBubbleWindow {
         unsafe { IsWindowVisible(self.hwnd) != 0 }
     }
 
+    /// Checks if the bubble is currently being dragged.
+    pub fn is_dragging(&self) -> bool {
+        unsafe {
+            let ptr = GetWindowLongPtrW(self.hwnd, GWLP_USERDATA) as *mut BubbleWindowState;
+            ptr.as_ref().map(|s| s.is_dragging).unwrap_or(false)
+        }
+    }
+
     /// Updates unread count and redraws badge.
     pub fn set_unread_count(&self, count: u32) {
         unsafe {

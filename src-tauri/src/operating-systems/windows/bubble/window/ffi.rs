@@ -71,6 +71,7 @@ unsafe extern "system" {
     pub fn GetMonitorInfoW(hMonitor: *mut std::ffi::c_void, lpmi: *mut MONITORINFO) -> i32;
     pub fn GetDesktopWindow() -> *mut std::ffi::c_void;
     pub fn GetShellWindow() -> *mut std::ffi::c_void;
+    pub fn GetForegroundWindow() -> *mut std::ffi::c_void;
     pub fn GetClassNameW(hWnd: *mut std::ffi::c_void, lpClassName: *mut u16, nMaxCount: i32) -> i32;
     pub fn SetWinEventHook(
         eventMin: u32,

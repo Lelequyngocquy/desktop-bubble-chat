@@ -5,10 +5,14 @@ use std::sync::mpsc::{channel, Sender};
 #[cfg(target_os = "windows")]
 use std::sync::{Arc, OnceLock, RwLock};
 #[cfg(target_os = "windows")]
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 #[cfg(target_os = "windows")]
-use super::window::{ensure_window_class_registered, NativeBubbleWindow, POINT};
+use super::window::{
+    ensure_window_class_registered, is_window_fullscreen, GetForegroundWindow, KillTimer,
+    NativeBubbleWindow, SetTimer, SetWinEventHook, UnhookWinEvent, EVENT_SYSTEM_FOREGROUND,
+    PM_NOREMOVE, POINT, WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS, WM_TIMER,
+};
 
 #[cfg(target_os = "windows")]
 #[repr(C)]
@@ -27,6 +31,10 @@ pub struct MSG {
 const WM_USER: u32 = 0x0400;
 #[cfg(target_os = "windows")]
 const WM_BUBBLE_DISPATCH: u32 = WM_USER + 200;
+#[cfg(target_os = "windows")]
+const WM_BUBBLE_ASSERT_TOPMOST: u32 = WM_USER + 201;
+#[cfg(target_os = "windows")]
+const TOPMOST_SETTLE_DELAY_MS: u32 = 150;
 
 #[cfg(target_os = "windows")]
 #[link(name = "user32")]
@@ -36,6 +44,13 @@ unsafe extern "system" {
         hWnd: *mut std::ffi::c_void,
         wMsgFilterMin: u32,
         wMsgFilterMax: u32,
+    ) -> i32;
+    fn PeekMessageW(
+        lpMsg: *mut MSG,
+        hWnd: *mut std::ffi::c_void,
+        wMsgFilterMin: u32,
+        wMsgFilterMax: u32,
+        wRemoveMsg: u32,
     ) -> i32;
     fn TranslateMessage(lpMsg: *const MSG) -> i32;
     fn DispatchMessageW(lpMsg: *const MSG) -> isize;
@@ -52,6 +67,38 @@ unsafe extern "system" {
 #[link(name = "kernel32")]
 unsafe extern "system" {
     fn GetCurrentThreadId() -> u32;
+}
+
+/// WinEvent hook callback forwarding external foreground switches to worker loop
+#[cfg(target_os = "windows")]
+unsafe extern "system" fn foreground_win_event_proc(
+    _h_win_event_hook: *mut std::ffi::c_void,
+    event: u32,
+    hwnd: *mut std::ffi::c_void,
+    _id_object: i32,
+    _id_child: i32,
+    _id_event_thread: u32,
+    _dwms_event_time: u32,
+) {
+    if event == EVENT_SYSTEM_FOREGROUND && !hwnd.is_null() {
+        unsafe { PostThreadMessageW(GetCurrentThreadId(), WM_BUBBLE_ASSERT_TOPMOST, hwnd as usize, 0); }
+    }
+}
+
+/// Re-asserts HWND_TOPMOST on visible idle bubbles unless foreground window is fullscreen
+#[cfg(target_os = "windows")]
+fn reassert_topmost_for_bubbles(
+    bubbles: &HashMap<u32, NativeBubbleWindow>,
+    fg_hwnd: *mut std::ffi::c_void,
+) {
+    if bubbles.is_empty() || unsafe { is_window_fullscreen(fg_hwnd) } {
+        return;
+    }
+    for win in bubbles.values() {
+        if win.is_visible() && !win.is_dragging() {
+            win.set_always_on_top(true);
+        }
+    }
 }
 
 /// Control actions sent to the dedicated Win32 Native Bubble UI thread
@@ -96,6 +143,7 @@ pub enum NativeBubbleAction {
     SetAlwaysOnTop {
         enabled: bool,
     },
+    AssertTopmost,
     SetSize {
         account_index: u32,
         size: u32,
@@ -130,16 +178,34 @@ impl NativeBubbleManager {
                 .spawn(move || {
                     let thread_id = unsafe { GetCurrentThreadId() };
                     ensure_window_class_registered();
-                    let mut dummy_pt = POINT { x: 0, y: 0 };
-                    unsafe { GetCursorPos(&mut dummy_pt); }
+                    let mut msg: MSG = unsafe { std::mem::zeroed() };
+                    unsafe { PeekMessageW(&mut msg, std::ptr::null_mut(), WM_USER, WM_USER, PM_NOREMOVE); }
+                    let event_hook = unsafe {
+                        SetWinEventHook(
+                            EVENT_SYSTEM_FOREGROUND,
+                            EVENT_SYSTEM_FOREGROUND,
+                            std::ptr::null_mut(),
+                            Some(foreground_win_event_proc),
+                            0,
+                            0,
+                            WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS,
+                        )
+                    };
+                    if event_hook.is_null() {
+                        eprintln!("[NativeBubble WARN] Failed to register foreground WinEvent hook");
+                    }
                     let _ = init_tx.send(thread_id);
                     let mut bubbles: HashMap<u32, NativeBubbleWindow> = HashMap::new();
-                    let mut msg: MSG = unsafe { std::mem::zeroed() };
+                    let mut is_always_on_top = true;
+                    let mut settle_timer_id: usize = 0;
                     while unsafe { GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) } > 0 {
                         if msg.message == WM_BUBBLE_DISPATCH {
                             while let Ok(action) = cmd_rx.try_recv() {
                                 match action {
                                     NativeBubbleAction::Show { account_index, x, y, size, app } => {
+                                        if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
+                                            is_always_on_top = chat_state.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst);
+                                        }
                                         if let Some(win) = bubbles.get_mut(&account_index) {
                                             win.set_position(x, y);
                                             win.resize(size);
@@ -333,8 +399,19 @@ impl NativeBubbleManager {
                                         }
                                     }
                                     NativeBubbleAction::SetAlwaysOnTop { enabled } => {
+                                        is_always_on_top = enabled;
+                                        if !enabled && settle_timer_id != 0 {
+                                            unsafe { KillTimer(std::ptr::null_mut(), settle_timer_id); }
+                                            settle_timer_id = 0;
+                                        }
                                         for win in bubbles.values() {
                                             win.set_always_on_top(enabled);
+                                        }
+                                    }
+                                    NativeBubbleAction::AssertTopmost => {
+                                        if is_always_on_top && !bubbles.is_empty() {
+                                            let fg_hwnd = unsafe { GetForegroundWindow() };
+                                            reassert_topmost_for_bubbles(&bubbles, fg_hwnd);
                                         }
                                     }
                                     NativeBubbleAction::SetSize { account_index, size } => {
@@ -349,12 +426,34 @@ impl NativeBubbleManager {
                                     }
                                 }
                             }
+                        } else if msg.message == WM_BUBBLE_ASSERT_TOPMOST {
+                            if is_always_on_top && !bubbles.is_empty() {
+                                let fg_hwnd = msg.wparam as *mut std::ffi::c_void;
+                                reassert_topmost_for_bubbles(&bubbles, fg_hwnd);
+                                if settle_timer_id != 0 {
+                                    unsafe { KillTimer(std::ptr::null_mut(), settle_timer_id); }
+                                }
+                                settle_timer_id = unsafe { SetTimer(std::ptr::null_mut(), 0, TOPMOST_SETTLE_DELAY_MS, None) };
+                            }
+                        } else if msg.message == WM_TIMER && msg.hwnd.is_null() && settle_timer_id != 0 && msg.wparam == settle_timer_id {
+                            unsafe { KillTimer(std::ptr::null_mut(), settle_timer_id); }
+                            settle_timer_id = 0;
+                            if is_always_on_top && !bubbles.is_empty() {
+                                let fg_hwnd = unsafe { GetForegroundWindow() };
+                                reassert_topmost_for_bubbles(&bubbles, fg_hwnd);
+                            }
                         } else {
                             unsafe {
                                 TranslateMessage(&msg);
                                 DispatchMessageW(&msg);
                             }
                         }
+                    }
+                    if settle_timer_id != 0 {
+                        unsafe { KillTimer(std::ptr::null_mut(), settle_timer_id); }
+                    }
+                    if !event_hook.is_null() {
+                        unsafe { UnhookWinEvent(event_hook); }
                     }
                 })
                 .expect("Failed to create Native Bubble Worker thread");
