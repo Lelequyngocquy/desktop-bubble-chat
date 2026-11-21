@@ -67,24 +67,6 @@ export const useUnreadListener = () => {
         const currentAccounts = useMessengerStore.getState().accounts;
         const initialHasConnected = currentAccounts.some((a) => a.isConnected);
         systemService.updateTrayMenu(initialHasConnected);
-        currentAccounts.forEach((acc) => {
-          if (acc.soundEnabled === false) {
-            messengerService.setAccountMuted(acc.index, true).catch(() => {});
-          }
-          messengerService
-            .checkAuth(acc.index)
-            .then((res) => {
-              if (!disposed && res && typeof res.connected === "boolean") {
-                useMessengerStore.getState().updateAccount(acc.id, {
-                  isConnected: res.connected,
-                  isAuthenticating: false,
-                  isBubbleVisible: res.connected ? acc.isBubbleVisible : false,
-                  lastSynced: "",
-                });
-              }
-            })
-            .catch(() => {});
-        });
         messengerService
           .getAllUnreadCounts()
           .then((counts) => {

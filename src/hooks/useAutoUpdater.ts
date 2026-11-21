@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { getVersion } from "@tauri-apps/api/app";
 import { useUpdateStore, type UpdaterBackendPayload } from "../stores/updateStore";
 import { useSettingsStore } from "../stores/settingsStore";
 import { updaterService, formatBytes, formatSpeed } from "../services/updaterService";
@@ -17,13 +16,6 @@ export function useAutoUpdaterLifecycle() {
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    getVersion()
-      .then((ver) => {
-        if (!disposed && ver) useUpdateStore.getState().setCurrentVersion(ver);
-      })
-      .catch((err) => {
-        console.warn("[AutoUpdater] Failed to get app version:", err);
-      });
     safeListen<UpdaterBackendPayload>(
       IPC_EVENTS.UPDATER_STATUS,
       (event) => {

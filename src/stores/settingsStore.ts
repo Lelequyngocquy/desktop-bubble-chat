@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { invoke } from "@tauri-apps/api/core";
 import i18n from "../i18n";
-import { IPC_COMMANDS } from "../types/ipc";
+import { systemService } from "../services/systemService";
+import { messengerService } from "../platforms/messenger/services/messengerService";
 
 export type BubbleSize = "sm" | "md" | "lg";
 export type BubblePositionMode = "auto_tuck" | "free";
@@ -58,7 +58,6 @@ interface SettingsState {
   closeWindowAction: CloseWindowAction;
   updateMode: UpdateMode;
   chatWindowSettings: ChatWindowSizeSetting[];
-
   setAlwaysOnTop: (enabled: boolean) => void;
   toggleAlwaysOnTop: () => void;
   setNotificationsEnabled: (enabled: boolean) => void;
@@ -81,7 +80,7 @@ interface SettingsState {
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       isAlwaysOnTop: true,
       isNotificationsEnabled: true,
       isAutoStart: false,
@@ -92,26 +91,8 @@ export const useSettingsStore = create<SettingsState>()(
       isAutoTrimEnabled: true,
       themeMode: "system",
       chatWindowSettings: [],
-      updateMode: (() => {
-        if (typeof localStorage !== "undefined") {
-          try {
-            const oldUpdate = localStorage.getItem("desktop_bubble_chat_update_settings");
-            if (oldUpdate) {
-              const parsed = JSON.parse(oldUpdate);
-              if (parsed?.state?.updateMode) return parsed.state.updateMode;
-            }
-          } catch {}
-        }
-        return "auto";
-      })(),
-      closeWindowAction: (() => {
-        if (typeof localStorage !== "undefined") {
-          const val = localStorage.getItem("dbc_close_window_action");
-          if (val === "hide_to_tray" || val === "exit_app") return val;
-        }
-        return "ask";
-      })(),
-
+      updateMode: "auto",
+      closeWindowAction: "ask",
       setAlwaysOnTop: (enabled) => set({ isAlwaysOnTop: enabled }),
       toggleAlwaysOnTop: () => set((state) => ({ isAlwaysOnTop: !state.isAlwaysOnTop })),
       setNotificationsEnabled: (enabled) => set({ isNotificationsEnabled: enabled }),
@@ -121,64 +102,51 @@ export const useSettingsStore = create<SettingsState>()(
       setGlobalShortcutEnabled: (enabled, skipIpc = false) => {
         set({ isGlobalShortcutEnabled: enabled });
         if (!skipIpc) {
-          invoke(IPC_COMMANDS.SET_GLOBAL_SHORTCUT_ENABLED, { enabled }).catch(() => {});
+          systemService.setGlobalShortcutEnabled(enabled);
         }
       },
       toggleGlobalShortcut: () => {
-        set((state) => {
-          const next = !state.isGlobalShortcutEnabled;
-          invoke(IPC_COMMANDS.SET_GLOBAL_SHORTCUT_ENABLED, { enabled: next }).catch(() => {});
-          return { isGlobalShortcutEnabled: next };
-        });
+        const next = !get().isGlobalShortcutEnabled;
+        set({ isGlobalShortcutEnabled: next });
+        systemService.setGlobalShortcutEnabled(next);
       },
       setBubbleSize: (size) => set({ bubbleSize: size }),
       setBubblePositionMode: (mode, skipIpc = false) => {
         set({ bubblePositionMode: mode });
         if (!skipIpc) {
-          invoke(IPC_COMMANDS.SET_BUBBLE_POSITION_MODE, { mode }).catch(() => {});
+          systemService.setBubblePositionMode(mode);
         }
       },
       setLanguage: (lang, skipIpc = false) => {
         set({ language: lang });
         i18n.changeLanguage(lang);
         if (!skipIpc) {
-          invoke(IPC_COMMANDS.SET_APP_LANGUAGE, { language: lang }).catch(() => {});
+          systemService.setAppLanguage(lang);
         }
       },
       setAutoTrimEnabled: (enabled, skipIpc = false) => {
         set({ isAutoTrimEnabled: enabled });
         if (!skipIpc) {
-          invoke(IPC_COMMANDS.SET_AUTO_TRIM_ENABLED, { enabled }).catch(() => {});
+          systemService.setAutoTrimEnabled(enabled);
         }
       },
       toggleAutoTrim: () => {
-        set((state) => {
-          const next = !state.isAutoTrimEnabled;
-          invoke(IPC_COMMANDS.SET_AUTO_TRIM_ENABLED, { enabled: next }).catch(() => {});
-          return { isAutoTrimEnabled: next };
-        });
+        const next = !get().isAutoTrimEnabled;
+        set({ isAutoTrimEnabled: next });
+        systemService.setAutoTrimEnabled(next);
       },
       setThemeMode: (mode, skipIpc = false) => {
         set({ themeMode: mode });
         applyThemeMode(mode);
         if (!skipIpc) {
-          invoke(IPC_COMMANDS.SET_THEME_MODE, { themeMode: mode }).catch(() => {});
+          systemService.setThemeMode(mode);
         }
       },
-      setCloseWindowAction: (action) => {
-        set({ closeWindowAction: action });
-        if (typeof localStorage !== "undefined") {
-          if (action === "ask") {
-            localStorage.removeItem("dbc_close_window_action");
-          } else {
-            localStorage.setItem("dbc_close_window_action", action);
-          }
-        }
-      },
+      setCloseWindowAction: (action) => set({ closeWindowAction: action }),
       setUpdateMode: (mode, skipIpc = false) => {
         set({ updateMode: mode });
         if (!skipIpc) {
-          invoke(IPC_COMMANDS.SET_UPDATE_MODE, { mode }).catch(() => {});
+          systemService.setUpdateMode(mode);
         }
       },
       setChatWindowMode: async (accountIndex, accountId, mode) => {
@@ -187,7 +155,7 @@ export const useSettingsStore = create<SettingsState>()(
           if (existing) {
             return {
               chatWindowSettings: state.chatWindowSettings.map((s) =>
-                s.accountIndex === accountIndex ? { ...s, mode } : s
+                s.accountIndex === accountIndex ? { ...s, mode } : s,
               ),
             };
           }
@@ -199,25 +167,23 @@ export const useSettingsStore = create<SettingsState>()(
           };
         });
         const isCustom = mode === "remember_custom";
-        const current = useSettingsStore.getState().chatWindowSettings.find((s) => s.accountIndex === accountIndex);
-        try {
-          const res = await invoke<[number, number] | null>(IPC_COMMANDS.SET_CHAT_WINDOW_SIZE_CONFIG, {
-            accountIndex,
-            isCustom,
-            width: isCustom && current?.customWidth ? current.customWidth : undefined,
-            height: isCustom && current?.customHeight ? current.customHeight : undefined,
-          });
-          if (isCustom && res && Array.isArray(res) && res.length === 2) {
-            const [w, h] = res;
-            if (w >= MIN_CHAT_WIDTH && h >= MIN_CHAT_HEIGHT) {
-              set((state) => ({
-                chatWindowSettings: state.chatWindowSettings.map((s) =>
-                  s.accountIndex === accountIndex ? { ...s, customWidth: w, customHeight: h } : s
-                ),
-              }));
-            }
+        const current = get().chatWindowSettings.find((s) => s.accountIndex === accountIndex);
+        const res = await messengerService.setChatWindowSizeConfig(
+          accountIndex,
+          isCustom,
+          isCustom && current?.customWidth ? current.customWidth : undefined,
+          isCustom && current?.customHeight ? current.customHeight : undefined,
+        );
+        if (isCustom && res && Array.isArray(res) && res.length === 2) {
+          const [w, h] = res;
+          if (w >= MIN_CHAT_WIDTH && h >= MIN_CHAT_HEIGHT) {
+            set((state) => ({
+              chatWindowSettings: state.chatWindowSettings.map((s) =>
+                s.accountIndex === accountIndex ? { ...s, customWidth: w, customHeight: h } : s,
+              ),
+            }));
           }
-        } catch {}
+        }
       },
       updateChatWindowSize: (accountIndex, width, height) => {
         const clampedWidth = Math.max(MIN_CHAT_WIDTH, Math.round(width));
@@ -235,7 +201,7 @@ export const useSettingsStore = create<SettingsState>()(
             }
             return {
               chatWindowSettings: state.chatWindowSettings.map((s) =>
-                s.accountIndex === accountIndex ? { ...s, customWidth: clampedWidth, customHeight: clampedHeight } : s
+                s.accountIndex === accountIndex ? { ...s, customWidth: clampedWidth, customHeight: clampedHeight } : s,
               ),
             };
           }
@@ -252,16 +218,32 @@ export const useSettingsStore = create<SettingsState>()(
             ],
           };
         });
-        invoke(IPC_COMMANDS.SET_CHAT_WINDOW_SIZE_CONFIG, {
-          accountIndex,
-          isCustom: true,
-          width: clampedWidth,
-          height: clampedHeight,
-        }).catch(() => {});
+        messengerService.setChatWindowSizeConfig(accountIndex, true, clampedWidth, clampedHeight);
       },
     }),
     {
       name: "desktop_bubble_chat_settings",
+      version: 1,
+      migrate: (persistedState: unknown, version: number) => {
+        const state = (persistedState && typeof persistedState === "object" ? { ...(persistedState as Record<string, unknown>) } : {}) as Record<string, unknown>;
+        if (version < 1 && typeof localStorage !== "undefined") {
+          try {
+            const legacyClose = localStorage.getItem("dbc_close_window_action");
+            if ((legacyClose === "hide_to_tray" || legacyClose === "exit_app") && !state.closeWindowAction) {
+              state.closeWindowAction = legacyClose;
+            }
+            localStorage.removeItem("dbc_close_window_action");
+            const oldUpdate = localStorage.getItem("desktop_bubble_chat_update_settings");
+            if (oldUpdate && !state.updateMode) {
+              const parsed = JSON.parse(oldUpdate);
+              if (parsed?.state?.updateMode === "auto" || parsed?.state?.updateMode === "manual") {
+                state.updateMode = parsed.state.updateMode;
+              }
+            }
+          } catch {}
+        }
+        return state as unknown as SettingsState;
+      },
       onRehydrateStorage: () => (state) => {
         if (state?.language) {
           i18n.changeLanguage(state.language);
@@ -270,8 +252,8 @@ export const useSettingsStore = create<SettingsState>()(
           applyThemeMode(state.themeMode);
         }
       },
-    }
-  )
+    },
+  ),
 );
 
 type PersistedSettingsPatch = Partial<
@@ -324,7 +306,6 @@ function extractValidPersistedSettings(raw: unknown): PersistedSettingsPatch {
   return patch;
 }
 
-// Cross-window synchronization
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (event) => {
     if (event.key === "desktop_bubble_chat_settings" && event.newValue) {

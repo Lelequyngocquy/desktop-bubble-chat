@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import {
   useMessengerStore,
   selectIsMessengerConnected,
+  selectConnectedAccountCount,
+  selectTotalAccountCount,
 } from "../../../../platforms/messenger";
 import { PlatformId } from "../../../../types/platform";
 import { PLATFORM_CONFIGS } from "../../../../config";
@@ -13,11 +15,10 @@ import { CommonBadge, CommonHintLine } from "../../../common";
 
 export const MessengerManagerCard: React.FC = () => {
   const { t } = useTranslation("dashboard");
-  const accounts = useMessengerStore((s) => s.accounts);
   const isMessengerConnected = useMessengerStore(selectIsMessengerConnected);
+  const connectedCount = useMessengerStore(selectConnectedAccountCount);
+  const totalAccounts = useMessengerStore(selectTotalAccountCount);
   const messengerConfig = PLATFORM_CONFIGS[PlatformId.MESSENGER];
-  const connectedCount = accounts.filter((a) => a.isConnected).length;
-  const totalAccounts = accounts.length;
 
   return (
     <div className="flex-1 min-w-0 bg-background-surface border border-border rounded-card shadow-card flex flex-col justify-between overflow-hidden">

@@ -150,7 +150,6 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
   setAccountUnreadCount: (accountIndex, count) => {
     const current = get().accounts;
     const updated = current.map((a) => (a.index === accountIndex ? { ...a, unreadCount: count } : a));
-    accountStorageService.save(updated);
     set({ accounts: updated });
   },
 
@@ -158,7 +157,6 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
     const activeIndex = get().activeAccountIndex;
     const current = get().accounts;
     const updated = current.map((a) => (a.index === activeIndex ? { ...a, unreadCount: count } : a));
-    accountStorageService.save(updated);
     set({ accounts: updated });
   },
 
@@ -287,6 +285,12 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
 // --- Pure Selectors (Computed from SSOT, guaranteed consistency) ---
 export const selectIsMessengerConnected = (state: MessengerState): boolean =>
   state.accounts.some((a) => a.isConnected);
+
+export const selectConnectedAccountCount = (state: MessengerState): number =>
+  state.accounts.filter((a) => a.isConnected).length;
+
+export const selectTotalAccountCount = (state: MessengerState): number =>
+  state.accounts.length;
 
 let lastAccountsRef: MessengerAccount[] | null = null;
 let cachedConnectedAccounts: MessengerAccount[] = [];

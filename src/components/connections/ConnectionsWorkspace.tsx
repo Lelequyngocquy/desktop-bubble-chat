@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   useMessengerStore,
   selectIsMessengerConnected,
+  selectConnectedAccountCount,
 } from "../../platforms/messenger";
 import { TabHeader } from "../common/TabHeader";
 import { MessengerManagerCard, MessengerTroubleshoot } from "./components";
@@ -11,8 +12,7 @@ import { MessengerManagerCard, MessengerTroubleshoot } from "./components";
 export const ConnectionsWorkspace: React.FC = () => {
   const { t } = useTranslation("dashboard");
   const isMessengerConnected = useMessengerStore(selectIsMessengerConnected);
-  const accounts = useMessengerStore((s) => s.accounts);
-  const connectedCount = accounts.filter((a) => a.isConnected).length;
+  const connectedCount = useMessengerStore(selectConnectedAccountCount);
   return (
     <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden select-none">
       <TabHeader

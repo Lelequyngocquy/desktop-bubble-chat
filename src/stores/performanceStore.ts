@@ -17,7 +17,10 @@ interface PerformanceState {
   setPollingIntervalMs: (ms: number) => void;
 }
 
-let pollingTimer: ReturnType<typeof setInterval> | null = null;
+let pollingTimer: ReturnType<typeof setTimeout> | null = null;
+let isPollingActive = false;
+let isFetchingSnapshot = false;
+let pollingGeneration = 0;
 
 export const usePerformanceStore = create<PerformanceState>((set, get) => ({
   snapshot: null,
@@ -27,8 +30,9 @@ export const usePerformanceStore = create<PerformanceState>((set, get) => ({
   error: null,
   isPolling: false,
   pollingIntervalMs: 1500,
-
   fetchSnapshot: async () => {
+    if (isFetchingSnapshot) return;
+    isFetchingSnapshot = true;
     try {
       if (!get().snapshot) {
         set({ isLoading: true });
@@ -42,29 +46,31 @@ export const usePerformanceStore = create<PerformanceState>((set, get) => ({
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       set({ error: msg, isLoading: false });
+    } finally {
+      isFetchingSnapshot = false;
     }
   },
-
   startPolling: () => {
-    if (pollingTimer !== null) {
-      return;
-    }
+    if (isPollingActive) return;
+    isPollingActive = true;
+    const gen = ++pollingGeneration;
     set({ isPolling: true });
-    get().fetchSnapshot();
-    const interval = get().pollingIntervalMs;
-    pollingTimer = setInterval(() => {
-      get().fetchSnapshot();
-    }, interval);
+    const runLoop = async () => {
+      await get().fetchSnapshot();
+      if (!isPollingActive || pollingGeneration !== gen) return;
+      pollingTimer = setTimeout(runLoop, get().pollingIntervalMs);
+    };
+    runLoop();
   },
-
   stopPolling: () => {
+    isPollingActive = false;
+    pollingGeneration++;
     if (pollingTimer !== null) {
-      clearInterval(pollingTimer);
+      clearTimeout(pollingTimer);
       pollingTimer = null;
     }
     set({ isPolling: false });
   },
-
   trimMemory: async () => {
     try {
       set({ isTrimming: true });
@@ -78,14 +84,11 @@ export const usePerformanceStore = create<PerformanceState>((set, get) => ({
       return 0;
     }
   },
-
   setPollingIntervalMs: (ms: number) => {
     set({ pollingIntervalMs: ms });
-    if (get().isPolling) {
+    if (isPollingActive) {
       get().stopPolling();
       get().startPolling();
     }
   },
 }));
-
-export { usePerformanceAutoPoll } from "../hooks/usePerformanceAutoPoll";

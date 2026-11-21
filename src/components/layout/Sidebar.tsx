@@ -14,7 +14,7 @@ import {
 import { useNavigationStore } from "../../stores/navigationStore";
 import {
   useMessengerStore,
-  selectConnectedAccounts,
+  selectConnectedAccountCount,
 } from "../../platforms/messenger";
 import { useConversationStore } from "../../stores/conversationStore";
 import { useSystemUserStore } from "../../stores/systemUserStore";
@@ -27,16 +27,18 @@ import { AvatarCircle } from "../common";
 export const Sidebar: React.FC = () => {
   const { t } = useTranslation(["common", "dashboard", "settings"]);
   const activeTab = useNavigationStore((s) => s.activeTab);
-  const setActiveTab = useNavigationStore((s) => s.setActiveTab);
-  const conversations = useConversationStore((s) => s.conversations);
-  const connectedAccounts = useMessengerStore(selectConnectedAccounts);
+  const setActiveTab = useNavigationStore.getState().setActiveTab;
+  const totalUnread = useConversationStore((s) =>
+    s.conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0),
+  );
+  const connectedAccountCount = useMessengerStore(selectConnectedAccountCount);
   const systemUser = useSystemUserStore((s) => s.systemUser);
   const systemUserInitials = useSystemUserStore((s) => s.systemUserInitials);
   const updateStatus = useUpdateStore((s) => s.status);
   const currentVersion = useUpdateStore((s) => s.currentVersion);
   const availableVersion = useUpdateStore((s) => s.availableVersion);
   const currentLanguage = useSettingsStore((s) => s.language);
-  const setLanguage = useSettingsStore((s) => s.setLanguage);
+  const setLanguage = useSettingsStore.getState().setLanguage;
   const hasUpdate =
     updateStatus === "available" ||
     updateStatus === "downloading" ||
@@ -61,14 +63,10 @@ export const Sidebar: React.FC = () => {
       Settings2: <Settings2 className="w-[18px] h-[18px]" />,
       HelpCircle: <HelpCircle className="w-[18px] h-[18px]" />,
     };
-  const totalUnread = conversations.reduce(
-    (acc, c) => acc + (c.unreadCount || 0),
-    0,
-  );
   const getBadgeForTab = (id: NavTab): number | string | undefined => {
     switch (id) {
       case "connections":
-        return connectedAccounts.length;
+        return connectedAccountCount;
       case "notifications":
         return totalUnread > 0 ? totalUnread : undefined;
       default:

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useConversationStore } from "../../stores/conversationStore";
 import { messengerService, useMessengerStore } from "../../platforms/messenger";
@@ -14,15 +14,14 @@ import { ClearNotificationsDialog } from "./dialogs";
 
 export const NotificationsWorkspace: React.FC = () => {
   const { t } = useTranslation("dashboard");
-  const accounts = useMessengerStore((s) => s.accounts);
   const conversations = useConversationStore((s) => s.conversations);
-  const setConversations = useConversationStore((s) => s.setConversations);
-  const markConversationRead = useConversationStore((s) => s.markConversationRead);
-  const removeConversation = useConversationStore((s) => s.removeConversation);
-  const togglePinConversation = useConversationStore((s) => s.togglePinConversation);
+  const { setConversations, markConversationRead, removeConversation, togglePinConversation } = useConversationStore.getState();
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
-  const totalUnread = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
-  const pinnedList = conversations.filter((c) => c.isPinned);
+  const totalUnread = useMemo(
+    () => conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0),
+    [conversations],
+  );
+  const pinnedList = useMemo(() => conversations.filter((c) => c.isPinned), [conversations]);
   const handleMarkAllRead = () => {
     const updated = conversations.map((c) => ({ ...c, unreadCount: 0 }));
     setConversations(updated);
@@ -33,7 +32,7 @@ export const NotificationsWorkspace: React.FC = () => {
   const handleOpenNotification = (item: Conversation) => {
     const accountIdx = item.accountIndex || 1;
     const accountId = `messenger-${accountIdx.toString().padStart(2, "0")}`;
-    const targetAccount = accounts.find((a) => a.id === accountId);
+    const targetAccount = useMessengerStore.getState().accounts.find((a) => a.id === accountId);
     if (!targetAccount || !targetAccount.isConnected) {
       removeConversation(item.id);
       return;

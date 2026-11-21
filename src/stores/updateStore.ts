@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { getVersion } from "@tauri-apps/api/app";
 import type { Update } from "@tauri-apps/plugin-updater";
 
 export type UpdateStatus =
@@ -172,13 +171,3 @@ export const useUpdateStore = create<UpdateState>()(
     },
   ),
 );
-
-if (typeof window !== "undefined") {
-  getVersion()
-    .then((ver) => {
-      if (ver) {
-        useUpdateStore.getState().setCurrentVersion(ver);
-      }
-    })
-    .catch(() => {});
-}

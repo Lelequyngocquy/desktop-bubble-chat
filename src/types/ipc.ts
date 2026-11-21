@@ -70,6 +70,9 @@ export const IPC_COMMANDS = {
   SET_CHAT_WINDOW_SIZE_CONFIG: "set_chat_window_size_config",
   TOGGLE_PIN_CHAT: "toggle_pin_chat",
   IS_CHAT_PINNED: "is_chat_pinned",
+
+  // Extension Commands
+  OPEN_PROFILE_EXTENSIONS_FOLDER: "open_profile_extensions_folder",
 } as const;
 
 export type IpcCommand = (typeof IPC_COMMANDS)[keyof typeof IPC_COMMANDS];

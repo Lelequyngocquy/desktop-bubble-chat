@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import { Trash2 } from "lucide-react";
 import { CommonDialog } from "../../common";
-import { useMessengerStore } from "../../../platforms/messenger";
+import { useMessengerStore, formatMessengerName } from "../../../platforms/messenger";
 
 interface ClearCacheDialogProps {
   isOpen: boolean;
@@ -18,7 +19,18 @@ export const ClearCacheDialog: React.FC<ClearCacheDialogProps> = ({
   onConfirm,
 }) => {
   const { t } = useTranslation(["settings", "common"]);
-  const accounts = useMessengerStore((s) => s.accounts);
+  const accountIndices = useMessengerStore(
+    useShallow((s) => s.accounts.map((a) => a.index)),
+  );
+  const accounts = useMemo(
+    () =>
+      accountIndices.map((index) => ({
+        id: `messenger-${index.toString().padStart(2, "0")}`,
+        index,
+        name: formatMessengerName(index),
+      })),
+    [accountIndices],
+  );
   const [selectedTarget, setSelectedTarget] = useState<"all" | number>("all");
   useEffect(() => {
     if (isOpen) {

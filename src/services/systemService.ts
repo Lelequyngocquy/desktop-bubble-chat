@@ -190,6 +190,28 @@ export const systemService = {
   },
 
   /**
+   * Updates application display language in persistent user cache.
+   */
+  async setAppLanguage(language: string): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.SET_APP_LANGUAGE, { language });
+    } catch (err) {
+      console.warn("[SystemService] Failed to set app language:", err);
+    }
+  },
+
+  /**
+   * Opens the unpacked browser extensions folder for a specific Messenger account profile.
+   */
+  async openProfileExtensionsFolder(accountIndex: number): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.OPEN_PROFILE_EXTENSIONS_FOLDER, { accountIndex });
+    } catch (err) {
+      console.warn(`[SystemService] Failed to open extensions folder for account ${accountIndex}:`, err);
+    }
+  },
+
+  /**
    * Updates auto-trim enabled configuration in persistent user cache.
    */
   async setAutoTrimEnabled(enabled: boolean): Promise<void> {

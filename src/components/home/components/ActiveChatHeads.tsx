@@ -16,21 +16,14 @@ import { ActiveChatHeadItem } from "./ActiveChatHeadItem";
 export const ActiveChatHeads: React.FC = () => {
   const { t } = useTranslation("dashboard");
   const conversations = useConversationStore((s) => s.conversations);
-  const removeConversation = useConversationStore((s) => s.removeConversation);
-  const togglePinConversation = useConversationStore(
-    (s) => s.togglePinConversation,
-  );
-  const markConversationRead = useConversationStore(
-    (s) => s.markConversationRead,
-  );
+  const { removeConversation, togglePinConversation, markConversationRead } = useConversationStore.getState();
   const isMessengerConnected = useMessengerStore(selectIsMessengerConnected);
-  const accounts = useMessengerStore((s) => s.accounts);
-  const setActiveTab = useNavigationStore((s) => s.setActiveTab);
+  const setActiveTab = useNavigationStore.getState().setActiveTab;
   const pinnedCount = conversations.filter((c) => c.isPinned).length;
   const handleOpenConversation = (item: Conversation) => {
     const accountIdx = item.accountIndex || 1;
     const accountId = `messenger-${accountIdx.toString().padStart(2, "0")}`;
-    const targetAccount = accounts.find((a) => a.id === accountId);
+    const targetAccount = useMessengerStore.getState().accounts.find((a) => a.id === accountId);
     if (!targetAccount || !targetAccount.isConnected) {
       removeConversation(item.id);
       return;

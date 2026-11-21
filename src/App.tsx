@@ -4,9 +4,8 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { HomeWorkspace } from "./components/home";
 import { BubbleSpawnIndicator } from "./components/common/BubbleSpawnIndicator";
 import { DashboardLoadingOverlay } from "./components/common/DashboardLoadingOverlay";
-import { useBubbleAutoRestore, useDashboardBootstrap, useAutoUpdaterLifecycle, useThemeSync } from "./hooks";
+import { useDashboardBootstrap, useAutoUpdaterLifecycle, useThemeSync } from "./hooks";
 import { useUnreadListener } from "./hooks/useUnreadListener";
-import { useSystemUser } from "./hooks/useSystemUser";
 import { useNavigationStore } from "./stores/navigationStore";
 
 const ConnectionsWorkspace = lazy(() => import("./components/connections").then((m) => ({ default: m.ConnectionsWorkspace })));
@@ -17,12 +16,10 @@ const HelpWorkspace = lazy(() => import("./components/help").then((m) => ({ defa
 
 export const App: React.FC = () => {
   const activeTab = useNavigationStore((s) => s.activeTab);
-  // Initialize listeners, bootstrap lifecycle, auto-restore background bubbles, and theme sync
+  // Initialize listeners, unified bootstrap lifecycle, and theme sync
   useDashboardBootstrap();
   useThemeSync();
   useUnreadListener();
-  useSystemUser();
-  useBubbleAutoRestore();
   useAutoUpdaterLifecycle();
   return (
     <div className="flex flex-col h-screen w-screen bg-background-app overflow-hidden text-content-primary select-none font-sans border border-border shadow-window">

@@ -11,19 +11,13 @@ import { MessengerAccount } from "../types";
  * orchestration and timer lifecycles to messengerAuthManager (SSOT).
  */
 export function useMessengerAccounts() {
-  const {
-    accounts,
-    activeAccountIndex,
-    setActiveAccountIndex,
-    addAccount: addAccountToStore,
-    removeAccount: removeAccountFromStore,
-    updateAccount,
-  } = useMessengerStore();
-
+  const accounts = useMessengerStore((s) => s.accounts);
+  const activeAccountIndex = useMessengerStore((s) => s.activeAccountIndex);
   const isConnected = useMessengerStore(selectIsMessengerConnected);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const isMountedRef = useRef(true);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const { setActiveAccountIndex, addAccount: addAccountToStore, removeAccount: removeAccountFromStore, updateAccount } = useMessengerStore.getState();
   useEffect(() => {
     isMountedRef.current = true;
     return () => {

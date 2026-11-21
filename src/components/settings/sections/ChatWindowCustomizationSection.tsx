@@ -1,17 +1,31 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import { Scaling, Info } from "lucide-react";
-import { Color } from "../../../constants/design";
+import { Color, getAccountThemeColor } from "../../../constants/design";
+import { formatMessengerAvatarText, formatMessengerName } from "../../../platforms/messenger/types";
 import { useMessengerStore } from "../../../platforms/messenger/stores/messengerStore";
 import { useSettingsStore, DEFAULT_CHAT_WIDTH, DEFAULT_CHAT_HEIGHT } from "../../../stores/settingsStore";
 import { CommonLargeCard, CommonBadge, CommonHintLine, AvatarCircle } from "../../common";
 
 export const ChatWindowCustomizationSection: React.FC = () => {
   const { t } = useTranslation(["settings"]);
-  const accounts = useMessengerStore((s) => s.accounts);
+  const connectedIndices = useMessengerStore(
+    useShallow((s) => s.accounts.filter((acc) => acc.isConnected).map((acc) => acc.index)),
+  );
+  const connectedAccounts = useMemo(
+    () =>
+      connectedIndices.map((index) => ({
+        id: `messenger-${index.toString().padStart(2, "0")}`,
+        index,
+        name: formatMessengerName(index),
+        avatarText: formatMessengerAvatarText(index),
+        color: getAccountThemeColor(index).hex,
+      })),
+    [connectedIndices],
+  );
   const chatWindowSettings = useSettingsStore((s) => s.chatWindowSettings);
-  const setChatWindowMode = useSettingsStore((s) => s.setChatWindowMode);
-  const connectedAccounts = accounts.filter((acc) => acc.isConnected);
+  const setChatWindowMode = useSettingsStore.getState().setChatWindowMode;
   return (
     <CommonLargeCard
       icon={<Scaling className="w-4 h-4 text-primary" />}

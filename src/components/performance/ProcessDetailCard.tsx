@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   Layers,
   Snowflake,
@@ -30,9 +30,9 @@ interface ProcessDetailCardProps {
   isLoading: boolean;
 }
 
-export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
+export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = React.memo(({
   snapshot,
-  isLoading: _isLoading,
+  isLoading,
 }) => {
   const { t } = useTranslation("performance");
   const [actingAccountIndices, setActingAccountIndices] = useState<Set<number>>(
@@ -60,28 +60,33 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
       return next;
     });
   };
-  const hostItems: ProcessMetricItem[] = [];
-  const dashboardItems: ProcessMetricItem[] = [];
-  const messengerItemsMap = new Map<number, ProcessMetricItem[]>();
-  const gpuUtilityItems: ProcessMetricItem[] = [];
-  if (snapshot?.items) {
-    for (const item of snapshot.items) {
-      if (item.category === "host") {
-        hostItems.push(item);
-      } else if (item.category === "dashboard") {
-        dashboardItems.push(item);
-      } else if (item.category === "messenger" && item.accountIndex) {
-        const list = messengerItemsMap.get(item.accountIndex) || [];
-        list.push(item);
-        messengerItemsMap.set(item.accountIndex, list);
-      } else {
-        gpuUtilityItems.push(item);
+  const { hostItems, dashboardItems, messengerAccounts, gpuUtilityItems } = useMemo(() => {
+    const host: ProcessMetricItem[] = [];
+    const dashboard: ProcessMetricItem[] = [];
+    const messengerMap = new Map<number, ProcessMetricItem[]>();
+    const gpuUtility: ProcessMetricItem[] = [];
+    if (snapshot?.items) {
+      for (const item of snapshot.items) {
+        if (item.category === "host") {
+          host.push(item);
+        } else if (item.category === "dashboard") {
+          dashboard.push(item);
+        } else if (item.category === "messenger" && item.accountIndex) {
+          const list = messengerMap.get(item.accountIndex) || [];
+          list.push(item);
+          messengerMap.set(item.accountIndex, list);
+        } else {
+          gpuUtility.push(item);
+        }
       }
     }
-  }
-  const messengerAccounts = Array.from(messengerItemsMap.entries()).sort(
-    ([a], [b]) => a - b,
-  );
+    return {
+      hostItems: host,
+      dashboardItems: dashboard,
+      messengerAccounts: Array.from(messengerMap.entries()).sort(([a], [b]) => a - b),
+      gpuUtilityItems: gpuUtility,
+    };
+  }, [snapshot]);
   const scheduleRefreshAndClear = (accountIndex: number, delayMs: number) => {
     const timer = setTimeout(() => {
       timersRef.current.delete(timer);
@@ -203,7 +208,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
           </div>
           {dashboardItems.length === 0 ? (
             <div className="p-3 bg-background-app/30 border border-border rounded-control text-caption text-content-muted">
-              {t("dashboard_hibernating")}
+              {!snapshot && isLoading ? t("refresh_running") : t("dashboard_hibernating")}
             </div>
           ) : (
             dashboardItems.map((item) => (
@@ -453,6 +458,6 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default ProcessDetailCard;
