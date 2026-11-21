@@ -5,6 +5,7 @@ import { useAppLifecycleStore } from "../stores/appLifecycleStore";
 import { useSystemUserStore } from "../stores/systemUserStore";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useMessengerStore } from "../platforms/messenger/stores/messengerStore";
+import { createMessengerAccount } from "../platforms/messenger/types";
 import { systemService } from "../services/systemService";
 import { messengerService } from "../platforms/messenger/services/messengerService";
 import { feLog } from "../services/loggerService";
@@ -87,6 +88,33 @@ export function useDashboardBootstrap() {
             } else {
               systemService.setUpdateMode(useSettingsStore.getState().updateMode);
             }
+            const globalShortcutEnabled = typeof userSettings.isGlobalShortcutEnabled === "boolean" ? userSettings.isGlobalShortcutEnabled : userSettings.is_global_shortcut_enabled;
+            if (typeof globalShortcutEnabled === "boolean") {
+              useSettingsStore.getState().setGlobalShortcutEnabled(globalShortcutEnabled, true);
+            }
+            const authAccountsRaw = userSettings.authenticatedAccounts || userSettings.authenticated_accounts;
+            const mutedAccountsRaw = userSettings.mutedAccounts || userSettings.muted_accounts;
+            if (Array.isArray(authAccountsRaw)) {
+              const store = useMessengerStore.getState();
+              const existingIndices = new Set(store.accounts.map((a) => a.index));
+              const extraAccounts = authAccountsRaw
+                .filter((idx): idx is number => typeof idx === "number" && Number.isInteger(idx) && idx >= 1 && idx <= 5 && !existingIndices.has(idx))
+                .map((idx) => createMessengerAccount(idx));
+              if (extraAccounts.length > 0) {
+                store.setAccounts([...store.accounts, ...extraAccounts].sort((a, b) => a.index - b.index));
+              }
+            }
+            if (Array.isArray(mutedAccountsRaw)) {
+              const mutedSet = new Set(mutedAccountsRaw);
+              const store = useMessengerStore.getState();
+              for (const acc of store.accounts) {
+                const shouldEnableSound = !mutedSet.has(acc.index);
+                if ((acc.soundEnabled ?? true) !== shouldEnableSound) {
+                  store.updateAccount(acc.id, { soundEnabled: shouldEnableSound });
+                }
+              }
+              useSettingsStore.getState().setNotificationsEnabled(mutedAccountsRaw.length < store.accounts.length);
+            }
           }
         } catch (err) {
           feLog.warn("[useDashboardBootstrap] Unable to sync user settings from cache:", err);
@@ -97,9 +125,11 @@ export function useDashboardBootstrap() {
           for (const acc of accounts) {
             try {
               const res = await messengerService.checkAuth(acc.index);
-              if (res && res.connected) {
+              if (res && typeof res.connected === "boolean") {
                 useMessengerStore.getState().updateAccount(acc.id, {
-                  isConnected: true,
+                  isConnected: res.connected,
+                  isAuthenticating: false,
+                  isBubbleVisible: res.connected ? acc.isBubbleVisible : false,
                 });
               }
             } catch {}

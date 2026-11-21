@@ -65,7 +65,7 @@ interface SettingsState {
   toggleNotifications: () => void;
   setAutoStart: (enabled: boolean) => void;
   toggleAutoStart: () => void;
-  setGlobalShortcutEnabled: (enabled: boolean) => void;
+  setGlobalShortcutEnabled: (enabled: boolean, skipIpc?: boolean) => void;
   toggleGlobalShortcut: () => void;
   setBubbleSize: (size: BubbleSize) => void;
   setBubblePositionMode: (mode: BubblePositionMode, skipIpc?: boolean) => void;
@@ -118,8 +118,19 @@ export const useSettingsStore = create<SettingsState>()(
       toggleNotifications: () => set((state) => ({ isNotificationsEnabled: !state.isNotificationsEnabled })),
       setAutoStart: (enabled) => set({ isAutoStart: enabled }),
       toggleAutoStart: () => set((state) => ({ isAutoStart: !state.isAutoStart })),
-      setGlobalShortcutEnabled: (enabled) => set({ isGlobalShortcutEnabled: enabled }),
-      toggleGlobalShortcut: () => set((state) => ({ isGlobalShortcutEnabled: !state.isGlobalShortcutEnabled })),
+      setGlobalShortcutEnabled: (enabled, skipIpc = false) => {
+        set({ isGlobalShortcutEnabled: enabled });
+        if (!skipIpc) {
+          invoke(IPC_COMMANDS.SET_GLOBAL_SHORTCUT_ENABLED, { enabled }).catch(() => {});
+        }
+      },
+      toggleGlobalShortcut: () => {
+        set((state) => {
+          const next = !state.isGlobalShortcutEnabled;
+          invoke(IPC_COMMANDS.SET_GLOBAL_SHORTCUT_ENABLED, { enabled: next }).catch(() => {});
+          return { isGlobalShortcutEnabled: next };
+        });
+      },
       setBubbleSize: (size) => set({ bubbleSize: size }),
       setBubblePositionMode: (mode, skipIpc = false) => {
         set({ bubblePositionMode: mode });
@@ -263,28 +274,70 @@ export const useSettingsStore = create<SettingsState>()(
   )
 );
 
+type PersistedSettingsPatch = Partial<
+  Pick<
+    SettingsState,
+    | "isAlwaysOnTop"
+    | "isNotificationsEnabled"
+    | "isAutoStart"
+    | "isGlobalShortcutEnabled"
+    | "bubbleSize"
+    | "bubblePositionMode"
+    | "language"
+    | "isAutoTrimEnabled"
+    | "themeMode"
+    | "closeWindowAction"
+    | "updateMode"
+    | "chatWindowSettings"
+  >
+>;
+
+function extractValidPersistedSettings(raw: unknown): PersistedSettingsPatch {
+  if (!raw || typeof raw !== "object") return {};
+  const src = raw as Record<string, unknown>;
+  const patch: PersistedSettingsPatch = {};
+  if (typeof src.isAlwaysOnTop === "boolean") patch.isAlwaysOnTop = src.isAlwaysOnTop;
+  if (typeof src.isNotificationsEnabled === "boolean") patch.isNotificationsEnabled = src.isNotificationsEnabled;
+  if (typeof src.isAutoStart === "boolean") patch.isAutoStart = src.isAutoStart;
+  if (typeof src.isGlobalShortcutEnabled === "boolean") patch.isGlobalShortcutEnabled = src.isGlobalShortcutEnabled;
+  if (typeof src.isAutoTrimEnabled === "boolean") patch.isAutoTrimEnabled = src.isAutoTrimEnabled;
+  if (src.bubbleSize === "sm" || src.bubbleSize === "md" || src.bubbleSize === "lg") patch.bubbleSize = src.bubbleSize;
+  if (src.bubblePositionMode === "auto_tuck" || src.bubblePositionMode === "free") patch.bubblePositionMode = src.bubblePositionMode;
+  if (src.language === "en" || src.language === "vi") patch.language = src.language;
+  if (src.themeMode === "light" || src.themeMode === "dark" || src.themeMode === "system") patch.themeMode = src.themeMode;
+  if (src.closeWindowAction === "ask" || src.closeWindowAction === "hide_to_tray" || src.closeWindowAction === "exit_app") patch.closeWindowAction = src.closeWindowAction;
+  if (src.updateMode === "auto" || src.updateMode === "manual") patch.updateMode = src.updateMode;
+  if (Array.isArray(src.chatWindowSettings)) {
+    patch.chatWindowSettings = src.chatWindowSettings.filter((item): item is ChatWindowSizeSetting => {
+      if (!item || typeof item !== "object") return false;
+      const entry = item as Partial<ChatWindowSizeSetting>;
+      return (
+        typeof entry.accountId === "string" &&
+        typeof entry.accountIndex === "number" &&
+        Number.isInteger(entry.accountIndex) &&
+        entry.accountIndex >= 1 &&
+        entry.accountIndex <= 5 &&
+        (entry.mode === "default" || entry.mode === "remember_custom")
+      );
+    });
+  }
+  return patch;
+}
+
 // Cross-window synchronization
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (event) => {
     if (event.key === "desktop_bubble_chat_settings" && event.newValue) {
       try {
         const parsed = JSON.parse(event.newValue);
-        if (parsed?.state) {
-          useSettingsStore.setState(parsed.state);
-          if (parsed.state.language) {
-            i18n.changeLanguage(parsed.state.language);
+        const validated = extractValidPersistedSettings(parsed?.state);
+        if (Object.keys(validated).length > 0) {
+          useSettingsStore.setState(validated);
+          if (validated.language) {
+            i18n.changeLanguage(validated.language);
           }
-          if (parsed.state.themeMode) {
-            applyThemeMode(parsed.state.themeMode);
-          }
-          if (parsed.state.bubblePositionMode) {
-            useSettingsStore.setState({ bubblePositionMode: parsed.state.bubblePositionMode });
-          }
-          if (parsed.state.updateMode) {
-            useSettingsStore.setState({ updateMode: parsed.state.updateMode });
-          }
-          if (parsed.state.chatWindowSettings) {
-            useSettingsStore.setState({ chatWindowSettings: parsed.state.chatWindowSettings });
+          if (validated.themeMode) {
+            applyThemeMode(validated.themeMode);
           }
         }
       } catch (err) {

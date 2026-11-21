@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Layers,
   Snowflake,
@@ -35,9 +35,31 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
   isLoading: _isLoading,
 }) => {
   const { t } = useTranslation("performance");
-  const [actingAccountIndex, setActingAccountIndex] = useState<number | null>(
-    null,
+  const [actingAccountIndices, setActingAccountIndices] = useState<Set<number>>(
+    () => new Set(),
   );
+  const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      timersRef.current.forEach((timer) => clearTimeout(timer));
+      timersRef.current.clear();
+    };
+  }, []);
+  const setAccountActing = (accountIndex: number, acting: boolean) => {
+    if (!isMountedRef.current) return;
+    setActingAccountIndices((prev) => {
+      const next = new Set(prev);
+      if (acting) {
+        next.add(accountIndex);
+      } else {
+        next.delete(accountIndex);
+      }
+      return next;
+    });
+  };
   const hostItems: ProcessMetricItem[] = [];
   const dashboardItems: ProcessMetricItem[] = [];
   const messengerItemsMap = new Map<number, ProcessMetricItem[]>();
@@ -60,30 +82,35 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
   const messengerAccounts = Array.from(messengerItemsMap.entries()).sort(
     ([a], [b]) => a - b,
   );
+  const scheduleRefreshAndClear = (accountIndex: number, delayMs: number) => {
+    const timer = setTimeout(() => {
+      timersRef.current.delete(timer);
+      if (!isMountedRef.current) return;
+      usePerformanceStore.getState().fetchSnapshot();
+      setAccountActing(accountIndex, false);
+    }, delayMs);
+    timersRef.current.add(timer);
+  };
   const handleFreezeAccount = async (accountIndex: number) => {
     try {
-      setActingAccountIndex(accountIndex);
+      setAccountActing(accountIndex, true);
       await messengerService.toggleBubble(false, accountIndex);
-      setTimeout(() => {
-        usePerformanceStore.getState().fetchSnapshot();
-        setActingAccountIndex(null);
-      }, 500);
+      if (!isMountedRef.current) return;
+      scheduleRefreshAndClear(accountIndex, 500);
     } catch (err) {
       console.error("[ProcessDetailCard] Error freezing account:", err);
-      setActingAccountIndex(null);
+      setAccountActing(accountIndex, false);
     }
   };
   const handleWakeAccount = async (accountIndex: number) => {
     try {
-      setActingAccountIndex(accountIndex);
+      setAccountActing(accountIndex, true);
       await messengerService.openChat(accountIndex);
-      setTimeout(() => {
-        usePerformanceStore.getState().fetchSnapshot();
-        setActingAccountIndex(null);
-      }, 800);
+      if (!isMountedRef.current) return;
+      scheduleRefreshAndClear(accountIndex, 800);
     } catch (err) {
       console.error("[ProcessDetailCard] Error waking account:", err);
-      setActingAccountIndex(null);
+      setAccountActing(accountIndex, false);
     }
   };
 
@@ -248,7 +275,7 @@ export const ProcessDetailCard: React.FC<ProcessDetailCardProps> = ({
               const displayName =
                 procList[0]?.accountName ||
                 `Messenger ${accountIndex.toString().padStart(2, "0")}`;
-              const isActing = actingAccountIndex === accountIndex;
+              const isActing = actingAccountIndices.has(accountIndex);
 
               return (
                 <div

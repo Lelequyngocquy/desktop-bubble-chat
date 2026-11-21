@@ -117,6 +117,34 @@ pub fn set_update_mode(
     Ok(())
 }
 
+/// Applies global shortcut registration state for bubble toggle hotkeys
+pub fn apply_global_shortcut_registration(app: &AppHandle, enabled: bool) {
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+    for sc in ["Ctrl+Shift+M", "CommandOrControl+Shift+M"] {
+        if let Ok(shortcut) = sc.parse::<Shortcut>() {
+            if enabled {
+                let _ = app.global_shortcut().register(shortcut);
+            } else {
+                let _ = app.global_shortcut().unregister(shortcut);
+            }
+        }
+    }
+}
+
+/// Enables or disables global bubble toggle shortcuts and persists the setting
+#[tauri::command]
+pub fn set_global_shortcut_enabled(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<crate::state::ChatState>>,
+    enabled: bool,
+) -> Result<(), String> {
+    state.update_user_config(&app, |c| {
+        c.is_global_shortcut_enabled = enabled;
+    });
+    apply_global_shortcut_registration(&app, enabled);
+    Ok(())
+}
+
 /// Exits application completely
 #[tauri::command]
 pub fn exit_app(app: AppHandle) {

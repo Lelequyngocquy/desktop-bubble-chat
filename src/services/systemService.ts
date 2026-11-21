@@ -143,6 +143,10 @@ export const systemService = {
     bubblePositionMode?: "auto_tuck" | "free";
     update_mode?: "auto" | "manual";
     updateMode?: "auto" | "manual";
+    authenticated_accounts?: number[];
+    authenticatedAccounts?: number[];
+    is_global_shortcut_enabled?: boolean;
+    isGlobalShortcutEnabled?: boolean;
   } | null> {
     try {
       return await invoke(IPC_COMMANDS.GET_USER_SETTINGS);
@@ -160,6 +164,17 @@ export const systemService = {
       await invoke(IPC_COMMANDS.SET_UPDATE_MODE, { mode });
     } catch (err) {
       console.warn("[SystemService] Failed to set update mode:", err);
+    }
+  },
+
+  /**
+   * Enables or disables global keyboard shortcuts in backend and cache.
+   */
+  async setGlobalShortcutEnabled(enabled: boolean): Promise<void> {
+    try {
+      await invoke(IPC_COMMANDS.SET_GLOBAL_SHORTCUT_ENABLED, { enabled });
+    } catch (err) {
+      console.warn("[SystemService] Failed to set global shortcut enabled:", err);
     }
   },
 

@@ -72,8 +72,11 @@
     "clear_btn": "Clear Cache Data",
     "clearing": "Clearing...",
     "cleared": "Cache cleared successfully!",
+    "clear_failed": "Failed to clear cache for one or more accounts. Please try again.",
+    "target_label": "Select account(s) to clear",
+    "all_accounts": "All Accounts ({{count}})",
     "dialog_title": "Confirm Clear Cache",
-    "dialog_desc": "This will clear cookies and temporary files for account 1. You may need to log in again.",
+    "dialog_desc": "This will clear cookies, local storage, and temporary profile files for the selected account(s). You will need to log in again.",
     "warning": "Note: You might be prompted for 2FA after clearing session data."
   },
   "update": {

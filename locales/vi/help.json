@@ -32,7 +32,7 @@
   "feedback_title": "Gửi phản hồi cho nhà phát triển",
   "feedback_desc": "Bạn gặp sự cố hiển thị hoặc có ý kiến đóng góp? Hãy gửi tin nhắn cho chúng tôi:",
   "feedback_placeholder": "Nhập nội dung phản hồi hoặc ý kiến đóng góp của bạn...",
-  "feedback_thanks": "Cảm ơn bạn! Phản hồi đã được ghi nhận. (Nháp, hãy tạo issue mới trên repo github để phản ánh lỗi ạ hjhj)",
+  "feedback_thanks": "Đã mở trang tạo phản hồi trên GitHub trong trình duyệt. Cảm ơn bạn đã đóng góp ý kiến cho DesktopBubbleChat!",
   "app_version": "Phiên bản ứng dụng: v{{version}} · DesktopBubbleChat - Liên hệ: lengocquytdts@gmail.com",
   "send_btn": "Gửi phản hồi",
   "ext_title": "Tiện ích mở rộng (Extensions)",

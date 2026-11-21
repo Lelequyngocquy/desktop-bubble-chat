@@ -72,8 +72,11 @@
     "clear_btn": "Xóa dữ liệu bộ đệm",
     "clearing": "Đang dọn dẹp...",
     "cleared": "Đã dọn dẹp thành công!",
+    "clear_failed": "Không thể xóa bộ đệm của một số tài khoản. Vui lòng thử lại.",
+    "target_label": "Chọn tài khoản cần xóa",
+    "all_accounts": "Tất cả tài khoản ({{count}})",
     "dialog_title": "Xác nhận xóa bộ đệm",
-    "dialog_desc": "Thao tác này sẽ xóa cookie và file tạm của tài khoản 1. Bạn có thể cần đăng nhập lại.",
+    "dialog_desc": "Thao tác này sẽ xóa cookie, bộ đệm web và dữ liệu phiên của tài khoản đã chọn. Bạn sẽ cần đăng nhập lại.",
     "warning": "Lưu ý: Bạn có thể cần xác thực lại 2FA sau khi xóa session."
   },
   "update": {

@@ -32,7 +32,7 @@
   "feedback_title": "Send Feedback to Developers",
   "feedback_desc": "Encountered a display glitch or have feedback? Send us a note:",
   "feedback_placeholder": "Enter your feedback, suggestions or bug report...",
-  "feedback_thanks": "Thank you! Your feedback has been recorded. (draft, please create a new issue on the GitHub repo to report bugs hjhj)",
+  "feedback_thanks": "Opened GitHub Issues in your browser. Thank you for helping improve DesktopBubbleChat!",
   "app_version": "App version: v{{version}} · DesktopBubbleChat - Contact: lengocquytdts@gmail.com",
   "send_btn": "Send Feedback",
   "ext_title": "Browser Extensions",

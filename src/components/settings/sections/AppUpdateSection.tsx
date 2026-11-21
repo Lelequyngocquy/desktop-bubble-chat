@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   ArrowDownCircle,
   CheckCircle2,
@@ -15,15 +15,7 @@ import { useTranslation } from "react-i18next";
 import { CommonDialog, CommonLargeCard, SwitchButton } from "../../common";
 import { formatBytes, useAutoUpdater } from "../../../hooks/useAutoUpdater";
 import { systemService } from "../../../services/systemService";
-
-interface GitHubReleaseItem {
-  tag: string;
-  name: string;
-  publishedAt: string;
-  htmlUrl: string;
-  body: string;
-  isPrerelease?: boolean;
-}
+import { releaseService, type GitHubReleaseItem } from "../../../services/releaseService";
 
 export const AppUpdateSection: React.FC = () => {
   const { t, i18n } = useTranslation(["settings", "common"]);
@@ -32,7 +24,6 @@ export const AppUpdateSection: React.FC = () => {
     currentVersion,
     availableVersion,
     releaseDate,
-    releaseNotes,
     downloadedBytes,
     totalBytes,
     progressPercent,
@@ -54,96 +45,49 @@ export const AppUpdateSection: React.FC = () => {
   const isUpToDate = status === "up-to-date";
   const isError = status === "error";
   const hasUpdate = isAvailable || isDownloading || isDownloaded || isInstalling;
-  const [releases, setReleases] = useState<GitHubReleaseItem[]>([]);
-  const [expandedTag, setExpandedTag] = useState<string | null>(null);
+  const [releases, setReleases] = useState<GitHubReleaseItem[]>(() => releaseService.getCachedReleases() || []);
+  const [expandedTag, setExpandedTag] = useState<string | null>(() => {
+    const cached = releaseService.getCachedReleases();
+    return cached && cached.length > 0 ? cached[0].tag : null;
+  });
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
   const [notesError, setNotesError] = useState<string | null>(null);
   const [isConfirmInstallOpen, setIsConfirmInstallOpen] = useState(false);
-  const fetchAllGitHubReleases = useCallback(async () => {
+  const activeAbortRef = useRef<AbortController | null>(null);
+  const loadReleases = useCallback(async (forceRefresh: boolean = false) => {
+    activeAbortRef.current?.abort();
+    const controller = new AbortController();
+    activeAbortRef.current = controller;
     setIsLoadingNotes(true);
     setNotesError(null);
     try {
-      const res = await fetch(
-        "https://api.github.com/repos/Lelequyngocquy/desktop-bubble-chat/releases?per_page=50",
-        {
-          headers: {
-            Accept: "application/vnd.github.v3+json",
-          },
-        },
-      );
-      if (!res.ok) {
-        throw new Error(`GitHub API returned status ${res.status}`);
-      }
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        const parsed: GitHubReleaseItem[] = data
-          .filter((item) => !item.draft)
-          .map((item) => ({
-            tag: item.tag_name || "",
-            name: item.name || item.tag_name || "",
-            publishedAt: item.published_at || "",
-            htmlUrl:
-              item.html_url ||
-              "https://github.com/Lelequyngocquy/desktop-bubble-chat/releases",
-            body: (item.body || "").trim(),
-            isPrerelease: !!item.prerelease,
-          }));
-        setReleases(parsed);
-        if (parsed.length > 0) {
-          setExpandedTag((prev) =>
-            prev && parsed.some((r) => r.tag === prev) ? prev : parsed[0].tag,
-          );
-        }
+      const list = await releaseService.fetchAllReleases({
+        forceRefresh,
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      setReleases(list);
+      if (list.length > 0) {
+        setExpandedTag((prev) =>
+          prev && list.some((r) => r.tag === prev) ? prev : list[0].tag,
+        );
       }
     } catch (err) {
-      console.warn(
-        "[AppUpdateSection] Failed to fetch release notes from GitHub API:",
-        err,
-      );
-      try {
-        const resLatest = await fetch(
-          "https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/latest/download/latest.json",
-        );
-        if (resLatest.ok) {
-          const latestData = await resLatest.json();
-          const fallbackList: GitHubReleaseItem[] = [
-            {
-              tag: `v${latestData.version}`,
-              name: `DesktopBubbleChat v${latestData.version}`,
-              publishedAt: latestData.pub_date || "",
-              htmlUrl:
-                "https://github.com/Lelequyngocquy/desktop-bubble-chat/releases/latest",
-              body: (latestData.notes || "").trim(),
-            },
-          ];
-          setReleases(fallbackList);
-          setExpandedTag(fallbackList[0].tag);
-          return;
-        }
-      } catch {}
-      if (releaseNotes) {
-        const fallbackList: GitHubReleaseItem[] = [
-          {
-            tag: availableVersion ? `v${availableVersion}` : `v${currentVersion}`,
-            name: availableVersion ? `v${availableVersion}` : `v${currentVersion}`,
-            publishedAt: releaseDate || "",
-            htmlUrl:
-              "https://github.com/Lelequyngocquy/desktop-bubble-chat/releases",
-            body: releaseNotes.trim(),
-          },
-        ];
-        setReleases(fallbackList);
-        setExpandedTag(fallbackList[0].tag);
-      } else {
-        setNotesError(t("update.notes_error"));
-      }
+      if (controller.signal.aborted) return;
+      console.warn("[AppUpdateSection] Release history load failed:", err);
+      setNotesError(t("update.notes_error"));
     } finally {
-      setIsLoadingNotes(false);
+      if (!controller.signal.aborted) {
+        setIsLoadingNotes(false);
+      }
     }
-  }, [availableVersion, currentVersion, releaseDate, releaseNotes, t]);
+  }, [t]);
   useEffect(() => {
-    fetchAllGitHubReleases();
-  }, [fetchAllGitHubReleases]);
+    loadReleases(false);
+    return () => {
+      activeAbortRef.current?.abort();
+    };
+  }, []);
   const handleToggleRelease = (tag: string) => {
     setExpandedTag((prev) => (prev === tag ? null : tag));
   };
@@ -154,14 +98,12 @@ export const AppUpdateSection: React.FC = () => {
   };
   const formatReleaseDate = (isoString?: string): string => {
     if (!isoString) return "";
-    try {
-      return new Date(isoString).toLocaleDateString(
-        i18n.language === "vi" ? "vi-VN" : "en-US",
-        { year: "numeric", month: "short", day: "numeric" },
-      );
-    } catch {
-      return isoString;
-    }
+    const parsed = new Date(isoString);
+    if (Number.isNaN(parsed.getTime())) return isoString;
+    return parsed.toLocaleDateString(
+      i18n.language === "vi" ? "vi-VN" : "en-US",
+      { year: "numeric", month: "short", day: "numeric" },
+    );
   };
   const getStatusText = (): string => {
     if (isChecking) return t("update.status_checking");
@@ -427,7 +369,8 @@ export const AppUpdateSection: React.FC = () => {
               )}
             </div>
             <button
-              onClick={fetchAllGitHubReleases}
+              type="button"
+              onClick={() => loadReleases(true)}
               disabled={isLoadingNotes}
               className="flex items-center gap-1.5 text-caption text-content-secondary hover:text-primary transition-colors cursor-pointer"
               title={t("update.refresh_notes_tooltip")}
@@ -451,7 +394,8 @@ export const AppUpdateSection: React.FC = () => {
             <div className="flex flex-col items-center justify-center gap-2 py-6 border border-border rounded-control bg-background-app/50 text-content-muted">
               <span className="text-small">{notesError}</span>
               <button
-                onClick={fetchAllGitHubReleases}
+                type="button"
+                onClick={() => loadReleases(true)}
                 className="text-xs text-primary underline hover:no-underline font-medium cursor-pointer"
               >
                 {t("update.retry")}

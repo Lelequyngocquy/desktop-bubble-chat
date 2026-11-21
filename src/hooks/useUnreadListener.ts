@@ -74,10 +74,11 @@ export const useUnreadListener = () => {
           messengerService
             .checkAuth(acc.index)
             .then((res) => {
-              if (!disposed && res && res.connected) {
+              if (!disposed && res && typeof res.connected === "boolean") {
                 useMessengerStore.getState().updateAccount(acc.id, {
-                  isConnected: true,
+                  isConnected: res.connected,
                   isAuthenticating: false,
+                  isBubbleVisible: res.connected ? acc.isBubbleVisible : false,
                   lastSynced: "",
                 });
               }
@@ -170,19 +171,20 @@ export const useUnreadListener = () => {
           }
         }))) return;
         if (!(await register<boolean | ChatVisibilityPayload>(IPC_EVENTS.CHAT_VISIBILITY_CHANGED, (payload) => {
+          const windowStore = useWindowStore.getState();
           if (typeof payload === "object" && payload !== null && "visible" in payload) {
-            const { accountIndex, visible } = payload;
-            if (visible) {
-              useWindowStore.getState().setOpenChatAccountIndex(accountIndex || 1);
-            } else {
-              useWindowStore.getState().setOpenChatAccountIndex(null);
+            const targetIdx = payload.accountIndex || 1;
+            if (payload.visible) {
+              windowStore.setOpenChatAccountIndex(targetIdx);
+            } else if (windowStore.openChatAccountIndex === targetIdx) {
+              windowStore.setOpenChatAccountIndex(null);
             }
           } else if (typeof payload === "boolean") {
+            const activeIdx = useMessengerStore.getState().activeAccountIndex;
             if (payload) {
-              const activeIdx = useMessengerStore.getState().activeAccountIndex;
-              useWindowStore.getState().setOpenChatAccountIndex(activeIdx);
-            } else {
-              useWindowStore.getState().setOpenChatAccountIndex(null);
+              windowStore.setOpenChatAccountIndex(activeIdx);
+            } else if (windowStore.openChatAccountIndex === activeIdx) {
+              windowStore.setOpenChatAccountIndex(null);
             }
           }
         }))) return;

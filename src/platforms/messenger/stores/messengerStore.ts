@@ -47,6 +47,7 @@ export interface MessengerState {
 const initialAccounts = accountStorageService.load();
 const initialPrimary = initialAccounts.find((a) => a.isConnected);
 const initialActiveIndex = initialPrimary ? initialPrimary.index : (initialAccounts[0]?.index || 1);
+const pulseTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
 export const useMessengerStore = create<MessengerState>((set, get) => ({
   accounts: initialAccounts,
@@ -94,6 +95,14 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
   removeAccount: (id) => {
     messengerAuthManager.cancelAuth(id);
     const current = get().accounts;
+    const removed = current.find((a) => a.id === id);
+    if (removed) {
+      const existingTimer = pulseTimers.get(removed.index);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        pulseTimers.delete(removed.index);
+      }
+    }
     const updated = current.filter((a) => a.id !== id);
     accountStorageService.save(updated);
     const primary = updated.find((a) => a.isConnected);
@@ -124,12 +133,15 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
 
   disconnectAllAccounts: () => {
     messengerAuthManager.cancelAll();
+    pulseTimers.forEach((timer) => clearTimeout(timer));
+    pulseTimers.clear();
     const current = get().accounts;
     const updated = current.map((a) => ({
       ...a,
       isConnected: false,
       isAuthenticating: false,
       isBubbleVisible: false,
+      hasNewMessagePulse: false,
     }));
     accountStorageService.save(updated);
     set({ accounts: updated });
@@ -201,21 +213,28 @@ export const useMessengerStore = create<MessengerState>((set, get) => ({
   },
 
   triggerAccountPulse: (accountIndex) => {
+    const existingTimer = pulseTimers.get(accountIndex);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
     const current = get().accounts;
-    const updated = current.map((a) =>
-      a.index === accountIndex ? { ...a, hasNewMessagePulse: true } : a
-    );
+    const updated = current.map((a) => (a.index === accountIndex ? { ...a, hasNewMessagePulse: true } : a));
     set({ accounts: updated });
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      pulseTimers.delete(accountIndex);
       get().clearAccountPulse(accountIndex);
     }, 4000);
+    pulseTimers.set(accountIndex, timer);
   },
 
   clearAccountPulse: (accountIndex) => {
+    const existingTimer = pulseTimers.get(accountIndex);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      pulseTimers.delete(accountIndex);
+    }
     const current = get().accounts;
-    const updated = current.map((a) =>
-      a.index === accountIndex ? { ...a, hasNewMessagePulse: false } : a
-    );
+    const updated = current.map((a) => (a.index === accountIndex ? { ...a, hasNewMessagePulse: false } : a));
     set({ accounts: updated });
   },
 

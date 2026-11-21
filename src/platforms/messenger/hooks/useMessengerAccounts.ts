@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useMessengerStore, selectIsMessengerConnected } from "../stores/messengerStore";
 import { useWindowStore } from "../../../stores/windowStore";
 import { messengerService, messengerAuthManager } from "../services";
@@ -22,6 +22,15 @@ export function useMessengerAccounts() {
 
   const isConnected = useMessengerStore(selectIsMessengerConnected);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const isMountedRef = useRef(true);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      clearTimeout(refreshTimerRef.current);
+    };
+  }, []);
 
   const handleOpenAccount = useCallback(
     async (account: MessengerAccount) => {
@@ -49,9 +58,9 @@ export function useMessengerAccounts() {
     (account: MessengerAccount) => {
       messengerAuthManager.cancelAuth(account.id);
       updateAccount(account.id, { isAuthenticating: false });
-      try {
-        messengerService.disconnect(account.index);
-      } catch {}
+      messengerService.disconnect(account.index).catch((err) => {
+        feLog.warn(`[useMessengerAccounts] Cancel auth disconnect error:`, err);
+      });
     },
     [updateAccount]
   );
@@ -63,16 +72,19 @@ export function useMessengerAccounts() {
       try {
         await messengerService.refresh(account.index);
         const res = await messengerService.checkAuth(account.index);
-        if (res && res.connected) {
+        if (isMountedRef.current && res) {
           updateAccount(account.id, {
-            isConnected: true,
-            lastSynced: "Just synced",
+            isConnected: Boolean(res.connected),
+            lastSynced: res.connected ? "Just synced" : "",
           });
         }
       } catch (err) {
         feLog.error(`[useMessengerAccounts] Refresh error for account ${account.index}:`, err);
       } finally {
-        setTimeout(() => setRefreshingId(null), 800);
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = setTimeout(() => {
+          if (isMountedRef.current) setRefreshingId(null);
+        }, 800);
       }
     },
     [updateAccount]

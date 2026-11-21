@@ -14,7 +14,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use state::ChatState;
 use tauri::Manager;
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+use tauri_plugin_global_shortcut::{Shortcut, ShortcutState};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -71,6 +71,13 @@ pub fn run() {
                             || "CommandOrControl+Shift+M".parse::<Shortcut>().map(|s| &s == shortcut).unwrap_or(false)
                             || "Super+Shift+M".parse::<Shortcut>().map(|s| &s == shortcut).unwrap_or(false);
                         if is_match {
+                            let is_enabled = app_handle
+                                .try_state::<Arc<ChatState>>()
+                                .map(|s| s.get_user_config().is_global_shortcut_enabled)
+                                .unwrap_or(true);
+                            if !is_enabled {
+                                return;
+                            }
                             let handle = app_handle.clone();
                             tauri::async_runtime::spawn(async move {
                                 commands::toggle_all_bubbles_impl(&handle, None, None).await;
@@ -128,6 +135,7 @@ pub fn run() {
             commands::set_auto_trim_enabled,
             commands::set_theme_mode,
             commands::set_update_mode,
+            commands::set_global_shortcut_enabled,
             commands::exit_app,
             commands::restart_app,
             commands::set_always_on_top,
@@ -209,10 +217,8 @@ pub fn run() {
             platforms::messenger::daemons::start_hover_and_autoclose_monitor(handle.clone(), Arc::clone(&chat_state_clone));
             utils::trim_controller::start_idle_trim_sweeper(handle.clone());
             utils::update_notifier::start_background_update_notifier(handle.clone());
-            for sc in ["Ctrl+Shift+M", "CommandOrControl+Shift+M"] {
-                if let Ok(shortcut) = sc.parse::<Shortcut>() {
-                    let _ = app.global_shortcut().register(shortcut);
-                }
+            if initial_config.is_global_shortcut_enabled {
+                commands::apply_global_shortcut_registration(&handle, true);
             }
             let _ = tray::update_tray_menu(&handle);
             Ok(())

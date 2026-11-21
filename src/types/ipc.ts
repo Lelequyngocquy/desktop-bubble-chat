@@ -26,6 +26,7 @@ export const IPC_COMMANDS = {
   SET_AUTO_TRIM_ENABLED: "set_auto_trim_enabled",
   SET_THEME_MODE: "set_theme_mode",
   SET_UPDATE_MODE: "set_update_mode",
+  SET_GLOBAL_SHORTCUT_ENABLED: "set_global_shortcut_enabled",
 
   // Performance Commands
   GET_PERFORMANCE_SNAPSHOT: "get_performance_snapshot",

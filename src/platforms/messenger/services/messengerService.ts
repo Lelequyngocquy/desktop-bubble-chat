@@ -159,7 +159,11 @@ export const messengerService = {
   async toggleAllBubbles(visible?: boolean, accountIndices: number[] = [1, 2, 3, 4, 5]): Promise<void> {
     try {
       await invoke(IPC_COMMANDS.TOGGLE_ALL_BUBBLES, { visible, accountIndices });
-    } catch {
+    } catch (err) {
+      if (typeof visible !== "boolean") {
+        console.warn("[MessengerService] toggle_all_bubbles failed without explicit visibility boolean:", err);
+        return;
+      }
       for (const idx of accountIndices) {
         await invoke(IPC_COMMANDS.TOGGLE_BUBBLE, { visible, accountIndex: idx });
         if (visible) {

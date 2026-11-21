@@ -26,6 +26,8 @@ pub struct AppUserConfig {
     pub authenticated_accounts: Vec<u32>,
     #[serde(default = "default_update_mode")]
     pub update_mode: Option<String>,
+    #[serde(default = "default_true", alias = "is_global_shortcut_enabled")]
+    pub is_global_shortcut_enabled: bool,
 }
 
 fn default_authenticated_accounts() -> Vec<u32> {
@@ -68,6 +70,7 @@ impl Default for AppUserConfig {
             bubble_position_mode: "auto_tuck".to_string(),
             authenticated_accounts: vec![1],
             update_mode: Some("auto".to_string()),
+            is_global_shortcut_enabled: true,
         }
     }
 }
@@ -145,9 +148,11 @@ mod tests {
             bubble_position_mode: "free".to_string(),
             authenticated_accounts: vec![1, 2],
             update_mode: Some("manual".to_string()),
+            is_global_shortcut_enabled: false,
         };
         let serialized = serde_json::to_string(&config).unwrap();
         let deserialized: AppUserConfig = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized.is_global_shortcut_enabled, false);
         assert_eq!(deserialized.is_dashboard_open, false);
         assert_eq!(deserialized.active_bubble_accounts, vec![1, 2]);
         assert_eq!(deserialized.authenticated_accounts, vec![1, 2]);
