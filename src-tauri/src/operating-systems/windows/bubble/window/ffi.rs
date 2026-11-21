@@ -130,8 +130,8 @@ pub fn is_fullscreen_geometry(style: u32, win_rect: RECT, mon_rect: RECT) -> boo
     }
     win_rect.left <= mon_rect.left
         && win_rect.top <= mon_rect.top
-        && win_rect.right >= mon_rect.right
-        && win_rect.bottom >= mon_rect.bottom
+        && win_rect.right >= mon_rect.right - 1
+        && win_rect.bottom >= mon_rect.bottom - 1
 }
 
 /// Checks if a given Win32 HWND is a true fullscreen application window (excluding Desktop/Shell)
@@ -226,6 +226,8 @@ mod tests {
         assert!(!is_fullscreen_geometry(WS_THICKFRAME, borderless_resizable, mon));
         let f11_chrome = RECT { left: 0, top: 0, right: 1920, bottom: 1080 };
         assert!(is_fullscreen_geometry(WS_POPUP, f11_chrome, mon));
+        let f11_chrome_inactive_drift = RECT { left: 0, top: 0, right: 1920, bottom: 1079 };
+        assert!(is_fullscreen_geometry(WS_POPUP, f11_chrome_inactive_drift, mon));
         let small_popup = RECT { left: 400, top: 300, right: 800, bottom: 600 };
         assert!(!is_fullscreen_geometry(WS_POPUP, small_popup, mon));
     }

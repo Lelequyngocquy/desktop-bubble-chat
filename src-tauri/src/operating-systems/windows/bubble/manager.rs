@@ -92,7 +92,10 @@ pub(super) fn reassert_topmost_for_bubbles(
     bubbles: &HashMap<u32, NativeBubbleWindow>,
     fg_hwnd: *mut std::ffi::c_void,
 ) {
-    if bubbles.is_empty() || unsafe { is_window_fullscreen(fg_hwnd) } {
+    if bubbles.is_empty()
+        || crate::operating_systems::windows::fullscreen_overlay::has_active_fullscreen_overlay_session()
+        || unsafe { is_window_fullscreen(fg_hwnd) }
+    {
         return;
     }
     for win in bubbles.values() {

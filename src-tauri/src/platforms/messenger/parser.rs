@@ -1,6 +1,6 @@
 /// Extracts unread count from Messenger window title prefix (e.g. "(3) Messenger", "(99+) Messenger")
 pub fn parse_unread_from_title(title: &str) -> u32 {
-    let clean_title = title.replace("[AUTH_OK]", "").replace("[AUTH_LOGIN]", "");
+    let clean_title = title.replace("[AUTH_OK]", "").replace("[AUTH_LOGIN]", "").replace("[PINNED]", "");
     let trimmed = clean_title.trim_start();
     if let Some(rest) = trimmed.strip_prefix('(')
         && let Some(end) = rest.find(')') {
@@ -24,7 +24,7 @@ pub fn parse_unread_from_title(title: &str) -> u32 {
 
 /// Extracts sender name from window title if present (e.g. "(1) Alice | Messenger")
 pub fn parse_sender_from_title(title: &str) -> Option<String> {
-    let clean_title = title.replace("[AUTH_OK]", "").replace("[AUTH_LOGIN]", "");
+    let clean_title = title.replace("[AUTH_OK]", "").replace("[AUTH_LOGIN]", "").replace("[PINNED]", "");
     if let (Some(start), Some(end)) = (clean_title.find('('), clean_title.find(')'))
         && start < end {
             let after = clean_title[end + 1..].trim();
@@ -78,6 +78,7 @@ mod tests {
     #[test]
     fn test_parse_unread_from_title_ignores_group_year_and_mid_parens() {
         assert_eq!(parse_unread_from_title("(3) Messenger"), 3);
+        assert_eq!(parse_unread_from_title("(3) Messenger [PINNED]"), 3);
         assert_eq!(parse_unread_from_title("(99+) Messenger"), 99);
         assert_eq!(parse_unread_from_title("(12) Alice | Messenger"), 12);
         assert_eq!(parse_unread_from_title("(2026) Team"), 0);

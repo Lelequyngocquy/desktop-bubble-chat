@@ -267,7 +267,6 @@ pub fn hide_window_with_fullscreen_cleanup(window: &tauri::WebviewWindow) {
             } else if saved_alive && (saved_still_fs || current_fg == hwnd) {
                 if !saved_still_fs {
                     println!("[FullscreenOverlay] Handoff with inactive-fs drift: saved_fg={:?} {}", saved_fg, describe_window_fullscreen_state(saved_fg));
-                    clear_hwnd_fullscreen_mark(hwnd);
                 }
                 handoff_foreground_then_hide(hwnd, saved_fg);
             } else {
@@ -292,6 +291,14 @@ pub fn hide_window_with_fullscreen_cleanup(window: &tauri::WebviewWindow) {
                 }
         });
     }
+}
+
+/// Checks whether any chat window is currently in an active fullscreen overlay session
+pub fn has_active_fullscreen_overlay_session() -> bool {
+    overlay_sessions()
+        .lock()
+        .map(|map| !map.is_empty())
+        .unwrap_or(false)
 }
 
 /// Clears tracked fullscreen overlay state before destroying a window
