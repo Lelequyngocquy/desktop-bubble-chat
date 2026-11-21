@@ -1,5 +1,7 @@
 pub const MESSENGER_INJECT_SCRIPT: &str = concat!(
     "(function () {\n",
+    "  if (window.__DBC_INJECTED__) return;\n",
+    "  window.__DBC_INJECTED__ = true;\n",
     "  const TARGET_MESSENGER_URL = \"https://www.messenger.com/\";\n\n",
     include_str!("scripts/modules/01_ipc_bridge.js"),
     "\n\n",

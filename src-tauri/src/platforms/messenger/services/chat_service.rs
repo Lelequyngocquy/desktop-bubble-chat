@@ -2,7 +2,6 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::movement::BubbleMovementEngine;
-use crate::platforms::messenger::constants::MESSENGER_INJECT_SCRIPT;
 use crate::platforms::messenger::windows::{
     get_messenger_window_label, get_or_create_messenger_window, hide_all_other_messenger_windows,
 };
@@ -141,11 +140,11 @@ impl ChatService {
                 }
             }
         }
+        state.next_chat_anim_token(idx);
         state.set_window_auth_mode(chat_window.label(), false);
         let _ = chat_window.set_decorations(false);
         let _ = chat_window.set_skip_taskbar(true);
         Self::dock_chat_window(app, &chat_window, idx);
-        let _ = chat_window.eval(MESSENGER_INJECT_SCRIPT);
         println!("[BE - Chat] Opened Messenger {:02} chat docked next to bubble", idx);
         crate::utils::trim_controller::cancel_auto_trim(idx);
         crate::utils::trim_controller::record_user_interaction(idx);
@@ -201,15 +200,31 @@ impl ChatService {
                 crate::operating_systems::windows::fullscreen_overlay::hide_window_with_fullscreen_cleanup(&chat_window);
                 #[cfg(not(target_os = "windows"))]
                 let _ = chat_window.hide();
+                let hide_token = app
+                    .try_state::<Arc<ChatState>>()
+                    .map(|cs| cs.next_chat_anim_token(idx))
+                    .unwrap_or(0);
                 let app_handle = app.clone();
                 std::thread::spawn(move || {
+                    let should_abort = || {
+                        app_handle.try_state::<Arc<ChatState>>().is_some_and(|cs| {
+                            cs.is_explicit_exit.load(std::sync::atomic::Ordering::SeqCst)
+                                || (hide_token != 0 && !cs.is_chat_anim_token_valid(idx, hide_token))
+                        })
+                    };
                     std::thread::sleep(std::time::Duration::from_millis(60));
+                    if should_abort() {
+                        return;
+                    }
                     let _ = app_handle.emit("chat-visibility-changed", serde_json::json!({
                         "accountIndex": idx,
                         "visible": false,
                         "windowLabel": label
                     }));
                     std::thread::sleep(std::time::Duration::from_millis(220));
+                    if should_abort() {
+                        return;
+                    }
                     if let Some(cw) = app_handle
                         .get_webview_window(&label)
                         .or_else(|| if idx == 1 { app_handle.get_webview_window("chat-messenger") } else { None })

@@ -12,13 +12,20 @@ pub fn get_profile_extensions(app: AppHandle, account_index: u32) -> Result<Vec<
 
 /// Loads and installs an unpacked extension folder into a Messenger profile
 #[tauri::command]
-pub fn load_profile_extension(app: AppHandle, account_index: u32, source_path: Option<String>) -> Result<ProfileExtension, String> {
+pub async fn load_profile_extension(app: AppHandle, account_index: u32, source_path: Option<String>) -> Result<ProfileExtension, String> {
     let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let path = match source_path {
         Some(ref p) if !p.trim().is_empty() => PathBuf::from(p.trim()),
-        _ => extensions::pick_folder_dialog().ok_or_else(|| "Folder selection cancelled".to_string())?,
+        _ => {
+            let picked = tokio::task::spawn_blocking(extensions::pick_folder_dialog)
+                .await
+                .map_err(|e| format!("Folder dialog task failed: {}", e))?;
+            picked.ok_or_else(|| "Folder selection cancelled".to_string())?
+        }
     };
-    extensions::install_unpacked_extension(&app_data, account_index, &path)
+    tokio::task::spawn_blocking(move || extensions::install_unpacked_extension(&app_data, account_index, &path))
+        .await
+        .map_err(|e| format!("Extension install task failed: {}", e))?
 }
 
 /// Toggles an extension between enabled and disabled states

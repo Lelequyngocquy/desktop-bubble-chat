@@ -43,9 +43,11 @@ pub struct ChatState {
     pub pinned_accounts: Mutex<HashSet<u32>>,
     pub chat_window_sizes: Mutex<HashMap<u32, (u32, u32)>>,
     pub user_config: Mutex<crate::utils::user_cache::AppUserConfig>,
+    pub user_cache_write_lock: Mutex<()>,
     pub has_shown_tray_notification: AtomicBool,
     pub active_dialog_windows: Mutex<HashSet<String>>,
     pub chat_anim_tokens: Mutex<HashMap<u32, u64>>,
+    pub session_clean_tokens: Mutex<HashMap<u32, u64>>,
 }
 
 impl Default for ChatState {
@@ -72,9 +74,11 @@ impl Default for ChatState {
             pinned_accounts: Mutex::new(HashSet::new()),
             chat_window_sizes: Mutex::new(HashMap::new()),
             user_config: Mutex::new(crate::utils::user_cache::AppUserConfig::default()),
+            user_cache_write_lock: Mutex::new(()),
             has_shown_tray_notification: AtomicBool::new(false),
             active_dialog_windows: Mutex::new(HashSet::new()),
             chat_anim_tokens: Mutex::new(HashMap::new()),
+            session_clean_tokens: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -361,10 +365,8 @@ impl ChatState {
     pub fn set_user_config(&self, app: &tauri::AppHandle, config: crate::utils::user_cache::AppUserConfig) {
         if let Ok(mut lock) = self.user_config.lock() {
             *lock = config.clone();
-            crate::utils::user_cache::save_user_cache(app, &config);
         }
-        use tauri::Emitter;
-        let _ = app.emit("user-settings-changed", config);
+        self.persist_and_emit_user_config(app);
     }
 
     /// Updates user config with closure and saves to disk
@@ -372,14 +374,22 @@ impl ChatState {
     where
         F: FnOnce(&mut crate::utils::user_cache::AppUserConfig),
     {
-        let updated_snapshot = if let Ok(mut lock) = self.user_config.lock() {
+        if let Ok(mut lock) = self.user_config.lock() {
             updater(&mut lock);
-            crate::utils::user_cache::save_user_cache(app, &lock);
+        }
+        self.persist_and_emit_user_config(app);
+    }
+
+    /// Serializes disk persistence and settings broadcast without holding user_config lock across I/O
+    fn persist_and_emit_user_config(&self, app: &tauri::AppHandle) {
+        let _write_guard = self.user_cache_write_lock.lock();
+        let snapshot = if let Ok(lock) = self.user_config.lock() {
             Some(lock.clone())
         } else {
             None
         };
-        if let Some(config) = updated_snapshot {
+        if let Some(config) = snapshot {
+            crate::utils::user_cache::save_user_cache(app, &config);
             use tauri::Emitter;
             let _ = app.emit("user-settings-changed", config);
         }
@@ -432,9 +442,9 @@ impl ChatState {
         self.has_shown_tray_notification.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok()
     }
 
-    /// Increments and returns the next chat animation token for debounce cancellation
-    pub fn next_chat_anim_token(&self, account_index: u32) -> u64 {
-        if let Ok(mut map) = self.chat_anim_tokens.lock() {
+    /// Increments and returns the next per-account token for monotonic cancellation checks
+    fn advance_token(map_lock: &Mutex<HashMap<u32, u64>>, account_index: u32) -> u64 {
+        if let Ok(mut map) = map_lock.lock() {
             let entry = map.entry(account_index).or_insert(0);
             *entry = entry.wrapping_add(1);
             *entry
@@ -443,13 +453,33 @@ impl ChatState {
         }
     }
 
-    /// Verifies if a specific chat animation token is still valid
-    pub fn is_chat_anim_token_valid(&self, account_index: u32, token: u64) -> bool {
-        if let Ok(map) = self.chat_anim_tokens.lock() {
+    /// Checks whether a per-account monotonic token is still current
+    fn is_token_valid(map_lock: &Mutex<HashMap<u32, u64>>, account_index: u32, token: u64) -> bool {
+        if let Ok(map) = map_lock.lock() {
             map.get(&account_index).copied().unwrap_or(0) == token
         } else {
             false
         }
+    }
+
+    /// Increments and returns the next chat animation token for debounce cancellation
+    pub fn next_chat_anim_token(&self, account_index: u32) -> u64 {
+        Self::advance_token(&self.chat_anim_tokens, account_index)
+    }
+
+    /// Verifies if a specific chat animation token is still valid
+    pub fn is_chat_anim_token_valid(&self, account_index: u32, token: u64) -> bool {
+        Self::is_token_valid(&self.chat_anim_tokens, account_index, token)
+    }
+
+    /// Increments and returns the next session clean token to cancel stale wipe tasks
+    pub fn next_session_clean_token(&self, account_index: u32) -> u64 {
+        Self::advance_token(&self.session_clean_tokens, account_index)
+    }
+
+    /// Verifies if a session clean token is still current
+    pub fn is_session_clean_token_valid(&self, account_index: u32, token: u64) -> bool {
+        Self::is_token_valid(&self.session_clean_tokens, account_index, token)
     }
 }
 
@@ -555,5 +585,35 @@ mod tests {
         assert!(!state.is_window_in_auth_mode("chat-messenger-01"));
         state.set_window_auth_mode("chat-messenger-02", false);
         assert!(!state.is_window_in_auth_mode("chat-messenger-02"));
+    }
+
+    #[test]
+    fn test_session_clean_token_lifecycle() {
+        let state = ChatState::default();
+        let tok1 = state.next_session_clean_token(1);
+        assert_eq!(tok1, 1);
+        assert!(state.is_session_clean_token_valid(1, tok1));
+        let tok2 = state.next_session_clean_token(1);
+        assert_eq!(tok2, 2);
+        assert!(!state.is_session_clean_token_valid(1, tok1));
+        assert!(state.is_session_clean_token_valid(1, tok2));
+    }
+
+    #[test]
+    fn test_atomic_save_user_cache_to_path() {
+        let temp_dir = std::env::temp_dir().join(format!("dbc_cache_test_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        let target_path = temp_dir.join("user_cache.json");
+        let mut cfg = crate::utils::user_cache::AppUserConfig::default();
+        cfg.locale = Some("en".into());
+        crate::utils::user_cache::save_user_cache_to_path(&target_path, &cfg).expect("initial save succeeds");
+        cfg.locale = Some("vi".into());
+        crate::utils::user_cache::save_user_cache_to_path(&target_path, &cfg).expect("atomic overwrite succeeds");
+        let raw = std::fs::read_to_string(&target_path).expect("target readable");
+        let parsed: crate::utils::user_cache::AppUserConfig = serde_json::from_str(&raw).expect("valid json");
+        assert_eq!(parsed.locale.as_deref(), Some("vi"));
+        let leftover_tmp = std::fs::read_dir(&temp_dir).expect("dir readable").filter_map(|e| e.ok()).any(|e| e.file_name().to_string_lossy().ends_with(".tmp"));
+        assert!(!leftover_tmp, "temp file should be renamed cleanly");
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }

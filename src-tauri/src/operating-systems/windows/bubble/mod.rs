@@ -101,6 +101,12 @@ pub fn set_native_bubble_size(account_index: u32, size: u32) {
     NativeBubbleManager::global().dispatch(NativeBubbleAction::SetSize { account_index, size });
 }
 
+/// Shuts down native bubble worker thread cleanly on application exit.
+#[cfg(target_os = "windows")]
+pub fn shutdown_native_bubbles() {
+    NativeBubbleManager::shutdown_if_initialized();
+}
+
 #[cfg(not(target_os = "windows"))]
 pub fn has_native_bubble(_account_index: u32) -> bool {
     false
@@ -131,3 +137,6 @@ pub fn reassert_native_bubble_topmost() {}
 
 #[cfg(not(target_os = "windows"))]
 pub fn set_native_bubble_size(_account_index: u32, _size: u32) {}
+
+#[cfg(not(target_os = "windows"))]
+pub fn shutdown_native_bubbles() {}

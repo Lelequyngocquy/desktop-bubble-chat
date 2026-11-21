@@ -168,7 +168,7 @@ pub fn exit_app(app: AppHandle) {
     for (_, window) in app.webview_windows() {
         let _ = window.destroy();
     }
-    std::process::exit(0);
+    app.exit(0);
 }
 
 /// Restarts application (used for updates or resets)

@@ -248,24 +248,16 @@ pub fn install_unpacked_extension(app_data_dir: &Path, account_index: u32, sourc
     })
 }
 
-/// Prompts user to select a folder on Windows via PowerShell FolderBrowserDialog
+/// Prompts user to select an unpacked extension folder cleanly using native OS dialog
 pub fn pick_folder_dialog() -> Option<PathBuf> {
-    #[cfg(target_os = "windows")]
-    {
-        use std::process::Command;
-        let script = "[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = 'Select unpacked extension folder'; if ($f.ShowDialog() -eq 'OK') { Write-Output $f.SelectedPath }";
-        let output = Command::new("powershell").args(["-NoProfile", "-Command", script]).output().ok()?;
-        if output.status.success() {
-            let res = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !res.is_empty() {
-                let p = PathBuf::from(res);
-                if p.exists() && p.is_dir() {
-                    return Some(p);
-                }
-            }
-        }
+    let picked = rfd::FileDialog::new()
+        .set_title("Select unpacked extension folder")
+        .pick_folder()?;
+    if picked.exists() && picked.is_dir() {
+        Some(picked)
+    } else {
+        None
     }
-    None
 }
 
 #[cfg(test)]

@@ -198,38 +198,48 @@ pub fn open_window_if_fullscreen(window: &tauri::WebviewWindow) -> bool {
     let Ok(raw_hwnd) = window.hwnd() else { return false; };
     let hwnd = raw_hwnd.0;
     let fg_hwnd = unsafe { GetForegroundWindow() };
-    let is_fg_fullscreen = unsafe { is_window_fullscreen(fg_hwnd) };
+    let is_fg_fullscreen = fg_hwnd != hwnd && unsafe { is_window_fullscreen(fg_hwnd) };
     if !is_fg_fullscreen {
         if let Ok(mut map) = overlay_sessions().lock() {
             map.remove(&(hwnd as isize));
         }
-        clear_hwnd_fullscreen_mark(hwnd);
+        let hwnd_val = hwnd as usize;
+        let _ = window.run_on_main_thread(move || {
+            clear_hwnd_fullscreen_mark(hwnd_val as *mut std::ffi::c_void);
+        });
         return false;
-    }
-    unsafe {
-        ShowWindow(hwnd, SW_SHOWNA);
-        SetWindowPos(
-            hwnd,
-            -1_isize as *mut std::ffi::c_void,
-            0,
-            0,
-            0,
-            0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW,
-        );
     }
     if let Ok(mut map) = overlay_sessions().lock() {
         map.insert(hwnd as isize, fg_hwnd as isize);
     }
-    let marked_ok = mark_hwnd_fullscreen_for_taskbar(hwnd, true);
-    if marked_ok
-        && let Ok(mut set) = marked_hwnds().lock() {
-            set.insert(hwnd as isize);
+    let hwnd_val = hwnd as usize;
+    let fg_val = fg_hwnd as usize;
+    let win_clone = window.clone();
+    let _ = window.run_on_main_thread(move || {
+        let hwnd_ptr = hwnd_val as *mut std::ffi::c_void;
+        let fg_ptr = fg_val as *mut std::ffi::c_void;
+        unsafe {
+            ShowWindow(hwnd_ptr, SW_SHOWNA);
+            SetWindowPos(
+                hwnd_ptr,
+                -1_isize as *mut std::ffi::c_void,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW,
+            );
         }
-    let _ = window.with_webview(|wv| unsafe {
-        let _ = wv.controller().SetIsVisible(true);
+        let marked_ok = mark_hwnd_fullscreen_for_taskbar(hwnd_ptr, true);
+        if marked_ok
+            && let Ok(mut set) = marked_hwnds().lock() {
+                set.insert(hwnd_ptr as isize);
+            }
+        let _ = win_clone.with_webview(|wv| unsafe {
+            let _ = wv.controller().SetIsVisible(true);
+        });
+        println!("[FullscreenOverlay] Opened overlay chat={:?} over fg={:?} taskbar_mark={}", hwnd_ptr, fg_ptr, marked_ok);
     });
-    println!("[FullscreenOverlay] Opened overlay chat={:?} over fg={:?} taskbar_mark={}", hwnd, fg_hwnd, marked_ok);
     true
 }
 
@@ -257,6 +267,7 @@ pub fn hide_window_with_fullscreen_cleanup(window: &tauri::WebviewWindow) {
             } else if saved_alive && (saved_still_fs || current_fg == hwnd) {
                 if !saved_still_fs {
                     println!("[FullscreenOverlay] Handoff with inactive-fs drift: saved_fg={:?} {}", saved_fg, describe_window_fullscreen_state(saved_fg));
+                    clear_hwnd_fullscreen_mark(hwnd);
                 }
                 handoff_foreground_then_hide(hwnd, saved_fg);
             } else {

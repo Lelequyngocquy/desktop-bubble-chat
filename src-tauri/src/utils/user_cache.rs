@@ -116,14 +116,36 @@ pub fn load_user_cache(app: &AppHandle) -> AppUserConfig {
 }
 
 // Saves user configuration to disk atomically
+static USER_CACHE_TMP_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Atomically persists user config to a specific file path via temp write and rename
+pub fn save_user_cache_to_path(path: &std::path::Path, config: &AppUserConfig) -> std::io::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let json = serde_json::to_string_pretty(config)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    let seq = USER_CACHE_TMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let tmp_name = format!("user_cache.json.{}.{}.tmp", std::process::id(), seq);
+    let tmp_path = path.with_file_name(tmp_name);
+    fs::write(&tmp_path, json)?;
+    if let Err(err) = fs::rename(&tmp_path, path) {
+        let _ = fs::remove_file(&tmp_path);
+        return Err(err);
+    }
+    Ok(())
+}
+
+/// Persists user configuration safely to cache file using atomic write-and-rename
 pub fn save_user_cache(app: &AppHandle, config: &AppUserConfig) {
     if let Some(path) = get_user_cache_path(app) {
-        if let Some(parent) = path.parent() {
-            let _ = fs::create_dir_all(parent);
-        }
-        if let Ok(json) = serde_json::to_string_pretty(config) {
-            let _ = fs::write(&path, json);
-            println!("\x1b[36m[UserCache] Saved user cache to disk: {:?}\x1b[0m", config);
+        match save_user_cache_to_path(&path, config) {
+            Ok(()) => {
+                println!("\x1b[36m[UserCache] Saved user cache to disk: {:?}\x1b[0m", config);
+            }
+            Err(err) => {
+                eprintln!("\x1b[31m[UserCache] Failed to save user cache to {:?}: {}\x1b[0m", path, err);
+            }
         }
     }
 }

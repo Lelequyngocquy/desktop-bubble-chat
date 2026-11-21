@@ -233,11 +233,12 @@ pub fn run() {
                     api.prevent_exit();
                 } else {
                     println!("[Tauri Lifecycle] User confirmed explicit app exit (Exit code: {:?})", code);
-                    std::process::exit(code.unwrap_or(0));
                 }
             }
             tauri::RunEvent::Exit => {
-                std::process::exit(0);
+                #[cfg(target_os = "windows")]
+                crate::operating_systems::current::bubble::shutdown_native_bubbles();
+                println!("[Tauri Lifecycle] Application event loop exited cleanly.");
             }
             #[cfg(target_os = "macos")]
             tauri::RunEvent::Reopen { .. } => {

@@ -1,3 +1,4 @@
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
@@ -16,7 +17,13 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
         let mut already_opened_for_hover = false;
         let mut outside_open_chat_start: Option<Instant> = None;
         loop {
+            if chat_state.is_explicit_exit.load(Ordering::SeqCst) {
+                break;
+            }
             std::thread::sleep(Duration::from_millis(30));
+            if chat_state.is_explicit_exit.load(Ordering::SeqCst) {
+                break;
+            }
             let lbutton_down = is_lbutton_down();
             let mut detected_hover_bubble: Option<u32> = None;
             if !lbutton_down {
@@ -42,8 +49,12 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                         && let Some(start) = hover_start {
                             let threshold_ms = if chat_state.is_chat_ready(hovered_idx) { 100 } else { 400 };
                             if start.elapsed() >= Duration::from_millis(threshold_ms) {
-                                let _ = ChatService::open_chat(&app, &chat_state, hovered_idx);
                                 already_opened_for_hover = true;
+                                let app_clone = app.clone();
+                                let state_clone = Arc::clone(&chat_state);
+                                tauri::async_runtime::spawn(async move {
+                                    let _ = ChatService::open_chat(&app_clone, &state_clone, hovered_idx);
+                                });
                             }
                         }
                 } else {
@@ -64,10 +75,9 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                 }
                 let label = get_messenger_window_label(idx);
                 if let Some(chat_win) = app.get_webview_window(&label)
-                    && chat_win.is_visible().unwrap_or(false) {
-                        if !chat_state.is_window_in_auth_mode(&label) {
-                            active_chat_info = Some((idx, chat_win));
-                        }
+                    && chat_win.is_visible().unwrap_or(false)
+                    && !chat_state.is_window_in_auth_mode(&label) {
+                        active_chat_info = Some((idx, chat_win));
                         break;
                     }
             }
@@ -90,8 +100,11 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                             Some(start_time) => {
                                 if start_time.elapsed() >= Duration::from_millis(300) {
                                     if !chat_state.is_chat_pinned(active_idx) && !is_dialog_open {
-                                        let _ = ChatService::hide_chat(&app, active_idx);
-                                        crate::operating_systems::current::bubble::tuck_native_bubble(&app, active_idx);
+                                        let app_clone = app.clone();
+                                        tauri::async_runtime::spawn(async move {
+                                            let _ = ChatService::hide_chat(&app_clone, active_idx);
+                                            crate::operating_systems::current::bubble::tuck_native_bubble(&app_clone, active_idx);
+                                        });
                                     }
                                     outside_open_chat_start = None;
                                 }

@@ -1,3 +1,4 @@
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
@@ -14,7 +15,15 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
         let mut logged_in_map: std::collections::HashMap<u32, bool> = std::collections::HashMap::new();
         let mut unread_map: std::collections::HashMap<u32, u32> = std::collections::HashMap::new();
         loop {
-            std::thread::sleep(Duration::from_millis(2000));
+            for _ in 0..8 {
+                if chat_state.is_explicit_exit.load(Ordering::SeqCst) {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(250));
+            }
+            if chat_state.is_explicit_exit.load(Ordering::SeqCst) {
+                break;
+            }
             for idx in 1..=5 {
                 if chat_state.is_account_suspended(idx) {
                     logged_in_map.insert(idx, false);

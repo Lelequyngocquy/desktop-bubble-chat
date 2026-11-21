@@ -173,6 +173,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                 if let Some(state) = unsafe { state_ptr.as_mut() }
                     && state.is_dragging {
                         state.is_dragging = false;
+                        state.is_hovered = false;
                         if state.has_dragged {
                             Some(true)
                         } else {
@@ -194,6 +195,9 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                 if let Some(state) = unsafe { state_ptr.as_mut() }
                     && state.is_dragging {
                         state.is_dragging = false;
+                        if state.has_dragged {
+                            state.is_hovered = false;
+                        }
                         Some((state.has_dragged, state.account_index, state.app_handle.clone()))
                     } else {
                         None
@@ -311,9 +315,15 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                     let mut state = Box::from_raw(ptr);
                     if !state.hdc_mem.is_null() {
                         SelectObject(state.hdc_mem, state.old_bitmap);
-                        DeleteObject(state.hbitmap);
+                        if !state.hbitmap.is_null() {
+                            DeleteObject(state.hbitmap);
+                            state.hbitmap = std::ptr::null_mut();
+                        }
                         DeleteDC(state.hdc_mem);
                         state.hdc_mem = std::ptr::null_mut();
+                    } else if !state.hbitmap.is_null() {
+                        DeleteObject(state.hbitmap);
+                        state.hbitmap = std::ptr::null_mut();
                     }
                 }
             }
