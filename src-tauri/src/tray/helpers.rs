@@ -17,6 +17,14 @@ pub fn get_available_account_indices(app_handle: &AppHandle) -> Vec<u32> {
 
 /// Checks if a bubble (Native or Webview) is currently visible
 pub fn is_bubble_visible(app_handle: &AppHandle, account_index: u32) -> bool {
+    if let Some(chat_state) = app_handle.try_state::<Arc<crate::state::ChatState>>() {
+        if chat_state.is_account_suspended(account_index) {
+            return false;
+        }
+        if chat_state.get_bubble_rect(account_index).is_some() {
+            return true;
+        }
+    }
     if crate::operating_systems::current::bubble::has_native_bubble(account_index) {
         return true;
     }

@@ -53,6 +53,7 @@ export function applyBackendUserSettings(
     settingsStore.setGlobalShortcutEnabled(globalShortcutEnabled, true);
   }
   const authAccountsRaw = userSettings.authenticatedAccounts ?? userSettings.authenticated_accounts;
+  const activeBubblesRaw = userSettings.activeBubbleAccounts ?? userSettings.active_bubble_accounts;
   const mutedAccountsRaw = userSettings.mutedAccounts ?? userSettings.muted_accounts;
   if (Array.isArray(authAccountsRaw)) {
     const store = useMessengerStore.getState();
@@ -62,6 +63,16 @@ export function applyBackendUserSettings(
       .map((idx) => createMessengerAccount(idx));
     if (extraAccounts.length > 0) {
       store.setAccounts([...store.accounts, ...extraAccounts].sort((a, b) => a.index - b.index));
+    }
+  }
+  if (Array.isArray(activeBubblesRaw)) {
+    const activeSet = new Set(activeBubblesRaw);
+    const store = useMessengerStore.getState();
+    for (const acc of store.accounts) {
+      const shouldBeVisible = activeSet.has(acc.index);
+      if (acc.isBubbleVisible !== shouldBeVisible) {
+        store.setAccountBubbleVisibility(acc.index, shouldBeVisible);
+      }
     }
   }
   if (Array.isArray(mutedAccountsRaw)) {

@@ -77,7 +77,7 @@ export function useDashboardBootstrap() {
                   useMessengerStore.getState().updateAccount(acc.id, {
                     isConnected: res.connected,
                     isAuthenticating: false,
-                    isBubbleVisible: res.connected ? acc.isBubbleVisible : false,
+                    ...(res.connected ? {} : { isBubbleVisible: false }),
                   });
                 }
               } catch (err) {

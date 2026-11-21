@@ -36,6 +36,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 import i18n from "../../i18n";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { useMessengerStore } from "../../platforms/messenger/stores/messengerStore";
 import { applyBackendUserSettings } from "../userSettingsSyncService";
 
 describe("userSettingsSyncService", () => {
@@ -93,5 +94,22 @@ describe("userSettingsSyncService", () => {
     expect("language" in persisted).toBe(false);
     expect("themeMode" in persisted).toBe(false);
     expect("updateMode" in persisted).toBe(false);
+  });
+
+  it("syncs activeBubbleAccounts from backend SSOT snapshot to messengerStore", () => {
+    useMessengerStore.getState().setAccountBubbleVisibility(1, false);
+    applyBackendUserSettings({
+      authenticatedAccounts: [1, 2],
+      activeBubbleAccounts: [1],
+    });
+    const accounts = useMessengerStore.getState().accounts;
+    const acc1 = accounts.find((a) => a.index === 1);
+    const acc2 = accounts.find((a) => a.index === 2);
+    expect(acc1?.isBubbleVisible).toBe(true);
+    expect(acc2?.isBubbleVisible).toBe(false);
+    applyBackendUserSettings({
+      activeBubbleAccounts: [],
+    });
+    expect(useMessengerStore.getState().accounts.find((a) => a.index === 1)?.isBubbleVisible).toBe(false);
   });
 });

@@ -119,6 +119,9 @@ pub(super) fn handle_bubble_action(
                     }
                     Err(e) => {
                         eprintln!("[NativeBubble ERROR] Failed to create window for account {}: {}", account_index, e);
+                        if let Ok(mut cache) = bounds_cache.write() {
+                            cache.remove(&account_index);
+                        }
                     }
                 }
             }

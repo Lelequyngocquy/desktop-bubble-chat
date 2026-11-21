@@ -218,6 +218,13 @@ pub fn ensure_bubble_positioned_and_visible_with_extra(
     } else {
         BubbleMovementEngine::calculate_stacked_pos(&screen, &config, &other_bubbles)
     };
+    crate::operating_systems::current::bubble::update_cached_bubble_bounds(
+        account_index,
+        target_pos.x,
+        target_pos.y,
+        bubble_w as u32,
+        bubble_w as u32,
+    );
     crate::operating_systems::current::bubble::NativeBubbleManager::global().dispatch(
         crate::operating_systems::current::bubble::NativeBubbleAction::Show {
             account_index,
