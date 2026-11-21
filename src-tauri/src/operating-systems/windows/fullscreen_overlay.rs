@@ -1,9 +1,14 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, OnceLock};
 
 use super::bubble::window::{
-    is_window_fullscreen, GetForegroundWindow, SetWindowPos, ShowWindow, SWP_NOACTIVATE,
-    SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SW_SHOWNA,
+    describe_window_fullscreen_state, is_window_fullscreen, AllowSetForegroundWindow,
+    AttachThreadInput, BringWindowToTop, GetCurrentThreadId, GetForegroundWindow, GetGUIThreadInfo,
+    GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible, MapVirtualKeyW, SendInput,
+    SetForegroundWindow, SetWindowPos, ShowWindow, ASFW_ANY, GUITHREADINFO, INPUT, INPUT_KEYBOARD,
+    KEYBDINPUT, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, MAPVK_VK_TO_VSC, SWP_HIDEWINDOW,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW, SW_HIDE, SW_SHOWNA,
+    VK_LMENU,
 };
 
 #[repr(C)]
@@ -66,9 +71,81 @@ unsafe extern "system" {
 }
 
 static MARKED_FULLSCREEN_HWNDS: OnceLock<Mutex<HashSet<isize>>> = OnceLock::new();
+static OVERLAY_SESSIONS: OnceLock<Mutex<HashMap<isize, isize>>> = OnceLock::new();
 
 fn marked_hwnds() -> &'static Mutex<HashSet<isize>> {
     MARKED_FULLSCREEN_HWNDS.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+fn overlay_sessions() -> &'static Mutex<HashMap<isize, isize>> {
+    OVERLAY_SESSIONS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Sends extended Alt keystroke tap to unlock Windows foreground lock only when needed
+unsafe fn unlock_foreground_with_alt_tap() {
+    unsafe {
+        let alt_sc = MapVirtualKeyW(u32::from(VK_LMENU), MAPVK_VK_TO_VSC) as u16;
+        let mut inputs: [INPUT; 2] = std::mem::zeroed();
+        inputs[0].r#type = INPUT_KEYBOARD;
+        inputs[0].anonymous.ki = KEYBDINPUT { w_vk: VK_LMENU, w_scan: alt_sc, dw_flags: KEYEVENTF_EXTENDEDKEY, time: 0, dw_extra_info: 0 };
+        inputs[1].r#type = INPUT_KEYBOARD;
+        inputs[1].anonymous.ki = KEYBDINPUT { w_vk: VK_LMENU, w_scan: alt_sc, dw_flags: KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, time: 0, dw_extra_info: 0 };
+        SendInput(2, inputs.as_ptr(), std::mem::size_of::<INPUT>() as i32);
+    }
+}
+
+/// Transfers foreground focus to target fullscreen HWND BEFORE hiding chat_hwnd
+unsafe fn handoff_foreground_then_hide(
+    chat_hwnd: *mut std::ffi::c_void,
+    saved_fg: *mut std::ffi::c_void,
+) {
+    unsafe {
+        let cur_fg = GetForegroundWindow();
+        let our_tid = GetCurrentThreadId();
+        let mut gui: GUITHREADINFO = std::mem::zeroed();
+        gui.cb_size = std::mem::size_of::<GUITHREADINFO>() as u32;
+        let gui_ok = GetGUIThreadInfo(0, &mut gui) != 0;
+        let focus_hwnd = if gui_ok { gui.hwnd_focus } else { std::ptr::null_mut() };
+        let fg_tid = if !cur_fg.is_null() { GetWindowThreadProcessId(cur_fg, std::ptr::null_mut()) } else { 0 };
+        let focus_tid = if !focus_hwnd.is_null() { GetWindowThreadProcessId(focus_hwnd, std::ptr::null_mut()) } else { 0 };
+        let target_tid = GetWindowThreadProcessId(saved_fg, std::ptr::null_mut());
+        let mut attached_tids = [0u32; 3];
+        let mut attached_count = 0usize;
+        for tid in [fg_tid, focus_tid, target_tid] {
+            if tid != 0 && tid != our_tid && !attached_tids[..attached_count].contains(&tid) && AttachThreadInput(our_tid, tid, 1) != 0 {
+                attached_tids[attached_count] = tid;
+                attached_count += 1;
+            }
+        }
+        AllowSetForegroundWindow(ASFW_ANY);
+        let first_ok = SetForegroundWindow(saved_fg) != 0;
+        let mut fg_after = GetForegroundWindow();
+        let mut fallback_used = false;
+        if !first_ok || fg_after != saved_fg {
+            fallback_used = true;
+            unlock_foreground_with_alt_tap();
+            let _ = SetForegroundWindow(saved_fg);
+            let _ = BringWindowToTop(saved_fg);
+            fg_after = GetForegroundWindow();
+        }
+        for &tid in &attached_tids[..attached_count] {
+            AttachThreadInput(our_tid, tid, 0);
+        }
+        SetWindowPos(
+            chat_hwnd,
+            std::ptr::null_mut(),
+            0,
+            0,
+            0,
+            0,
+            SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+        );
+        let post_hide_fg = GetForegroundWindow();
+        println!(
+            "[FullscreenOverlay] Handoff: chat={:?} saved_fg={:?} cur_fg={:?} focus={:?} first_ok={} fallback={} fg_after={:?} post_hide_fg={:?}",
+            chat_hwnd, saved_fg, cur_fg, focus_hwnd, first_ok, fallback_used, fg_after, post_hide_fg
+        );
+    }
 }
 
 /// Calls ITaskbarList2::MarkFullscreenWindow on the given HWND via COM
@@ -120,8 +197,12 @@ fn clear_hwnd_fullscreen_mark(hwnd: *mut std::ffi::c_void) {
 pub fn open_window_if_fullscreen(window: &tauri::WebviewWindow) -> bool {
     let Ok(raw_hwnd) = window.hwnd() else { return false; };
     let hwnd = raw_hwnd.0;
-    let is_fg_fullscreen = unsafe { is_window_fullscreen(GetForegroundWindow()) };
+    let fg_hwnd = unsafe { GetForegroundWindow() };
+    let is_fg_fullscreen = unsafe { is_window_fullscreen(fg_hwnd) };
     if !is_fg_fullscreen {
+        if let Ok(mut map) = overlay_sessions().lock() {
+            map.remove(&(hwnd as isize));
+        }
         clear_hwnd_fullscreen_mark(hwnd);
         return false;
     }
@@ -137,19 +218,77 @@ pub fn open_window_if_fullscreen(window: &tauri::WebviewWindow) -> bool {
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW,
         );
     }
-    if mark_hwnd_fullscreen_for_taskbar(hwnd, true)
+    if let Ok(mut map) = overlay_sessions().lock() {
+        map.insert(hwnd as isize, fg_hwnd as isize);
+    }
+    let marked_ok = mark_hwnd_fullscreen_for_taskbar(hwnd, true);
+    if marked_ok
         && let Ok(mut set) = marked_hwnds().lock() {
             set.insert(hwnd as isize);
         }
     let _ = window.with_webview(|wv| unsafe {
         let _ = wv.controller().SetIsVisible(true);
     });
+    println!("[FullscreenOverlay] Opened overlay chat={:?} over fg={:?} taskbar_mark={}", hwnd, fg_hwnd, marked_ok);
     true
 }
 
-/// Clears any temporary fullscreen taskbar marker after hiding the chat window
+/// Hides chat window on main UI thread and hands focus back cleanly before hiding
+pub fn hide_window_with_fullscreen_cleanup(window: &tauri::WebviewWindow) {
+    let Ok(raw_hwnd) = window.hwnd() else {
+        let _ = window.hide();
+        return;
+    };
+    let hwnd_raw = raw_hwnd.0 as isize;
+    let saved_fg_opt = overlay_sessions().lock().ok().and_then(|mut map| map.remove(&hwnd_raw));
+    if let Some(saved_fg_raw) = saved_fg_opt {
+        let _ = window.run_on_main_thread(move || unsafe {
+            let hwnd = hwnd_raw as *mut std::ffi::c_void;
+            let saved_fg = saved_fg_raw as *mut std::ffi::c_void;
+            let current_fg = GetForegroundWindow();
+            let saved_alive = !saved_fg.is_null() && IsWindow(saved_fg) != 0 && IsWindowVisible(saved_fg) != 0 && IsIconic(saved_fg) == 0;
+            let saved_still_fs = saved_alive && is_window_fullscreen(saved_fg);
+            if saved_alive && current_fg == saved_fg {
+                SetWindowPos(hwnd, std::ptr::null_mut(), 0, 0, 0, 0, SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+                if !saved_still_fs {
+                    clear_hwnd_fullscreen_mark(hwnd);
+                }
+                println!("[FullscreenOverlay] Silent hide: saved_fg={:?} already active fs={}", saved_fg, saved_still_fs);
+            } else if saved_alive && (saved_still_fs || current_fg == hwnd) {
+                if !saved_still_fs {
+                    println!("[FullscreenOverlay] Handoff with inactive-fs drift: saved_fg={:?} {}", saved_fg, describe_window_fullscreen_state(saved_fg));
+                }
+                handoff_foreground_then_hide(hwnd, saved_fg);
+            } else {
+                println!("[FullscreenOverlay] Hide fallback (no handoff): chat={:?} saved_fg={:?} cur_fg={:?} alive={} fs={} {}", hwnd, saved_fg, current_fg, saved_alive, saved_still_fs, describe_window_fullscreen_state(saved_fg));
+                ShowWindow(hwnd, SW_HIDE);
+                clear_hwnd_fullscreen_mark(hwnd);
+            }
+        });
+        return;
+    }
+    println!("[FullscreenOverlay] Hide without saved session: chat={:?} cur_fg={:?}", raw_hwnd.0, unsafe { GetForegroundWindow() });
+    let _ = window.hide();
+    if !unsafe { is_window_fullscreen(GetForegroundWindow()) } {
+        clear_hwnd_fullscreen_mark(raw_hwnd.0);
+    }
+    if unsafe { IsWindowVisible(raw_hwnd.0) != 0 } {
+        let win_clone = window.clone();
+        let _ = window.run_on_main_thread(move || {
+            if let Ok(h) = win_clone.hwnd()
+                && unsafe { IsWindowVisible(h.0) != 0 } {
+                    unsafe { ShowWindow(h.0, SW_HIDE); }
+                }
+        });
+    }
+}
+
+/// Clears tracked fullscreen overlay state before destroying a window
 pub fn clear_window_fullscreen_overlay(window: &tauri::WebviewWindow) {
     if let Ok(raw_hwnd) = window.hwnd() {
+        if let Ok(mut map) = overlay_sessions().lock() {
+            map.remove(&(raw_hwnd.0 as isize));
+        }
         clear_hwnd_fullscreen_mark(raw_hwnd.0);
     }
 }
@@ -158,6 +297,21 @@ pub fn clear_window_fullscreen_overlay(window: &tauri::WebviewWindow) {
 mod tests {
     use super::*;
     const E_NOTIMPL: i32 = 0x80004001_u32 as i32;
+
+    #[test]
+    fn test_win32_input_and_guithreadinfo_sizes() {
+        assert_eq!(std::mem::size_of::<GUITHREADINFO>(), if cfg!(target_pointer_width = "64") { 72 } else { 48 });
+        assert_eq!(std::mem::size_of::<INPUT>(), if cfg!(target_pointer_width = "64") { 40 } else { 28 });
+    }
+
+    #[test]
+    fn test_overlay_session_hwnd_tracking() {
+        let fake_chat_hwnd = 0x1234_isize;
+        let fake_video_hwnd = 0x5678_isize;
+        assert!(overlay_sessions().lock().unwrap().insert(fake_chat_hwnd, fake_video_hwnd).is_none());
+        assert_eq!(overlay_sessions().lock().unwrap().remove(&fake_chat_hwnd), Some(fake_video_hwnd));
+        assert!(overlay_sessions().lock().unwrap().remove(&fake_chat_hwnd).is_none());
+    }
 
     #[test]
     fn test_taskbar_list2_com_initialization() {

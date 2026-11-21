@@ -25,6 +25,9 @@ pub fn suspend_account_bubble_and_chat(app: &AppHandle, account_index: u32) {
         .get_webview_window(&chat_label)
         .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
     if let Some(cw) = win {
+        #[cfg(target_os = "windows")]
+        crate::operating_systems::windows::fullscreen_overlay::hide_window_with_fullscreen_cleanup(&cw);
+        #[cfg(not(target_os = "windows"))]
         let _ = cw.hide();
         let _ = cw.close();
         let _ = cw.destroy();

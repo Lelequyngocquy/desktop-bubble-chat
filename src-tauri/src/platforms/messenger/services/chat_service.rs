@@ -197,9 +197,10 @@ impl ChatService {
                         }
                 }
                 let _ = chat_window.eval("window.__isWindowFocused = false; window.__IS_PINNED__ = false; if (typeof window.__updatePinButtonUi === 'function') { window.__updatePinButtonUi(false); } if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); } window.dispatchEvent(new Event('blur')); if (typeof window.__startAutoUnselectCountdown === 'function') { window.__startAutoUnselectCountdown(5000); }");
-                let _ = chat_window.hide();
                 #[cfg(target_os = "windows")]
-                crate::operating_systems::windows::fullscreen_overlay::clear_window_fullscreen_overlay(&chat_window);
+                crate::operating_systems::windows::fullscreen_overlay::hide_window_with_fullscreen_cleanup(&chat_window);
+                #[cfg(not(target_os = "windows"))]
+                let _ = chat_window.hide();
                 let app_handle = app.clone();
                 std::thread::spawn(move || {
                     std::thread::sleep(std::time::Duration::from_millis(60));
