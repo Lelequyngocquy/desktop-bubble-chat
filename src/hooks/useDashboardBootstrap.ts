@@ -139,7 +139,9 @@ export function useDashboardBootstrap() {
                     isBubbleVisible: res.connected ? acc.isBubbleVisible : false,
                   });
                 }
-              } catch {}
+              } catch (err) {
+                feLog.warn(`[useDashboardBootstrap] Auth check skipped for account ${acc.index}:`, err);
+              }
             }),
           );
         } catch (err) {

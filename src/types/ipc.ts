@@ -1,6 +1,5 @@
 /**
  * Strongly-Typed IPC Contracts & Constants
- * Eliminates magic strings, ensures compile-time safety across Frontend-Backend boundary.
  */
 
 // 1. IPC Command Names
@@ -21,7 +20,6 @@ export const IPC_COMMANDS = {
   UPDATE_TRAY_MENU_STATUS: "update_tray_menu_status",
   LOG_FRONTEND: "log_frontend",
   GET_USER_SETTINGS: "get_user_settings",
-  SAVE_USER_SETTINGS: "save_user_settings",
   SET_APP_LANGUAGE: "set_app_language",
   SET_AUTO_TRIM_ENABLED: "set_auto_trim_enabled",
   SET_THEME_MODE: "set_theme_mode",
@@ -34,20 +32,12 @@ export const IPC_COMMANDS = {
 
   // Badge Commands
   SET_BADGE_COUNT: "set_badge_count",
-  UPDATE_UNREAD_BADGE: "update_unread_badge",
-  GET_UNREAD_COUNT: "get_unread_count",
   GET_ALL_UNREAD_COUNTS: "get_all_unread_counts",
 
   // Bubble Window & Positioning Commands
   TOGGLE_BUBBLE: "toggle_bubble",
   TOGGLE_ALL_BUBBLES: "toggle_all_bubbles",
-  SNAP_BUBBLE: "snap_bubble",
-  GET_BUBBLE_POSITION: "get_bubble_position",
-  GET_ALL_BUBBLE_POSITIONS: "get_all_bubble_positions",
   GET_ACTIVE_BUBBLE_ACCOUNTS: "get_active_bubble_accounts",
-  GET_BUBBLE_SNAP_COORDS: "get_bubble_snap_coords",
-  GET_BUBBLE_DEFAULT_COORDS: "get_bubble_default_coords",
-  GET_BUBBLE_HOVER_COORDS: "get_bubble_hover_coords",
   SET_BUBBLE_CONFIG: "set_bubble_config",
   SET_BUBBLE_POSITION_MODE: "set_bubble_position_mode",
 
@@ -63,13 +53,9 @@ export const IPC_COMMANDS = {
   CLOSE_MESSENGER_WINDOW: "close_messenger_window",
   CLEAR_ACCOUNT_STORAGE: "clear_account_storage",
   REPORT_AUTH_STATUS: "report_auth_status",
-  REPORT_NEW_MESSAGE: "report_new_message",
-  SYNC_RECENT_CONVERSATIONS: "sync_recent_conversations",
   GET_RECENT_MESSAGES: "get_recent_messages",
   SET_ACCOUNT_MUTED: "set_account_muted",
   SET_CHAT_WINDOW_SIZE_CONFIG: "set_chat_window_size_config",
-  TOGGLE_PIN_CHAT: "toggle_pin_chat",
-  IS_CHAT_PINNED: "is_chat_pinned",
 
   // Extension Commands
   OPEN_PROFILE_EXTENSIONS_FOLDER: "open_profile_extensions_folder",
@@ -87,27 +73,21 @@ export const IPC_EVENTS = {
   CHAT_VISIBILITY_CHANGED: "chat-visibility-changed",
   NEW_MESSAGE_RECEIVED: "new-message-received",
   RECENT_CONVERSATIONS_SYNCED: "recent-conversations-synced",
-  BUBBLE_CONFIG_CHANGED: "bubble-config-changed",
   LANGUAGE_CHANGED: "language-changed",
   SHOW_CLOSE_DIALOG: "show-close-dialog",
   CHAT_WINDOW_RESIZED: "chat-window-resized",
-  CHAT_PIN_CHANGED: "chat-pin-changed",
   UPDATER_STATUS: "updater-status",
 } as const;
 
 export type IpcEvent = (typeof IPC_EVENTS)[keyof typeof IPC_EVENTS];
 
 // 3. Event Payloads
-export interface ChatPinChangedPayload {
-  accountIndex: number;
-  pinned: boolean;
-}
-
 export interface ChatWindowResizedPayload {
   accountIndex: number;
   width: number;
   height: number;
 }
+
 export interface MessengerAuthStatusPayload {
   connected: boolean;
   name?: string | null;
@@ -118,22 +98,6 @@ export interface MessengerAuthStatusPayload {
 
 export interface MessengerAuthClosedPayload {
   label: string;
-}
-
-export interface SnapResultPayload {
-  targetX: number;
-  targetY: number;
-  shouldDismiss: boolean;
-  isLeftEdge?: boolean;
-}
-
-export interface BubblePositionPayload {
-  accountIndex: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  isVisible: boolean;
 }
 
 export interface BadgeUpdatedPayload {
@@ -152,23 +116,6 @@ export interface BubbleSpawnedPayload {
   accountIndex: number;
   x: number;
   y: number;
-}
-
-export interface ToggleAllBubblesPayload {
-  visible?: boolean;
-  accountIndices?: number[];
-}
-
-export interface BubbleConfigPayload {
-  size?: number;
-  tuckRatio?: number;
-}
-
-export interface BubbleConfigChangedPayload {
-  size?: number;
-  bubbleSize?: "sm" | "md" | "lg";
-  tuckRatio?: number;
-  bubblePositionMode?: "auto_tuck" | "free";
 }
 
 export interface IncomingMessagePayload {
@@ -190,4 +137,3 @@ export interface RecentConversationsSyncedPayload {
   accountIndex: number;
   conversations: IncomingMessagePayload[];
 }
-

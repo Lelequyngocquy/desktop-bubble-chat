@@ -12,7 +12,9 @@ export const windowService = {
     } catch {
       try {
         await getCurrentWindow().minimize();
-      } catch {}
+      } catch (err) {
+        console.warn("[windowService] Minimize fallback failed:", err);
+      }
     }
   },
 
@@ -42,7 +44,9 @@ export const windowService = {
     } catch {
       try {
         await getCurrentWindow().hide();
-      } catch {}
+      } catch (err) {
+        console.warn("[windowService] Hide fallback failed:", err);
+      }
     }
   },
 
@@ -55,7 +59,9 @@ export const windowService = {
     } catch {
       try {
         await getCurrentWindow().show();
-      } catch {}
+      } catch (err) {
+        console.warn("[windowService] Show fallback failed:", err);
+      }
     }
   },
 
@@ -68,7 +74,9 @@ export const windowService = {
     } catch {
       try {
         await getCurrentWindow().destroy();
-      } catch {}
+      } catch (err) {
+        console.warn("[windowService] Exit fallback failed:", err);
+      }
     }
   },
 

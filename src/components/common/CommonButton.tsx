@@ -1,4 +1,5 @@
 import React from "react";
+import { cn } from "../../utils/cn";
 
 export interface CommonButtonProps {
   variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
@@ -48,7 +49,12 @@ export const CommonButton: React.FC<CommonButtonProps> = ({
       title={title}
       disabled={disabled}
       onClick={onClick}
-      className={`rounded-control font-medium inline-flex items-center justify-center transition-colors select-none shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${sizeClasses} ${variantClasses} ${className}`}
+      className={cn(
+        "rounded-control font-medium inline-flex items-center justify-center transition-colors select-none shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
+        sizeClasses,
+        variantClasses,
+        className,
+      )}
     >
       {iconLeading && <span className="shrink-0 flex items-center">{iconLeading}</span>}
       {children && <span>{children}</span>}

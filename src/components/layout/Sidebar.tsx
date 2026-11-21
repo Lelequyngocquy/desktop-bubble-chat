@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Settings2,
   HelpCircle,
-  Sparkles,
 } from "lucide-react";
 import { useNavigationStore } from "../../stores/navigationStore";
 import {
@@ -23,6 +22,9 @@ import { useSettingsStore } from "../../stores/settingsStore";
 import { NavTab, NavigationItemConfig } from "../../types";
 import { NAVIGATION_ITEMS } from "../../config";
 import { AvatarCircle } from "../common";
+import { cn } from "../../utils/cn";
+import { SidebarNavItem } from "./sidebar/SidebarNavItem";
+import { SidebarUpdateCard } from "./sidebar/SidebarUpdateCard";
 
 export const Sidebar: React.FC = () => {
   const { t } = useTranslation(["common", "dashboard", "settings"]);
@@ -34,37 +36,25 @@ export const Sidebar: React.FC = () => {
   const connectedAccountCount = useMessengerStore(selectConnectedAccountCount);
   const systemUser = useSystemUserStore((s) => s.systemUser);
   const systemUserInitials = useSystemUserStore((s) => s.systemUserInitials);
-  const updateStatus = useUpdateStore((s) => s.status);
   const currentVersion = useUpdateStore((s) => s.currentVersion);
-  const availableVersion = useUpdateStore((s) => s.availableVersion);
   const currentLanguage = useSettingsStore((s) => s.language);
   const setLanguage = useSettingsStore.getState().setLanguage;
-  const hasUpdate =
-    updateStatus === "available" ||
-    updateStatus === "downloading" ||
-    updateStatus === "downloaded";
   const handleNavigateToUpdate = () => {
     navigateToSection("settings", "section-update");
   };
-  const navIconMap: Record<NavigationItemConfig["iconName"], React.ReactNode> =
-    {
-      Home: <Home className="w-[18px] h-[18px]" />,
-      Unplug: <Unplug className="w-[18px] h-[18px]" />,
-      MessageSquare: <MessageSquare className="w-[18px] h-[18px]" />,
-      Bell: <Bell className="w-[18px] h-[18px]" />,
-      Activity: <Activity className="w-[18px] h-[18px]" />,
-      Settings2: <Settings2 className="w-[18px] h-[18px]" />,
-      HelpCircle: <HelpCircle className="w-[18px] h-[18px]" />,
-    };
-  const getBadgeForTab = (id: NavTab): number | string | undefined => {
-    switch (id) {
-      case "connections":
-        return connectedAccountCount;
-      case "notifications":
-        return totalUnread > 0 ? totalUnread : undefined;
-      default:
-        return undefined;
-    }
+  const navIconMap: Record<NavigationItemConfig["iconName"], React.ReactNode> = {
+    Home: <Home className="w-[18px] h-[18px]" />,
+    Unplug: <Unplug className="w-[18px] h-[18px]" />,
+    MessageSquare: <MessageSquare className="w-[18px] h-[18px]" />,
+    Bell: <Bell className="w-[18px] h-[18px]" />,
+    Activity: <Activity className="w-[18px] h-[18px]" />,
+    Settings2: <Settings2 className="w-[18px] h-[18px]" />,
+    HelpCircle: <HelpCircle className="w-[18px] h-[18px]" />,
+  };
+  const getBadgeForTab = (id: NavTab): number | undefined => {
+    if (id === "connections") return connectedAccountCount;
+    if (id === "notifications") return totalUnread > 0 ? totalUnread : undefined;
+    return undefined;
   };
   const getNavLabel = (id: NavTab, fallback: string): string => {
     switch (id) {
@@ -90,38 +80,19 @@ export const Sidebar: React.FC = () => {
     icon: navIconMap[item.iconName],
     badge: getBadgeForTab(item.id),
   }));
-  const secondaryNavItems: Array<{
-    id: NavTab;
-    label: string;
-    icon: React.ReactNode;
-    badge?: React.ReactNode;
-  }> = [
-    {
-      id: "settings",
-      label: t("dashboard:navigation.settings"),
-      icon: <Settings2 className="w-[18px] h-[18px]" />,
-    },
-    {
-      id: "help",
-      label: t("dashboard:navigation.help"),
-      icon: <HelpCircle className="w-[18px] h-[18px]" />,
-    },
+  const secondaryNavItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
+    { id: "settings", label: t("dashboard:navigation.settings"), icon: <Settings2 className="w-[18px] h-[18px]" /> },
+    { id: "help", label: t("dashboard:navigation.help"), icon: <HelpCircle className="w-[18px] h-[18px]" /> },
   ];
   return (
     <aside className="w-sidebar shrink-0 bg-background-app border-r border-border flex flex-col justify-between p-[14px_12px_16px] select-none h-full overflow-hidden">
-      {/* Top section: Profile & Primary Nav */}
       <div className="flex flex-col gap-6">
-        {/* Profile - User Header */}
         <button
           type="button"
           onClick={() => setActiveTab("home")}
           className="w-full text-left flex items-center gap-[11px] px-[10px] pb-2 cursor-pointer hover:opacity-90 transition-opacity"
         >
-          <AvatarCircle
-            size={42}
-            text={systemUserInitials}
-            className="shadow-xs"
-          />
+          <AvatarCircle size={42} text={systemUserInitials} className="shadow-xs" />
           <span className="flex flex-col gap-[2px] overflow-hidden min-w-0">
             <span className="text-nav font-semibold text-content-primary truncate leading-tight">
               {systemUser}
@@ -131,105 +102,22 @@ export const Sidebar: React.FC = () => {
             </span>
           </span>
         </button>
-
-        {/* Primary Navigation */}
         <nav className="flex flex-col gap-[5px]">
-          {primaryNavItems.map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                aria-current={isActive ? "page" : undefined}
-                onClick={() => setActiveTab(item.id)}
-                className={`relative flex items-center justify-between h-[42px] px-3 rounded-control transition-all text-left group cursor-pointer ${
-                  isActive
-                    ? "bg-white/70 dark:bg-white/10 shadow-sm"
-                    : "hover:bg-white/40 dark:hover:bg-white/5 active:bg-white/60 dark:active:bg-white/10"
-                }`}
-              >
-                {isActive && (
-                  <div className="absolute left-0 top-[13px] w-[3px] h-[16px] bg-primary rounded-indicator" />
-                )}
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`transition-colors ${
-                      isActive
-                        ? "text-primary-foreground"
-                        : "text-content-secondary group-hover:text-content-primary"
-                    }`}
-                  >
-                    {item.icon}
-                  </span>
-                  <span
-                    className={`text-nav leading-tight transition-colors ${
-                      isActive
-                        ? "font-semibold text-primary-foreground"
-                        : "font-normal text-content-primary group-hover:text-content-primary"
-                    }`}
-                  >
-                    {item.label}
-                  </span>
-                </div>
-                {item.badge !== undefined && (
-                  <span
-                    className={`text-small font-normal px-1.5 py-0.5 rounded-pill ${
-                      isActive
-                        ? "text-primary-foreground"
-                        : "text-content-secondary group-hover:text-content-primary"
-                    }`}
-                  >
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+          {primaryNavItems.map((item) => (
+            <SidebarNavItem
+              key={item.id}
+              label={item.label}
+              icon={item.icon}
+              badge={item.badge}
+              isActive={activeTab === item.id}
+              variant="primary"
+              onClick={() => setActiveTab(item.id)}
+            />
+          ))}
         </nav>
       </div>
-
-      {/* Bottom section: Background service, Secondary Nav, Language Switcher & Version */}
       <div className="flex flex-col gap-3">
-        {/* Software Update Card */}
-        <button
-          type="button"
-          onClick={handleNavigateToUpdate}
-          className="w-full text-left bg-sidebar-card border border-sidebar-cardBorder hover:border-primary/50 dark:hover:border-primary/50 rounded-panel p-[14px] flex flex-col gap-2 cursor-pointer transition-all shadow-xs group"
-          title={t("settings:scroll_to_update")}
-        >
-          <span className="w-full flex items-center justify-between text-content-primary">
-            <span className="flex items-center gap-2 min-w-0">
-              <Sparkles
-                className={`w-4 h-4 shrink-0 ${hasUpdate ? "text-primary" : "text-content-secondary group-hover:text-primary transition-colors"}`}
-              />
-              <span className="text-small font-medium leading-none truncate">
-                {t("common:update_widget_title")}
-              </span>
-            </span>
-            {hasUpdate && (
-              <span className="px-1.5 py-0.5 bg-status-error text-content-inverse text-[10px] font-bold rounded-pill animate-pulse leading-none shadow-xs shrink-0">
-                {t("common:new_badge_tag")}
-              </span>
-            )}
-          </span>
-          <span className="text-caption text-content-secondary leading-snug group-hover:text-content-primary transition-colors block">
-            {hasUpdate
-              ? availableVersion
-                ? t("common:update_widget_desc_ver", {
-                    version: availableVersion,
-                  })
-                : t("common:update_widget_desc")
-              : updateStatus === "checking"
-                ? t("settings:update.status_checking")
-                : currentVersion
-                  ? t("common:update_widget_uptodate", {
-                      version: currentVersion,
-                    })
-                  : t("settings:update.status_uptodate")}
-          </span>
-        </button>
-
-        {/* Background Service Status Card */}
+        <SidebarUpdateCard onNavigateToUpdate={handleNavigateToUpdate} />
         <div className="bg-sidebar-card border border-sidebar-cardBorder rounded-panel p-[14px] flex flex-col gap-2">
           <div className="flex items-center gap-2 text-content-primary">
             <CheckCircle2 className="w-4 h-4 text-status-success" />
@@ -241,63 +129,29 @@ export const Sidebar: React.FC = () => {
             {t("common:running_in_background_desc")}
           </p>
         </div>
-
-        {/* Secondary Navigation */}
         <div className="flex flex-col gap-1">
-          {secondaryNavItems.map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                aria-current={isActive ? "page" : undefined}
-                onClick={() => setActiveTab(item.id)}
-                className={`relative flex items-center justify-between h-[38px] px-3 rounded-control transition-all text-left group cursor-pointer ${
-                  isActive
-                    ? "bg-white/70 dark:bg-white/10 shadow-sm"
-                    : "hover:bg-white/40 dark:hover:bg-white/5 active:bg-white/60 dark:active:bg-white/10"
-                }`}
-              >
-                {isActive && (
-                  <div className="absolute left-0 top-[11px] w-[3px] h-[16px] bg-primary rounded-indicator" />
-                )}
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`transition-colors ${
-                      isActive
-                        ? "text-primary-foreground"
-                        : "text-content-secondary group-hover:text-content-primary"
-                    }`}
-                  >
-                    {item.icon}
-                  </span>
-                  <span
-                    className={`text-body leading-tight transition-colors ${
-                      isActive
-                        ? "font-semibold text-primary-foreground"
-                        : "font-normal text-content-primary group-hover:text-content-primary"
-                    }`}
-                  >
-                    {item.label}
-                  </span>
-                </div>
-                {item.badge}
-              </button>
-            );
-          })}
+          {secondaryNavItems.map((item) => (
+            <SidebarNavItem
+              key={item.id}
+              label={item.label}
+              icon={item.icon}
+              isActive={activeTab === item.id}
+              variant="secondary"
+              onClick={() => setActiveTab(item.id)}
+            />
+          ))}
         </div>
-
-        {/* Quick Language Switcher */}
         <div className="flex items-center justify-center gap-1 pt-1 text-caption">
           <button
             type="button"
             aria-pressed={currentLanguage === "en"}
             onClick={() => setLanguage("en")}
-            className={`px-2 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={cn(
+              "px-2 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5",
               currentLanguage === "en"
                 ? "bg-background-surface text-primary font-semibold shadow-xs"
-                : "text-content-muted hover:text-content-primary hover:bg-background-subtle"
-            }`}
+                : "text-content-muted hover:text-content-primary hover:bg-background-subtle",
+            )}
             title="Switch language to English"
           >
             <span>🇺🇸</span>
@@ -308,19 +162,18 @@ export const Sidebar: React.FC = () => {
             type="button"
             aria-pressed={currentLanguage === "vi"}
             onClick={() => setLanguage("vi")}
-            className={`px-2 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={cn(
+              "px-2 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5",
               currentLanguage === "vi"
                 ? "bg-background-surface text-primary font-semibold shadow-xs"
-                : "text-content-muted hover:text-content-primary hover:bg-background-subtle"
-            }`}
+                : "text-content-muted hover:text-content-primary hover:bg-background-subtle",
+            )}
             title="Switch language to Vietnamese"
           >
             <span>🇻🇳</span>
             <span>Tiếng Việt</span>
           </button>
         </div>
-
-        {/* App Version */}
         <button
           type="button"
           onClick={handleNavigateToUpdate}

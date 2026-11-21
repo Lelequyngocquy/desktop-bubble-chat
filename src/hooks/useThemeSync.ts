@@ -2,11 +2,10 @@ import { useEffect } from "react";
 import { useSettingsStore, applyThemeMode } from "../stores/settingsStore";
 
 /**
- * Synchronizes application dark/light theme with user settings and Windows OS preference
+ * Synchronizes application dark/light theme with user settings and Windows OS preference.
  */
 export function useThemeSync() {
   const themeMode = useSettingsStore((s) => s.themeMode);
-
   useEffect(() => {
     applyThemeMode(themeMode);
     if (themeMode === "system" && typeof window !== "undefined") {
@@ -14,17 +13,9 @@ export function useThemeSync() {
       const handleChange = () => {
         applyThemeMode("system");
       };
-      if (mediaQuery.addEventListener) {
-        mediaQuery.addEventListener("change", handleChange);
-      } else {
-        mediaQuery.addListener(handleChange);
-      }
+      mediaQuery.addEventListener("change", handleChange);
       return () => {
-        if (mediaQuery.removeEventListener) {
-          mediaQuery.removeEventListener("change", handleChange);
-        } else {
-          mediaQuery.removeListener(handleChange);
-        }
+        mediaQuery.removeEventListener("change", handleChange);
       };
     }
   }, [themeMode]);

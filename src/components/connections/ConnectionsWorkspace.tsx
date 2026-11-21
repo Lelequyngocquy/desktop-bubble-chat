@@ -16,7 +16,6 @@ export const ConnectionsWorkspace: React.FC = () => {
   return (
     <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden select-none">
       <TabHeader
-        eyebrow={t("workspaces.connections.eyebrow")}
         title={t("workspaces.connections.title")}
         description={t("workspaces.connections.description")}
         rightSlot={

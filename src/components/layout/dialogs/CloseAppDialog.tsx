@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { MessageSquare, Power, HelpCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CommonDialog } from "../../common/CommonDialog";
@@ -11,8 +11,7 @@ export interface CloseAppDialogProps {
   onExitApp: () => void;
 }
 
-export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
-  isOpen,
+const CloseAppDialogBody: React.FC<Omit<CloseAppDialogProps, "isOpen">> = ({
   onClose,
   onHideToTray,
   onExitApp,
@@ -20,12 +19,6 @@ export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
   const { t } = useTranslation("common");
   const [selectedAction, setSelectedAction] = useState<"hide_to_tray" | "exit_app">("hide_to_tray");
   const [rememberChoice, setRememberChoice] = useState(false);
-  useEffect(() => {
-    if (isOpen) {
-      setSelectedAction("hide_to_tray");
-      setRememberChoice(false);
-    }
-  }, [isOpen]);
   const handleConfirm = () => {
     if (rememberChoice) {
       useSettingsStore.getState().setCloseWindowAction(selectedAction);
@@ -50,7 +43,7 @@ export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
   };
   return (
     <CommonDialog
-      isOpen={isOpen}
+      isOpen={true}
       onClose={onClose}
       eyebrow={t("close_dialog.eyebrow")}
       title={t("close_dialog.title")}
@@ -165,6 +158,11 @@ export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({
       }
     />
   );
+};
+
+export const CloseAppDialog: React.FC<CloseAppDialogProps> = ({ isOpen, ...props }) => {
+  if (!isOpen) return null;
+  return <CloseAppDialogBody {...props} />;
 };
 
 export default CloseAppDialog;

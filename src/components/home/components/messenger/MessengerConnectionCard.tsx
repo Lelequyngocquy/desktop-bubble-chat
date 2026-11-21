@@ -6,9 +6,7 @@ import {
   useMessengerStore,
   selectTotalUnreadCount,
   selectVisibleBubbleCount,
-  selectAreAnyBubblesVisible,
 } from "../../../../platforms/messenger";
-import { useWindowStore } from "../../../../stores/windowStore";
 import { useNavigationStore } from "../../../../stores/navigationStore";
 import { systemService } from "../../../../services/systemService";
 import { MessengerAccount } from "../../../../types/account";
@@ -26,33 +24,18 @@ export const MessengerConnectionCard: React.FC = () => {
   );
   const totalUnreadCount = useMessengerStore(selectTotalUnreadCount);
   const visibleBubbleCount = useMessengerStore(selectVisibleBubbleCount);
-  const areAnyBubblesVisible = useMessengerStore(selectAreAnyBubblesVisible);
   const toggleAccountBubbleVisibility = useMessengerStore(
     (s) => s.toggleAccountBubbleVisibility,
   );
-  const setActiveAccountIndex = useMessengerStore(
-    (s) => s.setActiveAccountIndex,
-  );
-  const setOpenChatAccountIndex = useWindowStore(
-    (s) => s.setOpenChatAccountIndex,
-  );
   const setActiveTab = useNavigationStore((s) => s.setActiveTab);
   const totalConnected = connectedAccounts.length;
-  const handleOpenChat = async (account: MessengerAccount) => {
-    setActiveAccountIndex(account.index);
-    setOpenChatAccountIndex(account.index);
-    try {
-      await messengerService.openChat(account.index);
-    } catch (err) {
-      console.warn("[MessengerConnectionCard] Failed to open chat window:", err);
-    }
-  };
   const handleToggleSingleBubble = async (account: MessengerAccount) => {
     const nextVal = !account.isBubbleVisible;
     toggleAccountBubbleVisibility(account.index);
     try {
       await messengerService.toggleBubble(nextVal, account.index);
     } catch (err) {
+      useMessengerStore.getState().setAccountBubbleVisibility(account.index, !nextVal);
       console.warn(`[MessengerConnectionCard] Failed to toggle bubble for account ${account.index}:`, err);
     }
   };
@@ -64,7 +47,6 @@ export const MessengerConnectionCard: React.FC = () => {
           <MessengerPlatformHeader
             totalConnected={totalConnected}
             totalAccounts={accounts.length}
-            areAnyBubblesVisible={areAnyBubblesVisible}
             onManage={() => setActiveTab("connections")}
           />
           <div className="flex flex-col gap-2 pt-1">
@@ -73,7 +55,6 @@ export const MessengerConnectionCard: React.FC = () => {
                 <ConnectedAccountRow
                   key={acc.id}
                   account={acc}
-                  onOpenChat={handleOpenChat}
                   onToggleBubble={handleToggleSingleBubble}
                 />
               ))

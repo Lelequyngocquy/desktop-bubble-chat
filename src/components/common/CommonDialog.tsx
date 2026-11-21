@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useId, useRef } from "react";
+import React, { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -82,8 +82,10 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
   const canCloseOnBackdrop = closeOnBackdropClick && !isBusy;
   const onCloseRef = useRef(onClose);
   const canCloseOnEscapeRef = useRef(canCloseOnEscape);
-  onCloseRef.current = onClose;
-  canCloseOnEscapeRef.current = canCloseOnEscape;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    canCloseOnEscapeRef.current = canCloseOnEscape;
+  }, [onClose, canCloseOnEscape]);
   useEffect(() => {
     if (!isOpen) return;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -130,14 +132,6 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
       }
     };
   }, [isOpen]);
-  const handleBackdropClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (canCloseOnBackdrop && e.target === e.currentTarget) {
-        onClose();
-      }
-    },
-    [canCloseOnBackdrop, onClose],
-  );
   if (!isOpen || typeof document === "undefined") return null;
   const renderAction = (
     action: boolean | DialogActionProps | React.ReactNode | undefined,
@@ -174,14 +168,21 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
-      onClick={handleBackdropClick}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-content-primary/45 backdrop-blur-sm animate-dialog-fade select-none"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-dialog-fade select-none"
     >
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label={t("cancel")}
+        onClick={() => {
+          if (canCloseOnBackdrop) onClose();
+        }}
+        className="fixed inset-0 bg-content-primary/45 backdrop-blur-sm border-0 p-0 cursor-default"
+      />
       <div
         ref={panelRef}
         tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
-        className={`${DIALOG_SIZE_MAP[size]} bg-background-surface border border-border rounded-modal shadow-window flex flex-col max-h-[90vh] overflow-hidden animate-dialog-zoom outline-none ${className}`}
+        className={`relative z-10 ${DIALOG_SIZE_MAP[size]} bg-background-surface border border-border rounded-modal shadow-window flex flex-col max-h-[90vh] overflow-hidden animate-dialog-zoom outline-none ${className}`}
       >
         <div className="px-6 pt-5 pb-4 border-b border-border flex items-start justify-between gap-4 shrink-0 bg-background-surface">
           <div className="flex flex-col gap-1 min-w-0">

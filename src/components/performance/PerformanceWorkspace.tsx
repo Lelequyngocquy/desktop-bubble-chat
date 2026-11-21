@@ -19,7 +19,6 @@ export const PerformanceWorkspace: React.FC = () => {
   return (
     <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden select-none">
       <TabHeader
-        eyebrow={t("performance:header_eyebrow")}
         title={t("performance:header_title")}
         description={t("performance:header_desc")}
         rightSlot={

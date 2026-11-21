@@ -63,7 +63,8 @@
     "dialog_title": "Clear Notification History",
     "dialog_content": "Are you sure you want to clear all notifications? This will remove all logged message alerts from this view.",
     "dialog_cancel": "Cancel",
-    "dialog_confirm": "Confirm Clear"
+    "dialog_confirm": "Confirm Clear",
+    "account_disconnected_warning": "Account {{account}} is disconnected. Reconnect it in Connections to open this chat."
   },
   "chatheads_page": {
     "pinned_title": "Pinned Conversations ({{count}}/6)",

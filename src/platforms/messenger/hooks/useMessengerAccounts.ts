@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback } from "react";
 import { useMessengerStore, selectIsMessengerConnected } from "../stores/messengerStore";
 import { useWindowStore } from "../../../stores/windowStore";
 import { messengerService, messengerAuthManager } from "../services";
@@ -14,17 +14,7 @@ export function useMessengerAccounts() {
   const accounts = useMessengerStore((s) => s.accounts);
   const activeAccountIndex = useMessengerStore((s) => s.activeAccountIndex);
   const isConnected = useMessengerStore(selectIsMessengerConnected);
-  const [refreshingId, setRefreshingId] = useState<string | null>(null);
-  const isMountedRef = useRef(true);
-  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const { setActiveAccountIndex, addAccount: addAccountToStore, removeAccount: removeAccountFromStore, updateAccount } = useMessengerStore.getState();
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-      clearTimeout(refreshTimerRef.current);
-    };
-  }, []);
 
   const handleOpenAccount = useCallback(
     async (account: MessengerAccount) => {
@@ -55,31 +45,6 @@ export function useMessengerAccounts() {
       messengerService.disconnect(account.index).catch((err) => {
         feLog.warn(`[useMessengerAccounts] Cancel auth disconnect error:`, err);
       });
-    },
-    [updateAccount]
-  );
-
-  const handleRefreshAccount = useCallback(
-    async (account: MessengerAccount) => {
-      setRefreshingId(account.id);
-      feLog.info(`[useMessengerAccounts] Refreshing account status ${account.index}...`);
-      try {
-        await messengerService.refresh(account.index);
-        const res = await messengerService.checkAuth(account.index);
-        if (isMountedRef.current && res) {
-          updateAccount(account.id, {
-            isConnected: Boolean(res.connected),
-            lastSynced: res.connected ? "Just synced" : "",
-          });
-        }
-      } catch (err) {
-        feLog.error(`[useMessengerAccounts] Refresh error for account ${account.index}:`, err);
-      } finally {
-        clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = setTimeout(() => {
-          if (isMountedRef.current) setRefreshingId(null);
-        }, 800);
-      }
     },
     [updateAccount]
   );
@@ -131,19 +96,11 @@ export function useMessengerAccounts() {
     accounts,
     activeAccountIndex,
     isConnected,
-    refreshingId,
     openAccount: handleOpenAccount,
-    handleOpenAccount,
     cancelAuth: handleCancelAuth,
-    handleCancelAuth,
-    refreshAccount: handleRefreshAccount,
-    handleRefresh: handleRefreshAccount,
     removeAccount: handleRemoveAccount,
-    handleRemoveAccount,
     addAccount: handleAddAccount,
-    handleAddAccount,
     disconnectAccount: handleDisconnect,
-    handleDisconnect,
     setActiveAccountIndex,
     updateAccount,
   };

@@ -8,7 +8,6 @@ import { Color, Dimen } from "../../../../constants/design";
 
 interface ConnectedAccountRowProps {
   account: MessengerAccount;
-  onOpenChat: (account: MessengerAccount) => void;
   onToggleBubble: (account: MessengerAccount) => void;
 }
 

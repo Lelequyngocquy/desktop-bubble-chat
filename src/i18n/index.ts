@@ -39,7 +39,9 @@ function detectInitialLanguage(): "en" | "vi" {
         if (saved === "vi" || saved === "en") return saved;
       }
     }
-  } catch {}
+  } catch (err) {
+    console.warn("[i18n] Could not read saved locale from storage:", err);
+  }
   return "en";
 }
 

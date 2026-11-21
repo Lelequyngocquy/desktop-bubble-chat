@@ -47,10 +47,16 @@ export function useQuickSettings() {
   }, []);
   const handleSetBubbleSize = useCallback(
     async (size: BubbleSize) => {
+      const prevSize = bubbleSize;
       setBubbleSize(size);
-      await systemService.setBubbleConfig(BUBBLE_SIZE_PIXELS[size]);
+      try {
+        await systemService.setBubbleConfig(BUBBLE_SIZE_PIXELS[size]);
+      } catch (err) {
+        setBubbleSize(prevSize);
+        console.warn("[useQuickSettings] Failed to update bubble size:", err);
+      }
     },
-    [setBubbleSize],
+    [bubbleSize, setBubbleSize],
   );
   const handleToggleBubble = useCallback(async () => {
     if (!isConnected && !areAnyBubblesVisible) {
@@ -65,13 +71,19 @@ export function useQuickSettings() {
       const targetIndices = useMessengerStore.getState().accounts.filter((a) => a.isConnected).map((a) => a.index);
       await messengerService.toggleAllBubbles(nextVal, targetIndices.length > 0 ? targetIndices : [1]);
     } catch (err) {
+      setAllBubblesVisibility(!nextVal);
       console.warn("[useQuickSettings] Failed to toggle all bubbles visibility:", err);
     }
   }, [isConnected, areAnyBubblesVisible, setAllBubblesVisibility, t]);
   const handleToggleAlwaysOnTop = useCallback(async () => {
     const nextVal = !isAlwaysOnTop;
     toggleAlwaysOnTop();
-    await systemService.setAlwaysOnTop(nextVal);
+    try {
+      await systemService.setAlwaysOnTop(nextVal);
+    } catch (err) {
+      toggleAlwaysOnTop();
+      console.warn("[useQuickSettings] Failed to toggle always on top:", err);
+    }
   }, [isAlwaysOnTop, toggleAlwaysOnTop]);
   const handleToggleNotifications = useCallback(async () => {
     const nextVal = !areAnySoundsEnabled;
@@ -84,7 +96,12 @@ export function useQuickSettings() {
   const handleToggleAutoStart = useCallback(async () => {
     const nextVal = !isAutoStart;
     toggleAutoStart();
-    await systemService.toggleAutostart(nextVal);
+    try {
+      await systemService.toggleAutostart(nextVal);
+    } catch (err) {
+      toggleAutoStart();
+      console.warn("[useQuickSettings] Failed to toggle auto start:", err);
+    }
   }, [isAutoStart, toggleAutoStart]);
   const bubbleDescription = !isConnected
     ? t("bubble_desc_need_connect")

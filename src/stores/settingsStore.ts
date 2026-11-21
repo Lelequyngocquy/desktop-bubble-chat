@@ -240,7 +240,9 @@ export const useSettingsStore = create<SettingsState>()(
                 state.updateMode = parsed.state.updateMode;
               }
             }
-          } catch {}
+          } catch (err) {
+            console.warn("[settingsStore] Legacy settings migration skipped:", err);
+          }
         }
         return state as unknown as SettingsState;
       },

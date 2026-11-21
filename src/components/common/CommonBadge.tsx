@@ -1,37 +1,19 @@
 import React, { ReactNode } from "react";
+import { cn } from "../../utils/cn";
 
 export type BadgeVariant =
-  | "success" // Green (Connected, Done)
-  | "primary" // Blue (Active)
-  | "secondary" // Gray (Hibernating, Inactive)
-  | "warning" // Yellow / Orange (Warning, Pending)
-  | "danger"; // Red (Disconnected, Error)
+  | "success"
+  | "primary"
+  | "secondary"
+  | "warning"
+  | "danger";
 
-const VARIANT_STYLES: Record<
-  BadgeVariant,
-  { container: string; iconColor?: string }
-> = {
-  success: {
-    container: "bg-status-successBg text-status-success",
-    iconColor: "text-status-success",
-  },
-  primary: {
-    container: "bg-primary-subtle text-primary",
-    iconColor: "text-primary",
-  },
-  secondary: {
-    container:
-      "bg-background-subtle border border-border text-content-secondary",
-    iconColor: "text-content-secondary",
-  },
-  warning: {
-    container: "bg-status-warningBg text-status-warning",
-    iconColor: "text-status-warning",
-  },
-  danger: {
-    container: "bg-status-errorBg text-status-error",
-    iconColor: "text-status-error",
-  },
+const VARIANT_STYLES: Record<BadgeVariant, string> = {
+  success: "bg-status-successBg text-status-success",
+  primary: "bg-primary-subtle text-primary",
+  secondary: "bg-background-subtle border border-border text-content-secondary",
+  warning: "bg-status-warningBg text-status-warning",
+  danger: "bg-status-errorBg text-status-error",
 };
 
 export interface CommonBadgeProps {
@@ -49,14 +31,15 @@ export const CommonBadge: React.FC<CommonBadgeProps> = ({
   title,
   className = "",
 }) => {
-  const isPreset = color in VARIANT_STYLES;
-  const colorClasses = isPreset
-    ? VARIANT_STYLES[color as BadgeVariant].container
-    : color;
+  const colorClasses = color in VARIANT_STYLES ? VARIANT_STYLES[color as BadgeVariant] : color;
   return (
     <span
       title={title}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 text-caption font-medium rounded-pill shrink-0 ${colorClasses} ${className}`}
+      className={cn(
+        "inline-flex items-center gap-1 px-2 py-0.5 text-caption font-medium rounded-pill shrink-0",
+        colorClasses,
+        className,
+      )}
     >
       {icon && (
         <span className="shrink-0 flex items-center [&>svg]:w-3 [&>svg]:h-3">

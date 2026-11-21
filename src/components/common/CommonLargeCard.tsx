@@ -1,4 +1,5 @@
 import React, { ReactNode } from "react";
+import { cn } from "../../utils/cn";
 
 export interface CommonLargeCardProps {
   icon?: ReactNode;
@@ -6,7 +7,6 @@ export interface CommonLargeCardProps {
   subTitle?: ReactNode;
   linkTitle?: ReactNode;
   children?: ReactNode;
-  childWidget?: ReactNode;
   className?: string;
 }
 
@@ -16,15 +16,16 @@ export const CommonLargeCard: React.FC<CommonLargeCardProps> = ({
   subTitle,
   linkTitle,
   children,
-  childWidget,
   className = "",
 }) => {
-  const content = children ?? childWidget;
   return (
     <div
-      className={`bg-background-surface border border-border rounded-card shadow-card p-5 flex flex-col gap-4 ${className}`}
+      className={cn(
+        "bg-background-surface border border-border rounded-card shadow-card p-5 flex flex-col gap-4",
+        className,
+      )}
     >
-      <div className="flex items-center justify-between pb-2 border-b border-border ">
+      <div className="flex items-center justify-between pb-2 border-b border-border">
         <div className="flex items-center gap-2">
           {icon && <div className="shrink-0 flex items-center">{icon}</div>}
           <h2 className="text-body-lg md:text-heading-sm font-semibold text-content-primary m-0">
@@ -43,7 +44,7 @@ export const CommonLargeCard: React.FC<CommonLargeCardProps> = ({
           </div>
         )}
       </div>
-      {content}
+      {children}
     </div>
   );
 };

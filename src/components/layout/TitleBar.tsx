@@ -12,9 +12,13 @@ export const TitleBar: React.FC = () => {
   const [isMaximized, setIsMaximized] = useState(false);
   const isCloseDialogOpen = useWindowStore((s) => s.isCloseDialogOpen);
   const setIsCloseDialogOpen = useWindowStore((s) => s.setIsCloseDialogOpen);
-  const [isMac, setIsMac] = useState(false);
+  const [isMac] = useState(
+    () =>
+      typeof navigator !== "undefined" &&
+      (/Macintosh|Mac OS X/i.test(navigator.userAgent) ||
+        (Boolean(navigator.platform) && navigator.platform.startsWith("Mac"))),
+  );
   useEffect(() => {
-    setIsMac(typeof navigator !== "undefined" && (/Macintosh|Mac OS X/i.test(navigator.userAgent) || (Boolean(navigator.platform) && navigator.platform.startsWith("Mac"))));
     let disposed = false;
     let unlisten: (() => void) | undefined;
     const checkMaximized = async () => {
@@ -27,14 +31,18 @@ export const TitleBar: React.FC = () => {
             try {
               const nextMaximized = await windowService.isMaximized();
               if (!disposed) setIsMaximized(nextMaximized);
-            } catch {}
+            } catch (err) {
+              console.warn("[TitleBar] Resize maximize check skipped:", err);
+            }
           }),
           () => disposed,
           (fn) => {
             unlisten = fn;
           },
         );
-      } catch {}
+      } catch (err) {
+        console.warn("[TitleBar] Initial maximize check skipped:", err);
+      }
     };
     checkMaximized();
     return () => {

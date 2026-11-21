@@ -122,7 +122,6 @@ export const SettingsWorkspace: React.FC = () => {
     <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col bg-background-workspace overflow-hidden select-none">
       {/* Settings workspace header */}
       <TabHeader
-        eyebrow={t("settings:title").toUpperCase()}
         title={t("settings:title")}
         description={t("settings:subtitle")}
         rightSlot={

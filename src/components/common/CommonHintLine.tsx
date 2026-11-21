@@ -1,4 +1,5 @@
 import React, { ReactNode } from "react";
+import { cn } from "../../utils/cn";
 
 interface CommonHintLineProps {
   icon: ReactNode;
@@ -8,7 +9,6 @@ interface CommonHintLineProps {
   className?: string;
 }
 
-// A single-line hint row: icon + text (same color) + optional right slot pushed to the right.
 export const CommonHintLine: React.FC<CommonHintLineProps> = ({
   icon,
   text,
@@ -18,10 +18,14 @@ export const CommonHintLine: React.FC<CommonHintLineProps> = ({
 }) => {
   return (
     <div
-      className={`  bg-background-app/60 rounded-panel flex items-center gap-2 text-caption ${color} ${className}`}
+      className={cn(
+        "bg-background-app/60 rounded-panel flex items-center gap-2 text-caption",
+        color,
+        className,
+      )}
     >
       <span
-        className={`w-3.5 h-3.5 shrink-0 flex items-center justify-center ${color}`}
+        className={cn("w-3.5 h-3.5 shrink-0 flex items-center justify-center", color)}
       >
         {icon}
       </span>

@@ -2,15 +2,25 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Languages } from "lucide-react";
 import { useSettingsStore, AppLanguage } from "../../../stores/settingsStore";
-import { CommonLargeCard } from "../../common";
+import { CommonLargeCard, OptionCardGrid, type OptionCardItem } from "../../common";
 
 export const LanguageSelectionSection: React.FC = () => {
   const { t } = useTranslation(["settings", "common"]);
   const currentLanguage = useSettingsStore((s) => s.language);
-  const setLanguage = useSettingsStore((s) => s.setLanguage);
-  const languages: Array<{ code: AppLanguage; label: string; flag: string; desc: string }> = [
-    { code: "vi", label: "Tiếng Việt", flag: "🇻🇳", desc: t("settings:language.vietnamese_desc") },
-    { code: "en", label: "English", flag: "🇺🇸", desc: t("settings:language.english_desc") },
+  const setLanguage = useSettingsStore.getState().setLanguage;
+  const languages: Array<OptionCardItem<AppLanguage>> = [
+    {
+      value: "vi",
+      label: "Tiếng Việt",
+      description: t("settings:language.vietnamese_desc"),
+      icon: <span className="text-xl select-none">🇻🇳</span>,
+    },
+    {
+      value: "en",
+      label: "English",
+      description: t("settings:language.english_desc"),
+      icon: <span className="text-xl select-none">🇺🇸</span>,
+    },
   ];
   return (
     <CommonLargeCard
@@ -21,35 +31,7 @@ export const LanguageSelectionSection: React.FC = () => {
         <p className="text-small text-content-secondary m-0">
           {t("settings:language.description")}
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          {languages.map((lang) => {
-            const isSelected = currentLanguage === lang.code;
-            return (
-              <button
-                key={lang.code}
-                type="button"
-                onClick={() => setLanguage(lang.code)}
-                className={`flex items-center justify-between p-3.5 rounded-control border transition-all text-left cursor-pointer ${
-                  isSelected
-                    ? "bg-primary/10 border-primary shadow-xs ring-1 ring-primary/20"
-                    : "bg-background-surface hover:bg-background-subtle border-border hover:border-border"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-xl select-none">{lang.flag}</span>
-                  <div className="flex flex-col">
-                    <span className={`text-body leading-tight ${isSelected ? "font-semibold text-primary" : "font-medium text-content-primary"}`}>
-                      {lang.label}
-                    </span>
-                    <span className="text-caption text-content-muted leading-tight mt-0.5">
-                      {lang.desc}
-                    </span>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <OptionCardGrid options={languages} value={currentLanguage} onChange={setLanguage} columns={2} />
       </div>
     </CommonLargeCard>
   );

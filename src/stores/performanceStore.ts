@@ -5,15 +5,12 @@ import { systemService } from "../services/systemService";
 interface PerformanceState {
   snapshot: SystemPerformanceSnapshot | null;
   isLoading: boolean;
-  isTrimming: boolean;
-  lastTrimmedMb: number | null;
   error: string | null;
   isPolling: boolean;
   pollingIntervalMs: number;
   fetchSnapshot: () => Promise<void>;
   startPolling: () => void;
   stopPolling: () => void;
-  trimMemory: () => Promise<number>;
   setPollingIntervalMs: (ms: number) => void;
 }
 
@@ -25,8 +22,6 @@ let pollingGeneration = 0;
 export const usePerformanceStore = create<PerformanceState>((set, get) => ({
   snapshot: null,
   isLoading: false,
-  isTrimming: false,
-  lastTrimmedMb: null,
   error: null,
   isPolling: false,
   pollingIntervalMs: 1500,
@@ -70,19 +65,6 @@ export const usePerformanceStore = create<PerformanceState>((set, get) => ({
       pollingTimer = null;
     }
     set({ isPolling: false });
-  },
-  trimMemory: async () => {
-    try {
-      set({ isTrimming: true });
-      const freedMb = await systemService.trimSystemMemory();
-      set({ lastTrimmedMb: freedMb, isTrimming: false });
-      await get().fetchSnapshot();
-      return freedMb;
-    } catch (err) {
-      set({ isTrimming: false });
-      console.error("[PerformanceStore] Failed to trim memory:", err);
-      return 0;
-    }
   },
   setPollingIntervalMs: (ms: number) => {
     set({ pollingIntervalMs: ms });

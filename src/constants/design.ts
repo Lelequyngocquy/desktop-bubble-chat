@@ -161,33 +161,3 @@ export const Dimen = {
     avatarXl: 48,
   },
 } as const;
-
-export const Typography = {
-  fontFamily: "Inter, system-ui, -apple-system, sans-serif",
-
-  fontSize: {
-    badge: 10,
-    caption: 11,
-    small: 12,
-    body: 13,
-    navigation: 14,
-    bodyLg: 15,
-    headingSm: 16,
-    sectionTitle: 17,
-    platformTitle: 22,
-    metric: 28,
-    pageTitle: 30,
-  },
-
-  fontWeight: {
-    regular: 400,
-    medium: 500,
-    semibold: 600,
-    bold: 700,
-  },
-
-  lineHeight: {
-    default: 1.45,
-    description: 1.4,
-  },
-} as const;

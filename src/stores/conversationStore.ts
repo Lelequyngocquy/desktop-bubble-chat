@@ -7,7 +7,9 @@ import { normalizeThreadId } from "../utils/threadValidation";
 if (typeof window !== "undefined" && window.localStorage) {
   try {
     window.localStorage.removeItem("desktop_bubble_chat_conversations");
-  } catch {}
+  } catch (err) {
+    console.warn("[conversationStore] Could not prune legacy storage key:", err);
+  }
 }
 
 export function formatMessageTime(

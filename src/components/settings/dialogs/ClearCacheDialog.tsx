@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { Trash2 } from "lucide-react";
@@ -12,8 +12,7 @@ interface ClearCacheDialogProps {
   onConfirm: (accountIndices: number[]) => void | Promise<void>;
 }
 
-export const ClearCacheDialog: React.FC<ClearCacheDialogProps> = ({
-  isOpen,
+const ClearCacheDialogBody: React.FC<Omit<ClearCacheDialogProps, "isOpen">> = ({
   isClearing,
   onClose,
   onConfirm,
@@ -32,11 +31,6 @@ export const ClearCacheDialog: React.FC<ClearCacheDialogProps> = ({
     [accountIndices],
   );
   const [selectedTarget, setSelectedTarget] = useState<"all" | number>("all");
-  useEffect(() => {
-    if (isOpen) {
-      setSelectedTarget("all");
-    }
-  }, [isOpen]);
   const resolveTargetIndices = (): number[] => {
     if (selectedTarget === "all") {
       return accounts.length > 0 ? accounts.map((a) => a.index) : [1];
@@ -45,7 +39,7 @@ export const ClearCacheDialog: React.FC<ClearCacheDialogProps> = ({
   };
   return (
     <CommonDialog
-      isOpen={isOpen}
+      isOpen={true}
       onClose={() => {
         if (!isClearing) onClose();
       }}
@@ -110,6 +104,11 @@ export const ClearCacheDialog: React.FC<ClearCacheDialogProps> = ({
       }}
     />
   );
+};
+
+export const ClearCacheDialog: React.FC<ClearCacheDialogProps> = ({ isOpen, ...props }) => {
+  if (!isOpen) return null;
+  return <ClearCacheDialogBody {...props} />;
 };
 
 export default ClearCacheDialog;

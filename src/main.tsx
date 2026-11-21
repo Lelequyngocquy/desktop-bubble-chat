@@ -30,7 +30,9 @@ class RootErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState
       feLog.error(
         `[RootErrorBoundary] ${error.message}\nStack: ${error.stack}\nComponents: ${errorInfo.componentStack}`,
       );
-    } catch {}
+    } catch (logErr) {
+      console.warn("[RootErrorBoundary] Failed to forward error to backend logger:", logErr);
+    }
   }
   handleReload = () => {
     window.location.reload();

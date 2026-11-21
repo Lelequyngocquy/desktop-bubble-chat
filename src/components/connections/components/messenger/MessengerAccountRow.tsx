@@ -18,10 +18,8 @@ import { getAccountThemeColor, Color, Dimen } from "../../../../constants/design
 interface MessengerAccountRowProps {
   account: MessengerAccount;
   onOpen: (account: MessengerAccount) => void;
-  onRefresh: (account: MessengerAccount) => void;
   onRemove: (account: MessengerAccount) => void;
   onCancelAuth?: (account: MessengerAccount) => void;
-  isRefreshing?: boolean;
 }
 
 export const MessengerAccountRow: React.FC<MessengerAccountRowProps> = ({

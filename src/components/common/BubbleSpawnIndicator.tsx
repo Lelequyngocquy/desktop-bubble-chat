@@ -102,10 +102,11 @@ export const BubbleSpawnIndicator: React.FC = () => {
   }, [lastBubbleSpawn, addIndicator]);
   useEffect(() => {
     isMountedRef.current = true;
+    const timers = timersRef.current;
     return () => {
       isMountedRef.current = false;
-      timersRef.current.forEach((t) => clearTimeout(t));
-      timersRef.current.clear();
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
     };
   }, []);
 

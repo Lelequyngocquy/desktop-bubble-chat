@@ -8,25 +8,20 @@ export const DashboardLoadingOverlay: React.FC = () => {
   const isDashboardReady = useAppLifecycleStore((s) => s.isDashboardReady);
   const statusMessage = useAppLifecycleStore((s) => s.statusMessage);
   const markDashboardReady = useAppLifecycleStore((s) => s.markDashboardReady);
-  const [shouldRender, setShouldRender] = useState(!isDashboardReady);
-
+  const [hasFadedOut, setHasFadedOut] = useState(isDashboardReady);
   useEffect(() => {
     if (isDashboardReady) {
       const timer = setTimeout(() => {
-        setShouldRender(false);
+        setHasFadedOut(true);
       }, 350);
       return () => clearTimeout(timer);
-    } else {
-      setShouldRender(true);
-      const safetyTimer = setTimeout(() => {
-        markDashboardReady();
-      }, 4000);
-      return () => clearTimeout(safetyTimer);
     }
+    const safetyTimer = setTimeout(() => {
+      markDashboardReady();
+    }, 4000);
+    return () => clearTimeout(safetyTimer);
   }, [isDashboardReady, markDashboardReady]);
-
-  if (!shouldRender) return null;
-
+  if (isDashboardReady && hasFadedOut) return null;
   return (
     <div
       className={`absolute inset-0 z-50 flex items-center justify-center bg-background-app/85 backdrop-blur-sm select-none transition-opacity duration-300 ease-out ${
