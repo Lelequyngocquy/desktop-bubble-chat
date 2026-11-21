@@ -1,5 +1,5 @@
 // ============================================================================
-// MODULE 03: NAVIGATION GUARD & EXTERNAL LINK INTERCEPTOR
+// MODULE 04: NAVIGATION GUARD & EXTERNAL LINK INTERCEPTOR
 // ============================================================================
 // 1. Manages lifecycle routing between Auth Mode and Chat Mode
 // 2. Intercepts external URLs and redirects them to default system browser

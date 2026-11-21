@@ -1,92 +1,27 @@
-use std::sync::atomic::Ordering;
+mod events;
+
+pub use events::setup_window_events;
+
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 use tauri_plugin_notification::NotificationExt;
 
 use super::theme::{apply_window_theme_color, get_account_theme};
 use crate::platforms::messenger::constants::{MESSENGER_BASE_URL, MESSENGER_INJECT_SCRIPT};
 use crate::platforms::messenger::services::ChatService;
-use crate::state::{ChatState, MAX_ACCOUNTS};
-use crate::utils::time::now_millis;
-use crate::utils::win32::{is_cursor_over_bubble, is_cursor_over_window};
 use crate::presentation::bubble::get_bubble_window_label;
+use crate::state::{ChatState, MAX_ACCOUNTS};
 
 /// Returns window label for a Messenger account index (e.g. chat-messenger-01)
 pub fn get_messenger_window_label(account_index: u32) -> String {
     format!("chat-messenger-{:02}", account_index)
 }
 
-/// Attaches focus/blur and close protection listeners to chat window
-pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, chat_state: Arc<ChatState>) {
-    let chat_clone = chat_window.clone();
-    let app_handle = app.clone();
-    let state_clone = Arc::clone(&chat_state);
-    let win_label = chat_window.label().to_string();
-    chat_window.on_window_event(move |event| {
-        let idx = win_label
-            .strip_prefix("chat-messenger-")
-            .and_then(|s| s.parse::<u32>().ok())
-            .unwrap_or(1);
-        match event {
-            tauri::WindowEvent::Focused(false) => {
-                if !state_clone.is_window_in_auth_mode(&win_label) && !state_clone.is_chat_pinned(idx) && !state_clone.is_dialog_active(&win_label) {
-                    let bubble_label = get_bubble_window_label(idx);
-                    let over_bubble = app_handle
-                        .get_webview_window(&bubble_label)
-                        .map(|b| is_cursor_over_bubble(&b))
-                        .unwrap_or_else(|| crate::operating_systems::current::bubble::is_cursor_over_native_bubble(idx));
-                    let over_chat = is_cursor_over_window(&chat_clone);
-                    if !over_bubble && !over_chat {
-                        state_clone.last_blur_time.store(now_millis(), Ordering::SeqCst);
-                        let _ = ChatService::hide_chat(&app_handle, idx);
-                    }
-                }
-            }
-            tauri::WindowEvent::CloseRequested { api, .. } => {
-                if state_clone.is_bypass_close_guard(&win_label) {
-                    state_clone.set_bypass_close_guard(&win_label, false);
-                    return;
-                }
-                api.prevent_close();
-                state_clone.set_window_auth_mode(&win_label, false);
-                let _ = chat_clone.eval("window.__IS_AUTH_MODE__ = false;");
-                let _ = chat_clone.set_decorations(false);
-                let _ = chat_clone.set_skip_taskbar(true);
-                if !state_clone.get_account_auth(idx).as_ref().map(|a| a.connected).unwrap_or(false) {
-                    state_clone.set_account_suspended(idx, true);
-                    crate::commands::bubble::suspend_account_bubble_and_chat(&app_handle, idx);
-                    state_clone.update_user_config(&app_handle, |c| {
-                        c.active_bubble_accounts.retain(|&x| x != idx);
-                        c.authenticated_accounts.retain(|&x| x != idx);
-                    });
-                    if let Ok(clean_url) = tauri::Url::parse(MESSENGER_BASE_URL) {
-                        let _ = chat_clone.navigate(clean_url);
-                    }
-                }
-                let _ = app_handle.emit("messenger-auth-closed", serde_json::json!({ "label": &win_label }));
-                let _ = ChatService::hide_chat(&app_handle, idx);
-            }
-            tauri::WindowEvent::Resized(physical_size)
-                if physical_size.width > 0
-                    && physical_size.height > 0
-                    && !state_clone.is_window_in_auth_mode(&win_label) => {
-                    let scale = chat_clone.scale_factor().unwrap_or(1.0);
-                    let logical_w = (physical_size.width as f64 / scale).round() as u32;
-                    let logical_h = (physical_size.height as f64 / scale).round() as u32;
-                    if logical_w >= 200 && logical_h >= 200 {
-                        if state_clone.get_chat_window_custom_size(idx).is_some() {
-                            state_clone.set_chat_window_custom_size(idx, Some((logical_w, logical_h)));
-                        }
-                        let _ = app_handle.emit("chat-window-resized", serde_json::json!({
-                            "accountIndex": idx,
-                            "width": logical_w,
-                            "height": logical_h,
-                        }));
-                    }
-                }
-            _ => {}
-        }
-    });
+/// Returns existing Messenger WebviewWindow for account index, falling back to legacy label for account 1
+pub fn get_messenger_webview(app: &AppHandle, account_index: u32) -> Option<tauri::WebviewWindow> {
+    let label = get_messenger_window_label(account_index);
+    app.get_webview_window(&label)
+        .or_else(|| if account_index == 1 { app.get_webview_window("chat-messenger") } else { None })
 }
 
 /// Finds or creates WebviewWindow with isolated data_directory profile
@@ -205,36 +140,36 @@ pub fn get_or_create_messenger_window(
         .unwrap_or((404.0, 550.0));
     let builder = builder
         .background_color(tauri::utils::config::Color(255, 255, 255, 255))
-    .data_directory(profile_dir)
-    .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0")
-    .initialization_script(&init_script)
-    .title(format!("Messenger {:02}", account_index))
-    .inner_size(init_w, init_h)
-    .min_inner_size(320.0, 450.0)
-    .resizable(true)
-    .decorations(false)
-    .always_on_top(true)
-    .skip_taskbar(true)
-    .shadow(true)
-    .additional_browser_args(crate::platforms::messenger::constants::CHROMIUM_BROWSER_ARGS)
-    .visible(false)
-    .on_document_title_changed(move |win, title| {
-        crate::commands::notification::sync_unread_from_window_title(
-            win.app_handle(),
-            &state_title,
-            account_index,
-            &title,
-        );
-    })
-    .on_page_load(move |win, payload| {
-        let in_auth = state_page_load.is_window_in_auth_mode(win.label());
-        let _ = win.eval(format!("window.__IS_AUTH_MODE__ = {};", in_auth));
-        if let tauri::webview::PageLoadEvent::Finished = payload.event() {
-            state_page_load.set_chat_ready(account_index, true);
-            println!("\x1b[32m[BE - Window] Webview Messenger {:02} preloading finished (Ready)!\x1b[0m", account_index);
-            crate::utils::trim_controller::schedule_auto_trim_on_preload(account_index, win.app_handle().clone());
-        }
-    });
+        .data_directory(profile_dir)
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0")
+        .initialization_script(&init_script)
+        .title(format!("Messenger {:02}", account_index))
+        .inner_size(init_w, init_h)
+        .min_inner_size(320.0, 450.0)
+        .resizable(true)
+        .decorations(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .shadow(true)
+        .additional_browser_args(crate::platforms::messenger::constants::CHROMIUM_BROWSER_ARGS)
+        .visible(false)
+        .on_document_title_changed(move |win, title| {
+            crate::commands::notification::sync_unread_from_window_title(
+                win.app_handle(),
+                &state_title,
+                account_index,
+                &title,
+            );
+        })
+        .on_page_load(move |win, payload| {
+            let in_auth = state_page_load.is_window_in_auth_mode(win.label());
+            let _ = win.eval(format!("window.__IS_AUTH_MODE__ = {};", in_auth));
+            if let tauri::webview::PageLoadEvent::Finished = payload.event() {
+                state_page_load.set_chat_ready(account_index, true);
+                println!("\x1b[32m[BE - Window] Webview Messenger {:02} preloading finished (Ready)!\x1b[0m", account_index);
+                crate::utils::trim_controller::schedule_auto_trim_on_preload(account_index, win.app_handle().clone());
+            }
+        });
     match builder.build() {
         Ok(window) => {
             println!("\x1b[32m[BE - Window] Successfully built Webview window: {}\x1b[0m", label);
@@ -242,41 +177,7 @@ pub fn get_or_create_messenger_window(
             #[cfg(target_os = "windows")]
             apply_window_theme_color(&window, theme.hex, theme.border_hex);
             #[cfg(target_os = "windows")]
-            {
-                let is_muted = chat_state.is_account_muted(account_index);
-                let _ = window.with_webview(move |webview| {
-                    unsafe {
-                        use webview2_com::Microsoft::Web::WebView2::Win32::{
-                            ICoreWebView2_8, ICoreWebView2Settings4, ICoreWebView2Settings6,
-                        };
-                        use windows_core::Interface;
-                        let controller = webview.controller();
-                        if let Ok(core_webview) = controller.CoreWebView2() {
-                            if is_muted
-                                && let Ok(webview_8) = core_webview.cast::<ICoreWebView2_8>() {
-                                    let _ = webview_8.SetIsMuted(true);
-                                }
-                            if let Ok(settings) = core_webview.Settings() {
-                                let _ = settings.SetIsStatusBarEnabled(false);
-                                let _ = settings.SetIsZoomControlEnabled(false);
-                                let _ = settings.SetIsBuiltInErrorPageEnabled(false);
-                                let _ = settings.SetAreDefaultContextMenusEnabled(true);
-                                #[cfg(debug_assertions)]
-                                let _ = settings.SetAreDevToolsEnabled(true);
-                                #[cfg(not(debug_assertions))]
-                                let _ = settings.SetAreDevToolsEnabled(false);
-                                if let Ok(settings4) = settings.cast::<ICoreWebView2Settings4>() {
-                                    let _ = settings4.SetIsPasswordAutosaveEnabled(false);
-                                    let _ = settings4.SetIsGeneralAutofillEnabled(false);
-                                }
-                                if let Ok(settings6) = settings.cast::<ICoreWebView2Settings6>() {
-                                    let _ = settings6.SetIsSwipeNavigationEnabled(false);
-                                }
-                            }
-                        }
-                    }
-                });
-            }
+            events::configure_webview2_settings(&window, chat_state.is_account_muted(account_index));
             set_webview_memory_target_level(&window, true);
             Ok(window)
         }
@@ -295,11 +196,7 @@ pub fn set_webview_memory_target_level(window: &tauri::WebviewWindow, is_low: bo
 
 /// Sets memory target level for a specific Messenger account chat window
 pub fn set_chat_window_memory_target(app: &tauri::AppHandle, account_index: u32, is_low: bool) {
-    let label = get_messenger_window_label(account_index);
-    let win = app
-        .get_webview_window(&label)
-        .or_else(|| if account_index == 1 { app.get_webview_window("chat-messenger") } else { None });
-    if let Some(chat_window) = win {
+    if let Some(chat_window) = get_messenger_webview(app, account_index) {
         set_webview_memory_target_level(&chat_window, is_low);
     }
 }

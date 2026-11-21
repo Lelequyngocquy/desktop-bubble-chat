@@ -106,37 +106,3 @@ pub fn set_native_bubble_size(account_index: u32, size: u32) {
 pub fn shutdown_native_bubbles() {
     NativeBubbleManager::shutdown_if_initialized();
 }
-
-#[cfg(not(target_os = "windows"))]
-pub fn has_native_bubble(_account_index: u32) -> bool {
-    false
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn set_native_bubble_unread_count(_account_index: u32, _count: u32) {}
-
-#[cfg(not(target_os = "windows"))]
-pub fn trigger_native_bubble_pulse(_account_index: u32) {}
-
-#[cfg(not(target_os = "windows"))]
-pub fn is_cursor_over_native_bubble(_account_index: u32) -> bool {
-    false
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn tuck_native_bubble(_app: &tauri::AppHandle, _account_index: u32) {}
-
-#[cfg(not(target_os = "windows"))]
-pub fn untuck_native_bubble(_app: &tauri::AppHandle, _account_index: u32) {}
-
-#[cfg(not(target_os = "windows"))]
-pub fn set_native_bubble_always_on_top(_enabled: bool) {}
-
-#[cfg(not(target_os = "windows"))]
-pub fn reassert_native_bubble_topmost() {}
-
-#[cfg(not(target_os = "windows"))]
-pub fn set_native_bubble_size(_account_index: u32, _size: u32) {}
-
-#[cfg(not(target_os = "windows"))]
-pub fn shutdown_native_bubbles() {}

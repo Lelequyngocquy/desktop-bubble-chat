@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 #[derive(Clone, Debug, Default)]
@@ -26,11 +26,9 @@ pub const MAX_ACCOUNTS: u32 = 5;
 
 /// Multi-account SSOT state for chat and authentication
 pub struct ChatState {
-    pub last_blur_time: AtomicI64,
     pub auth_windows: Mutex<HashSet<String>>,
     pub account_auth: Mutex<HashMap<u32, AccountAuthInfo>>,
     pub is_always_on_top: AtomicBool,
-    pub previously_visible_bubbles: Mutex<Vec<u32>>,
     pub bypass_close_guard: Mutex<HashSet<String>>,
     pub transition_locks: Mutex<HashSet<u32>>,
     pub suspended_accounts: Mutex<HashSet<u32>>,
@@ -57,11 +55,9 @@ impl Default for ChatState {
             suspended.insert(idx);
         }
         Self {
-            last_blur_time: AtomicI64::new(0),
             auth_windows: Mutex::new(HashSet::new()),
             account_auth: Mutex::new(HashMap::new()),
             is_always_on_top: AtomicBool::new(true),
-            previously_visible_bubbles: Mutex::new(Vec::new()),
             bypass_close_guard: Mutex::new(HashSet::new()),
             transition_locks: Mutex::new(HashSet::new()),
             suspended_accounts: Mutex::new(suspended),
@@ -150,27 +146,6 @@ impl ChatState {
         if let Ok(mut map) = self.account_auth.lock() {
             map.remove(&account_index);
         }
-    }
-
-    pub fn has_any_connected_account(&self) -> bool {
-        if let Ok(map) = self.account_auth.lock() {
-            return map.values().any(|info| info.connected);
-        }
-        false
-    }
-
-    pub fn save_previously_visible_bubbles(&self, indices: Vec<u32>) {
-        if let Ok(mut prev) = self.previously_visible_bubbles.lock()
-            && !indices.is_empty() {
-                *prev = indices;
-            }
-    }
-
-    pub fn get_previously_visible_bubbles(&self) -> Vec<u32> {
-        if let Ok(prev) = self.previously_visible_bubbles.lock() {
-            return prev.clone();
-        }
-        Vec::new()
     }
 
     pub fn set_bypass_close_guard(&self, label: &str, bypass: bool) {
@@ -281,12 +256,6 @@ impl ChatState {
             return *map.get(&account_index).unwrap_or(&0);
         }
         0
-    }
-
-    pub fn clear_unread_count(&self, account_index: u32) {
-        if let Ok(mut map) = self.unread_counts.lock() {
-            map.insert(account_index, 0);
-        }
     }
 
     pub fn set_account_muted(&self, account_index: u32, muted: bool) {

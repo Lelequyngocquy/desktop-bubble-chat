@@ -53,6 +53,8 @@ export const IPC_COMMANDS = {
   CLOSE_MESSENGER_WINDOW: "close_messenger_window",
   CLEAR_ACCOUNT_STORAGE: "clear_account_storage",
   REPORT_AUTH_STATUS: "report_auth_status",
+  REPORT_INCOMING_NOTIFICATION: "report_incoming_notification",
+  TOGGLE_PIN_CHAT: "toggle_pin_chat",
   GET_RECENT_MESSAGES: "get_recent_messages",
   SET_ACCOUNT_MUTED: "set_account_muted",
   SET_CHAT_WINDOW_SIZE_CONFIG: "set_chat_window_size_config",
@@ -70,7 +72,9 @@ export const IPC_EVENTS = {
   MESSENGER_AUTH_CLOSED: "messenger-auth-closed",
   BUBBLE_VISIBILITY_CHANGED: "bubble-visibility-changed",
   BUBBLE_SPAWNED: "bubble-spawned",
+  BUBBLE_CONFIG_CHANGED: "bubble-config-changed",
   CHAT_VISIBILITY_CHANGED: "chat-visibility-changed",
+  CHAT_PIN_CHANGED: "chat-pin-changed",
   NEW_MESSAGE_RECEIVED: "new-message-received",
   RECENT_CONVERSATIONS_SYNCED: "recent-conversations-synced",
   USER_SETTINGS_CHANGED: "user-settings-changed",
@@ -122,8 +126,6 @@ export interface MessengerAuthStatusPayload {
   connected: boolean;
   name?: string | null;
   accountIndex?: number;
-  url?: string;
-  title?: string;
 }
 
 export interface MessengerAuthClosedPayload {

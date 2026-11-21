@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
-use crate::platforms::messenger::windows::get_messenger_window_label;
+use crate::platforms::messenger::windows::get_messenger_webview;
 use crate::state::ChatState;
 use crate::presentation::bubble::get_bubble_window_label;
 
@@ -16,7 +16,6 @@ impl StorageService {
         account_index: u32,
     ) -> Result<(), String> {
         let idx = account_index;
-        let label = get_messenger_window_label(idx);
         println!("[StorageService] Closing window and cleaning profile for Messenger {:02}", idx);
         state.clear_account_auth(idx);
         state.set_account_suspended(idx, true);
@@ -26,10 +25,7 @@ impl StorageService {
             c.active_bubble_accounts.retain(|&x| x != idx);
         });
         let _ = crate::tray::update_tray_menu(app);
-        let win = app
-            .get_webview_window(&label)
-            .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
-        if let Some(chat_window) = win {
+        if let Some(chat_window) = get_messenger_webview(app, idx) {
             let _ = chat_window.hide();
             let _ = chat_window.destroy();
         }

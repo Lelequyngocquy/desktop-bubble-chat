@@ -324,9 +324,10 @@ pub fn open_profiles_folder(app: AppHandle) -> Result<(), String> {
     }
 }
 
-/// Forwards log messages from Frontend / Injected scripts to terminal and log file
+/// Forwards log messages from Frontend / Injected scripts to terminal and rotated log file
 #[tauri::command]
 pub fn log_frontend(app: AppHandle, level: Option<String>, message: String) {
+    const MAX_LOG_BYTES: u64 = 2 * 1024 * 1024;
     let lvl = level.as_deref().unwrap_or("info");
     let tag = match lvl.to_lowercase().as_str() {
         "error" => "\x1b[31m[FE - ERROR]\x1b[0m",
@@ -339,6 +340,12 @@ pub fn log_frontend(app: AppHandle, level: Option<String>, message: String) {
         let log_dir = data_dir.join("logs");
         let _ = std::fs::create_dir_all(&log_dir);
         let log_file = log_dir.join("messenger_inject.log");
+        if let Ok(meta) = std::fs::metadata(&log_file)
+            && meta.len() >= MAX_LOG_BYTES {
+                let rotated = log_dir.join("messenger_inject.log.old");
+                let _ = std::fs::remove_file(&rotated);
+                let _ = std::fs::rename(&log_file, &rotated);
+            }
         use std::io::Write;
         if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_file) {
             let now = crate::utils::time::now_millis();

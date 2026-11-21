@@ -1,37 +1,4 @@
-#[derive(Clone, Copy, Debug)]
-pub struct AccountTheme {
-    pub hex: &'static str,
-    pub border_hex: &'static str,
-}
-
-pub fn get_account_theme(idx: u32) -> AccountTheme {
-    match idx {
-        1 => AccountTheme {
-            hex: "#06B6D4",
-            border_hex: "#0891B2",
-        },
-        2 => AccountTheme {
-            hex: "#EC4899",
-            border_hex: "#DB2777",
-        },
-        3 => AccountTheme {
-            hex: "#F97316",
-            border_hex: "#EA580C",
-        },
-        4 => AccountTheme {
-            hex: "#8B5CF6",
-            border_hex: "#7C3AED",
-        },
-        5 => AccountTheme {
-            hex: "#10B981",
-            border_hex: "#059669",
-        },
-        _ => AccountTheme {
-            hex: "#06B6D4",
-            border_hex: "#0891B2",
-        },
-    }
-}
+pub use crate::presentation::bubble::renderer::theme::{get_account_theme, AccountTheme};
 
 pub fn hex_to_colorref(hex: &str) -> u32 {
     let clean = hex.trim_start_matches('#');

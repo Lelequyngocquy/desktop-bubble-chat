@@ -1,10 +1,9 @@
 // ============================================================================
-// MODULE 06: LIFECYCLE SCHEDULER & BOOTSTRAP ORCHESTRATION
+// MODULE 07: LIFECYCLE SCHEDULER & BOOTSTRAP ORCHESTRATION
 // ============================================================================
-// Nhiệm vụ:
-// 1. Cung cấp cơ chế điều phối chu kỳ thích ứng (Adaptive Interval) giảm tải CPU & RAM khi ẩn.
-// 2. Lên lịch giám sát định kỳ trạng thái auth và URL (chặn chuyển hướng ngoài ý muốn).
-// 3. Khởi tạo các module styles và offline handler khi DOM sẵn sàng.
+// 1. Provides adaptive interval scheduling to reduce CPU and RAM usage when hidden
+// 2. Periodically monitors authentication status and guards against unexpected redirects
+// 3. Initializes styles and offline resilience handlers once DOM is ready
 
 // 0. Focus state manager to prevent Auto-Seen and detect hidden window states
 if (!window.__FOCUS_INTERCEPTOR_INSTALLED__) {

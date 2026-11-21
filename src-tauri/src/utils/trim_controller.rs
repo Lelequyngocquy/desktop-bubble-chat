@@ -31,9 +31,9 @@ pub struct AutoTrimController {
 static AUTO_TRIM_CONTROLLER: OnceLock<AutoTrimController> = OnceLock::new();
 
 fn is_chat_window_visible(app: &AppHandle, account_index: u32) -> bool {
-    let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(account_index);
-    let win = app.get_webview_window(&chat_label).or_else(|| if account_index == 1 { app.get_webview_window("chat-messenger") } else { None });
-    win.and_then(|w| w.is_visible().ok()).unwrap_or(false)
+    crate::platforms::messenger::windows::get_messenger_webview(app, account_index)
+        .and_then(|w| w.is_visible().ok())
+        .unwrap_or(false)
 }
 
 impl Default for AutoTrimController {

@@ -3,7 +3,8 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::movement::BubbleMovementEngine;
 use crate::platforms::messenger::windows::{
-    get_messenger_window_label, get_or_create_messenger_window, hide_all_other_messenger_windows,
+    get_messenger_webview, get_messenger_window_label, get_or_create_messenger_window,
+    hide_all_other_messenger_windows,
 };
 use crate::state::{ChatState, MAX_ACCOUNTS};
 use crate::presentation::bubble::{get_bubble_window_label, tuck_bubble};
@@ -176,9 +177,7 @@ impl ChatService {
     ) -> Result<(), String> {
         let idx = account_index;
         let label = get_messenger_window_label(idx);
-        let chat_window = app
-            .get_webview_window(&label)
-            .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
+        let chat_window = get_messenger_webview(app, idx);
         if let Some(chat_window) = chat_window
             && chat_window.is_visible().unwrap_or(false) {
                 if let Some(cs) = app.try_state::<Arc<ChatState>>() {
@@ -223,9 +222,7 @@ impl ChatService {
                     if should_abort() {
                         return;
                     }
-                    if let Some(cw) = app_handle
-                        .get_webview_window(&label)
-                        .or_else(|| if idx == 1 { app_handle.get_webview_window("chat-messenger") } else { None })
+                    if let Some(cw) = get_messenger_webview(&app_handle, idx)
                         && !cw.is_visible().unwrap_or(false) {
                             tuck_bubble(&app_handle, Some(idx));
                         }
@@ -258,12 +255,8 @@ impl ChatService {
         account_index: u32,
     ) -> Result<(), String> {
         let idx = account_index;
-        let label = get_messenger_window_label(idx);
         println!("[BE - Messenger] Reloading Messenger session {:02}", idx);
-        let win = app
-            .get_webview_window(&label)
-            .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
-        if let Some(chat_window) = win {
+        if let Some(chat_window) = get_messenger_webview(app, idx) {
             let _ = chat_window.eval("window.location.reload();");
         }
         Ok(())

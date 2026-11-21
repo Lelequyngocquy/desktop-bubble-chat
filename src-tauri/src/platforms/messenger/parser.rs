@@ -1,11 +1,23 @@
-/// Extracts unread count from window title (e.g. "(3) Messenger", "(99+) Messenger")
+/// Extracts unread count from Messenger window title prefix (e.g. "(3) Messenger", "(99+) Messenger")
 pub fn parse_unread_from_title(title: &str) -> u32 {
     let clean_title = title.replace("[AUTH_OK]", "").replace("[AUTH_LOGIN]", "");
-    if let (Some(start), Some(end)) = (clean_title.find('('), clean_title.find(')'))
-        && start < end {
-            let inner = &clean_title[start + 1..end];
+    let trimmed = clean_title.trim_start();
+    if let Some(rest) = trimmed.strip_prefix('(')
+        && let Some(end) = rest.find(')') {
+            let inner = rest[..end].trim();
+            let after = rest[end + 1..].trim();
+            if inner.is_empty() || !inner.chars().all(|c| c.is_ascii_digit() || c == '+') {
+                return 0;
+            }
             let digits: String = inner.chars().filter(|c| c.is_ascii_digit()).collect();
-            return digits.parse::<u32>().unwrap_or(0);
+            let is_direct_messenger = after.eq_ignore_ascii_case("Messenger");
+            let is_valid_sender_badge = digits.len() <= 2
+                && (after.contains("Messenger")
+                    || after.contains("sent a message")
+                    || after.contains("đã gửi"));
+            if is_direct_messenger || is_valid_sender_badge {
+                return digits.parse::<u32>().unwrap_or(0);
+            }
         }
     0
 }
@@ -61,5 +73,15 @@ mod tests {
         );
         assert_eq!(parse_sender_from_title("(3) Messenger"), None);
         assert_eq!(parse_sender_from_title("Messenger"), None);
+    }
+
+    #[test]
+    fn test_parse_unread_from_title_ignores_group_year_and_mid_parens() {
+        assert_eq!(parse_unread_from_title("(3) Messenger"), 3);
+        assert_eq!(parse_unread_from_title("(99+) Messenger"), 99);
+        assert_eq!(parse_unread_from_title("(12) Alice | Messenger"), 12);
+        assert_eq!(parse_unread_from_title("(2026) Team"), 0);
+        assert_eq!(parse_unread_from_title("(2026) Team | Messenger"), 0);
+        assert_eq!(parse_unread_from_title("Team (2026) | Messenger"), 0);
     }
 }

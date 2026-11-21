@@ -1,5 +1,5 @@
 // ============================================================================
-// MODULE 05: RESPONSIVE STYLING & COMPACT UI
+// MODULE 06: RESPONSIVE STYLING & COMPACT UI
 // ============================================================================
 // Injects custom CSS rules for compact popup chat window (404x620).
 

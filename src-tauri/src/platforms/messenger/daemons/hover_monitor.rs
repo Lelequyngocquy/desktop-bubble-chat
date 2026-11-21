@@ -3,10 +3,10 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 
+use crate::operating_systems::current::CursorTracker;
 use crate::platforms::messenger::services::ChatService;
 use crate::platforms::messenger::windows::get_messenger_window_label;
 use crate::state::{ChatState, MAX_ACCOUNTS};
-use crate::utils::win32::{is_cursor_over_bubble, is_cursor_over_window, is_lbutton_down};
 use crate::presentation::bubble::get_bubble_window_label;
 
 /// Daemon thread: Hover 0.1s over bubble to open chat, auto-close when cursor leaves both chat and bubble
@@ -24,7 +24,7 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
             if chat_state.is_explicit_exit.load(Ordering::SeqCst) {
                 break;
             }
-            let lbutton_down = is_lbutton_down();
+            let lbutton_down = CursorTracker::is_lbutton_down();
             let mut detected_hover_bubble: Option<u32> = None;
             if !lbutton_down {
                 for idx in 1..=MAX_ACCOUNTS {
@@ -33,7 +33,7 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                     }
                     let label = get_bubble_window_label(idx);
                     if let Some(bubble_win) = app.get_webview_window(&label) {
-                        if bubble_win.is_visible().unwrap_or(false) && is_cursor_over_bubble(&bubble_win) {
+                        if bubble_win.is_visible().unwrap_or(false) && CursorTracker::is_cursor_over_window(&bubble_win) {
                             detected_hover_bubble = Some(idx);
                             break;
                         }
@@ -84,10 +84,10 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
             if !lbutton_down {
                 if let Some((active_idx, chat_win)) = active_chat_info {
                     let bubble_label = get_bubble_window_label(active_idx);
-                    let over_chat = is_cursor_over_window(&chat_win);
+                    let over_chat = CursorTracker::is_cursor_over_window(&chat_win);
                     let over_bubble = app
                         .get_webview_window(&bubble_label)
-                        .map(|b| is_cursor_over_bubble(&b))
+                        .map(|b| CursorTracker::is_cursor_over_window(&b))
                         .unwrap_or_else(|| crate::operating_systems::current::bubble::is_cursor_over_native_bubble(active_idx));
                     let is_dialog_open = chat_state.is_any_dialog_active();
                     if over_chat || over_bubble || chat_state.is_chat_pinned(active_idx) || is_dialog_open {

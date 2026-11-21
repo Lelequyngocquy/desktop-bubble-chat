@@ -3,7 +3,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use super::dto::TransitionLockGuard;
 use crate::movement::BubbleRect;
-use crate::platforms::messenger::windows::get_messenger_window_label;
+use crate::platforms::messenger::windows::{get_messenger_webview, get_messenger_window_label};
 use crate::state::ChatState;
 use crate::presentation::bubble::{
     ensure_bubble_positioned_and_visible, ensure_bubble_positioned_and_visible_with_extra,
@@ -21,10 +21,7 @@ pub fn suspend_account_bubble_and_chat(app: &AppHandle, account_index: u32) {
         state.set_chat_ready(idx, false);
         state.remove_bubble_rect(idx);
     }
-    let win = app
-        .get_webview_window(&chat_label)
-        .or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
-    if let Some(cw) = win {
+    if let Some(cw) = get_messenger_webview(app, idx) {
         #[cfg(target_os = "windows")]
         crate::operating_systems::windows::fullscreen_overlay::hide_window_with_fullscreen_cleanup(&cw);
         #[cfg(not(target_os = "windows"))]
@@ -213,7 +210,6 @@ pub async fn toggle_all_bubbles_impl(
         }
     } else {
         if let Some(chat_state) = &chat_state_arc {
-            chat_state.save_previously_visible_bubbles(visible_indices.clone());
             chat_state.update_user_config(app, |c| {
                 c.active_bubble_accounts.clear();
             });

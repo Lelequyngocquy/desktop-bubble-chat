@@ -6,7 +6,7 @@ Thư mục này chứa toàn bộ các script can thiệp vào tiến trình Web
 
 ## 1. Cấu Trúc Module (`modules/`)
 
-Để đảm bảo tính độc lập trách nhiệm (Single Responsibility Principle - SRP), dễ dàng bảo trì và tối ưu hóa hiệu năng, mã nguồn inject được tổ chức thành 7 module chuyên biệt:
+Để đảm bảo tính độc lập trách nhiệm (Single Responsibility Principle - SRP), dễ dàng bảo trì và tối ưu hóa hiệu năng, mã nguồn inject được tổ chức thành 10 module chuyên biệt:
 
 | Module | File | Trách nhiệm chính |
 | :--- | :--- | :--- |
@@ -25,11 +25,13 @@ Thư mục này chứa toàn bộ các script can thiệp vào tiến trình Web
 
 ## 2. Cơ Chế Tích Hợp Vào Rust Backend (Compile-time Concat)
 
-Trong [`src-tauri/src/platforms/messenger/constants.rs`](file:///D:/DesktopBubbleChat/src-tauri/src/platforms/messenger/constants.rs), Rust sử dụng macro `concat!(...)` kết hợp `include_str!(...)` để nhúng trực tiếp toàn bộ 7 module vào hằng số `MESSENGER_INJECT_SCRIPT` tại thời điểm biên dịch:
+Trong [`src-tauri/src/platforms/messenger/constants.rs`](file:///D:/DesktopBubbleChat/src-tauri/src/platforms/messenger/constants.rs), Rust sử dụng macro `concat!(...)` kết hợp `include_str!(...)` để nhúng trực tiếp toàn bộ 10 module vào hằng số `MESSENGER_INJECT_SCRIPT` tại thời điểm biên dịch:
 
 ```rust
 pub const MESSENGER_INJECT_SCRIPT: &str = concat!(
     "(function () {\n",
+    "  if (window.__DBC_INJECTED__) return;\n",
+    "  window.__DBC_INJECTED__ = true;\n",
     "  const TARGET_MESSENGER_URL = \"https://www.messenger.com/\";\n\n",
     include_str!("scripts/modules/01_ipc_bridge.js"),
     "\n\n",
@@ -44,6 +46,12 @@ pub const MESSENGER_INJECT_SCRIPT: &str = concat!(
     include_str!("scripts/modules/06_styles.js"),
     "\n\n",
     include_str!("scripts/modules/07_lifecycle.js"),
+    "\n\n",
+    include_str!("scripts/modules/08_auto_unselect_thread.js"),
+    "\n\n",
+    include_str!("scripts/modules/09_pin_button.js"),
+    "\n\n",
+    include_str!("scripts/modules/10_download_manager.js"),
     "\n})();\n"
 );
 ```

@@ -121,26 +121,8 @@ pub fn parse_manifest(folder: &Path) -> Result<(String, String, String, Option<S
         if let Ok(icon_path) = resolve_contained_path(folder, Path::new(trimmed))
             && icon_path.is_file()
             && let Ok(bytes) = std::fs::read(&icon_path) {
-                let mut base64_str = String::new();
-                for chunk in bytes.chunks(3) {
-                    const B64_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-                    let b0 = chunk[0];
-                    let b1 = if chunk.len() > 1 { chunk[1] } else { 0 };
-                    let b2 = if chunk.len() > 2 { chunk[2] } else { 0 };
-                    base64_str.push(B64_CHARS[(b0 >> 2) as usize] as char);
-                    base64_str.push(B64_CHARS[(((b0 & 3) << 4) | (b1 >> 4)) as usize] as char);
-                    if chunk.len() > 1 {
-                        base64_str.push(B64_CHARS[(((b1 & 0xf) << 2) | (b2 >> 6)) as usize] as char);
-                    } else {
-                        base64_str.push('=');
-                    }
-                    if chunk.len() > 2 {
-                        base64_str.push(B64_CHARS[(b2 & 0x3f) as usize] as char);
-                    } else {
-                        base64_str.push('=');
-                    }
-                }
-                icon_base64 = Some(format!("data:image/png;base64,{}", base64_str));
+                use base64::{engine::general_purpose::STANDARD, Engine as _};
+                icon_base64 = Some(format!("data:image/png;base64,{}", STANDARD.encode(&bytes)));
             }
     }
     Ok((name, version, description, icon_base64))

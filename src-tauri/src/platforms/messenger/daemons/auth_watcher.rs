@@ -1,10 +1,10 @@
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 
 use crate::platforms::messenger::verifier::is_window_logged_in;
-use crate::platforms::messenger::windows::get_messenger_window_label;
+use crate::platforms::messenger::windows::get_messenger_webview;
 use crate::state::ChatState;
 use crate::presentation::bubble::ensure_bubble_positioned_and_visible;
 
@@ -27,11 +27,7 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                     logged_in_map.insert(idx, false);
                     continue;
                 }
-                let label = get_messenger_window_label(idx);
-                let win = app_handle
-                    .get_webview_window(&label)
-                    .or_else(|| if idx == 1 { app_handle.get_webview_window("chat-messenger") } else { None });
-                if let Some(chat_window) = win {
+                if let Some(chat_window) = get_messenger_webview(&app_handle, idx) {
                     let win_label = chat_window.label().to_string();
                     let auth_info = chat_state.get_account_auth(idx);
                     let state_logged_in = auth_info.as_ref().map(|a| a.connected).unwrap_or(false);

@@ -93,9 +93,7 @@ pub async fn open_thread(
         return Err(format!("Account {} is not active or connected", idx));
     }
     ChatService::open_chat(&app, &state, idx)?;
-    let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
-    let chat_win = app.get_webview_window(&chat_label).or_else(|| if idx == 1 { app.get_webview_window("chat-messenger") } else { None });
-    if let Some(chat_window) = chat_win {
+    if let Some(chat_window) = crate::platforms::messenger::windows::get_messenger_webview(&app, idx) {
         let clean_id = thread_id.trim();
         if is_valid_thread_id(clean_id) {
             let url = format!("https://www.messenger.com/t/{}", clean_id);

@@ -1,4 +1,7 @@
 #[cfg(target_os = "windows")]
+mod actions;
+
+#[cfg(target_os = "windows")]
 use std::collections::HashMap;
 #[cfg(target_os = "windows")]
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -7,7 +10,7 @@ use std::sync::mpsc::{channel, Sender};
 #[cfg(target_os = "windows")]
 use std::sync::{Arc, OnceLock, RwLock};
 #[cfg(target_os = "windows")]
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 #[cfg(target_os = "windows")]
 use super::window::{
@@ -39,7 +42,7 @@ const WM_BUBBLE_ASSERT_TOPMOST: u32 = WM_USER + 201;
 #[cfg(target_os = "windows")]
 const TOPMOST_SETTLE_DELAY_MS: u32 = 150;
 #[cfg(target_os = "windows")]
-const TIMER_ID_SETTLE_TOPMOST: usize = 1;
+pub(super) const TIMER_ID_SETTLE_TOPMOST: usize = 1;
 #[cfg(target_os = "windows")]
 const HWND_MESSAGE: *mut std::ffi::c_void = (-3_isize) as *mut std::ffi::c_void;
 
@@ -85,7 +88,7 @@ unsafe extern "system" fn foreground_win_event_proc(
 
 /// Re-asserts HWND_TOPMOST on visible idle bubbles unless foreground window is fullscreen
 #[cfg(target_os = "windows")]
-fn reassert_topmost_for_bubbles(
+pub(super) fn reassert_topmost_for_bubbles(
     bubbles: &HashMap<u32, NativeBubbleWindow>,
     fg_hwnd: *mut std::ffi::c_void,
 ) {
@@ -171,7 +174,6 @@ impl NativeBubbleManager {
             let (cmd_tx, cmd_rx) = channel::<NativeBubbleAction>();
             let bounds_cache = Arc::new(RwLock::new(HashMap::new()));
             let bounds_clone = Arc::clone(&bounds_cache);
-
             std::thread::Builder::new()
                 .name("native-bubble-worker".into())
                 .spawn(move || {
@@ -222,240 +224,15 @@ impl NativeBubbleManager {
                     while unsafe { GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) } > 0 {
                         if msg.message == WM_BUBBLE_DISPATCH {
                             while let Ok(action) = cmd_rx.try_recv() {
-                                match action {
-                                    NativeBubbleAction::Show { account_index, x, y, size, app } => {
-                                        if let Some(chat_state) = app.try_state::<Arc<crate::state::ChatState>>() {
-                                            is_always_on_top = chat_state.is_always_on_top.load(std::sync::atomic::Ordering::SeqCst);
-                                        }
-                                        if let Some(win) = bubbles.get_mut(&account_index) {
-                                            win.set_position(x, y);
-                                            win.resize(size);
-                                            win.show();
-                                            if let Ok(mut cache) = bounds_clone.write() {
-                                                cache.insert(account_index, (x, y, size, size));
-                                            }
-                                        } else {
-                                            match NativeBubbleWindow::new(Some(app), account_index, x, y, size) {
-                                                Ok(win) => {
-                                                    win.show();
-                                                    bubbles.insert(account_index, win);
-                                                    if let Ok(mut cache) = bounds_clone.write() {
-                                                        cache.insert(account_index, (x, y, size, size));
-                                                    }
-                                                }
-                                                Err(e) => {
-                                                    eprintln!("[NativeBubble ERROR] Failed to create window for account {}: {}", account_index, e);
-                                                }
-                                            }
-                                        }
-                                    }
-                                    NativeBubbleAction::Hide { account_index } => {
-                                        if let Some(win) = bubbles.remove(&account_index) {
-                                            win.hide();
-                                        }
-                                        if let Ok(mut cache) = bounds_clone.write() {
-                                            cache.remove(&account_index);
-                                        }
-                                    }
-                                    NativeBubbleAction::SetPosition { account_index, x, y } => {
-                                        if let Some(win) = bubbles.get(&account_index) {
-                                            win.set_position(x, y);
-                                            if let Ok(mut cache) = bounds_clone.write()
-                                                && let Some(b) = cache.get_mut(&account_index) {
-                                                    b.0 = x;
-                                                    b.1 = y;
-                                                }
-                                        }
-                                    }
-                                    NativeBubbleAction::AnimateTo { account_index, target_x, target_y, duration_ms } => {
-                                        if let Some(win) = bubbles.get(&account_index) {
-                                            win.animate_to(target_x, target_y, duration_ms);
-                                            if let Ok(mut cache) = bounds_clone.write()
-                                                && let Some(b) = cache.get_mut(&account_index) {
-                                                    b.0 = target_x;
-                                                    b.1 = target_y;
-                                                }
-                                        }
-                                    }
-                                    NativeBubbleAction::SetUnread { account_index, count } => {
-                                        if let Some(win) = bubbles.get(&account_index) {
-                                            win.set_unread_count(count);
-                                        }
-                                    }
-                                    NativeBubbleAction::TriggerPulse { account_index } => {
-                                        if let Some(win) = bubbles.get(&account_index) {
-                                            win.trigger_pulse();
-                                        }
-                                    }
-                                    NativeBubbleAction::Tuck { account_index, app } => {
-                                        crate::utils::trim_controller::schedule_auto_trim_on_tuck(account_index, app.clone());
-                                        let config = crate::movement::get_bubble_physics_config(&app);
-                                        if config.is_free_position {
-                                            continue;
-                                        }
-                                        if let Some(win) = bubbles.get(&account_index) {
-                                            let screen = crate::movement::get_target_dashboard_screen(Some(&app));
-                                            let (cur_x, cur_y, _, _) = win.get_bounds();
-                                            let target_pos = crate::movement::BubbleMovementEngine::calculate_hover_pos(
-                                                &screen,
-                                                &config,
-                                                cur_x,
-                                                cur_y,
-                                                false,
-                                            );
-                                            let mid_x = screen.x + screen.width / 2;
-                                            let is_left_edge = cur_x + (config.size * screen.scale_factor) as i32 / 2 < mid_x;
-                                            let all_bubbles: Vec<crate::movement::BubbleRect> = if let Ok(cache) = bounds_clone.read() {
-                                                cache.iter().map(|(&idx, &(x, y, w, h))| crate::movement::BubbleRect {
-                                                    account_index: idx,
-                                                    x,
-                                                    y,
-                                                    width: w as i32,
-                                                    height: h as i32,
-                                                }).collect()
-                                            } else {
-                                                Vec::new()
-                                            };
-                                            let slots = crate::movement::CollisionResolver::resolve_mutual_column_layout(
-                                                account_index,
-                                                cur_y,
-                                                is_left_edge,
-                                                &screen,
-                                                &config,
-                                                &all_bubbles,
-                                            );
-                                            let resolved_y = slots.iter()
-                                                .find(|s| s.account_index == account_index)
-                                                .map(|s| s.target_y)
-                                                .unwrap_or(cur_y);
-                                            win.animate_to(target_pos.x, resolved_y, 180);
-                                            if let Ok(mut cache) = bounds_clone.write()
-                                                && let Some(b) = cache.get_mut(&account_index) {
-                                                    b.0 = target_pos.x;
-                                                    b.1 = resolved_y;
-                                                }
-                                            for slot in &slots {
-                                                if slot.account_index == account_index {
-                                                    continue;
-                                                }
-                                                let sibling_x = all_bubbles.iter()
-                                                    .find(|b| b.account_index == slot.account_index)
-                                                    .map(|b| b.x)
-                                                    .unwrap_or(target_pos.x);
-                                                if let Some(sibling_win) = bubbles.get(&slot.account_index) {
-                                                    sibling_win.animate_to(sibling_x, slot.target_y, 180);
-                                                }
-                                                if let Ok(mut cache) = bounds_clone.write()
-                                                    && let Some(b) = cache.get_mut(&slot.account_index) {
-                                                        b.0 = sibling_x;
-                                                        b.1 = slot.target_y;
-                                                    }
-                                            }
-                                        }
-                                    }
-                                    NativeBubbleAction::Untuck { account_index, app } => {
-                                        crate::utils::trim_controller::cancel_auto_trim(account_index);
-                                        crate::utils::trim_controller::record_user_interaction(account_index);
-                                        crate::platforms::messenger::windows::set_chat_window_memory_target(&app, account_index, false);
-                                        let config = crate::movement::get_bubble_physics_config(&app);
-                                        if config.is_free_position {
-                                            continue;
-                                        }
-                                        if let Some(win) = bubbles.get(&account_index) {
-                                            let screen = crate::movement::get_target_dashboard_screen(Some(&app));
-                                            let config = crate::movement::get_bubble_physics_config(&app);
-                                            let (cur_x, cur_y, _, _) = win.get_bounds();
-                                            let target_pos = crate::movement::BubbleMovementEngine::calculate_hover_pos(
-                                                &screen,
-                                                &config,
-                                                cur_x,
-                                                cur_y,
-                                                true,
-                                            );
-                                            let mid_x = screen.x + screen.width / 2;
-                                            let is_left_edge = cur_x + (config.size * screen.scale_factor) as i32 / 2 < mid_x;
-                                            let all_bubbles: Vec<crate::movement::BubbleRect> = if let Ok(cache) = bounds_clone.read() {
-                                                cache.iter().map(|(&idx, &(x, y, w, h))| crate::movement::BubbleRect {
-                                                    account_index: idx,
-                                                    x,
-                                                    y,
-                                                    width: w as i32,
-                                                    height: h as i32,
-                                                }).collect()
-                                            } else {
-                                                Vec::new()
-                                            };
-                                            let slots = crate::movement::CollisionResolver::resolve_mutual_column_layout(
-                                                account_index,
-                                                cur_y,
-                                                is_left_edge,
-                                                &screen,
-                                                &config,
-                                                &all_bubbles,
-                                            );
-                                            let resolved_y = slots.iter()
-                                                .find(|s| s.account_index == account_index)
-                                                .map(|s| s.target_y)
-                                                .unwrap_or(cur_y);
-                                            win.animate_to(target_pos.x, resolved_y, 180);
-                                            if let Ok(mut cache) = bounds_clone.write()
-                                                && let Some(b) = cache.get_mut(&account_index) {
-                                                    b.0 = target_pos.x;
-                                                    b.1 = resolved_y;
-                                                }
-                                            for slot in &slots {
-                                                if slot.account_index == account_index {
-                                                    continue;
-                                                }
-                                                let sibling_x = all_bubbles.iter()
-                                                    .find(|b| b.account_index == slot.account_index)
-                                                    .map(|b| b.x)
-                                                    .unwrap_or(target_pos.x);
-                                                if let Some(sibling_win) = bubbles.get(&slot.account_index) {
-                                                    sibling_win.animate_to(sibling_x, slot.target_y, 180);
-                                                }
-                                                if let Ok(mut cache) = bounds_clone.write()
-                                                    && let Some(b) = cache.get_mut(&slot.account_index) {
-                                                        b.0 = sibling_x;
-                                                        b.1 = slot.target_y;
-                                                    }
-                                            }
-                                        }
-                                    }
-                                    NativeBubbleAction::SetAlwaysOnTop { enabled } => {
-                                        is_always_on_top = enabled;
-                                        if !enabled && settle_timer_active {
-                                            unsafe { KillTimer(msg_hwnd, TIMER_ID_SETTLE_TOPMOST); }
-                                            settle_timer_active = false;
-                                        }
-                                        for win in bubbles.values() {
-                                            win.set_always_on_top(enabled);
-                                        }
-                                    }
-                                    NativeBubbleAction::AssertTopmost => {
-                                        if is_always_on_top && !bubbles.is_empty() {
-                                            let fg_hwnd = unsafe { GetForegroundWindow() };
-                                            reassert_topmost_for_bubbles(&bubbles, fg_hwnd);
-                                        }
-                                    }
-                                    NativeBubbleAction::SetSize { account_index, size } => {
-                                        if let Some(win) = bubbles.get_mut(&account_index) {
-                                            win.resize(size);
-                                        }
-                                        if let Ok(mut cache) = bounds_clone.write()
-                                            && let Some(b) = cache.get_mut(&account_index) {
-                                                b.2 = size;
-                                                b.3 = size;
-                                            }
-                                    }
-                                    NativeBubbleAction::Shutdown => {
-                                        bubbles.clear();
-                                        if let Ok(mut cache) = bounds_clone.write() {
-                                            cache.clear();
-                                        }
-                                        should_shutdown = true;
-                                    }
-                                }
+                                actions::handle_bubble_action(
+                                    action,
+                                    &mut bubbles,
+                                    &bounds_clone,
+                                    &mut is_always_on_top,
+                                    &mut settle_timer_active,
+                                    &mut should_shutdown,
+                                    msg_hwnd,
+                                );
                             }
                             if should_shutdown {
                                 break;
