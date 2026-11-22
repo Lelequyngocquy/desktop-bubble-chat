@@ -9,6 +9,7 @@ import { systemService } from "../../../services/systemService";
 export const ExtensionsGuideCard: React.FC = () => {
   const { t } = useTranslation("help");
   const accountIndices = useMessengerStore(useShallow((s) => s.accounts.map((a) => a.index)));
+  const isWindows = typeof navigator !== "undefined" && /win/i.test(navigator.userAgent || navigator.platform || "");
   const openFolder = (index: number) => {
     systemService.openProfileExtensionsFolder(index);
   };
@@ -28,6 +29,12 @@ export const ExtensionsGuideCard: React.FC = () => {
         <p className="text-small text-content-secondary leading-relaxed">
           {t("ext_desc")}
         </p>
+        {!isWindows && (
+          <CommonHintLine
+            icon={<Info className="w-3.5 h-3.5" />}
+            text={t("ext_unsupported_os_note")}
+          />
+        )}
         {/* 3-step guide */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-small text-content-secondary leading-relaxed">
           <div className="p-3.5 bg-background-subtle rounded-card-sm border border-border flex flex-col gap-2">
@@ -42,19 +49,21 @@ export const ExtensionsGuideCard: React.FC = () => {
             <span className="text-caption text-content-secondary">
               {t("ext_step1_desc")}
             </span>
-            {/* Quick-open buttons — only for existing accounts */}
-            <div className="flex flex-wrap gap-1.5 mt-1">
-              {accountIndices.map((idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => openFolder(idx)}
-                  className="px-2 py-0.5 rounded-pill bg-background-surface border border-border text-caption text-primary hover:bg-background-subtle transition-colors cursor-pointer"
-                >
-                  #{idx}
-                </button>
-              ))}
-            </div>
+            {/* Quick-open buttons — only on Windows for existing accounts */}
+            {isWindows && (
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {accountIndices.map((idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => openFolder(idx)}
+                    className="px-2 py-0.5 rounded-pill bg-background-surface border border-border text-caption text-primary hover:bg-background-subtle transition-colors cursor-pointer"
+                  >
+                    #{idx}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="p-3.5 bg-background-subtle rounded-card-sm border border-border flex flex-col gap-2">
             <div className="flex items-center gap-2">

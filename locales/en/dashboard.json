@@ -95,7 +95,7 @@
     "arch_realtime": "Real-time",
     "arch_no_connection": "No connection",
     "arch_unread_desc": "Aggregates unread count onto bubble badge",
-    "footer_native_secure": "Secure native WebView2 runtime environment",
+    "footer_native_secure": "Secure native WebView runtime environment",
     "footer_isolated_proc": "Each account runs in a sandboxed process",
     "empty_accounts_title": "No Messenger accounts added",
     "empty_accounts_desc": "Click the plus button below to link your first account (up to 5 concurrent accounts supported).",
@@ -107,7 +107,7 @@
     "status_disconnected": "Disconnected",
     "session_active_hint": "Active isolated session • {{synced}}",
     "auth_opening_hint": "Opening login window. Click the button to bring window forward.",
-    "login_prompt_hint": "Click 'Login' to link an isolated WebView2 profile",
+    "login_prompt_hint": "Click 'Login' to link an isolated WebView profile",
     "view_window_btn": "View Window",
     "view_window_tooltip": "Click to bring login window to the front",
     "cancel_auth_tooltip": "Cancel login attempt",
@@ -127,7 +127,7 @@
     "dialog_wake_eyebrow": "ACCOUNT STATUS",
     "dialog_wake_title": "Activate {{name}}?",
     "dialog_wake_content": "Account {{name}} is currently hibernating (0 MB RAM). Would you like to activate it to show the floating bubble and open the chat window?",
-    "dialog_wake_widget_hint": "Upon activation, the floating bubble will appear on your desktop and load its WebView2 session to receive messages.",
+    "dialog_wake_widget_hint": "Upon activation, the floating bubble will appear on your desktop and load its WebView session to receive messages.",
     "dialog_wake_stay_hibernating": "Keep Hibernating",
     "dialog_wake_confirm": "Activate Account",
     "troubleshoot_title": "Trouble connecting to Messenger?",
@@ -172,7 +172,7 @@
     "item_notifications_label": "Notifications",
     "item_notifications_active": "Receive alerts for incoming messages",
     "item_notifications_inactive": "Receive alerts for incoming messages",
-    "item_autostart_label": "Start with Windows",
+    "item_autostart_label": "Start with System",
     "item_autostart_active": "Ready automatically on login",
     "item_autostart_inactive": "Ready automatically on login"
   },
@@ -218,7 +218,7 @@
       "desc": "Messaging and video calls directly on Meta Messenger platform."
     }
   },
-  "warning_heavy_load": "You have {{count}} active bubbles. Each WebView2 instance consumes memory. Consider hiding unused accounts.",
+  "warning_heavy_load": "You have {{count}} active bubbles. Each WebView instance consumes memory. Consider hiding unused accounts.",
   "time": {
     "just_now": "Just now",
     "minutes_ago": "{{count}}m ago",

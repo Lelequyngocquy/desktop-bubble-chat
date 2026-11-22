@@ -95,7 +95,7 @@
     "arch_realtime": "Thời gian thực (Realtime)",
     "arch_no_connection": "Chưa có kết nối",
     "arch_unread_desc": "Tự động gom số unread lên bong bóng",
-    "footer_native_secure": "Môi trường Native WebView2 an toàn & bảo mật",
+    "footer_native_secure": "Môi trường Native WebView an toàn & bảo mật",
     "footer_isolated_proc": "Mỗi tab tài khoản hoạt động trong tiến trình riêng biệt",
     "empty_accounts_title": "Chưa có tài khoản Messenger nào",
     "empty_accounts_desc": "Bấm dấu cộng bên dưới để thêm tài khoản đầu tiên (hỗ trợ tối đa 5 tài khoản độc lập).",
@@ -107,7 +107,7 @@
     "status_disconnected": "Chưa kết nối",
     "session_active_hint": "Phiên hoạt động độc lập • {{synced}}",
     "auth_opening_hint": "Đang mở cửa sổ đăng nhập riêng biệt. Bấm nút bên cạnh để đưa cửa sổ lên trước.",
-    "login_prompt_hint": "Bấm 'Đăng nhập' để liên kết phiên WebView2 riêng",
+    "login_prompt_hint": "Bấm 'Đăng nhập' để liên kết phiên WebView riêng",
     "view_window_btn": "Xem cửa sổ",
     "view_window_tooltip": "Bấm để đưa cửa sổ đăng nhập lên phía trước",
     "cancel_auth_tooltip": "Hủy chờ đăng nhập",
@@ -127,7 +127,7 @@
     "dialog_wake_eyebrow": "TRẠNG THÁI TÀI KHOẢN",
     "dialog_wake_title": "Kích hoạt {{name}}?",
     "dialog_wake_content": "Tài khoản {{name}} hiện đang ở trạng thái ngủ đông (0 MB RAM). Bạn có muốn cho phép tài khoản hoạt động để bật lại bong bóng nổi và mở khung chat Messenger không?",
-    "dialog_wake_widget_hint": "Khi cho phép hoạt động, bong bóng nổi sẽ xuất hiện trên màn hình và nạp phiên làm việc WebView2 để nhận tin nhắn.",
+    "dialog_wake_widget_hint": "Khi cho phép hoạt động, bong bóng nổi sẽ xuất hiện trên màn hình và nạp phiên làm việc WebView để nhận tin nhắn.",
     "dialog_wake_stay_hibernating": "Tiếp tục ngủ đông",
     "dialog_wake_confirm": "Cho phép hoạt động",
     "troubleshoot_title": "Gặp vấn đề kết nối Messenger?",
@@ -172,7 +172,7 @@
     "item_notifications_label": "Thông báo",
     "item_notifications_active": "Nhận thông báo khi có tin nhắn mới",
     "item_notifications_inactive": "Nhận thông báo khi có tin nhắn mới",
-    "item_autostart_label": "Khởi động cùng Windows",
+    "item_autostart_label": "Khởi động cùng hệ thống",
     "item_autostart_active": "Sẵn sàng ngay khi bạn đăng nhập",
     "item_autostart_inactive": "Sẵn sàng ngay khi bạn đăng nhập"
   },
@@ -218,7 +218,7 @@
       "desc": "Nhắn tin và gọi video trực tiếp trên nền tảng Meta Messenger."
     }
   },
-  "warning_heavy_load": "Bạn đang bật {{count}} bong bóng cùng lúc. Mỗi phiên WebView2 chiếm bộ nhớ. Hãy tắt các tài khoản không dùng để tiết kiệm RAM.",
+  "warning_heavy_load": "Bạn đang bật {{count}} bong bóng cùng lúc. Mỗi phiên WebView chiếm bộ nhớ. Hãy tắt các tài khoản không dùng để tiết kiệm RAM.",
   "time": {
     "just_now": "Vừa xong",
     "minutes_ago": "{{count}} phút trước",

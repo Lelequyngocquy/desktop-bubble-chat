@@ -18,11 +18,11 @@
     "dark": "Tối",
     "dark_desc": "Dịu mắt khi làm việc ban đêm",
     "system": "Theo hệ thống",
-    "system_desc": "Tự động đồng bộ với Windows"
+    "system_desc": "Tự động đồng bộ với hệ điều hành"
   },
   "startup": {
     "title": "Hệ thống & Khởi động",
-    "autostart": "Khởi động cùng Windows",
+    "autostart": "Khởi động cùng hệ thống",
     "autostart_desc": "Tự động bật DesktopBubbleChat khi bạn đăng nhập vào máy tính",
     "always_on_top": "Bong bóng nổi trên cùng",
     "always_on_top_desc": "Khi tắt, các ứng dụng khác có thể che phủ bong bóng nhưng vẫn mở khung trò chuyện nếu di chuột đúng vị trí",

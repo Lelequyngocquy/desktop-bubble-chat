@@ -18,12 +18,12 @@
     "dark": "Dark",
     "dark_desc": "Gentle on the eyes",
     "system": "System Default",
-    "system_desc": "Sync automatically with Windows"
+    "system_desc": "Sync automatically with system theme"
   },
   "startup": {
     "title": "System & Startup",
-    "autostart": "Launch on Windows Startup",
-    "autostart_desc": "Automatically launch DesktopBubbleChat when logging into Windows",
+    "autostart": "Launch on System Startup",
+    "autostart_desc": "Automatically launch DesktopBubbleChat when logging in",
     "always_on_top": "Always on Top",
     "always_on_top_desc": "Keep floating bubbles pinned above other windows",
     "notifications": "Desktop Notifications & Chime",
@@ -62,7 +62,7 @@
   },
   "shortcuts": {
     "title": "Global Shortcuts",
-    "desc": "Quick access across Windows without focusing the dashboard",
+    "desc": "Quick access across your desktop without focusing the dashboard",
     "toggle_label": "Toggle all bubbles visibility",
     "current_shortcut": "Current shortcut: {{shortcut}}"
   },
