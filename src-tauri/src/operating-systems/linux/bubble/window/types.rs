@@ -17,6 +17,15 @@ pub const GDK_ENTER_NOTIFY_MASK: i32 = 1 << 12;
 pub const GDK_LEAVE_NOTIFY_MASK: i32 = 1 << 13;
 
 #[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CairoRectangleInt {
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+}
+
+#[repr(C)]
 pub struct GdkEventButton {
     pub type_: i32,
     pub window: *mut std::ffi::c_void,

@@ -6,50 +6,17 @@ use super::window::LinuxBubbleWindowState;
 
 /// Control actions sent to the Linux Native Bubble manager
 pub enum NativeBubbleAction {
-    Show {
-        account_index: u32,
-        x: i32,
-        y: i32,
-        size: u32,
-        app: AppHandle,
-    },
-    Hide {
-        account_index: u32,
-    },
-    SetPosition {
-        account_index: u32,
-        x: i32,
-        y: i32,
-    },
-    AnimateTo {
-        account_index: u32,
-        target_x: i32,
-        target_y: i32,
-        duration_ms: u64,
-    },
-    SetUnread {
-        account_index: u32,
-        count: u32,
-    },
-    TriggerPulse {
-        account_index: u32,
-    },
-    Tuck {
-        account_index: u32,
-        app: AppHandle,
-    },
-    Untuck {
-        account_index: u32,
-        app: AppHandle,
-    },
-    SetAlwaysOnTop {
-        enabled: bool,
-    },
+    Show { account_index: u32, x: i32, y: i32, size: u32, app: AppHandle },
+    Hide { account_index: u32 },
+    SetPosition { account_index: u32, x: i32, y: i32 },
+    AnimateTo { account_index: u32, target_x: i32, target_y: i32, duration_ms: u64 },
+    SetUnread { account_index: u32, count: u32 },
+    TriggerPulse { account_index: u32 },
+    Tuck { account_index: u32, app: AppHandle },
+    Untuck { account_index: u32, app: AppHandle },
+    SetAlwaysOnTop { enabled: bool },
     AssertTopmost,
-    SetSize {
-        account_index: u32,
-        size: u32,
-    },
+    SetSize { account_index: u32, size: u32 },
     Shutdown,
 }
 
@@ -59,6 +26,7 @@ pub type LinuxBubbleBoundsCache = Arc<RwLock<HashMap<u32, (i32, i32, u32, u32)>>
 pub struct NativeBubbleManager {
     bubbles: Arc<Mutex<HashMap<u32, LinuxBubbleWindowState>>>,
     bounds_cache: LinuxBubbleBoundsCache,
+    #[allow(dead_code)]
     pending_actions: Mutex<VecDeque<NativeBubbleAction>>,
     is_always_on_top: AtomicBool,
 }
@@ -74,13 +42,11 @@ unsafe extern "C" fn drain_pending_gtk_actions(_user_data: *mut std::ffi::c_void
 impl NativeBubbleManager {
     /// Returns global singleton instance
     pub fn global() -> &'static Self {
-        GLOBAL_MANAGER.get_or_init(|| {
-            Self {
-                bubbles: Arc::new(Mutex::new(HashMap::new())),
-                bounds_cache: Arc::new(RwLock::new(HashMap::new())),
-                pending_actions: Mutex::new(VecDeque::new()),
-                is_always_on_top: AtomicBool::new(true),
-            }
+        GLOBAL_MANAGER.get_or_init(|| Self {
+            bubbles: Arc::new(Mutex::new(HashMap::new())),
+            bounds_cache: Arc::new(RwLock::new(HashMap::new())),
+            pending_actions: Mutex::new(VecDeque::new()),
+            is_always_on_top: AtomicBool::new(true),
         })
     }
 
@@ -147,9 +113,7 @@ impl NativeBubbleManager {
                     let should_schedule = q.is_empty();
                     q.push_back(action);
                     if should_schedule {
-                        unsafe {
-                            super::window::ffi::g_idle_add(Some(drain_pending_gtk_actions), std::ptr::null_mut());
-                        }
+                        unsafe { super::window::ffi::g_idle_add(Some(drain_pending_gtk_actions), std::ptr::null_mut()); }
                     }
                 }
                 return;
@@ -162,9 +126,7 @@ impl NativeBubbleManager {
     pub fn process_pending_on_main_thread(&self) {
         loop {
             let next = self.pending_actions.lock().ok().and_then(|mut q| q.pop_front());
-            let Some(action) = next else {
-                break;
-            };
+            let Some(action) = next else { break; };
             self.execute_action_on_main_thread(action);
         }
     }
@@ -202,7 +164,7 @@ impl NativeBubbleManager {
             }
             NativeBubbleAction::Hide { account_index } => {
                 if let Ok(mut map) = self.bubbles.lock()
-                    && let Some(bubble) = map.get_mut(&account_index) {
+                    && let Some(mut bubble) = map.remove(&account_index) {
                         bubble.stop_spring_timer();
                         bubble.stop_hover_leave_timer();
                         bubble.set_visible(false);
@@ -233,10 +195,12 @@ impl NativeBubbleManager {
                     }
             }
             NativeBubbleAction::Tuck { account_index, app } => {
-                if let Ok(mut map) = self.bubbles.lock()
-                    && let Some(bubble) = map.get_mut(&account_index) {
-                        bubble.tuck(&app);
-                    }
+                let displaced = if let Ok(mut map) = self.bubbles.lock() {
+                    map.get_mut(&account_index).map(|b| b.tuck(&app)).unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
+                self.animate_displaced_siblings(displaced);
             }
             NativeBubbleAction::Untuck { account_index, app } => {
                 let displaced = if let Ok(mut map) = self.bubbles.lock() {
@@ -255,12 +219,12 @@ impl NativeBubbleManager {
                 }
             }
             NativeBubbleAction::AssertTopmost => {
-                let enabled = self.is_always_on_top.load(Ordering::SeqCst);
-                if enabled
+                if self.is_always_on_top.load(Ordering::SeqCst)
+                    && !crate::operating_systems::linux::cursor::LinuxCursorTracker::is_active_x11_window_fullscreen()
                     && let Ok(mut map) = self.bubbles.lock() {
                         for bubble in map.values_mut() {
                             if bubble.is_visible && !bubble.is_dragging {
-                                bubble.set_always_on_top(true);
+                                bubble.assert_topmost();
                             }
                         }
                     }
@@ -281,18 +245,12 @@ impl NativeBubbleManager {
 
     /// Checks if specified account has an active native bubble
     pub fn has_bubble(&self, account_index: u32) -> bool {
-        if let Ok(cache) = self.bounds_cache.read() {
-            return cache.contains_key(&account_index);
-        }
-        false
+        self.bounds_cache.read().map(|c| c.contains_key(&account_index)).unwrap_or(false)
     }
 
     /// Returns bounds (x, y, w, h) of native bubble
     pub fn get_bounds(&self, account_index: u32) -> Option<(i32, i32, u32, u32)> {
-        if let Ok(cache) = self.bounds_cache.read() {
-            return cache.get(&account_index).copied();
-        }
-        None
+        self.bounds_cache.read().ok().and_then(|c| c.get(&account_index).copied())
     }
 
     /// Updates cached bounds
@@ -317,6 +275,14 @@ impl NativeBubbleManager {
             && let Some(bubble) = map.get_mut(&account_index) {
                 bubble.on_mouse_down(mouse_x, mouse_y);
             }
+    }
+
+    /// Dispatches right-click context action on Linux bubble
+    pub fn handle_right_click(&self, account_index: u32, x: f64, y: f64) {
+        let app_opt = self.bubbles.lock().ok().and_then(|map| map.get(&account_index).and_then(|b| b.app_handle.clone()));
+        if let Some(app) = app_opt {
+            crate::operating_systems::linux::tray::LinuxMenuManager::show_bubble_context_menu(&app, account_index, x, y);
+        }
     }
 
     /// Dispatches mouse move event
@@ -399,27 +365,21 @@ impl NativeBubbleManager {
             if finished
                 && let Some(app) = app_handle_opt
                 && let Some(cs) = app.try_state::<Arc<crate::state::ChatState>>() {
-                    cs.set_bubble_rect(account_index, crate::movement::BubbleRect {
-                        account_index,
-                        x: cx,
-                        y: cy,
-                        width: bubble_sz as i32,
-                        height: bubble_sz as i32,
-                    });
+                    cs.set_bubble_rect(account_index, crate::movement::BubbleRect { account_index, x: cx, y: cy, width: bubble_sz as i32, height: bubble_sz as i32 });
                 }
         }
         !finished
     }
 
-    /// Handles GLib hover leave debounce expiration (160ms)
+    /// Handles GLib hover leave debounce expiration with Windows parity guards
     pub fn on_hover_leave_timer_tick(&self, account_index: u32) {
         let mut app_handle_opt = None;
         if let Ok(mut map) = self.bubbles.lock()
             && let Some(bubble) = map.get_mut(&account_index) {
                 bubble.hover_leave_timer_id = 0;
-                bubble.is_hovered = false;
-                bubble.render_and_update();
-                app_handle_opt = bubble.app_handle.clone();
+                if bubble.can_tuck_on_hover_leave() {
+                    app_handle_opt = bubble.app_handle.clone();
+                }
             }
         if let Some(app) = app_handle_opt {
             self.dispatch(NativeBubbleAction::Tuck { account_index, app });
@@ -444,7 +404,7 @@ pub unsafe extern "C" fn spring_timer_callback(user_data: *mut std::ffi::c_void)
 #[cfg(not(target_os = "linux"))]
 pub unsafe extern "C" fn spring_timer_callback(_user_data: *mut std::ffi::c_void) -> i32 { 0 }
 
-/// GLib 160ms hover leave debounce timer callback
+/// GLib 80ms hover leave debounce timer callback
 ///
 /// # Safety
 /// `user_data` encodes the numeric `account_index` value cast as a raw pointer.

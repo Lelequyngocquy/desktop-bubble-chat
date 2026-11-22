@@ -10,17 +10,77 @@ use super::types::*;
 
 pub struct LinuxGtkWindowController;
 
+/// Converts physical pixel coordinate to GDK logical coordinate
+pub fn physical_coord_to_logical(val_px: i32, scale_factor: f64) -> i32 {
+    let scale = if scale_factor.is_finite() && scale_factor > 0.0 { scale_factor } else { 1.0 };
+    ((val_px as f64) / scale).round() as i32
+}
+
+/// Converts physical pixel dimension to GDK logical dimension (minimum 1)
+pub fn physical_size_to_logical(size_px: u32, scale_factor: f64) -> i32 {
+    let scale = if scale_factor.is_finite() && scale_factor > 0.0 { scale_factor } else { 1.0 };
+    (((size_px as f64) / scale).round() as i32).max(1)
+}
+
+/// Converts GDK logical root coordinate to physical pixel coordinate
+pub fn logical_root_to_physical(val_logical: f64, scale_factor: f64) -> i32 {
+    let scale = if scale_factor.is_finite() && scale_factor > 0.0 { scale_factor } else { 1.0 };
+    (val_logical * scale).round() as i32
+}
+
+/// Builds circular scanline rectangles plus optional badge box for GTK input shape click-through
+pub fn compute_bubble_input_rects(
+    canvas_w_logical: i32,
+    canvas_h_logical: i32,
+    bubble_size_logical: i32,
+    unread_count: u32,
+    is_left_edge: bool,
+) -> Vec<CairoRectangleInt> {
+    let mut rects = Vec::new();
+    let cx = (canvas_w_logical as f64) * 0.5;
+    let cy = (canvas_h_logical as f64) * 0.5;
+    let r = ((bubble_size_logical as f64) * 0.5).max(12.0) + 2.0;
+    let min_y = ((cy - r).floor() as i32).max(0);
+    let max_y = ((cy + r).ceil() as i32).min(canvas_h_logical.saturating_sub(1));
+    let step = 2i32;
+    let mut y = min_y;
+    while y <= max_y {
+        let dy = (y as f64 + 0.5) - cy;
+        let span_sq = r * r - dy * dy;
+        if span_sq > 0.0 {
+            let half_w = span_sq.sqrt();
+            let x0 = ((cx - half_w).floor() as i32).max(0);
+            let x1 = ((cx + half_w).ceil() as i32).min(canvas_w_logical);
+            if x1 > x0 {
+                let h = (max_y - y + 1).min(step);
+                rects.push(CairoRectangleInt { x: x0, y, width: x1 - x0, height: h });
+            }
+        }
+        y += step;
+    }
+    if unread_count > 0 {
+        let badge_w = 26;
+        let badge_h = 22;
+        let bx = if is_left_edge { (cx + r * 0.45) as i32 } else { (cx - r * 0.45 - badge_w as f64) as i32 };
+        let by = (cy - r * 0.85) as i32;
+        rects.push(CairoRectangleInt { x: bx.max(0), y: by.max(0), width: badge_w, height: badge_h });
+    }
+    rects
+}
+
 #[cfg(target_os = "linux")]
-static SURFACE_CACHE: LazyLock<Mutex<HashMap<usize, (Vec<u8>, usize, usize)>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+static SURFACE_CACHE: LazyLock<Mutex<HashMap<usize, (Vec<u8>, usize, usize, f64)>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
 #[cfg(target_os = "linux")]
 unsafe extern "C" fn on_draw(widget: *mut c_void, cr: *mut c_void, _user_data: *mut c_void) -> i32 {
     let key = widget as usize;
     if let Ok(cache) = SURFACE_CACHE.lock() {
-        if let Some((bgra, width, height)) = cache.get(&key) {
+        if let Some((bgra, width, height, scale)) = cache.get(&key) {
             unsafe {
                 let surface = cairo_image_surface_create_for_data(bgra.as_ptr() as *mut u8, CAIRO_FORMAT_ARGB32, *width as i32, *height as i32, (*width * 4) as i32);
                 if !surface.is_null() {
+                    let s = if scale.is_finite() && *scale > 0.0 { *scale } else { 1.0 };
+                    cairo_surface_set_device_scale(surface, s, s);
                     cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
                     cairo_set_source_surface(cr, surface, 0.0, 0.0);
                     cairo_paint(cr);
@@ -38,21 +98,38 @@ unsafe extern "C" fn on_draw(widget: *mut c_void, cr: *mut c_void, _user_data: *
 }
 
 #[cfg(target_os = "linux")]
-unsafe extern "C" fn on_button_press(_widget: *mut c_void, event: *mut GdkEventButton, user_data: *mut c_void) -> i32 {
+fn active_scale_for_widget(widget: *mut c_void) -> f64 {
+    let widget_scale = if !widget.is_null() { unsafe { gtk_widget_get_scale_factor(widget) } } else { 0 };
+    if widget_scale >= 1 {
+        widget_scale as f64
+    } else {
+        crate::movement::get_target_dashboard_screen(None).scale_factor.max(1.0)
+    }
+}
+
+#[cfg(target_os = "linux")]
+unsafe extern "C" fn on_button_press(widget: *mut c_void, event: *mut GdkEventButton, user_data: *mut c_void) -> i32 {
     let account_index = user_data as usize as u32;
-    if !event.is_null() && unsafe { (*event).button } == 1 {
-        let (rx, ry) = unsafe { ((*event).x_root as i32, (*event).y_root as i32) };
-        crate::operating_systems::linux::cursor::update_wayland_cursor(Some((rx, ry)), true);
-        crate::operating_systems::linux::bubble::manager::NativeBubbleManager::global().handle_mouse_down(account_index, rx, ry);
+    if !event.is_null() {
+        let scale = active_scale_for_widget(widget);
+        let (rx, ry) = unsafe { (logical_root_to_physical((*event).x_root, scale), logical_root_to_physical((*event).y_root, scale)) };
+        let button = unsafe { (*event).button };
+        if button == 1 {
+            crate::operating_systems::linux::cursor::update_wayland_cursor(Some((rx, ry)), true);
+            crate::operating_systems::linux::bubble::manager::NativeBubbleManager::global().handle_mouse_down(account_index, rx, ry);
+        } else if button == 3 {
+            crate::operating_systems::linux::bubble::manager::NativeBubbleManager::global().handle_right_click(account_index, rx as f64, ry as f64);
+        }
     }
     0
 }
 
 #[cfg(target_os = "linux")]
-unsafe extern "C" fn on_motion_notify(_widget: *mut c_void, event: *mut GdkEventMotion, user_data: *mut c_void) -> i32 {
+unsafe extern "C" fn on_motion_notify(widget: *mut c_void, event: *mut GdkEventMotion, user_data: *mut c_void) -> i32 {
     let account_index = user_data as usize as u32;
     if !event.is_null() {
-        let (rx, ry) = unsafe { ((*event).x_root as i32, (*event).y_root as i32) };
+        let scale = active_scale_for_widget(widget);
+        let (rx, ry) = unsafe { (logical_root_to_physical((*event).x_root, scale), logical_root_to_physical((*event).y_root, scale)) };
         let lbtn_down = unsafe { ((*event).state & (1 << 8)) != 0 };
         crate::operating_systems::linux::cursor::update_wayland_cursor(Some((rx, ry)), lbtn_down);
         crate::operating_systems::linux::bubble::manager::NativeBubbleManager::global().handle_mouse_move(account_index, rx, ry);
@@ -61,10 +138,11 @@ unsafe extern "C" fn on_motion_notify(_widget: *mut c_void, event: *mut GdkEvent
 }
 
 #[cfg(target_os = "linux")]
-unsafe extern "C" fn on_button_release(_widget: *mut c_void, event: *mut GdkEventButton, user_data: *mut c_void) -> i32 {
+unsafe extern "C" fn on_button_release(widget: *mut c_void, event: *mut GdkEventButton, user_data: *mut c_void) -> i32 {
     let account_index = user_data as usize as u32;
     if !event.is_null() && unsafe { (*event).button } == 1 {
-        let (rx, ry) = unsafe { ((*event).x_root as i32, (*event).y_root as i32) };
+        let scale = active_scale_for_widget(widget);
+        let (rx, ry) = unsafe { (logical_root_to_physical((*event).x_root, scale), logical_root_to_physical((*event).y_root, scale)) };
         crate::operating_systems::linux::cursor::update_wayland_cursor(Some((rx, ry)), false);
         crate::operating_systems::linux::bubble::manager::NativeBubbleManager::global().handle_mouse_up(account_index, rx, ry);
     }
@@ -86,9 +164,9 @@ unsafe extern "C" fn on_leave_notify(_widget: *mut c_void, _event: *mut c_void, 
 }
 
 impl LinuxGtkWindowController {
-    /// Creates a transparent, borderless, floating GTK window sticky on all workspaces
+    /// Creates a transparent, borderless, floating GTK window scaled properly for HiDPI
     #[cfg(target_os = "linux")]
-    pub fn create_floating_bubble_window(account_index: u32, x: f64, y: f64, width: f64, height: f64) -> *mut c_void {
+    pub fn create_floating_bubble_window(account_index: u32, x_px: i32, y_px: i32, width_px: u32, height_px: u32, scale_factor: f64) -> *mut c_void {
         unsafe {
             if gtk_init_check(std::ptr::null_mut(), std::ptr::null_mut()) == 0 {
                 return std::ptr::null_mut();
@@ -123,8 +201,10 @@ impl LinuxGtkWindowController {
                 }
                 g_object_unref(css_provider);
             }
-            gtk_widget_set_size_request(window, width as i32, height as i32);
-            gtk_window_resize(window, width as i32, height as i32);
+            let logical_w = physical_size_to_logical(width_px, scale_factor);
+            let logical_h = physical_size_to_logical(height_px, scale_factor);
+            gtk_widget_set_size_request(window, logical_w, logical_h);
+            gtk_window_resize(window, logical_w, logical_h);
             gtk_widget_realize(window);
             let gdk_win = gtk_widget_get_window(window);
             if !gdk_win.is_null() {
@@ -145,67 +225,99 @@ impl LinuxGtkWindowController {
             g_signal_connect_data(window, b"button-release-event\0".as_ptr() as *const _, Some(std::mem::transmute(on_button_release as *const ())), user_data, std::ptr::null_mut(), 0);
             g_signal_connect_data(window, b"enter-notify-event\0".as_ptr() as *const _, Some(std::mem::transmute(on_enter_notify as *const ())), user_data, std::ptr::null_mut(), 0);
             g_signal_connect_data(window, b"leave-notify-event\0".as_ptr() as *const _, Some(std::mem::transmute(on_leave_notify as *const ())), user_data, std::ptr::null_mut(), 0);
-            gtk_window_move(window, (x as i32) - BUBBLE_CANVAS_PAD_X, (y as i32) - BUBBLE_CANVAS_PAD_Y);
+            let logical_x = physical_coord_to_logical(x_px - BUBBLE_CANVAS_PAD_X, scale_factor);
+            let logical_y = physical_coord_to_logical(y_px - BUBBLE_CANVAS_PAD_Y, scale_factor);
+            gtk_window_move(window, logical_x, logical_y);
             window
         }
     }
 
     /// Fallback for non-Linux compilation
     #[cfg(not(target_os = "linux"))]
-    pub fn create_floating_bubble_window(_account_index: u32, _x: f64, _y: f64, _width: f64, _height: f64) -> *mut c_void {
+    pub fn create_floating_bubble_window(_account_index: u32, _x_px: i32, _y_px: i32, _width_px: u32, _height_px: u32, _scale_factor: f64) -> *mut c_void {
         std::ptr::null_mut()
     }
 
-    /// Updates window Cairo surface with tiny-skia rendered BGRA/ARGB buffer
+    /// Applies circular input shape mask so transparent canvas padding passes clicks through
     #[cfg(target_os = "linux")]
-    pub fn update_window_surface(window: *mut c_void, bgra_data: &[u8], width: usize, height: usize) {
+    pub fn update_window_input_shape(window: *mut c_void, canvas_w_px: u32, canvas_h_px: u32, bubble_size_px: u32, unread_count: u32, is_left_edge: bool, scale_factor: f64) {
+        if window.is_null() {
+            return;
+        }
+        unsafe {
+            let gdk_win = gtk_widget_get_window(window);
+            if gdk_win.is_null() {
+                return;
+            }
+            let logical_w = physical_size_to_logical(canvas_w_px, scale_factor);
+            let logical_h = physical_size_to_logical(canvas_h_px, scale_factor);
+            let logical_bubble = physical_size_to_logical(bubble_size_px, scale_factor);
+            let rects = compute_bubble_input_rects(logical_w, logical_h, logical_bubble, unread_count, is_left_edge);
+            let region = cairo_region_create();
+            if !region.is_null() {
+                for r in &rects {
+                    cairo_region_union_rectangle(region, r as *const CairoRectangleInt);
+                }
+                gdk_window_input_shape_combine_region(gdk_win, region, 0, 0);
+                cairo_region_destroy(region);
+            }
+        }
+    }
+
+    /// Fallback for non-Linux target
+    #[cfg(not(target_os = "linux"))]
+    pub fn update_window_input_shape(_window: *mut c_void, _canvas_w_px: u32, _canvas_h_px: u32, _bubble_size_px: u32, _unread_count: u32, _is_left_edge: bool, _scale_factor: f64) {}
+
+    /// Updates window Cairo surface with tiny-skia rendered BGRA/ARGB buffer and HiDPI device scale
+    #[cfg(target_os = "linux")]
+    pub fn update_window_surface(window: *mut c_void, bgra_data: &[u8], width: usize, height: usize, scale_factor: f64) {
         if window.is_null() || bgra_data.is_empty() || width == 0 || height == 0 {
             return;
         }
         let key = window as usize;
         if let Ok(mut cache) = SURFACE_CACHE.lock() {
-            cache.insert(key, (bgra_data.to_vec(), width, height));
+            cache.insert(key, (bgra_data.to_vec(), width, height, scale_factor));
         }
+        unsafe { gtk_widget_queue_draw(window); }
+    }
+
+    /// Fallback for non-Linux target
+    #[cfg(not(target_os = "linux"))]
+    pub fn update_window_surface(_window: *mut c_void, _bgra_data: &[u8], _width: usize, _height: usize, _scale_factor: f64) {}
+
+    /// Resizes GTK window canvas dimensions in logical pixels derived from physical pixels
+    #[cfg(target_os = "linux")]
+    pub fn resize_window(window: *mut c_void, width_px: u32, height_px: u32, scale_factor: f64) {
+        if window.is_null() {
+            return;
+        }
+        let logical_w = physical_size_to_logical(width_px, scale_factor);
+        let logical_h = physical_size_to_logical(height_px, scale_factor);
         unsafe {
+            gtk_widget_set_size_request(window, logical_w, logical_h);
+            gtk_window_resize(window, logical_w, logical_h);
             gtk_widget_queue_draw(window);
         }
     }
 
     /// Fallback for non-Linux target
     #[cfg(not(target_os = "linux"))]
-    pub fn update_window_surface(_window: *mut c_void, _bgra_data: &[u8], _width: usize, _height: usize) {}
+    pub fn resize_window(_window: *mut c_void, _width_px: u32, _height_px: u32, _scale_factor: f64) {}
 
-    /// Resizes GTK window canvas dimensions
+    /// Sets window top-left position coordinates converted from physical pixels to logical GDK coords
     #[cfg(target_os = "linux")]
-    pub fn resize_window(window: *mut c_void, width: i32, height: i32) {
+    pub fn set_window_position(window: *mut c_void, x_px: i32, y_px: i32, scale_factor: f64) {
         if window.is_null() {
             return;
         }
-        unsafe {
-            gtk_widget_set_size_request(window, width, height);
-            gtk_window_resize(window, width, height);
-            gtk_widget_queue_draw(window);
-        }
+        let logical_x = physical_coord_to_logical(x_px - BUBBLE_CANVAS_PAD_X, scale_factor);
+        let logical_y = physical_coord_to_logical(y_px - BUBBLE_CANVAS_PAD_Y, scale_factor);
+        unsafe { gtk_window_move(window, logical_x, logical_y); }
     }
 
     /// Fallback for non-Linux target
     #[cfg(not(target_os = "linux"))]
-    pub fn resize_window(_window: *mut c_void, _width: i32, _height: i32) {}
-
-    /// Sets window top-left position coordinates
-    #[cfg(target_os = "linux")]
-    pub fn set_window_position(window: *mut c_void, x: i32, y: i32) {
-        if window.is_null() {
-            return;
-        }
-        unsafe {
-            gtk_window_move(window, x - BUBBLE_CANVAS_PAD_X, y - BUBBLE_CANVAS_PAD_Y);
-        }
-    }
-
-    /// Fallback for non-Linux target
-    #[cfg(not(target_os = "linux"))]
-    pub fn set_window_position(_window: *mut c_void, _x: i32, _y: i32) {}
+    pub fn set_window_position(_window: *mut c_void, _x_px: i32, _y_px: i32, _scale_factor: f64) {}
 
     /// Sets window opacity (0.0 to 1.0)
     #[cfg(target_os = "linux")]
@@ -213,9 +325,7 @@ impl LinuxGtkWindowController {
         if window.is_null() {
             return;
         }
-        unsafe {
-            gtk_widget_set_opacity(window, opacity);
-        }
+        unsafe { gtk_widget_set_opacity(window, opacity); }
     }
 
     /// Fallback for non-Linux target
@@ -248,14 +358,31 @@ impl LinuxGtkWindowController {
         if window.is_null() {
             return;
         }
-        unsafe {
-            gtk_window_set_keep_above(window, if enabled { 1 } else { 0 });
-        }
+        unsafe { gtk_window_set_keep_above(window, if enabled { 1 } else { 0 }); }
     }
 
     /// Fallback for non-Linux target
     #[cfg(not(target_os = "linux"))]
     pub fn set_window_keep_above(_window: *mut c_void, _enabled: bool) {}
+
+    /// Raises GTK window above sibling windows without stealing input focus
+    #[cfg(target_os = "linux")]
+    pub fn raise_window(window: *mut c_void) {
+        if window.is_null() {
+            return;
+        }
+        unsafe {
+            gtk_window_set_keep_above(window, 1);
+            let gdk_win = gtk_widget_get_window(window);
+            if !gdk_win.is_null() {
+                gdk_window_raise(gdk_win);
+            }
+        }
+    }
+
+    /// Fallback for non-Linux target
+    #[cfg(not(target_os = "linux"))]
+    pub fn raise_window(_window: *mut c_void) {}
 
     /// Destroys GTK window and cleans up surface cache
     #[cfg(target_os = "linux")]
@@ -267,9 +394,7 @@ impl LinuxGtkWindowController {
         if let Ok(mut cache) = SURFACE_CACHE.lock() {
             cache.remove(&key);
         }
-        unsafe {
-            gtk_widget_destroy(window);
-        }
+        unsafe { gtk_widget_destroy(window); }
     }
 
     /// Fallback for non-Linux target
@@ -284,10 +409,30 @@ mod tests {
     #[test]
     fn test_gtk_window_controller_fallback_safety() {
         let ptr = std::ptr::null_mut();
-        LinuxGtkWindowController::update_window_surface(ptr, &[], 0, 0);
-        LinuxGtkWindowController::set_window_position(ptr, 0, 0);
-        LinuxGtkWindowController::resize_window(ptr, 84, 84);
+        LinuxGtkWindowController::update_window_surface(ptr, &[], 0, 0, 2.0);
+        LinuxGtkWindowController::update_window_input_shape(ptr, 172, 136, 112, 3, true, 2.0);
+        LinuxGtkWindowController::set_window_position(ptr, 0, 0, 2.0);
+        LinuxGtkWindowController::resize_window(ptr, 84, 84, 2.0);
         LinuxGtkWindowController::set_window_visible(ptr, true);
+        LinuxGtkWindowController::raise_window(ptr);
         LinuxGtkWindowController::destroy_window(ptr);
+    }
+
+    #[test]
+    fn test_hidpi_physical_logical_roundtrip() {
+        assert_eq!(physical_size_to_logical(112, 2.0), 56);
+        assert_eq!(physical_coord_to_logical(200, 2.0), 100);
+        assert_eq!(logical_root_to_physical(100.0, 2.0), 200);
+        assert_eq!(physical_size_to_logical(84, 1.5), 56);
+        assert_eq!(logical_root_to_physical(100.0, 1.5), 150);
+    }
+
+    #[test]
+    fn test_compute_bubble_input_rects_circular_shape() {
+        let no_badge = compute_bubble_input_rects(116, 80, 56, 0, true);
+        let with_badge = compute_bubble_input_rects(116, 80, 56, 5, true);
+        assert!(!no_badge.is_empty());
+        assert_eq!(with_badge.len(), no_badge.len() + 1);
+        assert!(no_badge.iter().all(|r| r.x >= 0 && r.width <= 62));
     }
 }

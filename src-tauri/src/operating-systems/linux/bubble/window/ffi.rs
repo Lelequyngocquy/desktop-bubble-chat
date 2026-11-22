@@ -1,5 +1,7 @@
 #[allow(unused_imports)]
 use std::ffi::c_void;
+#[allow(unused_imports)]
+use super::types::CairoRectangleInt;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -40,6 +42,7 @@ unsafe extern "C" {
     pub fn gtk_widget_set_opacity(widget: *mut c_void, opacity: f64);
     pub fn gtk_widget_realize(widget: *mut c_void);
     pub fn gtk_widget_get_window(widget: *mut c_void) -> *mut c_void;
+    pub fn gtk_widget_get_scale_factor(widget: *mut c_void) -> i32;
     pub fn gtk_widget_destroy(widget: *mut c_void);
 }
 
@@ -48,8 +51,11 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn gdk_screen_get_rgba_visual(screen: *mut c_void) -> *mut c_void;
     pub fn gdk_display_get_default() -> *mut c_void;
+    pub fn gdk_display_get_name(display: *mut c_void) -> *const std::ffi::c_char;
     pub fn gdk_cursor_new_from_name(display: *mut c_void, name: *const std::ffi::c_char) -> *mut c_void;
     pub fn gdk_window_set_cursor(window: *mut c_void, cursor: *mut c_void);
+    pub fn gdk_window_raise(window: *mut c_void);
+    pub fn gdk_window_input_shape_combine_region(window: *mut c_void, shape_region: *const c_void, offset_x: i32, offset_y: i32);
 }
 
 #[cfg(target_os = "linux")]
@@ -79,15 +85,13 @@ unsafe extern "C" {
 #[cfg(target_os = "linux")]
 #[link(name = "cairo")]
 unsafe extern "C" {
-    pub fn cairo_image_surface_create_for_data(
-        data: *mut u8,
-        format: i32,
-        width: i32,
-        height: i32,
-        stride: i32,
-    ) -> *mut c_void;
+    pub fn cairo_image_surface_create_for_data(data: *mut u8, format: i32, width: i32, height: i32, stride: i32) -> *mut c_void;
+    pub fn cairo_surface_set_device_scale(surface: *mut c_void, x_scale: f64, y_scale: f64);
     pub fn cairo_surface_destroy(surface: *mut c_void);
     pub fn cairo_set_source_surface(cr: *mut c_void, surface: *mut c_void, x: f64, y: f64);
     pub fn cairo_set_operator(cr: *mut c_void, op: i32);
     pub fn cairo_paint(cr: *mut c_void);
+    pub fn cairo_region_create() -> *mut c_void;
+    pub fn cairo_region_union_rectangle(region: *mut c_void, rectangle: *const CairoRectangleInt) -> i32;
+    pub fn cairo_region_destroy(region: *mut c_void);
 }
