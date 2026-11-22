@@ -19,14 +19,32 @@ pub fn show_save_dialog_internal(
     if let Some(w) = win_opt.as_ref() {
         let _ = w.set_always_on_top(false);
     }
-    let handle = std::thread::spawn(move || {
-        let mut dialog = rfd::FileDialog::new().set_file_name(&default_file);
-        if let Some(ref dir) = default_dir {
-            dialog = dialog.set_directory(dir);
+    #[cfg(target_os = "macos")]
+    let result = {
+        let show_dialog = move || {
+            let mut dialog = rfd::FileDialog::new().set_file_name(&default_file);
+            if let Some(ref dir) = default_dir {
+                dialog = dialog.set_directory(dir);
+            }
+            dialog.save_file()
+        };
+        if crate::operating_systems::macos::bubble::window::ffi::is_macos_main_thread() {
+            show_dialog()
+        } else {
+            crate::operating_systems::macos::bubble::window::ffi::run_on_macos_main_thread_sync(show_dialog)
         }
-        dialog.save_file()
-    });
-    let result = handle.join().ok().flatten();
+    };
+    #[cfg(not(target_os = "macos"))]
+    let result = {
+        let handle = std::thread::spawn(move || {
+            let mut dialog = rfd::FileDialog::new().set_file_name(&default_file);
+            if let Some(ref dir) = default_dir {
+                dialog = dialog.set_directory(dir);
+            }
+            dialog.save_file()
+        });
+        handle.join().ok().flatten()
+    };
     println!("\x1b[35m[BE - Download] show_save_dialog_internal result: '{:?}'\x1b[0m", result);
     state.set_dialog_active(window_label, false);
     if let Some(w) = win_opt.as_ref() {

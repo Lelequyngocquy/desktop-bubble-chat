@@ -17,6 +17,29 @@ pub fn get_messenger_window_label(account_index: u32) -> String {
     format!("chat-messenger-{:02}", account_index)
 }
 
+/// Generates a deterministic 16-byte WKWebsiteDataStore identifier per account slot (macOS 14+)
+pub fn data_store_identifier_for_account(account_index: u32) -> [u8; 16] {
+    let mut id: [u8; 16] = [0x64, 0x62, 0x63, 0x2d, 0x6d, 0x73, 0x67, 0x2d, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+    let bytes = account_index.to_be_bytes();
+    id[12] = bytes[0];
+    id[13] = bytes[1];
+    id[14] = bytes[2];
+    id[15] = bytes[3];
+    id[6] = (id[6] & 0x0F) | 0x40;
+    id[8] = (id[8] & 0x3F) | 0x80;
+    id
+}
+
+/// Returns a platform-native browser User-Agent string matching the underlying WebView engine
+pub fn platform_user_agent(os: &str) -> &'static str {
+    match os {
+        "windows" => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+        "macos" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+        "linux" => "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+        _ => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+    }
+}
+
 /// Returns existing Messenger WebviewWindow for account index, falling back to legacy label for account 1
 pub fn get_messenger_webview(app: &AppHandle, account_index: u32) -> Option<tauri::WebviewWindow> {
     let label = get_messenger_window_label(account_index);
@@ -86,6 +109,7 @@ pub fn get_or_create_messenger_window(
     let app_dl = app.clone();
     let state_dl = Arc::clone(&chat_state);
     let label_dl = label.clone();
+    let last_download_name: Arc<std::sync::Mutex<Option<String>>> = Arc::new(std::sync::Mutex::new(None));
     let builder = tauri::WebviewWindowBuilder::new(
         app,
         &label,
@@ -104,6 +128,9 @@ pub fn get_or_create_messenger_window(
                     default_dir,
                 ) {
                     println!("\x1b[32m[BE - Download] on_download User selected target: '{:?}'\x1b[0m", target);
+                    if let Ok(mut guard) = last_download_name.lock() {
+                        *guard = target.file_name().and_then(|n| n.to_str()).map(|s| s.to_string());
+                    }
                     **destination = target;
                     true
                 } else {
@@ -114,10 +141,13 @@ pub fn get_or_create_messenger_window(
             tauri::webview::DownloadEvent::Finished { ref url, ref path, success } => {
                 println!("\x1b[35m[BE - Download] on_download Finished: url='{}', path='{:?}', success={}\x1b[0m", url, path, success);
                 if success {
+                    let cached_name = last_download_name.lock().ok().and_then(|mut g| g.take());
                     let file_name = path.as_ref()
                         .and_then(|p| p.file_name())
                         .and_then(|n| n.to_str())
-                        .unwrap_or("file");
+                        .map(|s| s.to_string())
+                        .or(cached_name)
+                        .unwrap_or_else(|| "file".to_string());
                     let _ = app_dl.notification()
                         .builder()
                         .title("DesktopBubbleChat")
@@ -134,6 +164,8 @@ pub fn get_or_create_messenger_window(
     });
     #[cfg(target_os = "windows")]
     let builder = builder.browser_extensions_enabled(true).extensions_path(&ext_dir);
+    #[cfg(target_os = "macos")]
+    let builder = builder.data_store_identifier(data_store_identifier_for_account(account_index));
     let (init_w, init_h) = chat_state
         .get_chat_window_custom_size(account_index)
         .map(|(w, h)| (w as f64, h as f64))
@@ -141,7 +173,7 @@ pub fn get_or_create_messenger_window(
     let builder = builder
         .background_color(tauri::utils::config::Color(255, 255, 255, 255))
         .data_directory(profile_dir)
-        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0")
+        .user_agent(platform_user_agent(std::env::consts::OS))
         .initialization_script(&init_script)
         .title(format!("Messenger {:02}", account_index))
         .inner_size(init_w, init_h)
@@ -180,10 +212,31 @@ pub fn get_or_create_messenger_window(
         Ok(window) => {
             println!("\x1b[32m[BE - Window] Successfully built Webview window: {}\x1b[0m", label);
             setup_window_events(app, &window, chat_state.clone());
-            #[cfg(target_os = "windows")]
             apply_window_theme_color(&window, theme.hex, theme.border_hex);
             #[cfg(target_os = "windows")]
             events::configure_webview2_settings(&window, chat_state.is_account_muted(account_index));
+            #[cfg(target_os = "linux")]
+            crate::operating_systems::linux::memory::LinuxMemoryOptimizer::set_webview_muted(&window, chat_state.is_account_muted(account_index));
+            #[cfg(target_os = "macos")]
+            {
+                if let Ok(ns_win) = window.ns_window() {
+                    let ns_win_ptr = ns_win as usize;
+                    if ns_win_ptr != 0 {
+                        crate::operating_systems::macos::bubble::window::ffi::run_on_macos_main_thread(move || unsafe {
+                            use cocoa::base::{id, nil};
+                            use objc::{msg_send, sel, sel_impl};
+                            let win_obj = ns_win_ptr as id;
+                            if win_obj != nil {
+                                let behavior: u64 = (1 << 1) | (1 << 8);
+                                let _: () = msg_send![win_obj, setCollectionBehavior: behavior];
+                            }
+                        });
+                    }
+                }
+                if chat_state.is_account_muted(account_index) {
+                    let _ = window.eval("(function(){window.__isMuted=true;if(!window.__dbcAudioGuardInstalled){window.__dbcAudioGuardInstalled=true;var origPlay=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){if(window.__isMuted){this.muted=true;}return origPlay.apply(this,arguments);};}})();");
+                }
+            }
             set_webview_memory_target_level(&window, true);
             Ok(window)
         }

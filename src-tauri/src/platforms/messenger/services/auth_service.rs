@@ -48,7 +48,6 @@ impl AuthService {
         let _ = chat_window.center();
         let _ = chat_window.unminimize();
         let _ = chat_window.set_always_on_top(true);
-        #[cfg(target_os = "windows")]
         apply_window_theme_color(&chat_window, theme.hex, theme.border_hex);
         if let Ok(url) = tauri::Url::parse(MESSENGER_BASE_URL) {
             let current_url = chat_window.url().map(|u| u.to_string()).unwrap_or_default();

@@ -213,7 +213,22 @@ pub fn set_account_muted(
             );
             let _ = win.eval(&js);
         }
-        #[cfg(not(target_os = "windows"))]
+        #[cfg(target_os = "linux")]
+        {
+            crate::operating_systems::linux::memory::LinuxMemoryOptimizer::set_webview_muted(&win, muted);
+            let js = format!(
+                "(function(){{window.__isMuted={muted};document.querySelectorAll('audio, video').forEach(function(el){{el.muted={muted};}});}})();"
+            );
+            let _ = win.eval(&js);
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let js = format!(
+                "(function(){{window.__isMuted={muted};if(!window.__dbcAudioGuardInstalled){{window.__dbcAudioGuardInstalled=true;var origPlay=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){{if(window.__isMuted){{this.muted=true;}}return origPlay.apply(this,arguments);}};}}document.querySelectorAll('audio, video').forEach(function(el){{el.muted={muted};}});}})();"
+            );
+            let _ = win.eval(&js);
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
         {
             let js = format!("document.querySelectorAll('audio, video').forEach(el => el.muted = {});", muted);
             let _ = win.eval(&js);

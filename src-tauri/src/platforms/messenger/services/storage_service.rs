@@ -26,6 +26,8 @@ impl StorageService {
         });
         let _ = crate::tray::update_tray_menu(app);
         if let Some(chat_window) = get_messenger_webview(app, idx) {
+            #[cfg(target_os = "macos")]
+            let _ = chat_window.clear_all_browsing_data();
             let _ = chat_window.hide();
             let _ = chat_window.destroy();
         }

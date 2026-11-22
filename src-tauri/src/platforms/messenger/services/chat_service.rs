@@ -101,19 +101,7 @@ impl ChatService {
         if !is_connected {
             return Err(format!("Account {} is not authenticated", idx));
         }
-        let is_bubble_already_active = {
-            #[cfg(target_os = "windows")]
-            {
-                crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx)
-            }
-            #[cfg(not(target_os = "windows"))]
-            {
-                let bubble_label = get_bubble_window_label(idx);
-                app.get_webview_window(&bubble_label)
-                    .map(|w| w.is_visible().unwrap_or(false))
-                    .unwrap_or(false)
-            }
-        };
+        let is_bubble_already_active = crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx);
         if (state.is_account_suspended(idx) || !is_bubble_already_active)
             && crate::commands::bubble::lifecycle::resume_account_bubble_and_chat(app, idx, None).is_ok() {
                 state.update_user_config(app, |c| {
