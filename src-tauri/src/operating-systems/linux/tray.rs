@@ -19,9 +19,12 @@ impl LinuxMenuManager {
         }
     }
 
-    /// Shows contextual popup menu for native bubble on right click
-    pub fn show_bubble_context_menu(app: &tauri::AppHandle, account_index: u32, x: f64, y: f64) {
-        let _ = (app, account_index, x, y);
+    /// Opens or focuses dashboard window on native Linux bubble right click
+    pub fn show_bubble_context_menu(app: &tauri::AppHandle, _account_index: u32, _x: f64, _y: f64) {
+        let handle = app.clone();
+        tauri::async_runtime::spawn(async move {
+            let _ = crate::presentation::main_window::get_or_create_main_window(&handle);
+        });
     }
 }
 

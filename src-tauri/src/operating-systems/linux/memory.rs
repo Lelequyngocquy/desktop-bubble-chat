@@ -42,7 +42,7 @@ impl LinuxMemoryOptimizer {
         }
     }
 
-    /// Adjusts WebKit memory target level by setting cache model, clearing cache and requesting garbage collection
+    /// Adjusts WebKit memory target level without clearing persistent HTTP/avatar cache
     pub fn set_webview_memory_target_level(window: &WebviewWindow, is_low: bool) {
         #[cfg(target_os = "linux")]
         {
@@ -52,13 +52,10 @@ impl LinuxMemoryOptimizer {
                 if let Some(context) = inner.web_context() {
                     let model = if is_low { webkit2gtk::CacheModel::DocumentViewer } else { webkit2gtk::CacheModel::WebBrowser };
                     context.set_cache_model(model);
-                    if is_low {
-                        context.clear_cache();
-                    }
                 }
             });
             if is_low {
-                let _ = window.eval("if(window.gc){window.gc();}if(window.performance&&window.performance.clearResourceTimings){window.performance.clearResourceTimings();}");
+                let _ = window.eval("if(window.performance&&window.performance.clearResourceTimings){window.performance.clearResourceTimings();}");
                 Self::trim_current_process_working_set();
             }
         }
@@ -66,6 +63,26 @@ impl LinuxMemoryOptimizer {
         {
             let _ = (window, is_low);
         }
+    }
+
+    /// Sets native WebKitGTK audio mute state for a Messenger WebviewWindow
+    pub fn set_webview_muted(window: &WebviewWindow, muted: bool) {
+        #[cfg(target_os = "linux")]
+        {
+            use webkit2gtk::WebViewExt;
+            let _ = window.with_webview(move |webview| {
+                webview.inner().set_is_muted(muted);
+            });
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = (window, muted);
+        }
+    }
+
+    /// Checks whether a proc path or command string references the profile needle
+    pub fn matches_profile_needle(haystack: &str, needle_lower: &str) -> bool {
+        !needle_lower.is_empty() && haystack.to_lowercase().contains(needle_lower)
     }
 
     /// Checks if process name belongs to WebKitGTK helper processes
@@ -94,17 +111,28 @@ impl LinuxMemoryOptimizer {
             let cmd = process.cmd().iter().map(|s| s.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
             if Self::is_webview_process(&name) || Self::is_webview_process(&cmd) {
                 #[allow(unused_mut)]
-                let mut matched = cmd.contains(&needle_lower);
+                let mut matched = Self::matches_profile_needle(&cmd, &needle_lower);
                 #[cfg(target_os = "linux")]
                 if !matched
                     && let Ok(file) = std::fs::File::open(format!("/proc/{}/maps", pid.as_u32())) {
                         use std::io::BufRead;
                         let reader = std::io::BufReader::new(file);
                         for line in reader.lines().map_while(Result::ok) {
-                            if line.to_lowercase().contains(&needle_lower) {
+                            if Self::matches_profile_needle(&line, &needle_lower) {
                                 matched = true;
                                 break;
                             }
+                        }
+                    }
+                #[cfg(target_os = "linux")]
+                if !matched
+                    && let Ok(entries) = std::fs::read_dir(format!("/proc/{}/fd", pid.as_u32())) {
+                        for entry in entries.flatten() {
+                            if let Ok(target) = std::fs::read_link(entry.path())
+                                && Self::matches_profile_needle(&target.to_string_lossy(), &needle_lower) {
+                                    matched = true;
+                                    break;
+                                }
                         }
                     }
                 #[cfg(not(target_os = "linux"))]

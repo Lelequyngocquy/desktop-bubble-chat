@@ -11,9 +11,22 @@ impl LinuxAutostartManager {
         Some(base_dir.join("autostart/desktop-bubble-chat.desktop"))
     }
 
+    /// Resolves persistent executable path prioritizing APPIMAGE over temporary mount current_exe
+    pub fn resolve_autostart_exe_path(appimage_env: Option<&str>, current_exe: &str) -> String {
+        if let Some(appimage) = appimage_env
+            && !appimage.trim().is_empty() {
+                return appimage.trim().to_string();
+            }
+        current_exe.to_string()
+    }
+
     /// Generates standard XDG autostart desktop entry content with escaped Exec value
     pub fn generate_desktop_entry(exe_path: &str) -> String {
-        let escaped = exe_path.replace('\\', "\\\\").replace('"', "\\\"");
+        let escaped = exe_path
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"")
+            .replace('$', "\\$")
+            .replace('%', "%%");
         format!(
             "[Desktop Entry]\n\
             Type=Application\n\
@@ -48,14 +61,15 @@ impl LinuxAutostartManager {
         let path = Self::get_desktop_entry_path().ok_or_else(|| "Failed to resolve autostart directory".to_string())?;
         if enabled {
             let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
-            let exe_str = current_exe.to_string_lossy();
+            let appimage_env = std::env::var("APPIMAGE").ok();
+            let exe_str = Self::resolve_autostart_exe_path(appimage_env.as_deref(), &current_exe.to_string_lossy());
             if let Some(parent) = path.parent() {
-                let _ = std::fs::create_dir_all(parent);
+                std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
             }
             let content = Self::generate_desktop_entry(&exe_str);
             std::fs::write(&path, content).map_err(|e| e.to_string())?;
         } else if path.exists() {
-            let _ = std::fs::remove_file(&path);
+            std::fs::remove_file(&path).map_err(|e| e.to_string())?;
         }
         Ok(enabled)
     }

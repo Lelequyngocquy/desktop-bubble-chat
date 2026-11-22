@@ -5,19 +5,13 @@ impl LinuxDialogManager {
     pub fn show_confirm_exit(title: &str, text: &str) -> bool {
         #[cfg(target_os = "linux")]
         {
-            if let Ok(output) = std::process::Command::new("zenity")
-                .args(["--question", "--no-markup", &format!("--title={}", title), &format!("--text={}", text)])
-                .output()
-            {
-                return output.status.success();
-            }
-            if let Ok(output) = std::process::Command::new("kdialog")
-                .args(["--title", title, "--yesno", text])
-                .output()
-            {
-                return output.status.success();
-            }
-            false
+            rfd::MessageDialog::new()
+                .set_level(rfd::MessageLevel::Warning)
+                .set_title(title)
+                .set_description(text)
+                .set_buttons(rfd::MessageButtons::YesNo)
+                .show()
+                == rfd::MessageDialogResult::Yes
         }
         #[cfg(not(target_os = "linux"))]
         {
