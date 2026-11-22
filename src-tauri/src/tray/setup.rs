@@ -16,11 +16,15 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
     let icon = app.default_window_icon().cloned().ok_or("Failed to get app icon")?;
     let locale_str = app.handle().try_state::<Arc<crate::state::ChatState>>().and_then(|s| s.user_config.lock().ok().map(|c| c.current_locale().to_string())).unwrap_or_else(|| "en".to_string());
     let tooltip = if locale_str == "vi" { "DesktopBubbleChat - Đang chạy ngầm" } else { "DesktopBubbleChat - Running in background" };
-    let _tray = TrayIconBuilder::with_id(TRAY_ID)
+    let tray_builder = TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon)
         .menu(&menu)
-        .tooltip(tooltip)
-        .show_menu_on_left_click(false)
+        .tooltip(tooltip);
+    #[cfg(target_os = "macos")]
+    let tray_builder = tray_builder.show_menu_on_left_click(true).icon_as_template(true);
+    #[cfg(not(target_os = "macos"))]
+    let tray_builder = tray_builder.show_menu_on_left_click(false);
+    let _tray = tray_builder
         .on_menu_event(move |app_handle, event| {
             let id_str = event.id.as_ref();
             match id_str {
@@ -86,6 +90,7 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
             }
         })
         .on_tray_icon_event(|tray, event| {
+            #[cfg(not(target_os = "macos"))]
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
@@ -97,6 +102,8 @@ pub fn setup_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
                     toggle_main_window(&handle);
                 });
             }
+            #[cfg(target_os = "macos")]
+            let _ = (tray, event);
         })
         .build(app)?;
     Ok(())

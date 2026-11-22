@@ -133,10 +133,20 @@ pub fn set_update_mode(
     Ok(())
 }
 
+/// Returns OS-appropriate global shortcut accelerators for toggling all bubbles
+pub fn global_shortcuts_for_os(os: &str) -> &'static [&'static str] {
+    match os {
+        "windows" => &["CommandOrControl+Shift+M", "Super+Shift+M"],
+        "macos" => &["CommandOrControl+Shift+M", "Ctrl+Shift+M"],
+        "linux" => &["CommandOrControl+Shift+M"],
+        _ => &["CommandOrControl+Shift+M"],
+    }
+}
+
 /// Applies global shortcut registration state for bubble toggle hotkeys
 pub fn apply_global_shortcut_registration(app: &AppHandle, enabled: bool) {
     use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
-    for sc in ["CommandOrControl+Shift+M", "Super+Shift+M"] {
+    for &sc in global_shortcuts_for_os(std::env::consts::OS) {
         if let Ok(shortcut) = sc.parse::<Shortcut>() {
             if enabled {
                 let _ = app.global_shortcut().register(shortcut);
@@ -274,7 +284,17 @@ pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
         }
         Err(format!("ShellExecuteW failed with code {}", res))
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open").arg(&safe_url).spawn().map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open").arg(&safe_url).spawn().map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     {
         Err("Failed to open external URL".to_string())
     }

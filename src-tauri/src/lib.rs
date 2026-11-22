@@ -26,9 +26,12 @@ pub fn run() {
         );
     }
     #[cfg(target_os = "linux")]
-    unsafe {
-        if std::env::var("GDK_BACKEND").is_err() {
-            std::env::set_var("GDK_BACKEND", "x11,wayland");
+    {
+        crate::operating_systems::linux::cursor::init_x11_threads();
+        unsafe {
+            if std::env::var("GDK_BACKEND").is_err() {
+                std::env::set_var("GDK_BACKEND", "x11,wayland");
+            }
         }
     }
     let chat_state = Arc::new(ChatState::default());
@@ -56,6 +59,15 @@ pub fn run() {
                         SetForegroundWindow(hwnd.0);
                     }
                 }
+                #[cfg(target_os = "macos")]
+                crate::operating_systems::macos::bubble::window::ffi::run_on_macos_main_thread(|| unsafe {
+                    use cocoa::base::{id, nil, YES};
+                    use objc::{class, msg_send, sel, sel_impl};
+                    let ns_app: id = msg_send![class!(NSApplication), sharedApplication];
+                    if ns_app != nil {
+                        let _: () = msg_send![ns_app, activateIgnoringOtherApps: YES];
+                    }
+                });
             }
         }))
         .manage(chat_state)

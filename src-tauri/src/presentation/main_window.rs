@@ -145,7 +145,6 @@ pub fn destroy_or_hibernate_main_window(app: &AppHandle) {
         println!("\x1b[35m[MainWindow] Activating Dynamic Destruction: closing main window to 0 MB RAM...\x1b[0m");
         let _ = main_window.hide();
         let _ = main_window.destroy();
-        #[cfg(target_os = "windows")]
         trim_current_process_working_set();
         let _ = crate::tray::update_tray_menu(app);
     }

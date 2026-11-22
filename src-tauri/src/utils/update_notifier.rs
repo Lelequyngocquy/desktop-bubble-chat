@@ -31,23 +31,32 @@ impl Drop for UpdatingGuard {
     }
 }
 
+/// Returns true if filename matches a stale DesktopBubbleChat installer or updater artifact
+pub fn is_stale_update_artifact_name(name: &str) -> bool {
+    let lower = name.to_lowercase();
+    (lower.starts_with("desktopbubblechat") || lower.starts_with("desktop-bubble-chat"))
+        && (lower.contains("updater")
+            || lower.ends_with(".exe")
+            || lower.ends_with(".msi")
+            || lower.ends_with(".dmg")
+            || lower.ends_with(".app.tar.gz")
+            || lower.ends_with(".appimage")
+            || lower.ends_with(".deb"))
+}
+
 /// Cleans up stale installer and updater temporary files inside a specific directory
 pub fn cleanup_stale_update_artifacts_in(temp_dir: &std::path::Path) {
     if let Ok(entries) = std::fs::read_dir(temp_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                let lower = name.to_lowercase();
-                if (lower.starts_with("desktopbubblechat") || lower.starts_with("desktop-bubble-chat"))
-                    && (lower.contains("updater") || lower.ends_with(".exe") || lower.ends_with(".msi"))
-                {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                && is_stale_update_artifact_name(name) {
                     let _ = if path.is_dir() {
                         std::fs::remove_dir_all(&path)
                     } else {
                         std::fs::remove_file(&path)
                     };
                 }
-            }
         }
     }
 }
@@ -94,6 +103,16 @@ pub async fn check_and_apply_update(
                     Ok(_) => {
                         let _ = app.emit("updater-status", serde_json::json!({ "status": "installing", "version": &ver }));
                         println!("[UpdateNotifier] Update v{} installed, application will restart.", ver);
+                        #[cfg(not(target_os = "windows"))]
+                        {
+                            if let Some(state) = app.try_state::<Arc<crate::state::ChatState>>() {
+                                state.is_explicit_exit.store(true, Ordering::SeqCst);
+                            }
+                            for (_, window) in app.webview_windows() {
+                                let _ = window.destroy();
+                            }
+                            app.request_restart();
+                        }
                     }
                     Err(err) => {
                         let err_msg = err.to_string();

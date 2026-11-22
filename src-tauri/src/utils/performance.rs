@@ -80,21 +80,40 @@ pub fn is_webview_process_name(name: &str) -> bool {
         }
 }
 
-/// Detects account profile index for process using cmdline and proc maps
-pub fn detect_account_index_for_process(_pid: u32, cmd_joined: &str) -> u32 {
+/// Extracts Messenger account index (1..=5) from a process command line or file path
+pub fn extract_account_index_from_text(text: &str) -> u32 {
+    let lower = text.to_lowercase();
     for idx in 1..=5 {
-        if cmd_joined.contains(&format!("messenger_{:02}", idx)) || cmd_joined.contains(&format!("messenger_{}", idx)) {
+        if lower.contains(&format!("messenger_{:02}", idx)) || lower.contains(&format!("messenger_{}", idx)) {
             return idx;
         }
+    }
+    0
+}
+
+/// Detects account profile index for process using cmdline, proc maps, and open fd targets
+pub fn detect_account_index_for_process(_pid: u32, cmd_joined: &str) -> u32 {
+    let from_cmd = extract_account_index_from_text(cmd_joined);
+    if from_cmd > 0 {
+        return from_cmd;
     }
     #[cfg(target_os = "linux")]
     {
         use std::io::BufRead;
         if let Ok(file) = std::fs::File::open(format!("/proc/{}/maps", _pid)) {
             let reader = std::io::BufReader::new(file);
-            for line in reader.lines().flatten() {
-                for idx in 1..=5 {
-                    if line.contains(&format!("messenger_{:02}", idx)) || line.contains(&format!("messenger_{}", idx)) {
+            for line in reader.lines().map_while(Result::ok) {
+                let idx = extract_account_index_from_text(&line);
+                if idx > 0 {
+                    return idx;
+                }
+            }
+        }
+        if let Ok(entries) = std::fs::read_dir(format!("/proc/{}/fd", _pid)) {
+            for entry in entries.flatten() {
+                if let Ok(target) = std::fs::read_link(entry.path()) {
+                    let idx = extract_account_index_from_text(&target.to_string_lossy());
+                    if idx > 0 {
                         return idx;
                     }
                 }
@@ -216,7 +235,7 @@ pub fn collect_performance_snapshot(
             let cmd_str = proc.cmd().iter().map(|c| c.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
             let p_name = proc.name().to_string_lossy().to_lowercase();
             let is_net = p_name.contains("webkitnetwork") || cmd_str.contains("webkitnetwork") || p_name.contains("com.apple.webkit.networking");
-            let is_gpu = p_name.contains("webkitgpu") || cmd_str.contains("webkitgpu") || cmd_str.contains("--type=gpu-process");
+            let is_gpu = p_name.contains("webkitgpu") || cmd_str.contains("webkitgpu") || p_name.contains("com.apple.webkit.gpu") || cmd_str.contains("com.apple.webkit.gpu") || cmd_str.contains("--type=gpu-process");
             let is_web = p_name.contains("webkitweb") || cmd_str.contains("webkitweb") || p_name.contains("com.apple.webkit.webcontent");
             if is_net {
                 if acc_idx > 0 {
