@@ -75,21 +75,26 @@ impl MacOSAutostartManager {
         None
     }
 
-    /// Toggles LaunchAgent plist file and registers with launchctl
+    /// Writes or removes LaunchAgent plist without immediately re-launching app via deprecated launchctl load
     pub fn toggle_autostart_registry(enabled: bool) -> Result<bool, String> {
         let plist_path = Self::get_plist_path().ok_or_else(|| "Failed to resolve LaunchAgents directory".to_string())?;
         if enabled {
             let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
             let exe_str = current_exe.to_string_lossy();
             if let Some(parent) = plist_path.parent() {
-                let _ = std::fs::create_dir_all(parent);
+                std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create LaunchAgents dir: {}", e))?;
             }
             let plist_content = Self::generate_launch_agent_plist(&exe_str);
-            std::fs::write(&plist_path, plist_content).map_err(|e| e.to_string())?;
-            let _ = std::process::Command::new("launchctl").args(["load", &plist_path.to_string_lossy()]).output();
+            std::fs::write(&plist_path, plist_content).map_err(|e| format!("Failed to write LaunchAgent plist: {}", e))?;
         } else if plist_path.exists() {
-            let _ = std::process::Command::new("launchctl").args(["unload", &plist_path.to_string_lossy()]).output();
-            let _ = std::fs::remove_file(&plist_path);
+            if let Ok(uid_out) = std::process::Command::new("id").arg("-u").output()
+                && uid_out.status.success() {
+                    let uid = String::from_utf8_lossy(&uid_out.stdout).trim().to_string();
+                    if !uid.is_empty() {
+                        let _ = std::process::Command::new("launchctl").args(["bootout", &format!("gui/{}", uid), &plist_path.to_string_lossy()]).output();
+                    }
+                }
+            std::fs::remove_file(&plist_path).map_err(|e| format!("Failed to remove LaunchAgent plist: {}", e))?;
         }
         Ok(enabled)
     }

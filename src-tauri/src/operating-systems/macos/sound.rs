@@ -1,28 +1,35 @@
 pub struct MacOSSoundPlayer;
 
+#[cfg(target_os = "macos")]
+static CACHED_SOUND_PTR: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
 impl MacOSSoundPlayer {
-    /// Plays static in-memory WAV buffer asynchronously via AppKit NSSound
+    /// Plays static in-memory WAV buffer asynchronously via retained AppKit NSSound
     pub fn play_wav(wav: &'static [u8]) {
         #[cfg(target_os = "macos")]
         {
-            use cocoa::base::{id, nil, BOOL, NO};
+            use cocoa::base::{id, nil, BOOL};
             use objc::{class, msg_send, sel, sel_impl};
+            use std::sync::atomic::Ordering;
             if wav.is_empty() {
                 return;
             }
             super::bubble::window::ffi::run_on_macos_main_thread(move || unsafe {
-                let ns_data_class = class!(NSData);
-                let data: id = msg_send![ns_data_class, dataWithBytes: wav.as_ptr() length: wav.len()];
-                if data != nil {
-                    let sound_class = class!(NSSound);
-                    let alloc_sound: id = msg_send![sound_class, alloc];
-                    let sound: id = msg_send![alloc_sound, initWithData: data];
-                    if sound != nil {
-                        let _: BOOL = msg_send![sound, play];
-                        let _: () = msg_send![sound, autorelease];
-                    } else {
-                        let _ = NO;
+                let mut sound = CACHED_SOUND_PTR.load(Ordering::Acquire) as id;
+                if sound == nil {
+                    let ns_data_class = class!(NSData);
+                    let data: id = msg_send![ns_data_class, dataWithBytes: wav.as_ptr() length: wav.len()];
+                    if data != nil {
+                        let alloc_sound: id = msg_send![class!(NSSound), alloc];
+                        sound = msg_send![alloc_sound, initWithData: data];
+                        if sound != nil {
+                            CACHED_SOUND_PTR.store(sound as usize, Ordering::Release);
+                        }
                     }
+                }
+                if sound != nil {
+                    let _: BOOL = msg_send![sound, stop];
+                    let _: BOOL = msg_send![sound, play];
                 }
             });
         }

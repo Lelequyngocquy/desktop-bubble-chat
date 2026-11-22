@@ -12,22 +12,26 @@ impl MemoryOptimizerTrait for MacOSMemoryOptimizer {
     fn trim_single_process_working_set(pid: u32) {
         Self::trim_single_process_working_set(pid);
     }
+
     fn trim_current_process_working_set() {
         Self::trim_current_process_working_set();
     }
+
     fn set_webview_memory_target_level(window: &WebviewWindow, is_low: bool) {
         Self::set_webview_memory_target_level(window, is_low);
     }
+
     fn is_webview_process(name: &str) -> bool {
         Self::is_webview_process(name)
     }
+
     fn terminate_profile_process(needle: &str) {
         Self::terminate_profile_process(needle);
     }
 }
 
 impl MacOSMemoryOptimizer {
-    /// Trims memory working set of target PID to standby list
+    /// Trims memory working set of target PID if it matches current host process
     pub fn trim_single_process_working_set(pid: u32) {
         if pid == std::process::id() {
             Self::trim_current_process_working_set();
@@ -37,15 +41,13 @@ impl MacOSMemoryOptimizer {
     /// Trims current application process working set using Mach zone pressure relief
     pub fn trim_current_process_working_set() {
         #[cfg(target_os = "macos")]
-        unsafe {
-            malloc_zone_pressure_relief(std::ptr::null_mut(), 0);
-        }
+        unsafe { malloc_zone_pressure_relief(std::ptr::null_mut(), 0); }
     }
 
-    /// Adjusts WebKit memory target level by requesting garbage collection and memory relief
+    /// Releases resource timings and triggers host malloc zone pressure relief on low target
     pub fn set_webview_memory_target_level(window: &WebviewWindow, is_low: bool) {
         if is_low {
-            let _ = window.eval("if (window.gc) { window.gc(); }");
+            let _ = window.eval("if(window.performance&&window.performance.clearResourceTimings){window.performance.clearResourceTimings();}");
             Self::trim_current_process_working_set();
         }
     }
@@ -53,7 +55,7 @@ impl MacOSMemoryOptimizer {
     /// Checks if process name belongs to macOS WebKit helper processes
     pub fn is_webview_process(name: &str) -> bool {
         let n = name.to_lowercase();
-        n.contains("com.apple.webkit.webcontent") || n.contains("com.apple.webkit.networking")
+        n.contains("com.apple.webkit.webcontent") || n.contains("com.apple.webkit.networking") || n.contains("com.apple.webkit.gpu")
     }
 
     /// Terminates WebKit processes matching non-empty needle profile path
@@ -74,8 +76,7 @@ impl MacOSMemoryOptimizer {
             }
             let name = process.name().to_string_lossy().to_lowercase();
             let cmd = process.cmd().iter().map(|s| s.to_string_lossy()).collect::<Vec<_>>().join(" ").to_lowercase();
-            if (Self::is_webview_process(&name) || Self::is_webview_process(&cmd))
-                && cmd.contains(&needle_lower) {
+            if (Self::is_webview_process(&name) || Self::is_webview_process(&cmd)) && cmd.contains(&needle_lower) {
                 let _ = process.kill_with(sysinfo::Signal::Term);
             }
         }
@@ -91,7 +92,7 @@ mod tests {
         assert!(MacOSMemoryOptimizer::is_webview_process("com.apple.WebKit.WebContent"));
         assert!(MacOSMemoryOptimizer::is_webview_process("com.apple.WebKit.WebContent.Development"));
         assert!(MacOSMemoryOptimizer::is_webview_process("com.apple.WebKit.Networking"));
-        assert!(!MacOSMemoryOptimizer::is_webview_process("com.apple.WebKit.GPU"));
+        assert!(MacOSMemoryOptimizer::is_webview_process("com.apple.WebKit.GPU"));
         assert!(!MacOSMemoryOptimizer::is_webview_process("desktop-bubble-chat"));
         assert!(!MacOSMemoryOptimizer::is_webview_process("Finder"));
     }
