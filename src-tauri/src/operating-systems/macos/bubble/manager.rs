@@ -1,55 +1,22 @@
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use tauri::{AppHandle, Manager};
 use super::window::MacOSBubbleWindowState;
 
 /// Control actions sent to the macOS Native Bubble manager
 pub enum NativeBubbleAction {
-    Show {
-        account_index: u32,
-        x: i32,
-        y: i32,
-        size: u32,
-        app: AppHandle,
-    },
-    Hide {
-        account_index: u32,
-    },
-    SetPosition {
-        account_index: u32,
-        x: i32,
-        y: i32,
-    },
-    AnimateTo {
-        account_index: u32,
-        target_x: i32,
-        target_y: i32,
-        duration_ms: u64,
-    },
-    SetUnread {
-        account_index: u32,
-        count: u32,
-    },
-    TriggerPulse {
-        account_index: u32,
-    },
-    Tuck {
-        account_index: u32,
-        app: AppHandle,
-    },
-    Untuck {
-        account_index: u32,
-        app: AppHandle,
-    },
-    SetAlwaysOnTop {
-        enabled: bool,
-    },
+    Show { account_index: u32, x: i32, y: i32, size: u32, app: AppHandle },
+    Hide { account_index: u32 },
+    SetPosition { account_index: u32, x: i32, y: i32 },
+    AnimateTo { account_index: u32, target_x: i32, target_y: i32, duration_ms: u64 },
+    SetUnread { account_index: u32, count: u32 },
+    TriggerPulse { account_index: u32 },
+    Tuck { account_index: u32, app: AppHandle },
+    Untuck { account_index: u32, app: AppHandle },
+    SetAlwaysOnTop { enabled: bool },
     AssertTopmost,
-    SetSize {
-        account_index: u32,
-        size: u32,
-    },
+    SetSize { account_index: u32, size: u32 },
     Shutdown,
 }
 
@@ -59,6 +26,8 @@ pub type MacOSBubbleBoundsCache = Arc<RwLock<HashMap<u32, (i32, i32, u32, u32)>>
 pub struct NativeBubbleManager {
     bubbles: Arc<Mutex<HashMap<u32, MacOSBubbleWindowState>>>,
     bounds_cache: MacOSBubbleBoundsCache,
+    hover_leave_tokens: Mutex<HashMap<u32, u64>>,
+    token_seq: AtomicU64,
     is_always_on_top: AtomicBool,
     anim_loop_running: AtomicBool,
 }
@@ -68,13 +37,13 @@ static GLOBAL_MANAGER: OnceLock<NativeBubbleManager> = OnceLock::new();
 impl NativeBubbleManager {
     /// Returns global singleton instance
     pub fn global() -> &'static Self {
-        GLOBAL_MANAGER.get_or_init(|| {
-            Self {
-                bubbles: Arc::new(Mutex::new(HashMap::new())),
-                bounds_cache: Arc::new(RwLock::new(HashMap::new())),
-                is_always_on_top: AtomicBool::new(true),
-                anim_loop_running: AtomicBool::new(false),
-            }
+        GLOBAL_MANAGER.get_or_init(|| Self {
+            bubbles: Arc::new(Mutex::new(HashMap::new())),
+            bounds_cache: Arc::new(RwLock::new(HashMap::new())),
+            hover_leave_tokens: Mutex::new(HashMap::new()),
+            token_seq: AtomicU64::new(1),
+            is_always_on_top: AtomicBool::new(true),
+            anim_loop_running: AtomicBool::new(false),
         })
     }
 
@@ -83,6 +52,18 @@ impl NativeBubbleManager {
         if let Some(mgr) = GLOBAL_MANAGER.get() {
             mgr.dispatch(NativeBubbleAction::Shutdown);
         }
+    }
+
+    fn bump_hover_leave_token(&self, account_index: u32) -> u64 {
+        let token = self.token_seq.fetch_add(1, Ordering::SeqCst);
+        if let Ok(mut tokens) = self.hover_leave_tokens.lock() {
+            tokens.insert(account_index, token);
+        }
+        token
+    }
+
+    fn is_hover_leave_token_valid(&self, account_index: u32, token: u64) -> bool {
+        self.hover_leave_tokens.lock().ok().and_then(|m| m.get(&account_index).copied()) == Some(token)
     }
 
     fn apply_bounds_cache_preview(&self, action: &NativeBubbleAction) {
@@ -142,23 +123,22 @@ impl NativeBubbleManager {
 
     fn ensure_animation_driver_running(&self) {
         #[cfg(target_os = "macos")]
-        if !cfg!(test)
-            && self.anim_loop_running.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
-                std::thread::spawn(|| {
-                    loop {
-                        std::thread::sleep(std::time::Duration::from_millis(16));
-                        let (tx, rx) = std::sync::mpsc::channel::<bool>();
-                        super::window::ffi::run_on_macos_main_thread(move || {
-                            let still_animating = Self::global().step_all_animations_on_main_thread();
-                            let _ = tx.send(still_animating);
-                        });
-                        if !rx.recv().unwrap_or(false) {
-                            Self::global().anim_loop_running.store(false, Ordering::SeqCst);
-                            break;
-                        }
+        if !cfg!(test) && self.anim_loop_running.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+            std::thread::spawn(|| {
+                loop {
+                    std::thread::sleep(std::time::Duration::from_millis(16));
+                    let (tx, rx) = std::sync::mpsc::channel::<bool>();
+                    super::window::ffi::run_on_macos_main_thread(move || {
+                        let still_animating = Self::global().step_all_animations_on_main_thread();
+                        let _ = tx.send(still_animating);
+                    });
+                    if !rx.recv().unwrap_or(false) {
+                        Self::global().anim_loop_running.store(false, Ordering::SeqCst);
+                        break;
                     }
-                });
-            }
+                }
+            });
+        }
         #[cfg(not(target_os = "macos"))]
         {
             let _ = self.anim_loop_running.load(Ordering::Relaxed);
@@ -188,13 +168,7 @@ impl NativeBubbleManager {
             if finished
                 && let Some(app) = app_opt
                 && let Some(cs) = app.try_state::<Arc<crate::state::ChatState>>() {
-                    cs.set_bubble_rect(idx, crate::movement::BubbleRect {
-                        account_index: idx,
-                        x: nx,
-                        y: ny,
-                        width: bsz as i32,
-                        height: bsz as i32,
-                    });
+                    cs.set_bubble_rect(idx, crate::movement::BubbleRect { account_index: idx, x: nx, y: ny, width: bsz as i32, height: bsz as i32 });
                 }
         }
         any_active
@@ -236,8 +210,9 @@ impl NativeBubbleManager {
                 }
             }
             NativeBubbleAction::Hide { account_index } => {
+                self.bump_hover_leave_token(account_index);
                 if let Ok(mut map) = self.bubbles.lock()
-                    && let Some(bubble) = map.get_mut(&account_index) {
+                    && let Some(mut bubble) = map.remove(&account_index) {
                         bubble.anim_state.stop();
                         bubble.set_visible(false);
                     }
@@ -268,10 +243,12 @@ impl NativeBubbleManager {
                     }
             }
             NativeBubbleAction::Tuck { account_index, app } => {
-                if let Ok(mut map) = self.bubbles.lock()
-                    && let Some(bubble) = map.get_mut(&account_index) {
-                        bubble.tuck(&app);
-                    }
+                let displaced = if let Ok(mut map) = self.bubbles.lock() {
+                    map.get_mut(&account_index).map(|b| b.tuck(&app)).unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
+                self.animate_displaced_siblings(displaced);
                 self.ensure_animation_driver_running();
             }
             NativeBubbleAction::Untuck { account_index, app } => {
@@ -292,12 +269,11 @@ impl NativeBubbleManager {
                 }
             }
             NativeBubbleAction::AssertTopmost => {
-                let enabled = self.is_always_on_top.load(Ordering::SeqCst);
-                if enabled
+                if self.is_always_on_top.load(Ordering::SeqCst)
                     && let Ok(mut map) = self.bubbles.lock() {
                         for bubble in map.values_mut() {
                             if bubble.is_visible && !bubble.is_dragging {
-                                bubble.set_always_on_top(true);
+                                bubble.assert_topmost();
                             }
                         }
                     }
@@ -318,18 +294,12 @@ impl NativeBubbleManager {
 
     /// Checks if specified account has an active native bubble
     pub fn has_bubble(&self, account_index: u32) -> bool {
-        if let Ok(cache) = self.bounds_cache.read() {
-            return cache.contains_key(&account_index);
-        }
-        false
+        self.bounds_cache.read().map(|c| c.contains_key(&account_index)).unwrap_or(false)
     }
 
     /// Returns bounds (x, y, w, h) of native bubble
     pub fn get_bounds(&self, account_index: u32) -> Option<(i32, i32, u32, u32)> {
-        if let Ok(cache) = self.bounds_cache.read() {
-            return cache.get(&account_index).copied();
-        }
-        None
+        self.bounds_cache.read().ok().and_then(|c| c.get(&account_index).copied())
     }
 
     /// Updates cached bounds
@@ -350,10 +320,26 @@ impl NativeBubbleManager {
 
     /// Handles mouse press on NSPanel view
     pub fn handle_mouse_down(&self, account_index: u32, mouse_x: i32, mouse_y: i32) {
+        self.bump_hover_leave_token(account_index);
         if let Ok(mut map) = self.bubbles.lock()
             && let Some(bubble) = map.get_mut(&account_index) {
                 bubble.on_mouse_down(mouse_x, mouse_y);
             }
+    }
+
+    /// Handles right-click context menu on NSPanel view
+    pub fn handle_right_click(&self, account_index: u32) {
+        let info = self.bubbles.lock().ok().and_then(|map| {
+            map.get(&account_index).and_then(|b| {
+                let app = b.app_handle.clone()?;
+                let screen = crate::movement::get_target_dashboard_screen(Some(&app));
+                let rect = super::window::MacOSPanelController::top_left_physical_to_cocoa_rect(b.x, b.y, b.bubble_size, b.bubble_size, screen.y, screen.height, screen.scale_factor);
+                Some((app, rect.origin.x, rect.origin.y))
+            })
+        });
+        if let Some((app, cx, cy)) = info {
+            crate::operating_systems::macos::tray::MacOSMenuManager::show_bubble_context_menu(&app, account_index, cx, cy);
+        }
     }
 
     /// Handles mouse drag motion on NSPanel view
@@ -394,6 +380,7 @@ impl NativeBubbleManager {
 
     /// Handles mouse enter on NSPanel view without holding bubbles lock across sibling animations
     pub fn handle_mouse_enter(&self, account_index: u32) {
+        self.bump_hover_leave_token(account_index);
         let displaced = if let Ok(mut map) = self.bubbles.lock() {
             map.get_mut(&account_index).map(|b| b.on_mouse_enter()).unwrap_or_default()
         } else {
@@ -403,17 +390,26 @@ impl NativeBubbleManager {
         self.ensure_animation_driver_running();
     }
 
-    /// Handles mouse exit on NSPanel view and schedules tuck
+    /// Handles mouse exit with 80ms debounce and chat/pin/drag guards matching Windows
     pub fn handle_mouse_leave(&self, account_index: u32) {
-        let mut app_opt = None;
-        if let Ok(mut map) = self.bubbles.lock()
-            && let Some(bubble) = map.get_mut(&account_index) {
-                bubble.on_mouse_leave();
-                app_opt = bubble.app_handle.clone();
-            }
-        if let Some(app) = app_opt {
-            self.dispatch(NativeBubbleAction::Tuck { account_index, app });
+        let armed = self.bubbles.lock().ok().and_then(|mut map| map.get_mut(&account_index).map(|b| b.on_mouse_leave())).unwrap_or(false);
+        if !armed {
+            return;
         }
+        let token = self.bump_hover_leave_token(account_index);
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(80));
+            let mgr = Self::global();
+            if !mgr.is_hover_leave_token_valid(account_index, token) {
+                return;
+            }
+            let app_opt = mgr.bubbles.lock().ok().and_then(|map| {
+                map.get(&account_index).and_then(|b| if b.can_tuck_on_hover_leave() { b.app_handle.clone() } else { None })
+            });
+            if let Some(app) = app_opt {
+                mgr.dispatch(NativeBubbleAction::Tuck { account_index, app });
+            }
+        });
     }
 }
 

@@ -15,14 +15,44 @@ unsafe extern "C" {
     fn CGEventGetLocation(event: *mut std::ffi::c_void) -> CGPoint;
     fn CGEventSourceButtonState(state_id: u32, button: u32) -> bool;
     fn CFRelease(cf: *const std::ffi::c_void);
-    fn CGMainDisplayID() -> u32;
-    fn CGDisplayPixelsHigh(display: u32) -> usize;
+    fn CGGetDisplaysWithPoint(point: CGPoint, max_displays: u32, displays: *mut u32, matching_display_count: *mut u32) -> i32;
+    fn CGDisplayCopyDisplayMode(display: u32) -> *mut std::ffi::c_void;
+    fn CGDisplayModeGetPixelWidth(mode: *mut std::ffi::c_void) -> usize;
+    fn CGDisplayModeGetWidth(mode: *mut std::ffi::c_void) -> usize;
+    fn CGDisplayModeRelease(mode: *mut std::ffi::c_void);
 }
 
 pub struct MacOSCursorTracker;
 
 impl MacOSCursorTracker {
-    /// Returns current global cursor position in physical top-left pixels matching ScreenMetrics
+    /// Converts logical Quartz point coordinates into physical top-left pixels
+    pub fn quartz_point_to_physical(x_pt: f64, y_pt: f64, scale_factor: f64) -> (i32, i32) {
+        let scale = if scale_factor.is_finite() && scale_factor > 0.0 { scale_factor } else { 1.0 };
+        ((x_pt * scale).round() as i32, (y_pt * scale).round() as i32)
+    }
+
+    /// Resolves backing scale factor of the display containing a given Quartz point
+    #[cfg(target_os = "macos")]
+    fn display_scale_at_point(point: CGPoint) -> Option<f64> {
+        unsafe {
+            let mut display_id: u32 = 0;
+            let mut count: u32 = 0;
+            if CGGetDisplaysWithPoint(point, 1, &mut display_id, &mut count) == 0 && count > 0 {
+                let mode = CGDisplayCopyDisplayMode(display_id);
+                if !mode.is_null() {
+                    let pixel_w = CGDisplayModeGetPixelWidth(mode);
+                    let point_w = CGDisplayModeGetWidth(mode);
+                    CGDisplayModeRelease(mode);
+                    if point_w > 0 && pixel_w > 0 {
+                        return Some((pixel_w as f64) / (point_w as f64));
+                    }
+                }
+            }
+            None
+        }
+    }
+
+    /// Returns current global cursor position in physical top-left pixels using active display scale
     #[cfg(target_os = "macos")]
     pub fn get_cursor_position() -> Option<(i32, i32)> {
         unsafe {
@@ -32,10 +62,9 @@ impl MacOSCursorTracker {
             }
             let loc = CGEventGetLocation(event);
             CFRelease(event);
-            let _ = (CGMainDisplayID, CGDisplayPixelsHigh);
-            let screen = crate::movement::get_target_dashboard_screen(None);
-            let scale = screen.scale_factor.max(1.0);
-            Some(((loc.x * scale).round() as i32, (loc.y * scale).round() as i32))
+            let scale = Self::display_scale_at_point(loc)
+                .unwrap_or_else(|| crate::movement::get_target_dashboard_screen(None).scale_factor.max(1.0));
+            Some(Self::quartz_point_to_physical(loc.x, loc.y, scale))
         }
     }
 
@@ -48,10 +77,7 @@ impl MacOSCursorTracker {
     /// Checks if mouse left button is currently pressed
     #[cfg(target_os = "macos")]
     pub fn is_lbutton_down() -> bool {
-        unsafe {
-            // state_id 0 corresponds to kCGEventSourceStateCombinedSessionState, button 0 is left button
-            CGEventSourceButtonState(0, 0)
-        }
+        unsafe { CGEventSourceButtonState(0, 0) }
     }
 
     /// Fallback for non-macOS compilation
@@ -62,9 +88,8 @@ impl MacOSCursorTracker {
 
     /// Checks if cursor is currently over given window
     pub fn is_cursor_over_window(window: &WebviewWindow) -> bool {
-        let (cx, cy) = match Self::get_cursor_position() {
-            Some(pos) => pos,
-            None => return false,
+        let Some((cx, cy)) = Self::get_cursor_position() else {
+            return false;
         };
         if let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) {
             cx >= pos.x && cx <= pos.x + size.width as i32 && cy >= pos.y && cy <= pos.y + size.height as i32
@@ -89,6 +114,13 @@ mod tests {
         assert_eq!(MacOSCursorTracker::flip_y_coordinate(1080.0, screen_height), 0);
         assert_eq!(MacOSCursorTracker::flip_y_coordinate(0.0, screen_height), 1080);
         assert_eq!(MacOSCursorTracker::flip_y_coordinate(280.0, screen_height), 800);
+    }
+
+    #[test]
+    fn test_quartz_point_to_physical_multi_dpi() {
+        assert_eq!(MacOSCursorTracker::quartz_point_to_physical(500.0, 300.0, 2.0), (1000, 600));
+        assert_eq!(MacOSCursorTracker::quartz_point_to_physical(1920.0, 400.0, 1.0), (1920, 400));
+        assert_eq!(MacOSCursorTracker::quartz_point_to_physical(100.0, 50.0, 0.0), (100, 50));
     }
 
     #[test]
