@@ -36,7 +36,7 @@ else
 fi
 
 echo -e "\n\033[33m[3] Linux Native Dependencies:\033[0m"
-for pkg in "gtk+-3.0:libgtk-3-dev" "webkit2gtk-4.1:libwebkit2gtk-4.1-dev" "ayatana-appindicator3-0.1:libayatana-appindicator3-dev"; do
+for pkg in "gtk+-3.0:libgtk-3-dev" "webkit2gtk-4.1:libwebkit2gtk-4.1-dev" "ayatana-appindicator3-0.1:libayatana-appindicator3-dev" "x11:libx11-dev" "openssl:libssl-dev" "alsa:libasound2-dev" "librsvg-2.0:librsvg2-dev"; do
     NAME="${pkg%%:*}"
     HINT="${pkg##*:}"
     if pkg-config --exists "$NAME" 2>/dev/null; then
@@ -44,6 +44,21 @@ for pkg in "gtk+-3.0:libgtk-3-dev" "webkit2gtk-4.1:libwebkit2gtk-4.1-dev" "ayata
         echo -e "   \033[32m[OK] $NAME: v$VER\033[0m"
     else
         echo -e "   \033[33m[WARN] $NAME missing (install: sudo apt install $HINT)\033[0m"
+    fi
+done
+for tool in "patchelf:patchelf" "xdo:libxdo-dev"; do
+    TNAME="${tool%%:*}"
+    THINT="${tool##*:}"
+    if [ "$TNAME" = "xdo" ]; then
+        if ldconfig -p 2>/dev/null | grep -q "libxdo"; then
+            echo -e "   \033[32m[OK] libxdo installed\033[0m"
+        else
+            echo -e "   \033[33m[WARN] libxdo missing (install: sudo apt install $THINT)\033[0m"
+        fi
+    elif command -v "$TNAME" >/dev/null 2>&1; then
+        echo -e "   \033[32m[OK] $TNAME installed\033[0m"
+    else
+        echo -e "   \033[33m[WARN] $TNAME missing (install: sudo apt install $THINT)\033[0m"
     fi
 done
 

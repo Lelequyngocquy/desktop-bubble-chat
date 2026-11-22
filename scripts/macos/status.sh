@@ -6,7 +6,7 @@ echo -e "\033[36m====================================================\033[0m"
 echo -e "\033[36m   DesktopBubbleChat - macOS Process & RAM Monitor  \033[0m"
 echo -e "\033[36m====================================================\033[0m"
 
-HOST_PID=$(pgrep -f "DesktopBubbleChat" | head -n 1 || true)
+HOST_PID=$(pgrep -x "DesktopBubbleChat" | head -n 1 || pgrep -x "desktop-bubble-chat" | head -n 1 || true)
 if [ -z "$HOST_PID" ]; then
     echo -e "\033[31m[Status] DesktopBubbleChat: NOT RUNNING\033[0m"
     echo -e "\033[90m[Hint] Run 'bash scripts/macos/start.sh' to launch.\033[0m\n"
@@ -17,7 +17,12 @@ printf "%-8s %-25s %-22s %-12s %-10s\n" "PID" "PROCESS" "CATEGORY" "PROFILE" "RA
 printf "%-8s %-25s %-22s %-12s %-10s\n" "--------" "-------------------------" "----------------------" "------------" "----------"
 
 TOTAL_RAM_KB=0
-PROCS=$(ps -ax -o pid,rss,command | grep -E "DesktopBubbleChat|WebKit|com.apple.WebKit" | grep -v grep || true)
+CHILD_PIDS=$(pgrep -P "$HOST_PID" 2>/dev/null | tr '\n' ',' | sed 's/,$//' || true)
+PID_LIST="$HOST_PID"
+if [ -n "$CHILD_PIDS" ]; then
+    PID_LIST="${HOST_PID},${CHILD_PIDS}"
+fi
+PROCS=$(ps -p "$PID_LIST" -o pid=,rss=,command= 2>/dev/null || true)
 
 while IFS= read -r line; do
     [ -z "$line" ] && continue
@@ -30,16 +35,20 @@ while IFS= read -r line; do
     CATEGORY="Process"
     PROFILE="Host"
     case "$COMM" in
-        *DesktopBubbleChat*)
+        *DesktopBubbleChat*|*desktop-bubble-chat*)
             CATEGORY="Rust Host Core"
             PROFILE="Host"
             ;;
         *WebContent*)
             CATEGORY="WebKit Webview"
-            PROFILE="Dashboard"
+            PROFILE="WebView"
             ;;
         *Networking*)
             CATEGORY="Network Service"
+            PROFILE="Shared"
+            ;;
+        *GPU*)
+            CATEGORY="GPU Service"
             PROFILE="Shared"
             ;;
     esac

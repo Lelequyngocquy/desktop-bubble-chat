@@ -20,9 +20,13 @@ fi
 
 # Clean up stale processes & free port 1420
 echo -e "\033[90m[Info] Cleaning stale processes & port 1420...\033[0m"
-pkill -9 -f "DesktopBubbleChat" 2>/dev/null || true
+pkill -9 -x "desktop-bubble-chat" 2>/dev/null || true
+pkill -9 -x "DesktopBubbleChat" 2>/dev/null || true
 if command -v lsof >/dev/null 2>&1; then
-    lsof -ti:1420 | xargs -r kill -9 2>/dev/null || true
+    PORT_PIDS=$(lsof -ti:1420 2>/dev/null || true)
+    if [ -n "$PORT_PIDS" ]; then
+        kill -9 $PORT_PIDS 2>/dev/null || true
+    fi
 fi
 
 if [ "$MODE" = "web" ]; then
@@ -58,9 +62,13 @@ VITE_PID=$!
 cleanup() {
     echo -e "\n\033[33m[Stop] Terminating application & Vite server (PID: $VITE_PID)...\033[0m"
     kill "$VITE_PID" 2>/dev/null || true
-    pkill -9 -f "DesktopBubbleChat" 2>/dev/null || true
+    pkill -9 -x "desktop-bubble-chat" 2>/dev/null || true
+    pkill -9 -x "DesktopBubbleChat" 2>/dev/null || true
     if command -v lsof >/dev/null 2>&1; then
-        lsof -ti:1420 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+        PORT_PIDS=$(lsof -ti:1420 2>/dev/null || true)
+        if [ -n "$PORT_PIDS" ]; then
+            kill -9 $PORT_PIDS 2>/dev/null || true
+        fi
     fi
 }
 trap cleanup EXIT INT TERM

@@ -8,19 +8,14 @@ echo -e "\033[31m====================================================\033[0m"
 
 STOPPED=0
 
-# Terminate Tauri Host application
-if pkill -9 -f "desktop-bubble-chat" 2>/dev/null; then
-    echo -e "\033[32m[Stop] Terminated desktop-bubble-chat host process.\033[0m"
-    STOPPED=$((STOPPED + 1))
-fi
-
-# Terminate orphaned WebKit child processes
-if pkill -9 -f "WebKitWebProcess" 2>/dev/null; then
-    echo -e "\033[32m[Stop] Terminated WebKitWebProcess renderers.\033[0m"
-    STOPPED=$((STOPPED + 1))
-fi
-if pkill -9 -f "WebKitNetworkProcess" 2>/dev/null; then
-    echo -e "\033[32m[Stop] Terminated WebKitNetworkProcess services.\033[0m"
+# Terminate Tauri Host application and its direct WebKit child processes only
+HOST_PIDS=$(pgrep -x "desktop-bubble-chat" 2>/dev/null || true)
+if [ -n "$HOST_PIDS" ]; then
+    for HPID in $HOST_PIDS; do
+        pkill -9 -P "$HPID" 2>/dev/null || true
+        kill -9 "$HPID" 2>/dev/null || true
+    done
+    echo -e "\033[32m[Stop] Terminated desktop-bubble-chat host and child WebKit processes.\033[0m"
     STOPPED=$((STOPPED + 1))
 fi
 

@@ -9,7 +9,7 @@ echo -e "\033[31m====================================================\033[0m"
 STOPPED=0
 
 # Terminate Tauri Host application
-if pkill -9 -f "DesktopBubbleChat" 2>/dev/null; then
+if pkill -9 -x "desktop-bubble-chat" 2>/dev/null || pkill -9 -x "DesktopBubbleChat" 2>/dev/null; then
     echo -e "\033[32m[Stop] Terminated DesktopBubbleChat host process.\033[0m"
     STOPPED=$((STOPPED + 1))
 fi
@@ -18,7 +18,7 @@ fi
 if command -v lsof >/dev/null 2>&1; then
     LSOF_PIDS=$(lsof -ti:1420 2>/dev/null || true)
     if [ -n "$LSOF_PIDS" ]; then
-        echo "$LSOF_PIDS" | xargs -r kill -9 2>/dev/null || true
+        kill -9 $LSOF_PIDS 2>/dev/null || true
         echo -e "\033[32m[Stop] Freed port 1420 via lsof.\033[0m"
         STOPPED=$((STOPPED + 1))
     fi
