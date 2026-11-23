@@ -166,16 +166,14 @@ impl LinuxCursorTracker {
     pub fn get_cursor_position() -> Option<(i32, i32)> {
         #[cfg(target_os = "linux")]
         {
-            if !Self::is_active_gdk_wayland() {
-                if let Some((pos, _)) = query_x11_pointer() {
+            if !Self::is_active_gdk_wayland()
+                && let Some((pos, _)) = query_x11_pointer() {
                     return Some(pos);
                 }
-            }
-            if let Ok(guard) = WAYLAND_CURSOR_POS.read() {
-                if let Some(pos) = *guard {
+            if let Ok(guard) = WAYLAND_CURSOR_POS.read()
+                && let Some(pos) = *guard {
                     return Some(pos);
                 }
-            }
             None
         }
         #[cfg(not(target_os = "linux"))]
@@ -188,11 +186,10 @@ impl LinuxCursorTracker {
     pub fn is_lbutton_down() -> bool {
         #[cfg(target_os = "linux")]
         {
-            if !Self::is_active_gdk_wayland() {
-                if let Some((_, btn1)) = query_x11_pointer() {
+            if !Self::is_active_gdk_wayland()
+                && let Some((_, btn1)) = query_x11_pointer() {
                     return btn1;
                 }
-            }
             WAYLAND_LBUTTON_DOWN.load(std::sync::atomic::Ordering::SeqCst)
         }
         #[cfg(not(target_os = "linux"))]

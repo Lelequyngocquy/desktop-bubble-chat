@@ -100,4 +100,18 @@ mod tests {
             assert!(path_str.ends_with("desktop-bubble-chat.desktop"));
         }
     }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_generated_desktop_entry_passes_validator() {
+        let path = std::env::temp_dir().join(format!("dbc_xdg_test_{}.desktop", std::process::id()));
+        let entry = LinuxAutostartManager::generate_desktop_entry("/opt/DesktopBubbleChat/100%/desktop-bubble-chat");
+        std::fs::write(&path, entry).expect("write temp desktop entry");
+        if let Ok(output) = std::process::Command::new("desktop-file-validate").arg(&path).output() {
+            let _ = std::fs::remove_file(&path);
+            assert!(output.status.success(), "desktop-file-validate failed: {}", String::from_utf8_lossy(&output.stdout));
+        } else {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
 }
