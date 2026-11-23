@@ -1,3 +1,4 @@
+#[cfg(target_os = "windows")]
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 use crate::extensions::{self, ProfileExtension};

@@ -67,30 +67,30 @@ pub fn get_or_create_bubble_window(
     account_index: u32,
 ) -> Result<tauri::WebviewWindow, String> {
     let label = get_bubble_window_label(account_index);
+    #[cfg(target_os = "windows")]
     for attempt in 0..10 {
         if let Some(win) = app.get_webview_window(&label) {
-            #[cfg(target_os = "windows")]
-            {
-                let is_alive = if let Ok(hwnd) = win.hwnd() {
-                    unsafe { IsWindow(hwnd.0) != 0 }
-                } else {
-                    false
-                };
-                if is_alive {
-                    return Ok(win);
-                } else {
-                    let _ = win.destroy();
-                    if attempt < 9 {
-                        std::thread::sleep(std::time::Duration::from_millis(20));
-                    }
-                    continue;
+            let is_alive = if let Ok(hwnd) = win.hwnd() {
+                unsafe { IsWindow(hwnd.0) != 0 }
+            } else {
+                false
+            };
+            if is_alive {
+                return Ok(win);
+            } else {
+                let _ = win.destroy();
+                if attempt < 9 {
+                    std::thread::sleep(std::time::Duration::from_millis(20));
                 }
+                continue;
             }
-            #[cfg(not(target_os = "windows"))]
-            return Ok(win);
         } else {
             break;
         }
+    }
+    #[cfg(not(target_os = "windows"))]
+    if let Some(win) = app.get_webview_window(&label) {
+        return Ok(win);
     }
     let is_on_top = app
         .try_state::<Arc<crate::state::ChatState>>()

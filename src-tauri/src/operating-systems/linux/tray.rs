@@ -6,7 +6,7 @@ impl LinuxMenuManager {
         #[cfg(target_os = "linux")]
         {
             if let Ok(output) = std::process::Command::new("busctl")
-                .args(&["--user", "status", "org.kde.StatusNotifierWatcher"])
+                .args(["--user", "status", "org.kde.StatusNotifierWatcher"])
                 .output()
             {
                 return output.status.success();

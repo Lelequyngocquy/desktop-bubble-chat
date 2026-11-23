@@ -69,7 +69,9 @@ pub fn compute_bubble_input_rects(
 }
 
 #[cfg(target_os = "linux")]
-static SURFACE_CACHE: LazyLock<Mutex<HashMap<usize, (Vec<u8>, usize, usize, f64)>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+type SurfaceBufferEntry = (Vec<u8>, usize, usize, f64);
+#[cfg(target_os = "linux")]
+static SURFACE_CACHE: LazyLock<Mutex<HashMap<usize, SurfaceBufferEntry>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
 #[cfg(target_os = "linux")]
 unsafe extern "C" fn on_draw(widget: *mut c_void, cr: *mut c_void, _user_data: *mut c_void) -> i32 {
@@ -163,6 +165,7 @@ unsafe extern "C" fn on_leave_notify(_widget: *mut c_void, _event: *mut c_void, 
     0
 }
 
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 impl LinuxGtkWindowController {
     /// Creates a transparent, borderless, floating GTK window scaled properly for HiDPI
     #[cfg(target_os = "linux")]
@@ -210,7 +213,7 @@ impl LinuxGtkWindowController {
             if !gdk_win.is_null() {
                 let display = gdk_display_get_default();
                 if !display.is_null() {
-                    let cursor = gdk_cursor_new_from_name(display, b"pointer\0".as_ptr() as *const _);
+                    let cursor = gdk_cursor_new_from_name(display, c"pointer".as_ptr());
                     if !cursor.is_null() {
                         gdk_window_set_cursor(gdk_win, cursor);
                         g_object_unref(cursor);
@@ -219,12 +222,12 @@ impl LinuxGtkWindowController {
             }
             gtk_widget_add_events(window, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK);
             let user_data = account_index as usize as *mut c_void;
-            g_signal_connect_data(window, b"draw\0".as_ptr() as *const _, Some(std::mem::transmute::<*const (), unsafe extern "C" fn()>(on_draw as *const ())), user_data, std::ptr::null_mut(), 0);
-            g_signal_connect_data(window, b"button-press-event\0".as_ptr() as *const _, Some(std::mem::transmute::<*const (), unsafe extern "C" fn()>(on_button_press as *const ())), user_data, std::ptr::null_mut(), 0);
-            g_signal_connect_data(window, b"motion-notify-event\0".as_ptr() as *const _, Some(std::mem::transmute::<*const (), unsafe extern "C" fn()>(on_motion_notify as *const ())), user_data, std::ptr::null_mut(), 0);
-            g_signal_connect_data(window, b"button-release-event\0".as_ptr() as *const _, Some(std::mem::transmute::<*const (), unsafe extern "C" fn()>(on_button_release as *const ())), user_data, std::ptr::null_mut(), 0);
-            g_signal_connect_data(window, b"enter-notify-event\0".as_ptr() as *const _, Some(std::mem::transmute::<*const (), unsafe extern "C" fn()>(on_enter_notify as *const ())), user_data, std::ptr::null_mut(), 0);
-            g_signal_connect_data(window, b"leave-notify-event\0".as_ptr() as *const _, Some(std::mem::transmute::<*const (), unsafe extern "C" fn()>(on_leave_notify as *const ())), user_data, std::ptr::null_mut(), 0);
+            g_signal_connect_data(window, c"draw".as_ptr(), Some(std::mem::transmute::<*const (), unsafe extern "C" fn()>(on_draw as *const ())), user_data, std::ptr::null_mut(), 0);
+            g_signal_connect_data(window, c"button-press-event".as_ptr(), Some(std::mem::transmute::<*const (), unsafe extern "C" fn()>(on_button_press as *const ())), user_data, std::ptr::null_mut(), 0);
+            g_signal_connect_data(window, c"motion-notify-event".as_ptr(), Some(std::mem::transmute::<*const (), unsafe extern "C" fn()>(on_motion_notify as *const ())), user_data, std::ptr::null_mut(), 0);
+            g_signal_connect_data(window, c"button-release-event".as_ptr(), Some(std::mem::transmute::<*const (), unsafe extern "C" fn()>(on_button_release as *const ())), user_data, std::ptr::null_mut(), 0);
+            g_signal_connect_data(window, c"enter-notify-event".as_ptr(), Some(std::mem::transmute::<*const (), unsafe extern "C" fn()>(on_enter_notify as *const ())), user_data, std::ptr::null_mut(), 0);
+            g_signal_connect_data(window, c"leave-notify-event".as_ptr(), Some(std::mem::transmute::<*const (), unsafe extern "C" fn()>(on_leave_notify as *const ())), user_data, std::ptr::null_mut(), 0);
             let logical_x = physical_coord_to_logical(x_px - BUBBLE_CANVAS_PAD_X, scale_factor);
             let logical_y = physical_coord_to_logical(y_px - BUBBLE_CANVAS_PAD_Y, scale_factor);
             gtk_window_move(window, logical_x, logical_y);

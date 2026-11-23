@@ -181,7 +181,6 @@ impl MacOSPanelController {
     pub fn create_floating_bubble_panel(account_index: u32, x: f64, y: f64, width: f64, height: f64) -> *mut c_void {
         use cocoa::base::{id, nil, NO, YES};
         use cocoa::foundation::{NSPoint as CocoaNSPoint, NSRect as CocoaNSRect, NSSize as CocoaNSSize};
-        use objc::runtime::Object;
         use objc::{class, msg_send, sel, sel_impl};
         with_autorelease_pool(|| unsafe {
             let style_mask = NS_WINDOW_STYLE_MASK_NONACTIVATING_PANEL | NS_WINDOW_STYLE_MASK_BORDERLESS;
@@ -208,7 +207,7 @@ impl MacOSPanelController {
                 let view_frame = CocoaNSRect::new(CocoaNSPoint::new(0.0, 0.0), CocoaNSSize::new(width, height));
                 let custom_view: id = msg_send![view_alloc, initWithFrame: view_frame];
                 if custom_view != nil {
-                    let obj = &mut *(custom_view as *mut Object);
+                    let obj = &mut *custom_view;
                     obj.set_ivar::<u32>("accountIndex", account_index);
                     obj.set_ivar::<f64>("bubbleSizePt", (height - (2 * BUBBLE_CANVAS_PAD_Y) as f64).max(24.0));
                     obj.set_ivar::<u32>("unreadCount", 0);
@@ -242,7 +241,6 @@ impl MacOSPanelController {
     #[cfg(target_os = "macos")]
     pub fn update_panel_hit_metadata(panel: *mut c_void, bubble_size_pt: f64, unread_count: u32, is_left_edge: bool) {
         use cocoa::base::{id, nil};
-        use objc::runtime::Object;
         use objc::{msg_send, sel, sel_impl};
         if panel.is_null() {
             return;
@@ -250,7 +248,7 @@ impl MacOSPanelController {
         with_autorelease_pool(|| unsafe {
             let content_view: id = msg_send![panel as id, contentView];
             if content_view != nil {
-                let obj = &mut *(content_view as *mut Object);
+                let obj = &mut *content_view;
                 obj.set_ivar::<f64>("bubbleSizePt", bubble_size_pt);
                 obj.set_ivar::<u32>("unreadCount", unread_count);
                 obj.set_ivar::<u8>("isLeftEdge", if is_left_edge { 1 } else { 0 });
