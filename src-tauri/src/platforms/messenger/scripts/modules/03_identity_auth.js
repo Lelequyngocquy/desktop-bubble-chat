@@ -123,10 +123,35 @@ function handleSaveDevicePrompt(onDone) {
 }
 
 /**
- * Emits authentication completion IPC and navigates webview to TARGET_MESSENGER_URL
+ * Checks whether current Facebook/Meta URL is an SSO/OAuth/utility handshake path
+ * @param {string} host Current hostname
+ * @param {string} path Current pathname
+ * @returns {boolean} True if internal SSO or utility path
+ */
+function isMetaSsoHandshakePath(host, path) {
+  const h = (host || "").toLowerCase();
+  const p = (path || "").toLowerCase();
+  if (h === "staticxx.facebook.com" || h === "challenges.cloudflare.com") return true;
+  return (
+    p.startsWith("/oidc") ||
+    p.startsWith("/dialog/oauth") ||
+    p.startsWith("/x/oauth") ||
+    p.startsWith("/messenger_sync") ||
+    p.startsWith("/cookie/") ||
+    p.startsWith("/common/referer_frame.php") ||
+    p.startsWith("/platform/xd_arbiter") ||
+    p.includes("/dialog/oauth")
+  );
+}
+
+/**
+ * Emits authentication completion IPC and navigates webview to TARGET_MESSENGER_URL with cooldown
  * @param {string} userId Authenticated Facebook user ID
  */
 function triggerMessengerHandoff(userId) {
+  const now = Date.now();
+  if (window.__DBC_LAST_REDIRECT_AT__ && now - window.__DBC_LAST_REDIRECT_AT__ < 3000) return;
+  window.__DBC_LAST_REDIRECT_AT__ = now;
   logDebug("AUTH-REDIRECT", `Authenticated (UID: ${userId}), handoff to Messenger...`, null, "info");
   const accountIdx = window.__ACCOUNT_INDEX__ || 1;
   invokeTauri("report_auth_status", {
@@ -143,6 +168,7 @@ function triggerMessengerHandoff(userId) {
   const curPath = window.location.pathname || "";
   const curUrl = window.location.href || "";
   if (curHost.includes("facebook.com") || curHost.includes("meta.com") || curHost.includes("accountscenter")) {
+    if (isMetaSsoHandshakePath(curHost, curPath)) return;
     logDebug("AUTH-DOMAIN", `Meta domain active: ${curHost}${curPath}`, { url: curUrl.substring(0, 100) }, "info");
     const userId = getFacebookUserId();
     const blocking = isMetaCheckpointBlocking();
@@ -160,6 +186,8 @@ function triggerMessengerHandoff(userId) {
       try {
         const uid = getFacebookUserId();
         const p = window.location.pathname || "";
+        const h = window.location.hostname || "";
+        if (isMetaSsoHandshakePath(h, p)) return;
         const isSave = p.includes("/save-device") || p.includes("/device-based");
         if (uid && !isMetaCheckpointBlocking()) {
           clearInterval(authWatcher);
@@ -189,6 +217,7 @@ function checkAndReportAuth() {
     const curPath = window.location.pathname || "";
     const curHost = window.location.hostname || "";
     if (curHost.includes("facebook.com") || curHost.includes("meta.com") || curHost.includes("accountscenter")) {
+      if (isMetaSsoHandshakePath(curHost, curPath)) return;
       const uid = getFacebookUserId();
       if (uid && !isMetaCheckpointBlocking()) {
         const isSave = curPath.includes("/save-device") || curPath.includes("/device-based");
@@ -204,7 +233,8 @@ function checkAndReportAuth() {
     const userId = getFacebookUserId();
     const hasLoginForm = Boolean(
       document.querySelector('input[name="pass"]') ||
-      document.querySelector('input[type="password"]') ||
+      document.querySelector('form#login_form input[type="password"]') ||
+      document.querySelector('form[action*="login"] input[type="password"]') ||
       document.querySelector('#loginbutton') ||
       document.querySelector('button[name="login"]') ||
       document.querySelector('form#login_form') ||

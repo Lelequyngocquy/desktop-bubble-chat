@@ -106,7 +106,7 @@ if (typeof window !== "undefined") {
       if (!parentAnchor) {
         const card = el.closest ? (el.closest('[role="button"]') || el.closest('[data-testid*="file"]')) : null;
         const innerA = card ? card.querySelector("a[href]") : null;
-        if (innerA) {
+        if (innerA && (typeof isDownloadIntent !== "function" || isDownloadIntent(innerA, innerA.getAttribute("href") || innerA.href))) {
           innerA.click();
         }
       }

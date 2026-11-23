@@ -5,8 +5,11 @@
   "windows": ["*"],
   "remote": {
     "urls": [
+      "https://messenger.com/*",
       "https://*.messenger.com/*",
+      "https://facebook.com/*",
       "https://*.facebook.com/*",
+      "https://meta.com/*",
       "https://*.meta.com/*"
     ]
   },

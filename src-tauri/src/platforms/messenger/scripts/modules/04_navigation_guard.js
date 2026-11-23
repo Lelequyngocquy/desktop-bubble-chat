@@ -14,6 +14,19 @@ function isAuthMode() {
 }
 
 /**
+ * Checks whether URL is a Meta outbound Link Shim (/l.php or /flx/warn)
+ * @param {URL} parsed Parsed URL instance
+ * @returns {boolean} True if outbound redirect shim
+ */
+function isMetaLinkShimUrl(parsed) {
+  const h = (parsed.hostname || "").toLowerCase();
+  const p = (parsed.pathname || "").toLowerCase();
+  if (h === "l.messenger.com" || h === "lm.messenger.com" || h === "l.facebook.com" || h === "lm.facebook.com") return true;
+  const isMetaHost = h === "messenger.com" || h.endsWith(".messenger.com") || h === "facebook.com" || h.endsWith(".facebook.com");
+  return isMetaHost && (p.startsWith("/l.php") || p.startsWith("/flx/warn"));
+}
+
+/**
  * Verifies if destination URL belongs to Meta authentication and SSO domains
  * @param {string} rawUrl Destination URL
  * @returns {boolean} True if within Meta auth ecosystem
@@ -23,15 +36,16 @@ function isMetaAuthDomain(rawUrl) {
   try {
     const origin = typeof window !== "undefined" && window.location ? window.location.origin : "https://www.messenger.com";
     const parsed = new URL(rawUrl, origin);
+    if (isMetaLinkShimUrl(parsed)) return false;
     const h = parsed.hostname.toLowerCase();
     return (
-      h.endsWith("messenger.com") ||
-      h.endsWith("facebook.com") ||
-      h.endsWith("meta.com") ||
-      h.endsWith("fbcdn.net") ||
-      h.endsWith("facebook.net") ||
-      h.endsWith("workplace.com") ||
-      h.includes("challenges.cloudflare.com")
+      h === "messenger.com" || h.endsWith(".messenger.com") ||
+      h === "facebook.com" || h.endsWith(".facebook.com") ||
+      h === "meta.com" || h.endsWith(".meta.com") ||
+      h === "fbcdn.net" || h.endsWith(".fbcdn.net") ||
+      h === "facebook.net" || h.endsWith(".facebook.net") ||
+      h === "workplace.com" || h.endsWith(".workplace.com") ||
+      h === "challenges.cloudflare.com"
     );
   } catch (e) {
     return false;
@@ -39,18 +53,64 @@ function isMetaAuthDomain(rawUrl) {
 }
 
 /**
- * Ensures URL remains on messenger.com in Chat Mode, detecting session expiration
+ * Verifies if destination URL is a strict Meta login, 2FA, checkpoint, or SSO path
+ * @param {string} rawUrl Destination URL
+ * @returns {boolean} True if strict Meta auth path
+ */
+function isStrictMetaAuthUrl(rawUrl) {
+  if (!rawUrl) return false;
+  try {
+    const origin = typeof window !== "undefined" && window.location ? window.location.origin : "https://www.messenger.com";
+    const parsed = new URL(rawUrl, origin);
+    if (isMetaLinkShimUrl(parsed)) return false;
+    const h = parsed.hostname.toLowerCase();
+    const p = (parsed.pathname || "").toLowerCase();
+    if (h === "challenges.cloudflare.com" || h.startsWith("accountscenter.")) return true;
+    if (h === "messenger.com" || h.endsWith(".messenger.com")) {
+      return p.startsWith("/login") || p.includes("/checkpoint") || p.includes("two_step_verification");
+    }
+    if (h === "facebook.com" || h.endsWith(".facebook.com") || h === "meta.com" || h.endsWith(".meta.com")) {
+      return (
+        p.startsWith("/login") ||
+        p.startsWith("/checkpoint") ||
+        p.startsWith("/two_step_verification") ||
+        p.startsWith("/security/2fac") ||
+        p.startsWith("/recover") ||
+        p.startsWith("/device-based") ||
+        p.startsWith("/save-device") ||
+        p.startsWith("/oidc") ||
+        p.startsWith("/dialog/oauth") ||
+        p.startsWith("/x/oauth") ||
+        p.startsWith("/messenger_sync") ||
+        p.startsWith("/cookie/") ||
+        p.includes("/dialog/oauth") ||
+        p.includes("two_step_verification")
+      );
+    }
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * Ensures URL remains on messenger.com in Chat Mode with redirect cooldown
  * @returns {boolean} True if redirected back to Messenger
  */
 function enforceMessengerUrl() {
   try {
     if (isAuthMode()) return false;
     const host = window.location.hostname || "";
+    const path = window.location.pathname || "";
     const href = window.location.href || "";
     if (!host || href === "about:blank") return false;
+    if (typeof isMetaSsoHandshakePath === "function" && isMetaSsoHandshakePath(host, path)) return false;
     const uid = typeof getFacebookUserId === "function" ? getFacebookUserId() : null;
     if (host.includes("facebook.com") && !href.includes("checkpoint") && !href.includes("/login")) {
       if (uid) {
+        const now = Date.now();
+        if (window.__DBC_LAST_REDIRECT_AT__ && now - window.__DBC_LAST_REDIRECT_AT__ < 3000) return false;
+        window.__DBC_LAST_REDIRECT_AT__ = now;
         logDebug("NAV-ENFORCE", `Redirecting back to Messenger from: ${href}`, null, "warn");
         window.location.replace(TARGET_MESSENGER_URL);
         return true;
@@ -78,28 +138,41 @@ function isUserLoggedIn() {
   const path = typeof window !== "undefined" && window.location ? (window.location.pathname || "") : "";
   const isChatPath = path.startsWith("/t/") || path.startsWith("/e2ee/");
   const isLoginUrl = path.includes("/login") || path.includes("/checkpoint") || path.includes("two_step_verification");
-  const hasLoginForm = typeof document !== "undefined" && Boolean(document.querySelector('input[type="password"], form#login_form, form[action*="login"]'));
+  const hasLoginForm = typeof document !== "undefined" && Boolean(document.querySelector('input[name="pass"], form#login_form input[type="password"], form[action*="login"] input[type="password"], form#login_form, form[action*="login"], #loginbutton, button[name="login"]'));
   return host.includes("messenger.com") && !isLoginUrl && !hasLoginForm && (Boolean(uid) || isChatPath);
 }
 
 /**
- * Extracts target clean URL from Meta Link Shim if present
+ * Extracts target clean URL from up to 2 nested Meta Link Shim layers
  * @param {string} rawUrl Wrapped or direct URL
  * @returns {string} Decoded destination URL
  */
 function extractDestinationUrl(rawUrl) {
   if (!rawUrl) return "";
-  try {
-    const origin = typeof window !== "undefined" && window.location ? window.location.origin : "https://www.messenger.com";
-    const parsed = new URL(rawUrl, origin);
-    if ((parsed.hostname.startsWith("l.") || parsed.hostname.startsWith("lm.")) && parsed.pathname.startsWith("/l.php")) {
+  let current = String(rawUrl).trim();
+  const origin = typeof window !== "undefined" && window.location ? window.location.origin : "https://www.messenger.com";
+  for (let i = 0; i < 2; i++) {
+    try {
+      const parsed = new URL(current, origin);
+      if (!isMetaLinkShimUrl(parsed)) return parsed.href;
       const uParam = parsed.searchParams.get("u");
-      if (uParam) return decodeURIComponent(uParam);
+      if (!uParam) return parsed.href;
+      const trimmed = uParam.trim();
+      if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        current = trimmed;
+        continue;
+      }
+      const decoded = decodeURIComponent(trimmed);
+      if (decoded.startsWith("http://") || decoded.startsWith("https://")) {
+        current = decoded;
+        continue;
+      }
+      return parsed.href;
+    } catch (e) {
+      return current;
     }
-    return parsed.href;
-  } catch (e) {
-    return String(rawUrl);
   }
+  return current;
 }
 
 /**
@@ -112,59 +185,75 @@ function isInternalChatNavigation(rawUrl) {
   const str = String(rawUrl).trim();
   if (str.startsWith("#") || str.startsWith("javascript:") || str.startsWith("blob:") || str.startsWith("data:")) return true;
   try {
-    const destUrl = extractDestinationUrl(str);
     const origin = typeof window !== "undefined" && window.location ? window.location.origin : "https://www.messenger.com";
-    const parsed = new URL(destUrl, origin);
-    if (parsed.protocol === "blob:" || parsed.protocol === "data:") return true;
-    const host = parsed.hostname.toLowerCase();
-    const isMessengerDomain = host === "messenger.com" || host.endsWith(".messenger.com");
-    if (!isMessengerDomain) return false;
-    const path = parsed.pathname || "";
-    const isUnresolvedLinkShim = (host.startsWith("l.") || host.startsWith("lm.")) && path.startsWith("/l.php");
-    return !isUnresolvedLinkShim;
+    const parsedRaw = new URL(str, origin);
+    if (isMetaLinkShimUrl(parsedRaw)) {
+      const destUrl = extractDestinationUrl(str);
+      const parsedDest = new URL(destUrl, origin);
+      if (isMetaLinkShimUrl(parsedDest)) return false;
+      const destHost = parsedDest.hostname.toLowerCase();
+      return destHost === "messenger.com" || destHost.endsWith(".messenger.com");
+    }
+    if (parsedRaw.protocol === "blob:" || parsedRaw.protocol === "data:") return true;
+    const host = parsedRaw.hostname.toLowerCase();
+    return host === "messenger.com" || host.endsWith(".messenger.com");
   } catch (e) {
     return false;
   }
 }
 
 /**
- * Determines whether element or URL indicates a file download operation
+ * Checks whether hostname belongs to Meta attachment/media CDN domains
+ * @param {string} host Lowercase hostname
+ * @returns {boolean} True if Meta attachment CDN host
+ */
+function isMetaDownloadCdnHost(host) {
+  return host === "fbsbx.com" || host.endsWith(".fbsbx.com") || host === "fbcdn.net" || host.endsWith(".fbcdn.net");
+}
+
+/**
+ * Determines whether element or URL indicates a genuine in-app file download operation
  * @param {HTMLElement|null} anchor Target anchor if available
  * @param {string} rawUrl Navigation or download URL
- * @returns {boolean} True if download intent
+ * @returns {boolean} True if genuine download intent
  */
 function isDownloadIntent(anchor, rawUrl) {
-  if (anchor && (anchor.hasAttribute("download") || anchor.getAttribute("download") !== null)) {
-    return true;
-  }
-  if (anchor) {
-    const text = (anchor.innerText || "").trim();
-    if (/\b[^\s]+\.(txt|md|pdf|zip|rar|7z|tar|gz|doc|docx|xls|xlsx|ppt|pptx|csv|mp4|mp3|wav|png|jpg|jpeg|gif|webp)\b/i.test(text)) {
-      return true;
-    }
-    const aria = (anchor.getAttribute("aria-label") || "").toLowerCase();
-    if (aria.includes("download") || aria.includes("tải xuống") || aria.includes("tải về")) {
-      return true;
-    }
-  }
-  if (!rawUrl) return false;
+  const origin = typeof window !== "undefined" && window.location ? window.location.origin : "https://www.messenger.com";
   const cleanUrl = rawUrl ? extractDestinationUrl(rawUrl) : "";
   const candidates = [rawUrl, cleanUrl].filter(Boolean);
-  const downloadPatterns = [
-    "attachment.fbsbx.com",
-    "file_download.php",
-    "attachment_preview",
-    "&dl=1",
-    "?dl=1",
-    "/v/",
-  ];
-  const fileExtRegex = /\.(txt|md|pdf|zip|rar|7z|tar|gz|doc|docx|xls|xlsx|ppt|pptx|csv|mp4|mp3|wav|png|jpg|jpeg|gif|webp)(\?|#|$)/i;
+  let hasExternalWebDestination = false;
+  let hasDownloadCdnHost = false;
+  let hasInternalOrBlobScheme = false;
   for (const c of candidates) {
-    const str = String(c).toLowerCase();
-    for (const pat of downloadPatterns) {
-      if (str.includes(pat)) return true;
-    }
-    if (fileExtRegex.test(str)) return true;
+    try {
+      const parsed = new URL(c, origin);
+      const proto = parsed.protocol.toLowerCase();
+      if (proto === "blob:" || proto === "data:") {
+        hasInternalOrBlobScheme = true;
+        continue;
+      }
+      if (proto !== "http:" && proto !== "https:") continue;
+      if (isMetaLinkShimUrl(parsed)) continue;
+      const host = parsed.hostname.toLowerCase();
+      const path = (parsed.pathname || "").toLowerCase();
+      if (isMetaDownloadCdnHost(host)) {
+        hasDownloadCdnHost = true;
+        return true;
+      }
+      if (path.includes("file_download.php") || path.includes("attachment_preview")) return true;
+      if (parsed.searchParams.get("dl") === "1" && (host === "messenger.com" || host.endsWith(".messenger.com"))) return true;
+      if (host !== "messenger.com" && !host.endsWith(".messenger.com")) {
+        hasExternalWebDestination = true;
+      }
+    } catch (e) {}
+  }
+  if (hasExternalWebDestination && !hasDownloadCdnHost && !hasInternalOrBlobScheme) return false;
+  if (anchor && (anchor.hasAttribute("download") || anchor.getAttribute("download") !== null)) return true;
+  if (anchor && (hasDownloadCdnHost || hasInternalOrBlobScheme)) {
+    const aria = (anchor.getAttribute("aria-label") || "").toLowerCase();
+    if (aria.includes("download") || aria.includes("tải xuống") || aria.includes("tải về")) return true;
+    const text = (anchor.innerText || "").trim();
+    if (/\b[^\s]+\.(txt|md|pdf|zip|rar|7z|tar|gz|doc|docx|xls|xlsx|ppt|pptx|csv|mp4|mp3|wav|png|jpg|jpeg|gif|webp)\b/i.test(text)) return true;
   }
   return false;
 }
@@ -233,7 +322,7 @@ function openUrlInDefaultBrowser(targetUrl) {
         openUrlInDefaultBrowser(urlStr);
         return null;
       }
-      if (isMetaAuthDomain(urlStr)) {
+      if (isStrictMetaAuthUrl(urlStr)) {
         window.location.href = urlStr;
         return window;
       }
@@ -290,7 +379,7 @@ function openUrlInDefaultBrowser(targetUrl) {
         openUrlInDefaultBrowser(href);
         return;
       }
-      if (isMetaAuthDomain(href)) return;
+      if (isStrictMetaAuthUrl(href)) return;
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
@@ -302,5 +391,5 @@ function openUrlInDefaultBrowser(targetUrl) {
 })();
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { isUserLoggedIn, extractDestinationUrl, isInternalChatNavigation, isMetaAuthDomain, isAuthMode };
+  module.exports = { isUserLoggedIn, extractDestinationUrl, isInternalChatNavigation, isMetaAuthDomain, isStrictMetaAuthUrl, isDownloadIntent, isAuthMode };
 }

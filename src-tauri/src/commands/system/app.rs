@@ -246,10 +246,9 @@ fn validate_external_http_url(raw: &str) -> Result<String, String> {
     Ok(parsed.to_string())
 }
 
-/// Opens external URL safely using default OS browser
-#[tauri::command]
-pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
-    let safe_url = validate_external_http_url(&url)?;
+/// Opens validated HTTP(S) URL using system default browser with dedup protection
+pub fn open_external_url_internal(app: &AppHandle, url: &str) -> Result<(), String> {
+    let safe_url = validate_external_http_url(url)?;
     if let Ok(mut guard) = LAST_OPENED_URL.lock() {
         if let Some((ref last_url, ref last_time)) = *guard
             && last_url == &safe_url && last_time.elapsed() < std::time::Duration::from_millis(1000) {
@@ -298,6 +297,12 @@ pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
     {
         Err("Failed to open external URL".to_string())
     }
+}
+
+/// Opens external URL safely using default OS browser
+#[tauri::command]
+pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
+    open_external_url_internal(&app, &url)
 }
 
 /// Opens profiles directory in File Explorer

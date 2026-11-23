@@ -1,4 +1,5 @@
 mod events;
+mod navigation;
 
 pub use events::setup_window_events;
 
@@ -106,6 +107,12 @@ pub fn get_or_create_messenger_window(
     println!("[BE - Window] Building new WebviewWindow for '{}'...", label);
     let state_page_load = Arc::clone(&chat_state);
     let state_title = Arc::clone(&chat_state);
+    let state_nav = Arc::clone(&chat_state);
+    let state_new_win = Arc::clone(&chat_state);
+    let app_nav = app.clone();
+    let app_new_win = app.clone();
+    let label_nav = label.clone();
+    let label_new_win = label.clone();
     let app_dl = app.clone();
     let state_dl = Arc::clone(&chat_state);
     let label_dl = label.clone();
@@ -114,7 +121,39 @@ pub fn get_or_create_messenger_window(
         app,
         &label,
         tauri::WebviewUrl::External(parsed_url),
-    ).on_download(move |_webview, mut event| {
+    ).on_navigation(move |url| {
+        let in_auth = state_nav.is_window_in_auth_mode(&label_nav);
+        match navigation::decide_navigation(url, in_auth) {
+            navigation::NavigationDecision::Allow => true,
+            navigation::NavigationDecision::OpenExternal(dest) => {
+                println!("[BE - Nav] Opening external navigation in default browser: '{}'", dest);
+                let app_open = app_nav.clone();
+                std::thread::spawn(move || {
+                    if let Err(err) = crate::commands::system::app::open_external_url_internal(&app_open, &dest) {
+                        eprintln!("[BE - Nav WARN] Failed to open external URL '{}': {}", dest, err);
+                    }
+                });
+                false
+            }
+            navigation::NavigationDecision::Block => false,
+        }
+    }).on_new_window(move |url, _features| {
+        let in_auth = state_new_win.is_window_in_auth_mode(&label_new_win);
+        match navigation::decide_new_window(&url, in_auth) {
+            navigation::NavigationDecision::Allow => tauri::webview::NewWindowResponse::Allow,
+            navigation::NavigationDecision::OpenExternal(dest) => {
+                println!("[BE - Nav] Opening new-window request in default browser: '{}'", dest);
+                let app_open = app_new_win.clone();
+                std::thread::spawn(move || {
+                    if let Err(err) = crate::commands::system::app::open_external_url_internal(&app_open, &dest) {
+                        eprintln!("[BE - Nav WARN] Failed to open external URL '{}': {}", dest, err);
+                    }
+                });
+                tauri::webview::NewWindowResponse::Deny
+            }
+            navigation::NavigationDecision::Block => tauri::webview::NewWindowResponse::Deny,
+        }
+    }).on_download(move |_webview, mut event| {
         match event {
             tauri::webview::DownloadEvent::Requested { ref url, ref mut destination } => {
                 println!("\x1b[35m[BE - Download] on_download Requested: url='{}', default_dest='{:?}'\x1b[0m", url, destination);
