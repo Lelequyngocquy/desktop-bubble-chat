@@ -1,0 +1,148 @@
+name: "CI Multi-OS Verification (Windows / macOS / Linux)"
+
+on:
+  pull_request:
+    branches:
+      - master
+      - develop
+  push:
+    branches:
+      - develop
+      - "feat/**"
+      - "os/**"
+  workflow_dispatch:
+    inputs:
+      build_bundles:
+        description: "Dry-run package unsigned bundles (.dmg / .AppImage / .deb / .exe) as temporary artifacts"
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-multios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-multios:
+    name: "Verify (${{ matrix.platform }})"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "windows-latest"
+            targets: "x86_64-pc-windows-msvc"
+            bundle_glob: "src-tauri/target/release/bundle/nsis/*.exe"
+          - platform: "ubuntu-22.04"
+            targets: "x86_64-unknown-linux-gnu"
+            bundle_glob: |
+              src-tauri/target/release/bundle/deb/*.deb
+              src-tauri/target/release/bundle/appimage/*.AppImage
+          - platform: "macos-latest"
+            targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+            bundle_glob: "src-tauri/target/release/bundle/dmg/*.dmg"
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: "1. Checkout repository"
+        uses: actions/checkout@v4
+
+      - name: "2. Install Linux native GTK3, WebKitGTK, X11 and Xvfb dependencies"
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libx11-dev \
+            libcairo2-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            libasound2-dev \
+            patchelf \
+            xdg-utils \
+            xvfb \
+            desktop-file-utils \
+            build-essential \
+            curl \
+            wget \
+            file
+
+      - name: "3. Setup Node.js"
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: "4. Install Rust toolchain and clippy"
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: ${{ matrix.targets }}
+
+      - name: "5. Enable Cargo build cache"
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: "6. Install frontend dependencies"
+        run: npm ci
+
+      - name: "7. Run frontend lint, unit tests, and production build"
+        run: |
+          npm run lint
+          npm test
+          npm run build
+
+      - name: "8. Validate POSIX helper scripts (macOS / Linux)"
+        if: matrix.platform != 'windows-latest'
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" = "macos-latest" ]; then
+            bash -n scripts/macos/*.sh
+          else
+            bash -n scripts/linux/*.sh
+            bash scripts/linux/check_env.sh
+          fi
+
+      - name: "9. Check Rust compilation and FFI/ABI targets"
+        run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets
+
+      - name: "10. Cross-check Intel macOS (x86_64-apple-darwin) Objective-C ABI"
+        if: matrix.platform == 'macos-latest'
+        run: cargo check --manifest-path src-tauri/Cargo.toml --target x86_64-apple-darwin --all-targets
+
+      - name: "11. Run Rust clippy strict check on lib and bins"
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --lib --bins -- -D warnings
+
+      - name: "12. Run native Rust unit and parity tests (Windows / macOS)"
+        if: matrix.platform != 'ubuntu-22.04'
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: "13. Run native Rust unit and parity tests under Xvfb (Linux)"
+        if: matrix.platform == 'ubuntu-22.04'
+        run: xvfb-run -a cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: "14. Dry-run unsigned Tauri bundle packaging"
+        if: github.event_name == 'workflow_dispatch' && inputs.build_bundles
+        shell: bash
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          printf '%s\n' '{"bundle":{"createUpdaterArtifacts":false}}' > src-tauri/tauri.ci-bundle.json
+          trap 'rm -f src-tauri/tauri.ci-bundle.json' EXIT
+          npx tauri build --config src-tauri/tauri.ci-bundle.json
+
+      - name: "15. Upload temporary dry-run bundle artifacts"
+        if: github.event_name == 'workflow_dispatch' && inputs.build_bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: dryrun-bundle-${{ matrix.platform }}
+          path: ${{ matrix.bundle_glob }}
+          retention-days: 5
+          if-no-files-found: ignore
