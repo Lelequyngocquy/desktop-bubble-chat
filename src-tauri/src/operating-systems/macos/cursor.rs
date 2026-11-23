@@ -9,12 +9,17 @@ struct CGPoint {
 }
 
 #[cfg(target_os = "macos")]
+#[link(name = "CoreFoundation", kind = "framework")]
+unsafe extern "C" {
+    fn CFRelease(cf: *const std::ffi::c_void);
+}
+
+#[cfg(target_os = "macos")]
 #[link(name = "CoreGraphics", kind = "framework")]
 unsafe extern "C" {
     fn CGEventCreate(source: *const std::ffi::c_void) -> *mut std::ffi::c_void;
     fn CGEventGetLocation(event: *mut std::ffi::c_void) -> CGPoint;
     fn CGEventSourceButtonState(state_id: u32, button: u32) -> bool;
-    fn CFRelease(cf: *const std::ffi::c_void);
     fn CGGetDisplaysWithPoint(point: CGPoint, max_displays: u32, displays: *mut u32, matching_display_count: *mut u32) -> i32;
     fn CGDisplayCopyDisplayMode(display: u32) -> *mut std::ffi::c_void;
     fn CGDisplayModeGetPixelWidth(mode: *mut std::ffi::c_void) -> usize;

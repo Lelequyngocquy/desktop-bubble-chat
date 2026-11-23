@@ -53,7 +53,7 @@ impl MacOSMenuManager {
         #[cfg(target_os = "macos")]
         {
             use cocoa::base::{id, nil, BOOL, NO};
-            use cocoa::foundation::NSString;
+            use cocoa::foundation::{NSPoint as CocoaNSPoint, NSString};
             use objc::{class, msg_send, sel, sel_impl};
             if let Ok(mut guard) = MENU_APP_HANDLE.lock() {
                 *guard = Some((app.clone(), account_index));
@@ -91,7 +91,7 @@ impl MacOSMenuManager {
                 let _: () = msg_send![item3, setTarget: target];
                 let _: () = msg_send![item3_title, release];
                 let _: () = msg_send![empty_key, release];
-                let point = super::bubble::window::ffi::NSPoint { x, y };
+                let point = CocoaNSPoint::new(x, y);
                 let _: BOOL = msg_send![menu, popUpMenuPositioningItem: nil atLocation: point inView: nil];
                 let _: () = msg_send![menu, release];
                 let _: () = msg_send![target, release];

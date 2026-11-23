@@ -131,4 +131,15 @@ mod tests {
         let plist = MacOSAutostartManager::generate_launch_agent_plist("/Apps/A&B <Test>/\"App's\"");
         assert!(plist.contains("<string>/Apps/A&amp;B &lt;Test&gt;/&quot;App&apos;s&quot;</string>"));
     }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn test_generated_plist_passes_plutil_lint() {
+        let path = std::env::temp_dir().join(format!("dbc_plutil_test_{}.plist", std::process::id()));
+        let plist = MacOSAutostartManager::generate_launch_agent_plist("/Applications/Desktop & Bubble/App.app/Contents/MacOS/DesktopBubbleChat");
+        std::fs::write(&path, plist).expect("write temp plist");
+        let output = std::process::Command::new("plutil").args(["-lint", &path.to_string_lossy()]).output().expect("run plutil");
+        let _ = std::fs::remove_file(&path);
+        assert!(output.status.success(), "plutil -lint failed: {}", String::from_utf8_lossy(&output.stderr));
+    }
 }

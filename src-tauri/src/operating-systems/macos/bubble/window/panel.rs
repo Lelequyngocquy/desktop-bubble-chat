@@ -180,11 +180,12 @@ impl MacOSPanelController {
     #[cfg(target_os = "macos")]
     pub fn create_floating_bubble_panel(account_index: u32, x: f64, y: f64, width: f64, height: f64) -> *mut c_void {
         use cocoa::base::{id, nil, NO, YES};
+        use cocoa::foundation::{NSPoint as CocoaNSPoint, NSRect as CocoaNSRect, NSSize as CocoaNSSize};
         use objc::runtime::Object;
         use objc::{class, msg_send, sel, sel_impl};
         with_autorelease_pool(|| unsafe {
             let style_mask = NS_WINDOW_STYLE_MASK_NONACTIVATING_PANEL | NS_WINDOW_STYLE_MASK_BORDERLESS;
-            let rect = NSRect::new(x, y, width, height);
+            let rect = CocoaNSRect::new(CocoaNSPoint::new(x, y), CocoaNSSize::new(width, height));
             let panel_class = class!(NSPanel);
             let alloc_panel: id = msg_send![panel_class, alloc];
             let panel: id = msg_send![alloc_panel, initWithContentRect: rect styleMask: style_mask backing: 2usize defer: NO];
@@ -204,7 +205,7 @@ impl MacOSPanelController {
             let view_cls = register_bubble_view_class();
             if !view_cls.is_null() {
                 let view_alloc: id = msg_send![view_cls, alloc];
-                let view_frame = NSRect::new(0.0, 0.0, width, height);
+                let view_frame = CocoaNSRect::new(CocoaNSPoint::new(0.0, 0.0), CocoaNSSize::new(width, height));
                 let custom_view: id = msg_send![view_alloc, initWithFrame: view_frame];
                 if custom_view != nil {
                     let obj = &mut *(custom_view as *mut Object);
@@ -308,12 +309,13 @@ impl MacOSPanelController {
     #[cfg(target_os = "macos")]
     pub fn set_panel_position(panel: *mut c_void, x: f64, y: f64) {
         use cocoa::base::id;
+        use cocoa::foundation::NSPoint as CocoaNSPoint;
         use objc::{msg_send, sel, sel_impl};
         if panel.is_null() {
             return;
         }
         with_autorelease_pool(|| unsafe {
-            let point = NSPoint { x, y };
+            let point = CocoaNSPoint::new(x, y);
             let _: () = msg_send![panel as id, setFrameOrigin: point];
         });
     }
@@ -326,12 +328,14 @@ impl MacOSPanelController {
     #[cfg(target_os = "macos")]
     pub fn set_panel_frame(panel: *mut c_void, rect: NSRect) {
         use cocoa::base::{id, YES};
+        use cocoa::foundation::{NSPoint as CocoaNSPoint, NSRect as CocoaNSRect, NSSize as CocoaNSSize};
         use objc::{msg_send, sel, sel_impl};
         if panel.is_null() {
             return;
         }
         with_autorelease_pool(|| unsafe {
-            let _: () = msg_send![panel as id, setFrame: rect display: YES];
+            let cocoa_rect = CocoaNSRect::new(CocoaNSPoint::new(rect.origin.x, rect.origin.y), CocoaNSSize::new(rect.size.width, rect.size.height));
+            let _: () = msg_send![panel as id, setFrame: cocoa_rect display: YES];
         });
     }
 
@@ -440,17 +444,17 @@ mod tests {
 
     #[test]
     fn test_panel_controller_fallback_safety() {
-        let ptr = MacOSPanelController::create_floating_bubble_panel(1, 100.0, 100.0, 56.0, 56.0);
+        let ptr = std::ptr::null_mut();
         #[cfg(not(target_os = "macos"))]
-        {
-            assert!(ptr.is_null());
-            MacOSPanelController::update_panel_layer_contents(ptr, &[], 0, 0, 2.0);
-            MacOSPanelController::set_panel_position(ptr, 0.0, 0.0);
-            MacOSPanelController::set_panel_visible(ptr, true);
-            MacOSPanelController::set_panel_always_on_top(ptr, true);
-            MacOSPanelController::order_panel_front_regardless(ptr);
-            MacOSPanelController::destroy_panel(ptr);
-        }
+        assert!(MacOSPanelController::create_floating_bubble_panel(1, 100.0, 100.0, 56.0, 56.0).is_null());
+        MacOSPanelController::update_panel_hit_metadata(ptr, 56.0, 2, true);
+        MacOSPanelController::update_panel_layer_contents(ptr, &[], 0, 0, 2.0);
+        MacOSPanelController::set_panel_position(ptr, 0.0, 0.0);
+        MacOSPanelController::set_panel_frame(ptr, NSRect::new(0.0, 0.0, 56.0, 56.0));
+        MacOSPanelController::set_panel_visible(ptr, true);
+        MacOSPanelController::set_panel_always_on_top(ptr, true);
+        MacOSPanelController::order_panel_front_regardless(ptr);
+        MacOSPanelController::destroy_panel(ptr);
     }
 
     #[test]
