@@ -276,6 +276,26 @@ impl NativeBubbleWindow {
         // No-op: pulse animation removed to reduce CPU/GPU load.
     }
 
+    /// Triggers spring animation to tuck native bubble into edge when eligible.
+    pub fn tuck(&self) {
+        unsafe {
+            let ptr = GetWindowLongPtrW(self.hwnd, GWLP_USERDATA) as *mut BubbleWindowState;
+            if let Some(state) = ptr.as_mut() {
+                state.tuck();
+            }
+        }
+    }
+
+    /// Triggers spring animation to untuck native bubble from edge with explicit mode.
+    pub fn untuck(&self, mode: crate::movement::UntuckMode) {
+        unsafe {
+            let ptr = GetWindowLongPtrW(self.hwnd, GWLP_USERDATA) as *mut BubbleWindowState;
+            if let Some(state) = ptr.as_mut() {
+                state.untuck_with_mode(mode);
+            }
+        }
+    }
+
     /// Triggers 60 FPS spring animation to glide smoothly to target coordinates.
     pub fn animate_to(&self, target_x: i32, target_y: i32, duration_ms: u64) {
         unsafe {

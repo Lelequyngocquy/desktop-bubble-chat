@@ -196,6 +196,12 @@ impl AutoTrimController {
         self.cancel_pending_trim(account_index);
         self.record_interaction(account_index);
     }
+    /// Applies untuck RAM policy only for user interaction, preserving idle trim during alert reveal
+    pub fn handle_untuck_mode(&self, account_index: u32, mode: crate::movement::UntuckMode) {
+        if mode == crate::movement::UntuckMode::UserInteraction {
+            self.on_account_untucked(account_index);
+        }
+    }
     /// Schedules an auto-trim task after receiving a message notification (5s debounce)
     pub fn on_new_message(&self, account_index: u32, app: AppHandle) {
         self.schedule_debounced_trim(account_index, app, MESSAGE_DEBOUNCE_DURATION, Some(MESSAGE_DEBOUNCE_DURATION), false);
@@ -325,5 +331,20 @@ mod tests {
         controller.record_interaction(1);
         assert!(controller.has_recent_interaction(1, Duration::from_secs(5)));
         assert!(!controller.has_recent_interaction(2, Duration::from_secs(5)));
+    }
+
+    #[test]
+    fn test_alert_reveal_untuck_preserves_tucked_trim_state() {
+        let controller = AutoTrimController::new();
+        controller.set_tucked_state(1, true);
+        let tok = controller.next_token(1);
+        controller.handle_untuck_mode(1, crate::movement::UntuckMode::AlertReveal);
+        assert!(controller.is_account_tucked(1));
+        assert!(controller.is_token_valid(1, tok));
+        assert!(!controller.has_recent_interaction(1, Duration::from_secs(5)));
+        controller.handle_untuck_mode(1, crate::movement::UntuckMode::UserInteraction);
+        assert!(!controller.is_account_tucked(1));
+        assert!(!controller.is_token_valid(1, tok));
+        assert!(controller.has_recent_interaction(1, Duration::from_secs(5)));
     }
 }

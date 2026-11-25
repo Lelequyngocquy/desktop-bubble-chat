@@ -2,52 +2,26 @@ use std::ffi::c_void;
 use std::sync::Arc;
 use super::gtk_window::LinuxGtkWindowController;
 use super::types::*;
-use tauri::{Manager, PhysicalPosition};
-use crate::movement::{BubbleMovementEngine, BubblePhysicsConfig, BubbleRect, CollisionResolver, ScreenMetrics};
+use tauri::Manager;
+use crate::movement::{BubbleDropPlan, BubbleInteractionFlags, BubbleMovementEngine, BubblePhysicsConfig, BubbleRect, ScreenMetrics, UntuckMode};
 use crate::operating_systems::linux::bubble::animator::SpringAnimationState;
 use crate::operating_systems::linux::bubble::renderer::{render_bubble_bgra, BubbleRenderOptions};
 use crate::state::ChatState;
 
 /// Pure drag-drop resolution plan matching Windows drag_snap behavior
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LinuxBubbleDropPlan {
-    pub target_x: i32,
-    pub target_y: i32,
-    pub should_dismiss: bool,
-    pub displaced_siblings: Vec<(u32, i32, i32)>,
-}
+pub type LinuxBubbleDropPlan = BubbleDropPlan;
 
 /// Evaluates drag-drop target coordinates for both Free Placement and Auto-Tuck modes
 pub fn compute_linux_bubble_drop_plan(
     account_index: u32,
     x: i32,
     y: i32,
+    stay_untucked: bool,
     screen: &ScreenMetrics,
     config: &BubblePhysicsConfig,
     all_bubbles: &[BubbleRect],
 ) -> LinuxBubbleDropPlan {
-    let scale = screen.scale_factor;
-    let bubble_size = (config.size * scale) as i32;
-    if config.is_free_position {
-        let dismiss_margin = (config.dismiss_margin * scale) as i32;
-        let dismiss_threshold = screen.y + screen.height - dismiss_margin;
-        if y + bubble_size >= dismiss_threshold {
-            return LinuxBubbleDropPlan { target_x: x, target_y: y, should_dismiss: true, displaced_siblings: Vec::new() };
-        }
-        let (target_x, target_y) = CollisionResolver::resolve_2d_free_collision(account_index, x, y, screen, config, all_bubbles);
-        return LinuxBubbleDropPlan { target_x, target_y, should_dismiss: false, displaced_siblings: Vec::new() };
-    }
-    let snap = BubbleMovementEngine::calculate_mutual_snap(screen, config, PhysicalPosition { x, y }, account_index, all_bubbles);
-    let displaced = if snap.should_dismiss {
-        Vec::new()
-    } else {
-        snap.column_slots
-            .into_iter()
-            .filter(|s| s.account_index != account_index)
-            .map(|s| (s.account_index, snap.target_x, s.target_y))
-            .collect()
-    };
-    LinuxBubbleDropPlan { target_x: snap.target_x, target_y: snap.target_y, should_dismiss: snap.should_dismiss, displaced_siblings: displaced }
+    BubbleMovementEngine::compute_drop_plan(account_index, x, y, stay_untucked, screen, config, all_bubbles)
 }
 
 /// Evaluates whether a Linux bubble should tuck after hover-leave debounce expires
@@ -57,8 +31,16 @@ pub fn should_tuck_linux_bubble_on_leave(
     is_chat_open: bool,
     is_chat_pinned: bool,
     is_free_position: bool,
+    is_alert_active: bool,
 ) -> bool {
-    !is_dragging && !is_hovered && !is_chat_open && !is_chat_pinned && !is_free_position
+    BubbleMovementEngine::can_auto_tuck(BubbleInteractionFlags {
+        is_hovered,
+        is_dragging,
+        is_chat_open,
+        is_chat_pinned,
+        is_free_position,
+        is_alert_active,
+    })
 }
 
 pub struct LinuxBubbleWindowState {
@@ -229,7 +211,8 @@ impl LinuxBubbleWindowState {
         let screen = crate::movement::get_target_dashboard_screen(app);
         let config = app.map(crate::movement::get_bubble_physics_config).unwrap_or_default();
         let all_bubbles = app.map(|a| crate::presentation::bubble::get_active_bubble_rects(a, None)).unwrap_or_default();
-        let plan = compute_linux_bubble_drop_plan(self.account_index, self.x, self.y, &screen, &config, &all_bubbles);
+        let stay_untucked = app.map(|a| crate::presentation::bubble::is_bubble_stay_untucked(a, self.account_index)).unwrap_or(false);
+        let plan = compute_linux_bubble_drop_plan(self.account_index, self.x, self.y, stay_untucked, &screen, &config, &all_bubbles);
         if !plan.should_dismiss {
             self.anim_state.start(self.x, self.y, plan.target_x, plan.target_y, 160);
         }
@@ -294,79 +277,83 @@ impl LinuxBubbleWindowState {
         }
     }
 
-    /// Checks whether bubble can safely tuck after hover-leave debounce
-    pub fn can_tuck_on_hover_leave(&self) -> bool {
-        let (is_chat_open, is_pinned, is_free) = if let Some(app) = &self.app_handle {
+    /// Collects current interaction and alert flags for tuck eligibility
+    pub fn interaction_flags(&self, app_opt: Option<&tauri::AppHandle>) -> BubbleInteractionFlags {
+        let (is_chat_open, is_chat_pinned, is_free_position, is_alert_active) = if let Some(app) = app_opt {
             let chat_open = crate::platforms::messenger::windows::get_messenger_webview(app, self.account_index)
                 .and_then(|w| w.is_visible().ok())
                 .unwrap_or(false);
-            let pinned = app.try_state::<Arc<ChatState>>().map(|cs| cs.is_chat_pinned(self.account_index)).unwrap_or(false);
+            let (pinned, alert) = app
+                .try_state::<Arc<ChatState>>()
+                .map(|cs| (cs.is_chat_pinned(self.account_index), cs.is_account_alert_active(self.account_index)))
+                .unwrap_or((false, false));
             let free = crate::movement::get_bubble_physics_config(app).is_free_position;
-            (chat_open, pinned, free)
+            (chat_open, pinned, free, alert)
         } else {
-            (false, false, false)
+            (false, false, false, false)
         };
-        should_tuck_linux_bubble_on_leave(self.is_dragging, self.is_hovered, is_chat_open, is_pinned, is_free)
+        BubbleInteractionFlags {
+            is_hovered: self.is_hovered,
+            is_dragging: self.is_dragging,
+            is_chat_open,
+            is_chat_pinned,
+            is_free_position,
+            is_alert_active,
+        }
+    }
+
+    /// Checks whether bubble can safely tuck after hover-leave debounce
+    pub fn can_tuck_on_hover_leave(&self) -> bool {
+        let flags = self.interaction_flags(self.app_handle.as_ref());
+        should_tuck_linux_bubble_on_leave(flags.is_dragging, flags.is_hovered, flags.is_chat_open, flags.is_chat_pinned, flags.is_free_position, flags.is_alert_active)
     }
 
     /// Triggers spring animation to tuck into screen edge and returns displaced siblings
     pub fn tuck(&mut self, app: &tauri::AppHandle) -> Vec<(u32, i32, i32, u64)> {
-        crate::utils::trim_controller::schedule_auto_trim_on_tuck(self.account_index, app.clone());
-        let config = crate::movement::get_bubble_physics_config(app);
-        if config.is_free_position {
+        let flags = self.interaction_flags(Some(app));
+        if !flags.is_dragging && !flags.is_hovered && !flags.is_chat_open && !flags.is_chat_pinned {
+            crate::utils::trim_controller::schedule_auto_trim_on_tuck(self.account_index, app.clone());
+        }
+        if !BubbleMovementEngine::can_auto_tuck(flags) {
             return Vec::new();
         }
+        let config = crate::movement::get_bubble_physics_config(app);
         let screen = crate::movement::get_target_dashboard_screen(Some(app));
-        let target_pos = BubbleMovementEngine::calculate_hover_pos(&screen, &config, self.x, self.y, false);
-        let mid_x = screen.x + screen.width / 2;
-        let is_left_edge = self.x + (self.bubble_size as i32 / 2) < mid_x;
         let all_bubbles = crate::presentation::bubble::get_active_bubble_rects(app, None);
-        let slots = CollisionResolver::resolve_mutual_column_layout(self.account_index, self.y, is_left_edge, &screen, &config, &all_bubbles);
-        let resolved_y = slots.iter().find(|s| s.account_index == self.account_index).map(|s| s.target_y).unwrap_or(target_pos.y);
-        if self.x != target_pos.x || self.y != resolved_y {
-            self.anim_state.start(self.x, self.y, target_pos.x, resolved_y, 180);
+        let Some(plan) = BubbleMovementEngine::compute_edge_transition_plan(self.account_index, self.x, self.y, false, &screen, &config, &all_bubbles) else {
+            return Vec::new();
+        };
+        if self.x != plan.target_x || self.y != plan.target_y {
+            self.anim_state.start(self.x, self.y, plan.target_x, plan.target_y, 180);
             self.start_spring_timer();
-        }
-        let mut sibling_moves = Vec::new();
-        for slot in &slots {
-            if slot.account_index != self.account_index {
-                let sibling_x = all_bubbles.iter().find(|b| b.account_index == slot.account_index).map(|b| b.x).unwrap_or(target_pos.x);
-                sibling_moves.push((slot.account_index, sibling_x, slot.target_y, 180));
-            }
         }
         self.is_tucked = true;
-        sibling_moves
+        plan.displaced_siblings.into_iter().map(|(sib_idx, sx, sy)| (sib_idx, sx, sy, 180)).collect()
     }
 
-    /// Triggers spring animation to untuck from screen edge and returns sibling animations
-    pub fn untuck(&mut self, app: &tauri::AppHandle) -> Vec<(u32, i32, i32, u64)> {
-        crate::utils::trim_controller::cancel_auto_trim(self.account_index);
-        crate::utils::trim_controller::record_user_interaction(self.account_index);
-        crate::platforms::messenger::windows::set_chat_window_memory_target(app, self.account_index, false);
-        let config = crate::movement::get_bubble_physics_config(app);
-        if config.is_free_position {
-            return Vec::new();
+    /// Triggers spring animation to untuck from screen edge with explicit RAM-trim mode
+    pub fn untuck_with_mode(&mut self, app: &tauri::AppHandle, mode: UntuckMode) -> Vec<(u32, i32, i32, u64)> {
+        crate::utils::trim_controller::AutoTrimController::global().handle_untuck_mode(self.account_index, mode);
+        if mode == UntuckMode::UserInteraction {
+            crate::platforms::messenger::windows::set_chat_window_memory_target(app, self.account_index, false);
         }
+        let config = crate::movement::get_bubble_physics_config(app);
         let screen = crate::movement::get_target_dashboard_screen(Some(app));
-        let target_pos = BubbleMovementEngine::calculate_hover_pos(&screen, &config, self.x, self.y, true);
-        let mid_x = screen.x + screen.width / 2;
-        let is_left_edge = self.x + (self.bubble_size as i32 / 2) < mid_x;
         let all_bubbles = crate::presentation::bubble::get_active_bubble_rects(app, None);
-        let slots = CollisionResolver::resolve_mutual_column_layout(self.account_index, self.y, is_left_edge, &screen, &config, &all_bubbles);
-        let resolved_y = slots.iter().find(|s| s.account_index == self.account_index).map(|s| s.target_y).unwrap_or(self.y);
-        if self.x != target_pos.x || self.y != resolved_y {
-            self.anim_state.start(self.x, self.y, target_pos.x, resolved_y, 180);
+        let Some(plan) = BubbleMovementEngine::compute_edge_transition_plan(self.account_index, self.x, self.y, true, &screen, &config, &all_bubbles) else {
+            return Vec::new();
+        };
+        if self.x != plan.target_x || self.y != plan.target_y {
+            self.anim_state.start(self.x, self.y, plan.target_x, plan.target_y, 180);
             self.start_spring_timer();
         }
-        let mut sibling_moves = Vec::new();
-        for slot in &slots {
-            if slot.account_index != self.account_index {
-                let sibling_x = all_bubbles.iter().find(|b| b.account_index == slot.account_index).map(|b| b.x).unwrap_or(target_pos.x);
-                sibling_moves.push((slot.account_index, sibling_x, slot.target_y, 180));
-            }
-        }
         self.is_tucked = false;
-        sibling_moves
+        plan.displaced_siblings.into_iter().map(|(sib_idx, sx, sy)| (sib_idx, sx, sy, 180)).collect()
+    }
+
+    /// Triggers spring animation to untuck from screen edge on user interaction
+    pub fn untuck(&mut self, app: &tauri::AppHandle) -> Vec<(u32, i32, i32, u64)> {
+        self.untuck_with_mode(app, UntuckMode::UserInteraction)
     }
 
     /// Animates bubble to target coordinates
@@ -553,7 +540,7 @@ mod tests {
     fn test_linux_drop_plan_respects_free_position_mode() {
         let screen = ScreenMetrics { x: 0, y: 0, width: 1920, height: 1080, scale_factor: 1.0 };
         let free_cfg = BubblePhysicsConfig { is_free_position: true, ..Default::default() };
-        let plan = compute_linux_bubble_drop_plan(1, 700, 380, &screen, &free_cfg, &[]);
+        let plan = compute_linux_bubble_drop_plan(1, 700, 380, false, &screen, &free_cfg, &[]);
         assert!(!plan.should_dismiss);
         assert_eq!(plan.target_x, 700);
         assert_eq!(plan.target_y, 380);
@@ -562,11 +549,12 @@ mod tests {
 
     #[test]
     fn test_linux_hover_leave_guard_matches_windows() {
-        assert!(should_tuck_linux_bubble_on_leave(false, false, false, false, false));
-        assert!(!should_tuck_linux_bubble_on_leave(true, false, false, false, false));
-        assert!(!should_tuck_linux_bubble_on_leave(false, true, false, false, false));
-        assert!(!should_tuck_linux_bubble_on_leave(false, false, true, false, false));
-        assert!(!should_tuck_linux_bubble_on_leave(false, false, false, true, false));
-        assert!(!should_tuck_linux_bubble_on_leave(false, false, false, false, true));
+        assert!(should_tuck_linux_bubble_on_leave(false, false, false, false, false, false));
+        assert!(!should_tuck_linux_bubble_on_leave(true, false, false, false, false, false));
+        assert!(!should_tuck_linux_bubble_on_leave(false, true, false, false, false, false));
+        assert!(!should_tuck_linux_bubble_on_leave(false, false, true, false, false, false));
+        assert!(!should_tuck_linux_bubble_on_leave(false, false, false, true, false, false));
+        assert!(!should_tuck_linux_bubble_on_leave(false, false, false, false, true, false));
+        assert!(!should_tuck_linux_bubble_on_leave(false, false, false, false, false, true));
     }
 }

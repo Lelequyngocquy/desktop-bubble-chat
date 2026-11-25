@@ -26,17 +26,20 @@ pub fn snap_bubble(app: AppHandle, account_index: Option<u32>) -> Result<(), Str
     if config.is_free_position {
         return Ok(());
     }
+    let stay_untucked = crate::presentation::bubble::is_bubble_stay_untucked(&app, idx);
+    let edge_ratio = BubbleMovementEngine::effective_edge_ratio(&config, stay_untucked);
     if crate::operating_systems::current::bubble::NativeBubbleManager::global().has_bubble(idx)
         && let Some((cur_x, cur_y, _, _)) = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(idx) {
             let screen = crate::movement::get_target_dashboard_screen(Some(&app));
             let config = get_bubble_physics_config(&app);
             let all_bubbles = get_active_bubble_rects(&app, None);
-            let snap = BubbleMovementEngine::calculate_snap(
+            let snap = BubbleMovementEngine::calculate_snap_with_ratio(
                 &screen,
                 &config,
                 PhysicalPosition { x: cur_x, y: cur_y },
                 idx,
                 &all_bubbles,
+                edge_ratio,
             );
             if snap.should_dismiss {
                 let app_clone = app.clone();
@@ -61,12 +64,13 @@ pub fn snap_bubble(app: AppHandle, account_index: Option<u32>) -> Result<(), Str
         let screen = crate::movement::get_target_dashboard_screen(Some(&app));
         let config = get_bubble_physics_config(&app);
         let all_bubbles = get_active_bubble_rects(&app, None);
-        let snap = BubbleMovementEngine::calculate_snap(
+        let snap = BubbleMovementEngine::calculate_snap_with_ratio(
             &screen,
             &config,
             win_pos,
             idx,
             &all_bubbles,
+            edge_ratio,
         );
         if snap.should_dismiss {
             let app_clone = app.clone();
@@ -171,12 +175,15 @@ pub fn set_bubble_config(
                     .and_then(|w| w.outer_position().ok().map(|p| (p.x, p.y, false)))
             };
             if let Some((cur_x, cur_y, is_native)) = cur_pos {
-                let snap = BubbleMovementEngine::calculate_snap(
+                let stay_untucked = crate::presentation::bubble::is_bubble_stay_untucked(&app, idx);
+                let edge_ratio = BubbleMovementEngine::effective_edge_ratio(&config, stay_untucked);
+                let snap = BubbleMovementEngine::calculate_snap_with_ratio(
                     &screen,
                     &config,
                     PhysicalPosition { x: cur_x, y: cur_y },
                     idx,
                     &all_rects,
+                    edge_ratio,
                 );
                 if snap.should_dismiss {
                     let app_clone = app.clone();

@@ -1,90 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use tauri::{AppHandle, Manager};
+use tauri::Manager;
 
 use super::{
     reassert_topmost_for_bubbles, BubbleBoundsCache, GetForegroundWindow, KillTimer,
     NativeBubbleAction, NativeBubbleWindow, TIMER_ID_SETTLE_TOPMOST,
 };
-
-/// Animates target bubble and any displaced siblings during edge tuck or untuck transition
-fn apply_hover_tuck_transition(
-    bubbles: &HashMap<u32, NativeBubbleWindow>,
-    bounds_cache: &BubbleBoundsCache,
-    account_index: u32,
-    app: &AppHandle,
-    is_hovered: bool,
-) {
-    let config = crate::movement::get_bubble_physics_config(app);
-    if config.is_free_position {
-        return;
-    }
-    let Some(win) = bubbles.get(&account_index) else {
-        return;
-    };
-    let screen = crate::movement::get_target_dashboard_screen(Some(app));
-    let (cur_x, cur_y, _, _) = win.get_bounds();
-    let target_pos = crate::movement::BubbleMovementEngine::calculate_hover_pos(
-        &screen,
-        &config,
-        cur_x,
-        cur_y,
-        is_hovered,
-    );
-    let mid_x = screen.x + screen.width / 2;
-    let is_left_edge = cur_x + (config.size * screen.scale_factor) as i32 / 2 < mid_x;
-    let all_bubbles: Vec<crate::movement::BubbleRect> = if let Ok(cache) = bounds_cache.read() {
-        cache
-            .iter()
-            .map(|(&idx, &(x, y, w, h))| crate::movement::BubbleRect {
-                account_index: idx,
-                x,
-                y,
-                width: w as i32,
-                height: h as i32,
-            })
-            .collect()
-    } else {
-        Vec::new()
-    };
-    let slots = crate::movement::CollisionResolver::resolve_mutual_column_layout(
-        account_index,
-        cur_y,
-        is_left_edge,
-        &screen,
-        &config,
-        &all_bubbles,
-    );
-    let resolved_y = slots
-        .iter()
-        .find(|s| s.account_index == account_index)
-        .map(|s| s.target_y)
-        .unwrap_or(cur_y);
-    win.animate_to(target_pos.x, resolved_y, 180);
-    if let Ok(mut cache) = bounds_cache.write()
-        && let Some(b) = cache.get_mut(&account_index) {
-            b.0 = target_pos.x;
-            b.1 = resolved_y;
-        }
-    for slot in &slots {
-        if slot.account_index == account_index {
-            continue;
-        }
-        let sibling_x = all_bubbles
-            .iter()
-            .find(|b| b.account_index == slot.account_index)
-            .map(|b| b.x)
-            .unwrap_or(target_pos.x);
-        if let Some(sibling_win) = bubbles.get(&slot.account_index) {
-            sibling_win.animate_to(sibling_x, slot.target_y, 180);
-        }
-        if let Ok(mut cache) = bounds_cache.write()
-            && let Some(b) = cache.get_mut(&slot.account_index) {
-                b.0 = sibling_x;
-                b.1 = slot.target_y;
-            }
-    }
-}
 
 /// Processes a single NativeBubbleAction on the dedicated Win32 UI worker thread
 pub(super) fn handle_bubble_action(
@@ -164,15 +85,15 @@ pub(super) fn handle_bubble_action(
                 win.trigger_pulse();
             }
         }
-        NativeBubbleAction::Tuck { account_index, app } => {
-            crate::utils::trim_controller::schedule_auto_trim_on_tuck(account_index, app.clone());
-            apply_hover_tuck_transition(bubbles, bounds_cache, account_index, &app, false);
+        NativeBubbleAction::Tuck { account_index, .. } => {
+            if let Some(win) = bubbles.get(&account_index) {
+                win.tuck();
+            }
         }
-        NativeBubbleAction::Untuck { account_index, app } => {
-            crate::utils::trim_controller::cancel_auto_trim(account_index);
-            crate::utils::trim_controller::record_user_interaction(account_index);
-            crate::platforms::messenger::windows::set_chat_window_memory_target(&app, account_index, false);
-            apply_hover_tuck_transition(bubbles, bounds_cache, account_index, &app, true);
+        NativeBubbleAction::Untuck { account_index, mode, .. } => {
+            if let Some(win) = bubbles.get(&account_index) {
+                win.untuck(mode);
+            }
         }
         NativeBubbleAction::SetAlwaysOnTop { enabled } => {
             *is_always_on_top = enabled;

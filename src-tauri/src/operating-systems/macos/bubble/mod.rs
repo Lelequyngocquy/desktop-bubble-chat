@@ -55,9 +55,14 @@ pub fn tuck_native_bubble(app: &tauri::AppHandle, account_index: u32) {
     NativeBubbleManager::global().dispatch(NativeBubbleAction::Tuck { account_index, app: app.clone() });
 }
 
-/// Untucks native bubble from screen edge
+/// Untucks native bubble from screen edge with explicit RAM-trim mode
+pub fn untuck_native_bubble_with_mode(app: &tauri::AppHandle, account_index: u32, mode: crate::movement::UntuckMode) {
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::Untuck { account_index, app: app.clone(), mode });
+}
+
+/// Untucks native bubble from screen edge on user interaction
 pub fn untuck_native_bubble(app: &tauri::AppHandle, account_index: u32) {
-    NativeBubbleManager::global().dispatch(NativeBubbleAction::Untuck { account_index, app: app.clone() });
+    untuck_native_bubble_with_mode(app, account_index, crate::movement::UntuckMode::UserInteraction);
 }
 
 /// Sets always on top window level

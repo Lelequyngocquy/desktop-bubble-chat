@@ -13,7 +13,7 @@ pub enum NativeBubbleAction {
     SetUnread { account_index: u32, count: u32 },
     TriggerPulse { account_index: u32 },
     Tuck { account_index: u32, app: AppHandle },
-    Untuck { account_index: u32, app: AppHandle },
+    Untuck { account_index: u32, app: AppHandle, mode: crate::movement::UntuckMode },
     SetAlwaysOnTop { enabled: bool },
     AssertTopmost,
     SetSize { account_index: u32, size: u32 },
@@ -251,9 +251,9 @@ impl NativeBubbleManager {
                 self.animate_displaced_siblings(displaced);
                 self.ensure_animation_driver_running();
             }
-            NativeBubbleAction::Untuck { account_index, app } => {
+            NativeBubbleAction::Untuck { account_index, app, mode } => {
                 let displaced = if let Ok(mut map) = self.bubbles.lock() {
-                    map.get_mut(&account_index).map(|b| b.untuck(&app)).unwrap_or_default()
+                    map.get_mut(&account_index).map(|b| b.untuck_with_mode(&app, mode)).unwrap_or_default()
                 } else {
                     Vec::new()
                 };

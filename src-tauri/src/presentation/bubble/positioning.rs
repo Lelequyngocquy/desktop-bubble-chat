@@ -265,6 +265,18 @@ pub fn ensure_bubble_positioned_and_visible(app: &AppHandle, account_index: u32)
     ensure_bubble_positioned_and_visible_with_extra(app, account_index, &[])
 }
 
+/// Returns true when account chat is open, pinned, or has an active unread alert
+pub fn is_bubble_stay_untucked(app: &AppHandle, account_index: u32) -> bool {
+    let is_chat_open = crate::platforms::messenger::windows::get_messenger_webview(app, account_index)
+        .and_then(|w| w.is_visible().ok())
+        .unwrap_or(false);
+    let (is_pinned, is_alert) = app
+        .try_state::<Arc<crate::state::ChatState>>()
+        .map(|cs| (cs.is_chat_pinned(account_index), cs.is_account_alert_active(account_index)))
+        .unwrap_or((false, false));
+    is_chat_open || is_pinned || is_alert
+}
+
 /// Tucks floating bubbles into screen edge
 pub fn tuck_bubble(app: &AppHandle, account_index: Option<u32>) {
     let config = crate::movement::get_bubble_physics_config(app);
@@ -276,14 +288,20 @@ pub fn tuck_bubble(app: &AppHandle, account_index: Option<u32>) {
         None => (1..=5).collect(),
     };
     for idx in indices {
-        if let Some(cs) = app.try_state::<std::sync::Arc<crate::state::ChatState>>()
-            && cs.is_chat_pinned(idx) {
-                continue;
-            }
+        let (is_pinned, is_alert) = app
+            .try_state::<std::sync::Arc<crate::state::ChatState>>()
+            .map(|cs| (cs.is_chat_pinned(idx), cs.is_account_alert_active(idx)))
+            .unwrap_or((false, false));
+        if is_pinned {
+            continue;
+        }
         let label = get_bubble_window_label(idx);
         let win = app.get_webview_window(&label);
         if let Some(bubble_window) = win {
             crate::utils::trim_controller::schedule_auto_trim_on_tuck(idx, app.clone());
+            if is_alert {
+                continue;
+            }
             let screen = crate::movement::get_target_dashboard_screen(Some(app));
             let win_pos = bubble_window.outer_position().unwrap_or_default();
             let tucked_pos = BubbleMovementEngine::calculate_hover_pos(

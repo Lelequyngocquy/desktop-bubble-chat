@@ -276,6 +276,13 @@ impl ChatState {
         }
     }
 
+    /// Returns true when account has unread messages, is unmuted, and global notifications are enabled
+    pub fn is_account_alert_active(&self, account_index: u32) -> bool {
+        self.get_unread_count(account_index) > 0
+            && !self.is_account_muted(account_index)
+            && self.get_user_config().is_notifications_enabled
+    }
+
     pub fn set_chat_pinned(&self, account_index: u32, pinned: bool) {
         if let Ok(mut set) = self.pinned_accounts.lock() {
             if pinned {
@@ -630,5 +637,21 @@ mod tests {
         assert!(state.has_recent_message_within(1, 5500, 3000));
         assert!(!state.has_recent_message_within(1, 7500, 3000));
         assert!(!state.has_recent_message_within(2, 5500, 3000));
+    }
+
+    #[test]
+    fn test_account_alert_active_respects_unread_mute_and_global_flag() {
+        let state = ChatState::default();
+        assert!(!state.is_account_alert_active(1));
+        state.set_unread_count(1, 3);
+        assert!(state.is_account_alert_active(1));
+        state.set_account_muted(1, true);
+        assert!(!state.is_account_alert_active(1));
+        state.set_account_muted(1, false);
+        assert!(state.is_account_alert_active(1));
+        if let Ok(mut cfg) = state.user_config.lock() {
+            cfg.is_notifications_enabled = false;
+        }
+        assert!(!state.is_account_alert_active(1));
     }
 }

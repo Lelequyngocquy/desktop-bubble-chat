@@ -1,9 +1,11 @@
-﻿use tauri::AppHandle;
+﻿use std::sync::Arc;
+use tauri::{AppHandle, Manager};
 
 use super::ffi::*;
 use super::types::*;
-use crate::movement::BubbleMovementEngine;
+use crate::movement::{BubbleInteractionFlags, BubbleMovementEngine, UntuckMode};
 use crate::operating_systems::windows::bubble::renderer::{render_bubble_bgra, BubbleRenderOptions};
+use crate::state::ChatState;
 
 /// Internal state of a native bubble attached to HWND via GWLP_USERDATA.
 pub struct BubbleWindowState {
@@ -180,123 +182,107 @@ impl BubbleWindowState {
         }
     }
 
-    /// Triggers spring animation to untuck from edge (180ms ease-out cubic).
-    pub fn untuck(&mut self) {
-        crate::utils::trim_controller::cancel_auto_trim(self.account_index);
-        crate::utils::trim_controller::record_user_interaction(self.account_index);
-        if let Some(app) = &self.app_handle {
-            crate::platforms::messenger::windows::set_chat_window_memory_target(app, self.account_index, false);
-            let config = crate::movement::get_bubble_physics_config(app);
-            if config.is_free_position {
-                return;
-            }
-            let screen = crate::movement::get_target_dashboard_screen(self.app_handle.as_ref());
-            let target_pos = BubbleMovementEngine::calculate_hover_pos(
-                &screen,
-                &config,
-                self.x,
-                self.y,
-                true,
-            );
-            let mid_x = screen.x + screen.width / 2;
-            let is_left_edge = self.x + (self.bubble_size as i32 / 2) < mid_x;
-            let all_bubbles = crate::presentation::bubble::get_active_bubble_rects(app, None);
-            let slots = crate::movement::collision::CollisionResolver::resolve_mutual_column_layout(
-                self.account_index,
-                self.y,
-                is_left_edge,
-                &screen,
-                &config,
-                &all_bubbles,
-            );
-            let resolved_y = slots
-                .iter()
-                .find(|s| s.account_index == self.account_index)
-                .map(|s| s.target_y)
-                .unwrap_or(self.y);
-            if self.x != target_pos.x || self.y != resolved_y {
-                self.anim_state.start(self.x, self.y, target_pos.x, resolved_y, 180);
-                unsafe {
-                    SetTimer(self.hwnd, TIMER_ID_SPRING, 16, None);
-                }
-            }
-            for slot in &slots {
-                if slot.account_index == self.account_index {
-                    continue;
-                }
-                let sibling_x = all_bubbles
-                    .iter()
-                    .find(|b| b.account_index == slot.account_index)
-                    .map(|b| b.x)
-                    .unwrap_or(target_pos.x);
-                crate::operating_systems::windows::bubble::NativeBubbleManager::global().dispatch(
-                    crate::operating_systems::windows::bubble::NativeBubbleAction::AnimateTo {
-                        account_index: slot.account_index,
-                        target_x: sibling_x,
-                        target_y: slot.target_y,
-                        duration_ms: 180,
-                    },
-                );
-            }
+    /// Collects current interaction, chat, and alert flags for tuck eligibility checks.
+    pub fn interaction_flags(&self) -> BubbleInteractionFlags {
+        let (is_chat_open, is_chat_pinned, is_free_position, is_alert_active) = if let Some(app) = &self.app_handle {
+            let chat_open = crate::platforms::messenger::windows::get_messenger_webview(app, self.account_index)
+                .and_then(|w| w.is_visible().ok())
+                .unwrap_or(false);
+            let (pinned, alert) = app
+                .try_state::<Arc<ChatState>>()
+                .map(|cs| (cs.is_chat_pinned(self.account_index), cs.is_account_alert_active(self.account_index)))
+                .unwrap_or((false, false));
+            let free = crate::movement::get_bubble_physics_config(app).is_free_position;
+            (chat_open, pinned, free, alert)
+        } else {
+            (false, false, false, false)
+        };
+        BubbleInteractionFlags {
+            is_hovered: self.is_hovered,
+            is_dragging: self.is_dragging,
+            is_chat_open,
+            is_chat_pinned,
+            is_free_position,
+            is_alert_active,
         }
     }
 
-    /// Triggers spring animation to tuck into edge (180ms ease-out cubic).
-    pub fn tuck(&mut self) {
-        if let Some(app) = &self.app_handle {
-            crate::utils::trim_controller::schedule_auto_trim_on_tuck(self.account_index, app.clone());
-            let config = crate::movement::get_bubble_physics_config(app);
-            if config.is_free_position {
-                return;
-            }
-            let screen = crate::movement::get_target_dashboard_screen(self.app_handle.as_ref());
-            let target_pos = BubbleMovementEngine::calculate_hover_pos(
-                &screen,
-                &config,
-                self.x,
-                self.y,
-                false,
-            );
-            let mid_x = screen.x + screen.width / 2;
-            let is_left_edge = self.x + (self.bubble_size as i32 / 2) < mid_x;
-            let all_bubbles = crate::presentation::bubble::get_active_bubble_rects(app, None);
-            let slots = crate::movement::collision::CollisionResolver::resolve_mutual_column_layout(
+    /// Executes shared edge transition plan and syncs bounds cache consistently.
+    fn apply_edge_transition(&mut self, is_untucked: bool) {
+        let Some(app) = self.app_handle.clone() else {
+            return;
+        };
+        let config = crate::movement::get_bubble_physics_config(&app);
+        let screen = crate::movement::get_target_dashboard_screen(Some(&app));
+        let all_bubbles = crate::presentation::bubble::get_active_bubble_rects(&app, None);
+        let Some(plan) = BubbleMovementEngine::compute_edge_transition_plan(
+            self.account_index,
+            self.x,
+            self.y,
+            is_untucked,
+            &screen,
+            &config,
+            &all_bubbles,
+        ) else {
+            return;
+        };
+        if self.x != plan.target_x || self.y != plan.target_y {
+            crate::operating_systems::windows::bubble::manager::update_cached_bubble_bounds(
                 self.account_index,
-                self.y,
-                is_left_edge,
-                &screen,
-                &config,
-                &all_bubbles,
+                plan.target_x,
+                plan.target_y,
+                self.bubble_size,
+                self.bubble_size,
             );
-            let resolved_y = slots
-                .iter()
-                .find(|s| s.account_index == self.account_index)
-                .map(|s| s.target_y)
-                .unwrap_or(self.y);
-            if self.x != target_pos.x || self.y != resolved_y {
-                self.anim_state.start(self.x, self.y, target_pos.x, resolved_y, 180);
-                unsafe {
-                    SetTimer(self.hwnd, TIMER_ID_SPRING, 16, None);
-                }
-            }
-            for slot in &slots {
-                if slot.account_index == self.account_index {
-                    continue;
-                }
-                let sibling_x = all_bubbles
-                    .iter()
-                    .find(|b| b.account_index == slot.account_index)
-                    .map(|b| b.x)
-                    .unwrap_or(target_pos.x);
-                crate::operating_systems::windows::bubble::NativeBubbleManager::global().dispatch(
-                    crate::operating_systems::windows::bubble::NativeBubbleAction::AnimateTo {
-                        account_index: slot.account_index,
-                        target_x: sibling_x,
-                        target_y: slot.target_y,
-                        duration_ms: 180,
-                    },
-                );
+            self.anim_state.start(self.x, self.y, plan.target_x, plan.target_y, 180);
+            unsafe {
+                SetTimer(self.hwnd, TIMER_ID_SPRING, 16, None);
             }
         }
+        for (sib_idx, sib_x, sib_y) in plan.displaced_siblings {
+            crate::operating_systems::windows::bubble::manager::update_cached_bubble_bounds(
+                sib_idx,
+                sib_x,
+                sib_y,
+                self.bubble_size,
+                self.bubble_size,
+            );
+            crate::operating_systems::windows::bubble::NativeBubbleManager::global().dispatch(
+                crate::operating_systems::windows::bubble::NativeBubbleAction::AnimateTo {
+                    account_index: sib_idx,
+                    target_x: sib_x,
+                    target_y: sib_y,
+                    duration_ms: 180,
+                },
+            );
+        }
+    }
+
+    /// Triggers spring animation to untuck from edge with explicit RAM-trim mode.
+    pub fn untuck_with_mode(&mut self, mode: UntuckMode) {
+        crate::utils::trim_controller::AutoTrimController::global().handle_untuck_mode(self.account_index, mode);
+        if mode == UntuckMode::UserInteraction
+            && let Some(app) = &self.app_handle {
+                crate::platforms::messenger::windows::set_chat_window_memory_target(app, self.account_index, false);
+            }
+        self.apply_edge_transition(true);
+    }
+
+    /// Triggers spring animation to untuck from edge on user interaction.
+    pub fn untuck(&mut self) {
+        self.untuck_with_mode(UntuckMode::UserInteraction);
+    }
+
+    /// Schedules idle RAM trim and physically tucks bubble into edge when eligible.
+    pub fn tuck(&mut self) {
+        let flags = self.interaction_flags();
+        if !flags.is_dragging && !flags.is_hovered && !flags.is_chat_open && !flags.is_chat_pinned
+            && let Some(app) = &self.app_handle {
+                crate::utils::trim_controller::schedule_auto_trim_on_tuck(self.account_index, app.clone());
+            }
+        if !BubbleMovementEngine::can_auto_tuck(flags) {
+            return;
+        }
+        self.apply_edge_transition(false);
     }
 }

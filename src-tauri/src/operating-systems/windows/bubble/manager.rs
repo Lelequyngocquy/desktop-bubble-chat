@@ -143,6 +143,7 @@ pub enum NativeBubbleAction {
     Untuck {
         account_index: u32,
         app: AppHandle,
+        mode: crate::movement::UntuckMode,
     },
     SetAlwaysOnTop {
         enabled: bool,

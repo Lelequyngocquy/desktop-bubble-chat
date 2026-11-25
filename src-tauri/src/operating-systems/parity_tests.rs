@@ -42,8 +42,8 @@ fn parity_drag_drop_free_position_matches_windows_collision_resolver() {
     let sibling = BubbleRect { account_index: 2, x: 500, y: 400, width: 56, height: 56 };
     let existing = vec![sibling];
     let (win_x, win_y) = CollisionResolver::resolve_2d_free_collision(1, 502, 402, &screen, &cfg, &existing);
-    let mac_plan = compute_bubble_drop_plan(1, 502, 402, &screen, &cfg, &existing);
-    let linux_plan = compute_linux_bubble_drop_plan(1, 502, 402, &screen, &cfg, &existing);
+    let mac_plan = compute_bubble_drop_plan(1, 502, 402, false, &screen, &cfg, &existing);
+    let linux_plan = compute_linux_bubble_drop_plan(1, 502, 402, false, &screen, &cfg, &existing);
     assert!(!mac_plan.should_dismiss);
     assert!(!linux_plan.should_dismiss);
     assert_eq!((mac_plan.target_x, mac_plan.target_y), (win_x, win_y));
@@ -56,16 +56,21 @@ fn parity_drag_drop_free_position_matches_windows_collision_resolver() {
 fn parity_drag_drop_mutual_snap_and_dismiss_match_across_all_oses() {
     let screen = sample_screen(1.0);
     let cfg = BubblePhysicsConfig { is_free_position: false, ..Default::default() };
-    let sibling = BubbleRect { account_index: 2, x: -16, y: 300, width: 56, height: 56 };
+    let sibling = BubbleRect { account_index: 2, x: 0, y: 300, width: 56, height: 56 };
     let existing = vec![sibling];
     let win_snap = BubbleMovementEngine::calculate_mutual_snap(&screen, &cfg, PhysicalPosition { x: 40, y: 300 }, 1, &existing);
-    let mac_plan = compute_bubble_drop_plan(1, 40, 300, &screen, &cfg, &existing);
-    let linux_plan = compute_linux_bubble_drop_plan(1, 40, 300, &screen, &cfg, &existing);
+    let mac_plan = compute_bubble_drop_plan(1, 40, 300, false, &screen, &cfg, &existing);
+    let linux_plan = compute_linux_bubble_drop_plan(1, 40, 300, false, &screen, &cfg, &existing);
     assert_eq!((mac_plan.target_x, mac_plan.target_y), (win_snap.target_x, win_snap.target_y));
     assert_eq!((linux_plan.target_x, linux_plan.target_y), (win_snap.target_x, win_snap.target_y));
-    assert_eq!(mac_plan.displaced_siblings.len(), linux_plan.displaced_siblings.len());
-    let mac_dismiss = compute_bubble_drop_plan(1, 40, 1040, &screen, &cfg, &existing);
-    let linux_dismiss = compute_linux_bubble_drop_plan(1, 40, 1040, &screen, &cfg, &existing);
+    assert_eq!(mac_plan.displaced_siblings, linux_plan.displaced_siblings);
+    assert_eq!(mac_plan.displaced_siblings[0].1, 0);
+    let mac_alert_plan = compute_bubble_drop_plan(1, 40, 300, true, &screen, &cfg, &existing);
+    let linux_alert_plan = compute_linux_bubble_drop_plan(1, 40, 300, true, &screen, &cfg, &existing);
+    assert_eq!(mac_alert_plan.target_x, 0);
+    assert_eq!(linux_alert_plan.target_x, 0);
+    let mac_dismiss = compute_bubble_drop_plan(1, 40, 1040, false, &screen, &cfg, &existing);
+    let linux_dismiss = compute_linux_bubble_drop_plan(1, 40, 1040, false, &screen, &cfg, &existing);
     assert!(mac_dismiss.should_dismiss);
     assert!(linux_dismiss.should_dismiss);
 }
@@ -77,9 +82,11 @@ fn parity_hover_leave_tuck_guards_match_across_macos_and_linux() {
             for is_chat_open in [false, true] {
                 for is_chat_pinned in [false, true] {
                     for is_free_position in [false, true] {
-                        let expected = !is_dragging && !is_hovered && !is_chat_open && !is_chat_pinned && !is_free_position;
-                        assert_eq!(should_tuck_after_hover_leave(is_dragging, is_hovered, is_chat_open, is_chat_pinned, is_free_position), expected);
-                        assert_eq!(should_tuck_linux_bubble_on_leave(is_dragging, is_hovered, is_chat_open, is_chat_pinned, is_free_position), expected);
+                        for is_alert_active in [false, true] {
+                            let expected = !is_dragging && !is_hovered && !is_chat_open && !is_chat_pinned && !is_free_position && !is_alert_active;
+                            assert_eq!(should_tuck_after_hover_leave(is_dragging, is_hovered, is_chat_open, is_chat_pinned, is_free_position, is_alert_active), expected);
+                            assert_eq!(should_tuck_linux_bubble_on_leave(is_dragging, is_hovered, is_chat_open, is_chat_pinned, is_free_position, is_alert_active), expected);
+                        }
                     }
                 }
             }

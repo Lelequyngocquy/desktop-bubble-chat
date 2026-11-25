@@ -74,13 +74,20 @@ pub fn tuck_native_bubble(app: &tauri::AppHandle, account_index: u32) {
     });
 }
 
-/// Triggers spring animation to untuck native bubble from the edge.
+/// Triggers spring animation to untuck native bubble from the edge with explicit reason
 #[cfg(target_os = "windows")]
-pub fn untuck_native_bubble(app: &tauri::AppHandle, account_index: u32) {
+pub fn untuck_native_bubble_with_mode(app: &tauri::AppHandle, account_index: u32, mode: crate::movement::UntuckMode) {
     NativeBubbleManager::global().dispatch(NativeBubbleAction::Untuck {
         account_index,
         app: app.clone(),
+        mode,
     });
+}
+
+/// Triggers spring animation to untuck native bubble from the edge on user interaction
+#[cfg(target_os = "windows")]
+pub fn untuck_native_bubble(app: &tauri::AppHandle, account_index: u32) {
+    untuck_native_bubble_with_mode(app, account_index, crate::movement::UntuckMode::UserInteraction);
 }
 
 /// Sets always-on-top mode for all native bubbles.

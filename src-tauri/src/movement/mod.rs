@@ -7,4 +7,7 @@ pub use config::{
     get_bubble_physics_config, get_target_dashboard_screen, update_target_dashboard_screen,
     BubbleConfigState, BubblePhysicsConfig, ScreenMetrics, SnapResult,
 };
-pub use engine::{BubbleMovementEngine, MutualSnapResult};
+pub use engine::{
+    BubbleDropPlan, BubbleInteractionFlags, BubbleMovementEngine, HoverTransitionPlan,
+    MutualSnapResult, UntuckMode,
+};
