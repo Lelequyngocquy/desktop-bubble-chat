@@ -93,6 +93,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                     state.is_dragging = true;
                     state.has_dragged = false;
                     state.drag_start_win = POINT { x: state.x, y: state.y };
+                    state.sync_heartbeat_pause();
                     Some((is_on_top, state.account_index, state.app_handle.clone()))
                 } else {
                     None
@@ -166,7 +167,8 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                         }
                     } else if !state.is_hovered {
                         state.is_hovered = true;
-                        state.update_layered_buffer();
+                        state.sync_heartbeat_pause_flag();
+                        state.sync_heartbeat_timer_and_render();
                         hover_init = Some((state.account_index, state.app_handle.clone()));
                     }
                 }
@@ -211,7 +213,8 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                 if let Some(state) = unsafe { state_ptr.as_mut() }
                     && !state.is_dragging {
                         state.is_hovered = false;
-                        state.update_layered_buffer();
+                        state.sync_heartbeat_pause_flag();
+                        state.sync_heartbeat_timer_and_render();
                         true
                     } else {
                         false
@@ -230,6 +233,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                     && state.is_dragging {
                         state.is_dragging = false;
                         state.is_hovered = false;
+                        state.sync_heartbeat_pause();
                         if state.has_dragged {
                             Some(true)
                         } else {
@@ -254,6 +258,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                         if state.has_dragged {
                             state.is_hovered = false;
                         }
+                        state.sync_heartbeat_pause();
                         Some((state.has_dragged, state.account_index, state.app_handle.clone()))
                     } else {
                         None
@@ -278,7 +283,11 @@ pub unsafe extern "system" fn native_bubble_wndproc(
             0
         }
         WM_TIMER => {
-            if wparam == TIMER_ID_SPRING {
+            if wparam == TIMER_ID_PULSE {
+                if let Some(state) = unsafe { state_ptr.as_mut() } {
+                    state.sync_heartbeat_timer_and_render();
+                }
+            } else if wparam == TIMER_ID_SPRING {
                 unsafe { handle_spring_timer(hwnd, state_ptr); }
             } else if wparam == TIMER_ID_HOVER_LEAVE {
                 unsafe { handle_hover_leave_timer(hwnd, state_ptr); }
@@ -287,6 +296,7 @@ pub unsafe extern "system" fn native_bubble_wndproc(
         }
         WM_NCDESTROY => {
             unsafe {
+                KillTimer(hwnd, TIMER_ID_PULSE);
                 KillTimer(hwnd, TIMER_ID_SPRING);
                 KillTimer(hwnd, TIMER_ID_HOVER_LEAVE);
                 let ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut BubbleWindowState;

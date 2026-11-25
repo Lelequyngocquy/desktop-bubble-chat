@@ -172,3 +172,24 @@ fn parity_spring_animation_lifecycle_matches_across_macos_and_linux() {
     assert_eq!(linux_step, Some((0, 260, true)));
     assert!(!mac_anim.is_animating && !linux_anim.is_animating);
 }
+
+#[test]
+fn parity_heartbeat_state_and_pause_lifecycle_matches_across_macos_and_linux() {
+    use crate::operating_systems::linux::bubble::animator::HeartbeatAnimationState as LinuxHeartbeat;
+    use crate::operating_systems::macos::bubble::animator::HeartbeatAnimationState as MacOSHeartbeat;
+    let mut mac = MacOSHeartbeat::default();
+    let mut linux = LinuxHeartbeat::default();
+    assert!(!mac.should_animate() && !linux.should_animate());
+    assert!(mac.set_alert_active(true) && linux.set_alert_active(true));
+    assert!(mac.should_animate() && linux.should_animate());
+    assert_eq!(mac.next_delay_ms(), Some(16));
+    assert_eq!(linux.next_delay_ms(), Some(16));
+    assert!(mac.set_paused(true) && linux.set_paused(true));
+    assert!(!mac.should_animate() && !linux.should_animate());
+    assert_eq!(mac.next_delay_ms(), None);
+    assert_eq!(linux.next_delay_ms(), None);
+    assert!(mac.set_paused(false) && linux.set_paused(false));
+    assert!(mac.should_animate() && linux.should_animate());
+    assert!(mac.set_alert_active(false) && linux.set_alert_active(false));
+    assert!(!mac.should_animate() && !linux.should_animate());
+}

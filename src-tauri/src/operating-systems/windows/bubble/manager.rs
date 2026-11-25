@@ -133,6 +133,15 @@ pub enum NativeBubbleAction {
         account_index: u32,
         count: u32,
     },
+    SetAlertState {
+        account_index: u32,
+        unread_count: u32,
+        alert_active: bool,
+    },
+    SetChatOpen {
+        account_index: u32,
+        is_open: bool,
+    },
     TriggerPulse {
         account_index: u32,
     },

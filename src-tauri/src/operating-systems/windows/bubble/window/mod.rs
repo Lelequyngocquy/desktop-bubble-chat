@@ -138,8 +138,11 @@ impl NativeBubbleWindow {
                 drag_start_win: POINT { x: 0, y: 0 },
                 is_hovered: false,
                 unread_count: 0,
+                is_chat_open: false,
                 drag_alpha: 255,
                 anim_state: crate::operating_systems::windows::bubble::animator::SpringAnimationState::default(),
+                heartbeat: crate::operating_systems::windows::bubble::animator::HeartbeatAnimationState::default(),
+                pulse_timer_interval_ms: 0,
                 app_handle: app,
                 hdc_mem,
                 hbitmap,
@@ -239,9 +242,13 @@ impl NativeBubbleWindow {
         }
     }
 
-    /// Hides the window.
+    /// Hides the window and stops any running heartbeat timer.
     pub fn hide(&self) {
         unsafe {
+            let ptr = GetWindowLongPtrW(self.hwnd, GWLP_USERDATA) as *mut BubbleWindowState;
+            if let Some(state) = ptr.as_mut() {
+                state.stop_heartbeat_timer();
+            }
             ShowWindow(self.hwnd, SW_HIDE);
         }
     }
@@ -259,21 +266,59 @@ impl NativeBubbleWindow {
         }
     }
 
-    /// Updates unread count and redraws badge.
+    /// Updates unread count and redraws badge; clears alert automatically when count reaches zero.
     pub fn set_unread_count(&self, count: u32) {
         unsafe {
             let ptr = GetWindowLongPtrW(self.hwnd, GWLP_USERDATA) as *mut BubbleWindowState;
+            if let Some(state) = ptr.as_mut() {
+                let alert_cleared = count == 0 && state.heartbeat.set_alert_active(false);
+                let count_changed = state.unread_count != count;
+                state.unread_count = count;
+                if count_changed || alert_cleared {
+                    state.sync_heartbeat_timer_and_render();
+                }
+            }
+        }
+    }
+
+    /// Updates unread badge count and alert animation eligibility together.
+    pub fn set_alert_state(&self, unread_count: u32, alert_active: bool) {
+        unsafe {
+            let ptr = GetWindowLongPtrW(self.hwnd, GWLP_USERDATA) as *mut BubbleWindowState;
+            if let Some(state) = ptr.as_mut() {
+                let count_changed = state.unread_count != unread_count;
+                state.unread_count = unread_count;
+                let alert_changed = state.heartbeat.set_alert_active(alert_active);
+                state.sync_heartbeat_pause_flag();
+                if count_changed || alert_changed || (alert_active && state.pulse_timer_interval_ms == 0) {
+                    state.sync_heartbeat_timer_and_render();
+                }
+            }
+        }
+    }
+
+    /// Updates chat-open state to pause heartbeat while chatting and resume upon close.
+    pub fn set_chat_open(&self, is_open: bool) {
+        unsafe {
+            let ptr = GetWindowLongPtrW(self.hwnd, GWLP_USERDATA) as *mut BubbleWindowState;
             if let Some(state) = ptr.as_mut()
-                && state.unread_count != count {
-                    state.unread_count = count;
-                    state.update_layered_buffer();
+                && state.is_chat_open != is_open {
+                    state.is_chat_open = is_open;
+                    state.sync_heartbeat_pause();
                 }
         }
     }
 
-    /// Triggers pulse wave animation - deprecated/no-op.
+    /// Restarts the heartbeat cycle immediately when alerting (or previews one beat).
     pub fn trigger_pulse(&self) {
-        // No-op: pulse animation removed to reduce CPU/GPU load.
+        unsafe {
+            let ptr = GetWindowLongPtrW(self.hwnd, GWLP_USERDATA) as *mut BubbleWindowState;
+            if let Some(state) = ptr.as_mut()
+                && state.heartbeat.is_alert_active {
+                    state.heartbeat.reset_cycle();
+                    state.sync_heartbeat_timer_and_render();
+                }
+        }
     }
 
     /// Triggers spring animation to tuck native bubble into edge when eligible.

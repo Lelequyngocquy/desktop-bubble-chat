@@ -11,6 +11,8 @@ pub enum NativeBubbleAction {
     SetPosition { account_index: u32, x: i32, y: i32 },
     AnimateTo { account_index: u32, target_x: i32, target_y: i32, duration_ms: u64 },
     SetUnread { account_index: u32, count: u32 },
+    SetAlertState { account_index: u32, unread_count: u32, alert_active: bool },
+    SetChatOpen { account_index: u32, is_open: bool },
     TriggerPulse { account_index: u32 },
     Tuck { account_index: u32, app: AppHandle },
     Untuck { account_index: u32, app: AppHandle, mode: crate::movement::UntuckMode },
@@ -165,6 +167,7 @@ impl NativeBubbleManager {
             NativeBubbleAction::Hide { account_index } => {
                 if let Ok(mut map) = self.bubbles.lock()
                     && let Some(mut bubble) = map.remove(&account_index) {
+                        bubble.stop_pulse_timer();
                         bubble.stop_spring_timer();
                         bubble.stop_hover_leave_timer();
                         bubble.set_visible(false);
@@ -186,6 +189,18 @@ impl NativeBubbleManager {
                 if let Ok(mut map) = self.bubbles.lock()
                     && let Some(bubble) = map.get_mut(&account_index) {
                         bubble.set_unread_count(count);
+                    }
+            }
+            NativeBubbleAction::SetAlertState { account_index, unread_count, alert_active } => {
+                if let Ok(mut map) = self.bubbles.lock()
+                    && let Some(bubble) = map.get_mut(&account_index) {
+                        bubble.set_alert_state(unread_count, alert_active);
+                    }
+            }
+            NativeBubbleAction::SetChatOpen { account_index, is_open } => {
+                if let Ok(mut map) = self.bubbles.lock()
+                    && let Some(bubble) = map.get_mut(&account_index) {
+                        bubble.set_chat_open(is_open);
                     }
             }
             NativeBubbleAction::TriggerPulse { account_index } => {
@@ -371,6 +386,15 @@ impl NativeBubbleManager {
         !finished
     }
 
+    /// Handles GLib two-speed heartbeat timer tick, returning true to keep current interval
+    pub fn on_pulse_timer_tick(&self, account_index: u32) -> bool {
+        if let Ok(mut map) = self.bubbles.lock()
+            && let Some(bubble) = map.get_mut(&account_index) {
+                return bubble.on_pulse_tick();
+            }
+        false
+    }
+
     /// Handles GLib hover leave debounce expiration with Windows parity guards
     pub fn on_hover_leave_timer_tick(&self, account_index: u32) {
         let mut app_handle_opt = None;
@@ -421,6 +445,23 @@ pub unsafe extern "C" fn hover_leave_timer_callback(user_data: *mut std::ffi::c_
 /// Safe no-op stub for non-Linux targets.
 #[cfg(not(target_os = "linux"))]
 pub unsafe extern "C" fn hover_leave_timer_callback(_user_data: *mut std::ffi::c_void) -> i32 { 0 }
+
+/// GLib two-speed heartbeat animation timer callback
+///
+/// # Safety
+/// `user_data` encodes the numeric `account_index` value cast as a raw pointer.
+#[cfg(target_os = "linux")]
+pub unsafe extern "C" fn pulse_timer_callback(user_data: *mut std::ffi::c_void) -> i32 {
+    let account_index = user_data as usize as u32;
+    if NativeBubbleManager::global().on_pulse_timer_tick(account_index) { 1 } else { 0 }
+}
+
+/// Fallback for non-Linux targets
+///
+/// # Safety
+/// Safe no-op stub for non-Linux targets.
+#[cfg(not(target_os = "linux"))]
+pub unsafe extern "C" fn pulse_timer_callback(_user_data: *mut std::ffi::c_void) -> i32 { 0 }
 
 /// Utility function to update cached bounds
 pub fn update_cached_bubble_bounds(account_index: u32, x: i32, y: i32, w: u32, h: u32) {

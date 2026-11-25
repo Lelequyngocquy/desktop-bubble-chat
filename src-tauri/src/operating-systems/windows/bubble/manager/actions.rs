@@ -80,6 +80,16 @@ pub(super) fn handle_bubble_action(
                 win.set_unread_count(count);
             }
         }
+        NativeBubbleAction::SetAlertState { account_index, unread_count, alert_active } => {
+            if let Some(win) = bubbles.get(&account_index) {
+                win.set_alert_state(unread_count, alert_active);
+            }
+        }
+        NativeBubbleAction::SetChatOpen { account_index, is_open } => {
+            if let Some(win) = bubbles.get(&account_index) {
+                win.set_chat_open(is_open);
+            }
+        }
         NativeBubbleAction::TriggerPulse { account_index } => {
             if let Some(win) = bubbles.get(&account_index) {
                 win.trigger_pulse();

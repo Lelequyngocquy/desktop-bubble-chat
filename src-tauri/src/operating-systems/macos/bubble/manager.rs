@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, OnceLock, RwLock};
+use std::sync::{Arc, Condvar, Mutex, OnceLock, RwLock};
 use tauri::{AppHandle, Manager};
 use super::window::MacOSBubbleWindowState;
 
@@ -11,6 +11,8 @@ pub enum NativeBubbleAction {
     SetPosition { account_index: u32, x: i32, y: i32 },
     AnimateTo { account_index: u32, target_x: i32, target_y: i32, duration_ms: u64 },
     SetUnread { account_index: u32, count: u32 },
+    SetAlertState { account_index: u32, unread_count: u32, alert_active: bool },
+    SetChatOpen { account_index: u32, is_open: bool },
     TriggerPulse { account_index: u32 },
     Tuck { account_index: u32, app: AppHandle },
     Untuck { account_index: u32, app: AppHandle, mode: crate::movement::UntuckMode },
@@ -30,6 +32,7 @@ pub struct NativeBubbleManager {
     token_seq: AtomicU64,
     is_always_on_top: AtomicBool,
     anim_loop_running: AtomicBool,
+    anim_wake: (Mutex<u64>, Condvar),
 }
 
 static GLOBAL_MANAGER: OnceLock<NativeBubbleManager> = OnceLock::new();
@@ -44,7 +47,17 @@ impl NativeBubbleManager {
             token_seq: AtomicU64::new(1),
             is_always_on_top: AtomicBool::new(true),
             anim_loop_running: AtomicBool::new(false),
+            anim_wake: (Mutex::new(0), Condvar::new()),
         })
+    }
+
+    /// Signals background animation driver to wake immediately when spring or alert state changes
+    fn wake_animation_driver(&self) {
+        let (lock, cvar) = &self.anim_wake;
+        if let Ok(mut seq) = lock.lock() {
+            *seq = seq.wrapping_add(1);
+            cvar.notify_one();
+        }
     }
 
     /// Shuts down native bubbles if manager was initialized
@@ -122,19 +135,24 @@ impl NativeBubbleManager {
     }
 
     fn ensure_animation_driver_running(&self) {
+        self.wake_animation_driver();
         #[cfg(target_os = "macos")]
         if !cfg!(test) && self.anim_loop_running.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
             std::thread::spawn(|| {
+                let mgr = Self::global();
                 loop {
-                    std::thread::sleep(std::time::Duration::from_millis(16));
-                    let (tx, rx) = std::sync::mpsc::channel::<bool>();
+                    let (tx, rx) = std::sync::mpsc::channel::<Option<u64>>();
                     super::window::ffi::run_on_macos_main_thread(move || {
-                        let still_animating = Self::global().step_all_animations_on_main_thread();
-                        let _ = tx.send(still_animating);
+                        let next_delay = Self::global().step_all_animations_on_main_thread();
+                        let _ = tx.send(next_delay);
                     });
-                    if !rx.recv().unwrap_or(false) {
-                        Self::global().anim_loop_running.store(false, Ordering::SeqCst);
+                    let Some(sleep_ms) = rx.recv().ok().flatten() else {
+                        mgr.anim_loop_running.store(false, Ordering::SeqCst);
                         break;
+                    };
+                    let (lock, cvar) = &mgr.anim_wake;
+                    if let Ok(guard) = lock.lock() {
+                        let _ = cvar.wait_timeout(guard, std::time::Duration::from_millis(sleep_ms));
                     }
                 }
             });
@@ -142,13 +160,13 @@ impl NativeBubbleManager {
         #[cfg(not(target_os = "macos"))]
         {
             let _ = self.anim_loop_running.load(Ordering::Relaxed);
-            self.step_all_animations_on_main_thread();
+            let _ = self.step_all_animations_on_main_thread();
         }
     }
 
-    /// Advances all active spring animations by one frame on the main thread
-    pub fn step_all_animations_on_main_thread(&self) -> bool {
-        let mut any_active = false;
+    /// Advances all active spring and two-speed heartbeat animations, returning next sleep delay in ms
+    pub fn step_all_animations_on_main_thread(&self) -> Option<u64> {
+        let mut min_delay: Option<u64> = None;
         let mut updates = Vec::new();
         if let Ok(mut map) = self.bubbles.lock() {
             for (&idx, bubble) in map.iter_mut() {
@@ -156,11 +174,17 @@ impl NativeBubbleManager {
                     && let Some((nx, ny, finished)) = bubble.step_animation() {
                         updates.push((idx, nx, ny, bubble.bubble_size, finished, bubble.app_handle.clone()));
                         if !finished {
-                            any_active = true;
+                            min_delay = Some(min_delay.map_or(16, |d| d.min(16)));
                         } else {
                             bubble.render_and_update();
                         }
                     }
+                if bubble.is_visible && bubble.heartbeat.should_animate() {
+                    bubble.render_and_update();
+                    if let Some(delay) = bubble.heartbeat.next_delay_ms() {
+                        min_delay = Some(min_delay.map_or(delay, |d| d.min(delay)));
+                    }
+                }
             }
         }
         for (idx, nx, ny, bsz, finished, app_opt) in updates {
@@ -171,7 +195,7 @@ impl NativeBubbleManager {
                     cs.set_bubble_rect(idx, crate::movement::BubbleRect { account_index: idx, x: nx, y: ny, width: bsz as i32, height: bsz as i32 });
                 }
         }
-        any_active
+        min_delay
     }
 
     fn animate_displaced_siblings(&self, siblings: Vec<(u32, i32, i32, u64)>) {
@@ -236,11 +260,42 @@ impl NativeBubbleManager {
                         bubble.set_unread_count(count);
                     }
             }
+            NativeBubbleAction::SetAlertState { account_index, unread_count, alert_active } => {
+                let mut needs_driver = false;
+                if let Ok(mut map) = self.bubbles.lock()
+                    && let Some(bubble) = map.get_mut(&account_index) {
+                        bubble.set_alert_state(unread_count, alert_active);
+                        needs_driver = bubble.heartbeat.should_animate();
+                    }
+                if needs_driver {
+                    self.ensure_animation_driver_running();
+                } else {
+                    self.wake_animation_driver();
+                }
+            }
+            NativeBubbleAction::SetChatOpen { account_index, is_open } => {
+                let mut needs_driver = false;
+                if let Ok(mut map) = self.bubbles.lock()
+                    && let Some(bubble) = map.get_mut(&account_index) {
+                        bubble.set_chat_open(is_open);
+                        needs_driver = bubble.heartbeat.should_animate();
+                    }
+                if needs_driver {
+                    self.ensure_animation_driver_running();
+                } else {
+                    self.wake_animation_driver();
+                }
+            }
             NativeBubbleAction::TriggerPulse { account_index } => {
+                let mut needs_driver = false;
                 if let Ok(mut map) = self.bubbles.lock()
                     && let Some(bubble) = map.get_mut(&account_index) {
                         bubble.trigger_pulse();
+                        needs_driver = bubble.heartbeat.should_animate();
                     }
+                if needs_driver {
+                    self.ensure_animation_driver_running();
+                }
             }
             NativeBubbleAction::Tuck { account_index, app } => {
                 let displaced = if let Ok(mut map) = self.bubbles.lock() {
@@ -288,6 +343,7 @@ impl NativeBubbleManager {
                 if let Ok(mut map) = self.bubbles.lock() {
                     map.clear();
                 }
+                self.wake_animation_driver();
             }
         }
     }
@@ -392,7 +448,15 @@ impl NativeBubbleManager {
 
     /// Handles mouse exit with 80ms debounce and chat/pin/drag guards matching Windows
     pub fn handle_mouse_leave(&self, account_index: u32) {
-        let armed = self.bubbles.lock().ok().and_then(|mut map| map.get_mut(&account_index).map(|b| b.on_mouse_leave())).unwrap_or(false);
+        let (armed, needs_driver) = self
+            .bubbles
+            .lock()
+            .ok()
+            .and_then(|mut map| map.get_mut(&account_index).map(|b| (b.on_mouse_leave(), b.heartbeat.should_animate())))
+            .unwrap_or((false, false));
+        if needs_driver {
+            self.ensure_animation_driver_running();
+        }
         if !armed {
             return;
         }

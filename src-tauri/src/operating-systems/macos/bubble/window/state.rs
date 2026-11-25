@@ -4,7 +4,7 @@ use super::panel::MacOSPanelController;
 use super::types::*;
 use tauri::Manager;
 use crate::movement::{BubbleDropPlan, BubbleInteractionFlags, BubbleMovementEngine, BubblePhysicsConfig, BubbleRect, ScreenMetrics, UntuckMode};
-use crate::operating_systems::macos::bubble::animator::SpringAnimationState;
+use crate::operating_systems::macos::bubble::animator::{HeartbeatAnimationState, SpringAnimationState};
 use crate::operating_systems::macos::bubble::renderer::{render_bubble_bgra, BubbleRenderOptions};
 use crate::state::ChatState;
 
@@ -48,6 +48,7 @@ pub struct MacOSBubbleWindowState {
     pub bubble_size: u32,
     pub unread_count: u32,
     pub is_hovered: bool,
+    pub is_chat_open: bool,
     pub is_left_edge: bool,
     pub is_always_on_top: bool,
     pub is_visible: bool,
@@ -59,6 +60,7 @@ pub struct MacOSBubbleWindowState {
     pub drag_start_bubble_y: i32,
     pub is_tucked: bool,
     pub anim_state: SpringAnimationState,
+    pub heartbeat: HeartbeatAnimationState,
     pub app_handle: Option<tauri::AppHandle>,
 }
 
@@ -85,6 +87,7 @@ impl MacOSBubbleWindowState {
             bubble_size,
             unread_count: 0,
             is_hovered: false,
+            is_chat_open: false,
             is_left_edge,
             is_always_on_top: true,
             is_visible: false,
@@ -96,6 +99,7 @@ impl MacOSBubbleWindowState {
             drag_start_bubble_y: y,
             is_tucked: false,
             anim_state: SpringAnimationState::default(),
+            heartbeat: HeartbeatAnimationState::default(),
             app_handle: None,
         };
         if !inst.panel.is_null() {
@@ -136,6 +140,7 @@ impl MacOSBubbleWindowState {
         let canvas_w = self.bubble_size + 2 * (BUBBLE_CANVAS_PAD_X as u32);
         let canvas_h = self.bubble_size + 2 * (BUBBLE_CANVAS_PAD_Y as u32);
         MacOSPanelController::update_panel_hit_metadata(self.panel, (self.bubble_size as f64) / scale, self.unread_count, self.is_left_edge);
+        let hb = self.heartbeat.current_frame();
         let opts = BubbleRenderOptions {
             canvas_width: canvas_w,
             canvas_height: canvas_h,
@@ -144,17 +149,49 @@ impl MacOSBubbleWindowState {
             is_hovered: self.is_hovered,
             is_left_edge: self.is_left_edge,
             unread_count: self.unread_count,
-            ..Default::default()
+            has_alert_ring: self.heartbeat.is_alert_active,
+            beat_scale: hb.beat_scale,
+            ripple_progress: hb.ripple_progress,
+            ripple_alpha: hb.ripple_alpha,
         };
         if let Some(bgra_data) = render_bubble_bgra(&opts) {
             MacOSPanelController::update_panel_layer_contents(self.panel, &bgra_data, canvas_w as usize, canvas_h as usize, scale);
         }
     }
 
-    /// Updates unread badge count
+    /// Synchronizes heartbeat pause state from hover, drag, and chat-open flags
+    pub fn sync_heartbeat_pause(&mut self) {
+        let paused = self.is_hovered || self.is_dragging || self.is_chat_open;
+        self.heartbeat.set_paused(paused);
+    }
+
+    /// Updates unread badge count and clears alert state when zero
     pub fn set_unread_count(&mut self, count: u32) {
-        if self.unread_count != count {
-            self.unread_count = count;
+        let alert_cleared = count == 0 && self.heartbeat.set_alert_active(false);
+        let count_changed = self.unread_count != count;
+        self.unread_count = count;
+        if count_changed || alert_cleared {
+            self.sync_heartbeat_pause();
+            self.render_and_update();
+        }
+    }
+
+    /// Updates unread badge count and alert animation state together
+    pub fn set_alert_state(&mut self, unread_count: u32, alert_active: bool) {
+        let count_changed = self.unread_count != unread_count;
+        self.unread_count = unread_count;
+        let alert_changed = self.heartbeat.set_alert_active(alert_active);
+        self.sync_heartbeat_pause();
+        if count_changed || alert_changed {
+            self.render_and_update();
+        }
+    }
+
+    /// Updates chat-open state to pause or resume heartbeat animation
+    pub fn set_chat_open(&mut self, is_open: bool) {
+        if self.is_chat_open != is_open {
+            self.is_chat_open = is_open;
+            self.sync_heartbeat_pause();
             self.render_and_update();
         }
     }
@@ -165,6 +202,7 @@ impl MacOSBubbleWindowState {
         MacOSPanelController::set_panel_visible(self.panel, visible);
         if visible {
             MacOSPanelController::set_panel_always_on_top(self.panel, self.is_always_on_top);
+            self.sync_heartbeat_pause();
             self.render_and_update();
         }
     }
@@ -225,6 +263,7 @@ impl MacOSBubbleWindowState {
         }
         self.is_dragging = false;
         self.is_hovered = false;
+        self.sync_heartbeat_pause();
         MacOSPanelController::set_panel_alpha(self.panel, 1.0);
         if self.has_dragged {
             self.finalize_drop_interaction()
@@ -246,17 +285,18 @@ impl MacOSBubbleWindowState {
     /// Collects current interaction and alert flags for tuck eligibility
     pub fn interaction_flags(&self, app_opt: Option<&tauri::AppHandle>) -> BubbleInteractionFlags {
         let (is_chat_open, is_chat_pinned, is_free_position, is_alert_active) = if let Some(app) = app_opt {
-            let chat_open = crate::platforms::messenger::windows::get_messenger_webview(app, self.account_index)
-                .and_then(|w| w.is_visible().ok())
-                .unwrap_or(false);
+            let chat_open = self.is_chat_open
+                || crate::platforms::messenger::windows::get_messenger_webview(app, self.account_index)
+                    .and_then(|w| w.is_visible().ok())
+                    .unwrap_or(false);
             let (pinned, alert) = app
                 .try_state::<Arc<ChatState>>()
                 .map(|cs| (cs.is_chat_pinned(self.account_index), cs.is_account_alert_active(self.account_index)))
                 .unwrap_or((false, false));
             let free = crate::movement::get_bubble_physics_config(app).is_free_position;
-            (chat_open, pinned, free, alert)
+            (chat_open, pinned, free, alert || self.heartbeat.is_alert_active)
         } else {
-            (false, false, false, false)
+            (self.is_chat_open, false, false, self.heartbeat.is_alert_active)
         };
         BubbleInteractionFlags {
             is_hovered: self.is_hovered,
@@ -341,13 +381,20 @@ impl MacOSBubbleWindowState {
         self.render_and_update();
     }
 
-    /// Triggers bubble pulse animation - no-op matching Windows
-    pub fn trigger_pulse(&mut self) {}
+    /// Restarts heartbeat cycle when alert is active
+    pub fn trigger_pulse(&mut self) {
+        if self.heartbeat.is_alert_active {
+            self.heartbeat.reset_cycle();
+            self.render_and_update();
+        }
+    }
 
     /// Handles mouse button press
     pub fn on_mouse_down(&mut self, mouse_x: i32, mouse_y: i32) {
         self.start_drag(mouse_x, mouse_y);
         self.has_dragged = false;
+        self.sync_heartbeat_pause();
+        self.render_and_update();
         crate::utils::trim_controller::record_user_interaction(self.account_index);
         if let Some(app) = &self.app_handle {
             crate::platforms::messenger::windows::set_chat_window_memory_target(app, self.account_index, false);
@@ -418,8 +465,12 @@ impl MacOSBubbleWindowState {
         let app_opt = self.app_handle.clone();
         if self.has_dragged {
             self.is_hovered = false;
+            self.sync_heartbeat_pause();
+            self.render_and_update();
             return self.finalize_drop_interaction();
         }
+        self.sync_heartbeat_pause();
+        self.render_and_update();
         if let Some(app) = app_opt {
             let idx = self.account_index;
             tauri::async_runtime::spawn(async move {
@@ -435,6 +486,7 @@ impl MacOSBubbleWindowState {
     pub fn on_mouse_enter(&mut self) -> Vec<(u32, i32, i32, u64)> {
         if !self.is_hovered {
             self.is_hovered = true;
+            self.sync_heartbeat_pause();
             self.render_and_update();
             crate::utils::trim_controller::record_user_interaction(self.account_index);
             if let Some(app) = self.app_handle.clone() {
@@ -450,6 +502,7 @@ impl MacOSBubbleWindowState {
     pub fn on_mouse_leave(&mut self) -> bool {
         if !self.is_dragging && self.is_hovered {
             self.is_hovered = false;
+            self.sync_heartbeat_pause();
             self.render_and_update();
             return true;
         }
@@ -482,6 +535,15 @@ mod tests {
         state.set_position(200, 250);
         assert_eq!(state.x, 200);
         assert_eq!(state.y, 250);
+        state.set_visible(true);
+        state.set_alert_state(5, true);
+        assert!(state.heartbeat.should_animate());
+        state.set_chat_open(true);
+        assert!(!state.heartbeat.should_animate());
+        state.set_chat_open(false);
+        assert!(state.heartbeat.should_animate());
+        state.set_unread_count(0);
+        assert!(!state.heartbeat.is_alert_active);
     }
 
     #[test]

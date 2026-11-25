@@ -26,10 +26,13 @@ pub struct BubbleWindowState {
     // Display state
     pub is_hovered: bool,
     pub unread_count: u32,
+    pub is_chat_open: bool,
     pub drag_alpha: u8,
 
-    // 60 FPS spring animation state
+    // 60 FPS spring and two-speed heartbeat animation states
     pub anim_state: crate::operating_systems::windows::bubble::animator::SpringAnimationState,
+    pub heartbeat: crate::operating_systems::windows::bubble::animator::HeartbeatAnimationState,
+    pub pulse_timer_interval_ms: u32,
 
     // SSOT connection to Tauri AppHandle
     pub app_handle: Option<AppHandle>,
@@ -110,6 +113,7 @@ impl BubbleWindowState {
 
     /// Updates and redraws bubble content via UpdateLayeredWindow.
     pub fn update_layered_buffer(&mut self) {
+        let hb = self.heartbeat.current_frame();
         let opts = BubbleRenderOptions {
             canvas_width: self.width,
             canvas_height: self.height,
@@ -118,7 +122,10 @@ impl BubbleWindowState {
             is_hovered: self.is_hovered,
             is_left_edge: self.is_at_left_edge(),
             unread_count: self.unread_count,
-            ..Default::default()
+            has_alert_ring: self.heartbeat.is_alert_active,
+            beat_scale: hb.beat_scale,
+            ripple_progress: hb.ripple_progress,
+            ripple_alpha: hb.ripple_alpha,
         };
         if let Some(bgra) = render_bubble_bgra(&opts) {
             unsafe {
@@ -183,20 +190,61 @@ impl BubbleWindowState {
         }
     }
 
+    /// Synchronizes heartbeat paused flag from hover, drag, and chat-open state without rendering.
+    pub fn sync_heartbeat_pause_flag(&mut self) -> bool {
+        let paused = self.is_hovered || self.is_dragging || self.is_chat_open;
+        self.heartbeat.set_paused(paused)
+    }
+
+    /// Synchronizes heartbeat pause state, timer scheduling, and redraw when pause state changes.
+    pub fn sync_heartbeat_pause(&mut self) {
+        let changed = self.sync_heartbeat_pause_flag();
+        if changed || (self.heartbeat.should_animate() && self.pulse_timer_interval_ms == 0) {
+            self.sync_heartbeat_timer_and_render();
+        }
+    }
+
+    /// Stops active Win32 heartbeat timer immediately.
+    pub fn stop_heartbeat_timer(&mut self) {
+        if self.pulse_timer_interval_ms != 0 {
+            unsafe {
+                KillTimer(self.hwnd, TIMER_ID_PULSE);
+            }
+            self.pulse_timer_interval_ms = 0;
+        }
+    }
+
+    /// Arms or disarms the two-speed Win32 heartbeat timer (16ms beat / sleep rest) and redraws.
+    pub fn sync_heartbeat_timer_and_render(&mut self) {
+        if let Some(delay_ms) = self.heartbeat.next_delay_ms() {
+            let target_ms = delay_ms as u32;
+            if self.pulse_timer_interval_ms != target_ms {
+                unsafe {
+                    SetTimer(self.hwnd, TIMER_ID_PULSE, target_ms, None);
+                }
+                self.pulse_timer_interval_ms = target_ms;
+            }
+        } else {
+            self.stop_heartbeat_timer();
+        }
+        self.update_layered_buffer();
+    }
+
     /// Collects current interaction, chat, and alert flags for tuck eligibility checks.
     pub fn interaction_flags(&self) -> BubbleInteractionFlags {
         let (is_chat_open, is_chat_pinned, is_free_position, is_alert_active) = if let Some(app) = &self.app_handle {
-            let chat_open = crate::platforms::messenger::windows::get_messenger_webview(app, self.account_index)
-                .and_then(|w| w.is_visible().ok())
-                .unwrap_or(false);
+            let chat_open = self.is_chat_open
+                || crate::platforms::messenger::windows::get_messenger_webview(app, self.account_index)
+                    .and_then(|w| w.is_visible().ok())
+                    .unwrap_or(false);
             let (pinned, alert) = app
                 .try_state::<Arc<ChatState>>()
                 .map(|cs| (cs.is_chat_pinned(self.account_index), cs.is_account_alert_active(self.account_index)))
                 .unwrap_or((false, false));
             let free = crate::movement::get_bubble_physics_config(app).is_free_position;
-            (chat_open, pinned, free, alert)
+            (chat_open, pinned, free, alert || self.heartbeat.is_alert_active)
         } else {
-            (false, false, false, false)
+            (self.is_chat_open, false, false, self.heartbeat.is_alert_active)
         };
         BubbleInteractionFlags {
             is_hovered: self.is_hovered,

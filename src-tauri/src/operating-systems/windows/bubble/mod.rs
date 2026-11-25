@@ -53,6 +53,25 @@ pub fn set_native_bubble_unread_count(account_index: u32, count: u32) {
     NativeBubbleManager::global().dispatch(NativeBubbleAction::SetUnread { account_index, count });
 }
 
+/// Updates unread badge count and heartbeat alert eligibility for native bubble.
+#[cfg(target_os = "windows")]
+pub fn set_native_bubble_alert_state(account_index: u32, unread_count: u32, alert_active: bool) {
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::SetAlertState {
+        account_index,
+        unread_count,
+        alert_active,
+    });
+}
+
+/// Updates whether the account chat window is open to pause or resume heartbeat animation.
+#[cfg(target_os = "windows")]
+pub fn set_native_bubble_chat_open(account_index: u32, is_open: bool) {
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::SetChatOpen {
+        account_index,
+        is_open,
+    });
+}
+
 /// Triggers pulse wave animation for native bubble on new message.
 #[cfg(target_os = "windows")]
 pub fn trigger_native_bubble_pulse(account_index: u32) {
