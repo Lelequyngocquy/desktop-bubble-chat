@@ -457,19 +457,20 @@ mod tests {
 
     #[test]
     fn test_top_left_physical_to_cocoa_rect_retina_with_dock_exclusion() {
-        // 1440x900pt @2x Retina primary display with 74px menu bar and 140px Dock
-        let rect = MacOSPanelController::top_left_physical_to_cocoa_rect_with_primary_height(60, 74, 172, 136, 900.0, 2.0);
+        // 1440x900pt @2x Retina primary display with 74px menu bar and 24px vertical canvas pad
+        let rect = MacOSPanelController::top_left_physical_to_cocoa_rect_with_primary_height(60, 74, 172, 160, 900.0, 2.0);
         assert_eq!(rect.origin.x, 15.0);
-        assert_eq!(rect.origin.y, 900.0 - 31.0 - 68.0);
+        assert_eq!(rect.origin.y, 900.0 - 25.0 - 80.0);
         assert_eq!(rect.size.width, 86.0);
-        assert_eq!(rect.size.height, 68.0);
+        assert_eq!(rect.size.height, 80.0);
     }
 
     #[test]
     fn test_circular_bubble_hit_zone() {
-        assert!(is_point_in_bubble_hit_zone(58.0, 40.0, 116.0, 80.0, 56.0, 0, true));
-        assert!(!is_point_in_bubble_hit_zone(5.0, 5.0, 116.0, 80.0, 56.0, 0, true));
-        assert!(is_point_in_bubble_hit_zone(83.0, 61.0, 116.0, 80.0, 56.0, 3, true));
-        assert!(!is_point_in_bubble_hit_zone(83.0, 61.0, 116.0, 80.0, 56.0, 0, true));
+        assert!(is_point_in_bubble_hit_zone(58.0, 52.0, 116.0, 104.0, 56.0, 0, true));
+        assert!(!is_point_in_bubble_hit_zone(5.0, 5.0, 116.0, 104.0, 56.0, 0, true));
+        assert!(!is_point_in_bubble_hit_zone(58.0, 88.0, 116.0, 104.0, 56.0, 3, true));
+        assert!(is_point_in_bubble_hit_zone(83.0, 73.0, 116.0, 104.0, 56.0, 3, true));
+        assert!(!is_point_in_bubble_hit_zone(83.0, 73.0, 116.0, 104.0, 56.0, 0, true));
     }
 }

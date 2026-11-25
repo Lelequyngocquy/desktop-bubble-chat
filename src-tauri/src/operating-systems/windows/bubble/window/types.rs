@@ -206,6 +206,7 @@ pub const WM_DESTROY: u32 = 0x0002;
 pub const WM_PAINT: u32 = 0x000F;
 pub const WM_ERASEBKGND: u32 = 0x0014;
 pub const WM_SETCURSOR: u32 = 0x0020;
+pub const WM_NCHITTEST: u32 = 0x0084;
 pub const WM_TIMER: u32 = 0x0113;
 pub const WM_NCDESTROY: u32 = 0x0082;
 pub const WM_MOUSEMOVE: u32 = 0x0200;
@@ -213,6 +214,9 @@ pub const WM_LBUTTONDOWN: u32 = 0x0201;
 pub const WM_LBUTTONUP: u32 = 0x0202;
 pub const WM_CAPTURECHANGED: u32 = 0x0215;
 pub const WM_MOUSELEAVE: u32 = 0x02A3;
+
+pub const HTCLIENT: isize = 1;
+pub const HTTRANSPARENT: isize = -1;
 
 pub const TIMER_ID_PULSE: usize = 1001;
 pub const TIMER_ID_SPRING: usize = 1002;
@@ -222,6 +226,6 @@ pub const TME_LEAVE: u32 = 0x00000002;
 pub const CLASS_NAME: &str = "DesktopBubbleChat_NativeBubble\0";
 
 // Transparent canvas padding extending HWND window dimensions.
-// Allows unread badge to sit outside bubble body without clipping.
+// Allows unread badge and heartbeat ripple wave to render cleanly across HiDPI without clipping.
 pub const BUBBLE_CANVAS_PAD_X: i32 = 30;
-pub const BUBBLE_CANVAS_PAD_Y: i32 = 12;
+pub const BUBBLE_CANVAS_PAD_Y: i32 = 24;

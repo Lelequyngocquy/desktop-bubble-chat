@@ -1,5 +1,5 @@
 pub const BUBBLE_CANVAS_PAD_X: i32 = 30;
-pub const BUBBLE_CANVAS_PAD_Y: i32 = 12;
+pub const BUBBLE_CANVAS_PAD_Y: i32 = 24;
 
 pub const GTK_WINDOW_TOPLEVEL: i32 = 0;
 pub const GTK_WINDOW_POPUP: i32 = 1;

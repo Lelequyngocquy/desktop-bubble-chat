@@ -96,15 +96,16 @@ fn parity_hover_leave_tuck_guards_match_across_macos_and_linux() {
 
 #[test]
 fn macos_cocoa_y_flip_hit_test_and_cursor_scaling_contracts() {
-    let rect = MacOSPanelController::top_left_physical_to_cocoa_rect_with_primary_height(200, 100, 172, 136, 900.0, 2.0);
+    let rect = MacOSPanelController::top_left_physical_to_cocoa_rect_with_primary_height(200, 100, 172, 160, 900.0, 2.0);
     assert!((rect.size.width - 86.0).abs() < 1e-6);
-    assert!((rect.size.height - 68.0).abs() < 1e-6);
+    assert!((rect.size.height - 80.0).abs() < 1e-6);
     assert!((rect.origin.x - 85.0).abs() < 1e-6);
-    assert!((rect.origin.y - 788.0).abs() < 1e-6);
-    assert!(is_point_in_bubble_hit_zone(58.0, 40.0, 116.0, 80.0, 56.0, 0, true));
-    assert!(!is_point_in_bubble_hit_zone(2.0, 2.0, 116.0, 80.0, 56.0, 0, true));
-    assert!(!is_point_in_bubble_hit_zone(83.0, 61.0, 116.0, 80.0, 56.0, 0, true));
-    assert!(is_point_in_bubble_hit_zone(83.0, 61.0, 116.0, 80.0, 56.0, 3, true));
+    assert!((rect.origin.y - 782.0).abs() < 1e-6);
+    assert!(is_point_in_bubble_hit_zone(58.0, 52.0, 116.0, 104.0, 56.0, 0, true));
+    assert!(!is_point_in_bubble_hit_zone(2.0, 2.0, 116.0, 104.0, 56.0, 0, true));
+    assert!(!is_point_in_bubble_hit_zone(58.0, 88.0, 116.0, 104.0, 56.0, 3, true));
+    assert!(!is_point_in_bubble_hit_zone(83.0, 73.0, 116.0, 104.0, 56.0, 0, true));
+    assert!(is_point_in_bubble_hit_zone(83.0, 73.0, 116.0, 104.0, 56.0, 3, true));
     assert_eq!(MacOSCursorTracker::quartz_point_to_physical(500.0, 300.0, 2.0), (1000, 600));
     assert_eq!(MacOSDialogManager::resolve_confirm_button_labels("Xác nhận thoát", "Bạn có chắc"), ("Thoát", "Hủy"));
     assert_eq!(MacOSDialogManager::resolve_confirm_button_labels("Confirm Exit", "Are you sure?"), ("Exit", "Cancel"));
@@ -118,7 +119,7 @@ fn linux_hidpi_input_shape_wayland_and_autostart_contracts() {
     assert_eq!(physical_coord_to_logical(400, 2.0), 200);
     assert_eq!(physical_size_to_logical(112, 2.0), 56);
     assert_eq!(logical_root_to_physical(200.0, 2.0), 400);
-    let rects = compute_bubble_input_rects(116, 80, 56, 5, true);
+    let rects = compute_bubble_input_rects(116, 104, 56, 5, true);
     assert!(!rects.is_empty());
     assert!(rects.iter().all(|r| r.width > 0 && r.height > 0 && r.x >= 0 && r.y >= 0));
     assert!(LinuxCursorTracker::classify_gdk_display_name("wayland-0"));

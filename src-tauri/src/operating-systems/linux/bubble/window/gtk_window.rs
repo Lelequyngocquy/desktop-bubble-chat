@@ -432,10 +432,10 @@ mod tests {
 
     #[test]
     fn test_compute_bubble_input_rects_circular_shape() {
-        let no_badge = compute_bubble_input_rects(116, 80, 56, 0, true);
-        let with_badge = compute_bubble_input_rects(116, 80, 56, 5, true);
+        let no_badge = compute_bubble_input_rects(116, 104, 56, 0, true);
+        let with_badge = compute_bubble_input_rects(116, 104, 56, 5, true);
         assert!(!no_badge.is_empty());
         assert_eq!(with_badge.len(), no_badge.len() + 1);
-        assert!(no_badge.iter().all(|r| r.x >= 0 && r.width <= 62));
+        assert!(no_badge.iter().all(|r| r.x >= 0 && r.width <= 62 && r.y >= 20 && r.y + r.height <= 84));
     }
 }

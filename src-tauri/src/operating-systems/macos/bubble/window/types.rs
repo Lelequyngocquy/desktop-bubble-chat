@@ -1,5 +1,5 @@
 pub const BUBBLE_CANVAS_PAD_X: i32 = 30;
-pub const BUBBLE_CANVAS_PAD_Y: i32 = 12;
+pub const BUBBLE_CANVAS_PAD_Y: i32 = 24;
 
 pub const NS_WINDOW_STYLE_MASK_BORDERLESS: usize = 0;
 pub const NS_WINDOW_STYLE_MASK_NONACTIVATING_PANEL: usize = 1 << 7;

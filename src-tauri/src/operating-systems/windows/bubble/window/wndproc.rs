@@ -9,6 +9,40 @@ use super::types::*;
 use crate::state::ChatState;
 use drag_snap::{finish_drag_and_snap, handle_hover_leave_timer, handle_spring_timer};
 
+/// Evaluates Win32 WM_NCHITTEST result so transparent padding and outer ripple pixels stay click-through.
+#[allow(clippy::too_many_arguments)]
+pub fn hit_test_bubble_screen_point(
+    screen_x: i32,
+    screen_y: i32,
+    bubble_x: i32,
+    bubble_y: i32,
+    canvas_w: u32,
+    canvas_h: u32,
+    bubble_size: u32,
+    unread_count: u32,
+    is_left_edge: bool,
+    is_dragging: bool,
+) -> isize {
+    if is_dragging {
+        return HTCLIENT;
+    }
+    let local_x = (screen_x - (bubble_x - BUBBLE_CANVAS_PAD_X)) as f32;
+    let local_y = (screen_y - (bubble_y - BUBBLE_CANVAS_PAD_Y)) as f32;
+    if crate::presentation::bubble::renderer::is_point_in_bubble_or_badge_top_down(
+        local_x,
+        local_y,
+        canvas_w as f32,
+        canvas_h as f32,
+        bubble_size as f32,
+        unread_count,
+        is_left_edge,
+    ) {
+        HTCLIENT
+    } else {
+        HTTRANSPARENT
+    }
+}
+
 /// Window Procedure handling Win32 messages for native bubbles.
 ///
 /// # Safety
@@ -21,6 +55,26 @@ pub unsafe extern "system" fn native_bubble_wndproc(
 ) -> isize {
     let state_ptr = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut BubbleWindowState };
     match msg {
+        WM_NCHITTEST => {
+            if let Some(state) = unsafe { state_ptr.as_ref() } {
+                let screen_x = (lparam & 0xFFFF) as i16 as i32;
+                let screen_y = ((lparam >> 16) & 0xFFFF) as i16 as i32;
+                hit_test_bubble_screen_point(
+                    screen_x,
+                    screen_y,
+                    state.x,
+                    state.y,
+                    state.width,
+                    state.height,
+                    state.bubble_size,
+                    state.unread_count,
+                    state.is_at_left_edge(),
+                    state.is_dragging,
+                )
+            } else {
+                HTTRANSPARENT
+            }
+        }
         WM_SETCURSOR => {
             unsafe {
                 let h_cursor = LoadCursorW(std::ptr::null_mut(), IDC_HAND as *const u16);
@@ -262,5 +316,28 @@ pub unsafe extern "system" fn native_bubble_wndproc(
             0
         }
         _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_windows_nchittest_click_through_on_outer_ripple_and_negative_monitor() {
+        let bubble_x = -200;
+        let bubble_y = 100;
+        let bubble_size = 56;
+        let canvas_w = bubble_size + 2 * (BUBBLE_CANVAS_PAD_X as u32);
+        let canvas_h = bubble_size + 2 * (BUBBLE_CANVAS_PAD_Y as u32);
+        // Center of bubble hits HTCLIENT even on negative X monitor
+        assert_eq!(hit_test_bubble_screen_point(-172, 128, bubble_x, bubble_y, canvas_w, canvas_h, bubble_size, 3, true, false), HTCLIENT);
+        // Point 36px above center sits inside expanded canvas ripple halo -> must be HTTRANSPARENT
+        assert_eq!(hit_test_bubble_screen_point(-172, 92, bubble_x, bubble_y, canvas_w, canvas_h, bubble_size, 3, true, false), HTTRANSPARENT);
+        // Unread badge to the right of left-edge bubble hits HTCLIENT when unread > 0
+        assert_eq!(hit_test_bubble_screen_point(-138, 120, bubble_x, bubble_y, canvas_w, canvas_h, bubble_size, 3, true, false), HTCLIENT);
+        assert_eq!(hit_test_bubble_screen_point(-138, 120, bubble_x, bubble_y, canvas_w, canvas_h, bubble_size, 0, true, false), HTTRANSPARENT);
+        // Active drag keeps HTCLIENT everywhere
+        assert_eq!(hit_test_bubble_screen_point(-172, 92, bubble_x, bubble_y, canvas_w, canvas_h, bubble_size, 3, true, true), HTCLIENT);
     }
 }
