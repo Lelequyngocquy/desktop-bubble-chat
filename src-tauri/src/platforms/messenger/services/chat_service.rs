@@ -118,6 +118,11 @@ impl ChatService {
             return Ok(());
         }
         hide_all_other_messenger_windows(app, chat_window.label());
+        for other_idx in 1..=MAX_ACCOUNTS {
+            if other_idx != idx {
+                crate::operating_systems::current::bubble::set_native_bubble_chat_open(other_idx, false);
+            }
+        }
         if let Ok(curr_url) = chat_window.url() {
             let u = curr_url.to_string();
             if u.contains("facebook.com") || (!u.is_empty() && u != "about:blank" && !u.contains("messenger.com")) {
@@ -146,6 +151,7 @@ impl ChatService {
             chat_window.set_focus().map_err(|e| e.to_string())?;
         }
         let _ = chat_window.eval("window.__IS_AUTH_MODE__ = false; window.__isWindowFocused = true; window.__IS_PINNED__ = false; if (typeof window.__ensurePinButtonInDom === 'function') { window.__ensurePinButtonInDom(); } if (typeof window.__updatePinButtonUi === 'function') { window.__updatePinButtonUi(false); } window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('resize')); if (typeof window.__cancelAutoUnselectCountdown === 'function') { window.__cancelAutoUnselectCountdown(); } if (typeof window.__ensureChatListVisible === 'function') { window.__ensureChatListVisible(); }");
+        crate::operating_systems::current::bubble::set_native_bubble_chat_open(idx, true);
         let _ = app.emit("bubble-visibility-changed", serde_json::json!({
             "accountIndex": idx,
             "visible": true
@@ -185,6 +191,7 @@ impl ChatService {
                 crate::operating_systems::windows::fullscreen_overlay::hide_window_with_fullscreen_cleanup(&chat_window);
                 #[cfg(not(target_os = "windows"))]
                 let _ = chat_window.hide();
+                crate::operating_systems::current::bubble::set_native_bubble_chat_open(idx, false);
                 let hide_token = app
                     .try_state::<Arc<ChatState>>()
                     .map(|cs| cs.next_chat_anim_token(idx))

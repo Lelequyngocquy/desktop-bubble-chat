@@ -11,13 +11,42 @@ fn is_generic_sender_name(name: &str) -> bool {
         || name.starts_with("Messenger ")
 }
 
+/// Determines whether an alert-state transition should trigger auto-tuck back to the screen edge
+pub fn should_tuck_after_alert_sync(alert_active: bool, was_alert: Option<bool>) -> bool {
+    !alert_active && was_alert != Some(false)
+}
+
+/// Synchronizes native bubble badge, red alert ring, heartbeat animation, and edge reveal with SSOT
+pub fn sync_bubble_alert_state(app: &AppHandle, state: &ChatState, idx: u32, was_alert: Option<bool>) {
+    let unread = state.get_unread_count(idx);
+    let alert_active = state.is_account_alert_active(idx);
+    crate::operating_systems::current::bubble::set_native_bubble_alert_state(idx, unread, alert_active);
+    if !crate::operating_systems::current::bubble::has_native_bubble(idx) {
+        return;
+    }
+    let config = crate::movement::get_bubble_physics_config(app);
+    if config.is_free_position {
+        return;
+    }
+    if alert_active {
+        crate::operating_systems::current::bubble::untuck_native_bubble_with_mode(
+            app,
+            idx,
+            crate::movement::UntuckMode::AlertReveal,
+        );
+    } else if should_tuck_after_alert_sync(alert_active, was_alert) {
+        crate::presentation::bubble::tuck_bubble(app, Some(idx));
+    }
+}
+
 /// Applies badge count to state, clears recent messages when zero, and updates bubble/UI listeners
 pub fn apply_badge_state(app: &AppHandle, state: &ChatState, idx: u32, count: u32) {
+    let was_alert = state.is_account_alert_active(idx);
     state.set_unread_count(idx, count);
     if count == 0 {
         state.clear_recent_messages_for_account(idx);
     }
-    crate::operating_systems::current::bubble::set_native_bubble_unread_count(idx, count);
+    sync_bubble_alert_state(app, state, idx, Some(was_alert));
     let _ = app.emit("badge-updated", serde_json::json!({
         "accountIndex": idx,
         "count": count
@@ -173,4 +202,18 @@ pub fn report_incoming_notification(
     let ts = timestamp.unwrap_or_else(crate::utils::time::now_millis);
     dispatch_incoming_message(&app, &state, idx, &s_name, &b_text, &a_url, &t_id, ts);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_should_tuck_after_alert_sync_transitions() {
+        assert!(!should_tuck_after_alert_sync(true, Some(false)));
+        assert!(!should_tuck_after_alert_sync(true, Some(true)));
+        assert!(!should_tuck_after_alert_sync(false, Some(false)));
+        assert!(should_tuck_after_alert_sync(false, Some(true)));
+        assert!(should_tuck_after_alert_sync(false, None));
+    }
 }

@@ -53,14 +53,20 @@ pub fn get_user_settings(state: tauri::State<'_, Arc<crate::state::ChatState>>) 
     Ok(state.get_user_config())
 }
 
-/// Saves user settings to cache
+/// Saves user settings to cache and refreshes native bubble alert states
 #[tauri::command]
 pub fn save_user_settings(
     app: AppHandle,
     state: tauri::State<'_, Arc<crate::state::ChatState>>,
     settings: crate::utils::user_cache::AppUserConfig,
 ) -> Result<(), String> {
+    let prev_alerts: Vec<(u32, bool)> = (1..=crate::state::MAX_ACCOUNTS)
+        .map(|idx| (idx, state.is_account_alert_active(idx)))
+        .collect();
     state.set_user_config(&app, settings);
+    for (idx, was_alert) in prev_alerts {
+        crate::commands::notification::sync_bubble_alert_state(&app, &state, idx, Some(was_alert));
+    }
     Ok(())
 }
 

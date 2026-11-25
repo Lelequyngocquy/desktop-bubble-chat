@@ -22,14 +22,14 @@ pub fn trigger_native_bubble_pulse_preview(
     Ok(true)
 }
 
-/// Command to test setting native bubble unread badge count
+/// Command to test setting native bubble unread badge count and heartbeat alert preview
 #[tauri::command]
 pub fn set_native_bubble_badge_preview(
     account_index: Option<u32>,
     count: u32,
 ) -> Result<bool, String> {
     let idx = account_index.unwrap_or(1);
-    crate::operating_systems::current::bubble::set_native_bubble_unread_count(idx, count);
+    crate::operating_systems::current::bubble::set_native_bubble_alert_state(idx, count, count > 0);
     Ok(true)
 }
 

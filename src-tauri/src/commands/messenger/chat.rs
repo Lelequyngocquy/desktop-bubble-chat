@@ -170,6 +170,7 @@ pub fn set_account_muted(
     muted: bool,
 ) -> Result<(), String> {
     let idx = ChatState::validate_account_index(account_index)?;
+    let was_alert = state.is_account_alert_active(idx);
     state.set_account_muted(idx, muted);
     state.update_user_config(&app, |c| {
         if muted {
@@ -181,6 +182,7 @@ pub fn set_account_muted(
             c.muted_accounts.retain(|&x| x != idx);
         }
     });
+    crate::commands::notification::sync_bubble_alert_state(&app, &state, idx, Some(was_alert));
     let label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
     println!(
         "\x1b[34m[BE - Audio] {} Messenger {:02} tab audio\x1b[0m",

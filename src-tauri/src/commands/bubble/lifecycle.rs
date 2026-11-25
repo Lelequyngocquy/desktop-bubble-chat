@@ -67,6 +67,9 @@ pub fn resume_account_bubble_and_chat(
     } else {
         ensure_bubble_positioned_and_visible(app, idx)?
     };
+    if let Some(state) = app.try_state::<Arc<ChatState>>() {
+        crate::commands::notification::sync_bubble_alert_state(app, &state, idx, Some(false));
+    }
     let _ = app.emit("bubble-spawned", serde_json::json!({
         "accountIndex": idx,
         "x": rect.x,
