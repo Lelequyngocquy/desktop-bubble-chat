@@ -101,6 +101,7 @@ pub fn draw_unread_badge(
     radius: f32,
     unread_count: u32,
     is_left_edge: bool,
+    transform: Transform,
 ) {
     if unread_count == 0 {
         return;
@@ -164,15 +165,15 @@ pub fn draw_unread_badge(
         pb.line_to(p2_x, p2_y);
         pb.close();
         if let Some(path) = pb.finish() {
-            pixmap.fill_path(&path, &badge_paint, FillRule::Winding, Transform::identity(), None);
-            pixmap.stroke_path(&path, &badge_border_paint, &stroke_border, Transform::identity(), None);
+            pixmap.fill_path(&path, &badge_paint, FillRule::Winding, transform, None);
+            pixmap.stroke_path(&path, &badge_border_paint, &stroke_border, transform, None);
         }
         // Draw digit at circle center
         let ch = char::from_digit(unread_count, 10).unwrap_or('1');
         let mut pb_text = PathBuilder::new();
         draw_glyph(&mut pb_text, ch, bcx - gw / 2.0, bcy - gh / 2.0, gw, gh);
         if let Some(text_path) = pb_text.finish() {
-            pixmap.stroke_path(&text_path, &text_paint, &stroke_text, Transform::identity(), None);
+            pixmap.stroke_path(&text_path, &text_paint, &stroke_text, transform, None);
         }
     } else if unread_count <= 99 {
         // 2. Pointed capsule for two digits (10-99)
@@ -221,8 +222,8 @@ pub fn draw_unread_badge(
             pb.close();
         }
         if let Some(path) = pb.finish() {
-            pixmap.fill_path(&path, &badge_paint, FillRule::Winding, Transform::identity(), None);
-            pixmap.stroke_path(&path, &badge_border_paint, &stroke_border, Transform::identity(), None);
+            pixmap.fill_path(&path, &badge_paint, FillRule::Winding, transform, None);
+            pixmap.stroke_path(&path, &badge_border_paint, &stroke_border, transform, None);
         }
         // Draw 2 digits
         let d1 = char::from_digit(unread_count / 10, 10).unwrap_or('1');
@@ -233,7 +234,7 @@ pub fn draw_unread_badge(
         draw_glyph(&mut pb_text, d1, start_x, start_y, gw, gh);
         draw_glyph(&mut pb_text, d2, start_x + gw + gap, start_y, gw, gh);
         if let Some(text_path) = pb_text.finish() {
-            pixmap.stroke_path(&text_path, &text_paint, &stroke_text, Transform::identity(), None);
+            pixmap.stroke_path(&text_path, &text_paint, &stroke_text, transform, None);
         }
     } else {
         // 3. Pointed capsule for large count ("99+")
@@ -280,8 +281,8 @@ pub fn draw_unread_badge(
             pb.close();
         }
         if let Some(path) = pb.finish() {
-            pixmap.fill_path(&path, &badge_paint, FillRule::Winding, Transform::identity(), None);
-            pixmap.stroke_path(&path, &badge_border_paint, &stroke_border, Transform::identity(), None);
+            pixmap.fill_path(&path, &badge_paint, FillRule::Winding, transform, None);
+            pixmap.stroke_path(&path, &badge_border_paint, &stroke_border, transform, None);
         }
         // Draw 3 characters: '9', '9', '+'
         let chars = ['9', '9', '+'];
@@ -296,7 +297,7 @@ pub fn draw_unread_badge(
             let text_stroke_w = if is_small { 1.15 } else if is_large { 1.35 } else { 1.25 };
             let mut st = stroke_text.clone();
             st.width = text_stroke_w;
-            pixmap.stroke_path(&text_path, &text_paint, &st, Transform::identity(), None);
+            pixmap.stroke_path(&text_path, &text_paint, &st, transform, None);
         }
     }
 }

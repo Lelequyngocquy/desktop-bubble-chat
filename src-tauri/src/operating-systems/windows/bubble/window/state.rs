@@ -118,6 +118,7 @@ impl BubbleWindowState {
             is_hovered: self.is_hovered,
             is_left_edge: self.is_at_left_edge(),
             unread_count: self.unread_count,
+            ..Default::default()
         };
         if let Some(bgra) = render_bubble_bgra(&opts) {
             unsafe {

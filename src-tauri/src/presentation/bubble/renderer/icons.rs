@@ -1,8 +1,8 @@
 use tiny_skia::*;
 
-/// Renders standard Messenger vector icon.
+/// Renders standard Messenger vector icon with an explicit group transform.
 /// Includes speech bubble shell and lightning bolt cutout using FillRule::EvenOdd.
-pub fn draw_messenger_icon(pixmap: &mut Pixmap, cx: f32, cy: f32, radius: f32) {
+pub fn draw_messenger_icon(pixmap: &mut Pixmap, cx: f32, cy: f32, radius: f32, transform: Transform) {
     let icon_size = radius * 1.05; // Standard 50% ratio of bubble diameter
     let s = icon_size / 36.0;
     let tx = |vx: f32| cx + (vx - 18.0) * s;
@@ -35,7 +35,7 @@ pub fn draw_messenger_icon(pixmap: &mut Pixmap, cx: f32, cy: f32, radius: f32) {
             &icon_path,
             &icon_paint,
             FillRule::EvenOdd,
-            Transform::identity(),
+            transform,
             None,
         );
     }

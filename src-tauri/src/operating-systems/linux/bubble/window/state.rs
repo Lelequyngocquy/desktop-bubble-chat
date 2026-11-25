@@ -149,6 +149,7 @@ impl LinuxBubbleWindowState {
             is_hovered: self.is_hovered,
             is_left_edge: self.is_left_edge,
             unread_count: self.unread_count,
+            ..Default::default()
         };
         if let Some(bgra_data) = render_bubble_bgra(&opts) {
             LinuxGtkWindowController::update_window_surface(self.window, &bgra_data, canvas_w as usize, canvas_h as usize, scale);
