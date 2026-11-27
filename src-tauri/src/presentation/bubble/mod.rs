@@ -1,4 +1,5 @@
 ﻿pub mod animator;
+pub mod dock;
 pub mod positioning;
 pub mod renderer;
 pub mod webview;
