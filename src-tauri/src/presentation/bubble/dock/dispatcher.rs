@@ -31,9 +31,6 @@ pub fn execute_dock_action(app: &AppHandle, account_index: u32, action: DockActi
                 let _ = crate::commands::messenger::chat::apply_account_muted(app, &state, account_index, next_muted);
             }
         }
-        DockActionId::Reload => {
-            let _ = crate::platforms::messenger::services::ChatService::refresh(app, account_index);
-        }
         DockActionId::HideBubble => {
             let app_clone = app.clone();
             tauri::async_runtime::spawn(async move {

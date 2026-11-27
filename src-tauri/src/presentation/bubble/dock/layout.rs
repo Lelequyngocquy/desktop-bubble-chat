@@ -1,10 +1,14 @@
 use crate::movement::{BubblePhysicsConfig, BubbleRect, ScreenMetrics};
-use super::model::{DockActionId, DockDirection, DOCK_ACTIONS};
+use super::model::{DockActionId, DockDirection, DockTooltipSide, DOCK_ACTIONS};
 
 pub const DOCK_PAD_X_LOGICAL: f64 = 10.0;
 pub const DOCK_PAD_Y_LOGICAL: f64 = 10.0;
 pub const DOCK_HIDE_EXTRA_GAP_LOGICAL: f64 = 4.0;
 pub const DOCK_HOVER_CORRIDOR_EXTRA_X_LOGICAL: f64 = 6.0;
+pub const DOCK_TOOLTIP_WING_LOGICAL: f64 = 172.0;
+pub const DOCK_TOOLTIP_GAP_LOGICAL: f64 = 8.0;
+pub const DOCK_TOOLTIP_HEIGHT_LOGICAL: f64 = 24.0;
+pub const DOCK_TOOLTIP_PAD_X_LOGICAL: f64 = 9.0;
 
 /// Physical-pixel metrics scaled cleanly from compact logical sizing presets
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -68,6 +72,16 @@ impl ScreenRect {
     }
 }
 
+/// Local-canvas floating tooltip dialog pill geometry and opacity
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DockTooltipPillRect {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub alpha: f32,
+}
+
 /// Complete physical geometry for positioning, rendering, and hit-testing ActionDockWindow
 #[derive(Debug, Clone, PartialEq)]
 pub struct ActionDockLayout {
@@ -76,6 +90,7 @@ pub struct ActionDockLayout {
     pub canvas_width: u32,
     pub canvas_height: u32,
     pub direction: DockDirection,
+    pub tooltip_side: DockTooltipSide,
     pub diameter_px: f32,
     pub scale_factor: f64,
     pub slots: Vec<DockButtonSlot>,
@@ -84,7 +99,7 @@ pub struct ActionDockLayout {
     pub stack_bottom_y: i32,
 }
 
-/// Computes layout for an explicit vertical expansion direction
+/// Computes layout for an explicit vertical expansion direction with inward tooltip wing
 pub fn compute_action_dock_layout_with_direction(
     bubble_x: i32,
     bubble_y: i32,
@@ -96,14 +111,21 @@ pub fn compute_action_dock_layout_with_direction(
 ) -> ActionDockLayout {
     let scale = if screen.scale_factor.is_finite() && screen.scale_factor > 0.25 { screen.scale_factor } else { 1.0 };
     let m = compact_metrics_for_bubble(bubble_size_px, scale);
-    let canvas_w = (m.diameter_px + 2.0 * m.pad_x_px).ceil() as u32;
+    let wing_px = (DOCK_TOOLTIP_WING_LOGICAL * scale).ceil() as f32;
+    let canvas_w = (m.pad_x_px + m.diameter_px + wing_px).ceil() as u32;
     let canvas_h = (m.stack_height_px + 2.0 * m.pad_y_px).ceil() as u32;
     let margin_px = (margin_logical * scale).round() as i32;
     let taskbar_px = (taskbar_margin_logical * scale).round() as i32;
     let work_top = screen.y + margin_px;
     let work_bottom = (screen.y + screen.height - taskbar_px).max(work_top + m.stack_height_px.ceil() as i32);
     let bubble_cx = bubble_x + (bubble_size_px as i32 / 2);
-    let raw_win_x = bubble_cx - (canvas_w as i32 / 2);
+    let screen_mid_x = screen.x + screen.width / 2;
+    let tooltip_side = if bubble_cx < screen_mid_x { DockTooltipSide::Right } else { DockTooltipSide::Left };
+    let edge_offset = (m.diameter_px * 0.5 + m.pad_x_px).round() as i32;
+    let raw_win_x = match tooltip_side {
+        DockTooltipSide::Right => bubble_cx - edge_offset,
+        DockTooltipSide::Left => bubble_cx + edge_offset - canvas_w as i32,
+    };
     let min_win_x = screen.x;
     let max_win_x = (screen.x + screen.width - canvas_w as i32).max(min_win_x);
     let window_x = raw_win_x.clamp(min_win_x, max_win_x);
@@ -152,6 +174,7 @@ pub fn compute_action_dock_layout_with_direction(
         canvas_width: canvas_w,
         canvas_height: canvas_h,
         direction,
+        tooltip_side,
         diameter_px: m.diameter_px,
         scale_factor: scale,
         slots,
@@ -159,6 +182,44 @@ pub fn compute_action_dock_layout_with_direction(
         stack_top_y,
         stack_bottom_y,
     }
+}
+
+/// Computes local-canvas tooltip dialog pill rectangle beside a hovered droplet without clipping borders
+pub fn compute_tooltip_pill_rect(
+    layout: &ActionDockLayout,
+    slot: &DockButtonSlot,
+    text_width_px: f32,
+    hover_t: f32,
+    droplet_alpha: f32,
+) -> Option<DockTooltipPillRect> {
+    let alpha = (hover_t.clamp(0.0, 1.0) * droplet_alpha.clamp(0.0, 1.0)).clamp(0.0, 1.0);
+    if alpha <= 0.01 {
+        return None;
+    }
+    let scale = layout.scale_factor as f32;
+    let gap = (DOCK_TOOLTIP_GAP_LOGICAL as f32) * scale;
+    let pad_x = (DOCK_TOOLTIP_PAD_X_LOGICAL as f32) * scale;
+    let outer_margin = 6.0 * scale;
+    let pill_h = (DOCK_TOOLTIP_HEIGHT_LOGICAL as f32) * scale;
+    let canvas_w = layout.canvas_width as f32;
+    let canvas_h = layout.canvas_height as f32;
+    let slide = (1.0 - hover_t.clamp(0.0, 1.0)) * 4.0 * scale;
+    let avail_w = match layout.tooltip_side {
+        DockTooltipSide::Right => (canvas_w - (slot.local_cx + slot.radius + gap) - outer_margin).max(24.0),
+        DockTooltipSide::Left => ((slot.local_cx - slot.radius - gap) - outer_margin).max(24.0),
+    };
+    let desired_w = (text_width_px + 2.0 * pad_x).max(40.0 * scale);
+    let pill_w = desired_w.min(avail_w);
+    let raw_x = match layout.tooltip_side {
+        DockTooltipSide::Right => slot.local_cx + slot.radius + gap - slide,
+        DockTooltipSide::Left => slot.local_cx - slot.radius - gap - pill_w + slide,
+    };
+    let max_x = (canvas_w - pill_w - outer_margin).max(outer_margin);
+    let x = raw_x.clamp(outer_margin, max_x);
+    let min_y = 4.0 * scale;
+    let max_y = (canvas_h - pill_h - 4.0 * scale).max(min_y);
+    let y = (slot.local_cy - pill_h * 0.5).clamp(min_y, max_y);
+    Some(DockTooltipPillRect { x, y, width: pill_w, height: pill_h, alpha })
 }
 
 /// Chooses Down by default or flips Up when bubble sits near the screen bottom
@@ -393,25 +454,30 @@ mod tests {
         assert_eq!(sm.diameter_px, 28.0);
         assert_eq!(md.diameter_px, 30.0);
         assert_eq!(lg.diameter_px, 32.0);
-        assert_eq!(sm.stack_height_px, 197.0);
-        assert_eq!(md.stack_height_px, 214.0);
-        assert_eq!(lg.stack_height_px, 226.0);
+        assert_eq!(sm.stack_height_px, 164.0);
+        assert_eq!(md.stack_height_px, 178.0);
+        assert_eq!(lg.stack_height_px, 188.0);
         let md_2x = compact_metrics_for_bubble(112, 2.0);
         assert_eq!(md_2x.diameter_px, 60.0);
-        assert_eq!(md_2x.stack_height_px, 428.0);
+        assert_eq!(md_2x.stack_height_px, 356.0);
     }
 
     #[test]
-    fn test_layout_flips_up_near_bottom_and_keeps_pin_closest_to_bubble() {
+    fn test_layout_flips_up_near_bottom_and_flips_tooltip_side_per_edge() {
         let screen = test_screen(1.0);
         let top_layout = compute_action_dock_layout(12, 120, 56, &screen, 12.0, 60.0);
         assert_eq!(top_layout.direction, DockDirection::Down);
-        assert!(top_layout.slots[0].local_cy < top_layout.slots[5].local_cy);
-        let bottom_layout = compute_action_dock_layout(12, 920, 56, &screen, 12.0, 60.0);
+        assert_eq!(top_layout.tooltip_side, DockTooltipSide::Right);
+        assert!(top_layout.slots[0].local_cy < top_layout.slots[4].local_cy);
+        let bottom_layout = compute_action_dock_layout(1852, 920, 56, &screen, 12.0, 60.0);
         assert_eq!(bottom_layout.direction, DockDirection::Up);
+        assert_eq!(bottom_layout.tooltip_side, DockTooltipSide::Left);
         assert_eq!(bottom_layout.slots[0].action, DockActionId::Pin);
-        assert_eq!(bottom_layout.slots[5].action, DockActionId::HideBubble);
-        assert!(bottom_layout.slots[0].local_cy > bottom_layout.slots[5].local_cy);
+        assert_eq!(bottom_layout.slots[4].action, DockActionId::HideBubble);
+        assert!(bottom_layout.slots[0].local_cy > bottom_layout.slots[4].local_cy);
+        let pill = compute_tooltip_pill_rect(&bottom_layout, &bottom_layout.slots[0], 96.0, 1.0, 1.0).expect("pill");
+        assert!(pill.x >= 4.0);
+        assert!(pill.x + pill.width < bottom_layout.slots[0].local_cx - bottom_layout.slots[0].radius);
     }
 
     #[test]

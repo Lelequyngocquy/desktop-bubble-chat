@@ -5,7 +5,7 @@ use tauri::AppHandle;
 
 use crate::operating_systems::linux::bubble::window::gtk_window::LinuxGtkWindowController;
 use crate::presentation::bubble::dock::{
-    compute_action_dock_layout, render_action_dock_bgra, ActionDockLayout, DockActionId,
+    compute_action_dock_layout, render_action_dock_with_tooltip, ActionDockLayout, DockActionId,
     DockActionStateSnapshot, DockAnimationState, DockRenderOptions, DockVisibilityPhase,
     ScreenRect,
 };
@@ -94,22 +94,26 @@ impl LinuxActionDockState {
         }
     }
 
-    /// Renders Liquid Glass droplets into BGRA and pushes to Cairo draw cache
+    /// Renders Liquid Glass droplets plus active hover tooltip into BGRA and pushes to Cairo cache
     pub fn render_and_update(&mut self) {
         let frames = self.animator.sample_droplets(self.layout.direction);
+        let tooltip_label = self.animator.hovered_action.map(|act| self.snapshot.tooltip_label(act));
         let opts = DockRenderOptions {
             layout: self.layout.clone(),
             state: self.snapshot,
             frames,
             hovered_action: self.animator.hovered_action,
+            tooltip_text_width_px: None,
         };
-        if let Some(bgra) = render_action_dock_bgra(&opts) {
+        if let Some((bgra, pill_opt)) = render_action_dock_with_tooltip(&opts) {
+            let tooltip_overlay = pill_opt.zip(tooltip_label).map(|(p, lbl)| (lbl.to_string(), p));
             LinuxActionDockGtkController::update_dock_surface(
                 self.window,
                 &bgra,
                 self.layout.canvas_width as usize,
                 self.layout.canvas_height as usize,
                 self.layout.scale_factor,
+                tooltip_overlay,
             );
         }
     }
@@ -260,9 +264,6 @@ impl LinuxActionDockState {
         let triggered = if pressed.is_some() && pressed == hit { pressed } else { None };
         self.animator.set_pressed(None);
         self.animator.set_hovered(hit);
-        if triggered == Some(DockActionId::Reload) {
-            self.animator.trigger_reload_pulse();
-        }
         self.render_and_update();
         self.sync_anim_timer();
         triggered.map(|action| (self.app_handle.clone(), self.account_index, action))

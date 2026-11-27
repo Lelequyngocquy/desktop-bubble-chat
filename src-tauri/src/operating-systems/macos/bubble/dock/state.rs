@@ -5,7 +5,7 @@ use tauri::AppHandle;
 
 use crate::operating_systems::macos::bubble::window::panel::MacOSPanelController;
 use crate::presentation::bubble::dock::{
-    compute_action_dock_layout, render_action_dock_bgra, ActionDockLayout, DockActionId,
+    compute_action_dock_layout, render_action_dock_with_tooltip, ActionDockLayout, DockActionId,
     DockActionStateSnapshot, DockAnimationState, DockRenderOptions, DockVisibilityPhase,
     ScreenRect,
 };
@@ -66,16 +66,28 @@ impl MacOSActionDockState {
         }
     }
 
-    /// Renders Liquid Glass droplets into BGRA and uploads to CALayer via CGImage
+    /// Renders Liquid Glass droplets plus hover tooltip into BGRA and uploads via CGImage
     pub fn render_and_update(&mut self) {
         let frames = self.animator.sample_droplets(self.layout.direction);
+        let tooltip_label = self.animator.hovered_action.map(|act| self.snapshot.tooltip_label(act));
         let opts = DockRenderOptions {
             layout: self.layout.clone(),
             state: self.snapshot,
             frames,
             hovered_action: self.animator.hovered_action,
+            tooltip_text_width_px: None,
         };
-        if let Some(bgra) = render_action_dock_bgra(&opts) {
+        if let Some((mut bgra, pill_opt)) = render_action_dock_with_tooltip(&opts) {
+            if let (Some(pill), Some(label)) = (pill_opt, tooltip_label) {
+                MacOSActionDockPanelController::composite_tooltip_text_bgra(
+                    &mut bgra,
+                    self.layout.canvas_width,
+                    self.layout.canvas_height,
+                    &pill,
+                    label,
+                    self.layout.scale_factor,
+                );
+            }
             MacOSPanelController::update_panel_layer_contents(
                 self.panel,
                 &bgra,
@@ -244,9 +256,6 @@ impl MacOSActionDockState {
         let triggered = if pressed.is_some() && pressed == hit { pressed } else { None };
         self.animator.set_pressed(None);
         self.animator.set_hovered(hit);
-        if triggered == Some(DockActionId::Reload) {
-            self.animator.trigger_reload_pulse();
-        }
         self.last_tick = Instant::now();
         self.render_and_update();
         let payload = triggered.map(|action| (self.app_handle.clone(), self.account_index, action));

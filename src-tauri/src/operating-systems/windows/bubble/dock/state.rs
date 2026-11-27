@@ -9,9 +9,10 @@ use crate::operating_systems::windows::bubble::window::{
     SWP_NOZORDER, SW_HIDE, SW_SHOWNOACTIVATE, ULW_ALPHA,
 };
 use crate::presentation::bubble::dock::{
-    render_action_dock_bgra, ActionDockLayout, DockActionStateSnapshot, DockAnimationState,
+    render_action_dock_with_tooltip, ActionDockLayout, DockActionStateSnapshot, DockAnimationState,
     DockRenderOptions, DockVisibilityPhase, ScreenRect,
 };
+use super::tooltip_text::{composite_tooltip_text_bgra, measure_tooltip_text_width_px};
 
 pub const ACTION_DOCK_CLASS_NAME: &str = "DesktopBubbleChat_ActionDock\0";
 pub const TIMER_ID_DOCK_ANIM: usize = 2001;
@@ -120,13 +121,19 @@ impl ActionDockWindowState {
             return;
         }
         let frames = self.animator.sample_droplets(self.layout.direction);
+        let tooltip_label = self.animator.hovered_action.map(|act| self.snapshot.tooltip_label(act));
+        let tooltip_width = tooltip_label.map(|lbl| measure_tooltip_text_width_px(lbl, self.layout.scale_factor));
         let opts = DockRenderOptions {
             layout: self.layout.clone(),
             state: self.snapshot,
             frames,
             hovered_action: self.animator.hovered_action,
+            tooltip_text_width_px: tooltip_width,
         };
-        if let Some(bgra) = render_action_dock_bgra(&opts) {
+        if let Some((mut bgra, pill_opt)) = render_action_dock_with_tooltip(&opts) {
+            if let (Some(pill), Some(label)) = (pill_opt, tooltip_label) {
+                composite_tooltip_text_bgra(&mut bgra, w, h, &pill, label, self.layout.scale_factor);
+            }
             let bytes = (w * h * 4) as usize;
             if bgra.len() == bytes && !self.p_bits.is_null() {
                 unsafe {

@@ -83,14 +83,32 @@ unsafe extern "C" {
 }
 
 #[cfg(target_os = "linux")]
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct CairoTextExtents {
+    pub x_bearing: f64,
+    pub y_bearing: f64,
+    pub width: f64,
+    pub height: f64,
+    pub x_advance: f64,
+    pub y_advance: f64,
+}
+
+#[cfg(target_os = "linux")]
 #[link(name = "cairo")]
 unsafe extern "C" {
     pub fn cairo_image_surface_create_for_data(data: *mut u8, format: i32, width: i32, height: i32, stride: i32) -> *mut c_void;
     pub fn cairo_surface_set_device_scale(surface: *mut c_void, x_scale: f64, y_scale: f64);
     pub fn cairo_surface_destroy(surface: *mut c_void);
     pub fn cairo_set_source_surface(cr: *mut c_void, surface: *mut c_void, x: f64, y: f64);
+    pub fn cairo_set_source_rgba(cr: *mut c_void, red: f64, green: f64, blue: f64, alpha: f64);
     pub fn cairo_set_operator(cr: *mut c_void, op: i32);
     pub fn cairo_paint(cr: *mut c_void);
+    pub fn cairo_select_font_face(cr: *mut c_void, family: *const std::ffi::c_char, slant: i32, weight: i32);
+    pub fn cairo_set_font_size(cr: *mut c_void, size: f64);
+    pub fn cairo_text_extents(cr: *mut c_void, utf8: *const std::ffi::c_char, extents: *mut CairoTextExtents);
+    pub fn cairo_move_to(cr: *mut c_void, x: f64, y: f64);
+    pub fn cairo_show_text(cr: *mut c_void, utf8: *const std::ffi::c_char);
     pub fn cairo_region_create() -> *mut c_void;
     pub fn cairo_region_union_rectangle(region: *mut c_void, rectangle: *const CairoRectangleInt) -> i32;
     pub fn cairo_region_destroy(region: *mut c_void);

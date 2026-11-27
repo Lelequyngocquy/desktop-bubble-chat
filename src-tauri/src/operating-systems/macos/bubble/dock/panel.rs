@@ -12,7 +12,9 @@ use crate::operating_systems::macos::bubble::window::types::{
     NS_WINDOW_COLLECTION_BEHAVIOR_FULL_SCREEN_AUXILIARY,
     NS_WINDOW_STYLE_MASK_BORDERLESS, NS_WINDOW_STYLE_MASK_NONACTIVATING_PANEL,
 };
-use crate::presentation::bubble::dock::{hit_test_dock_droplet, ActionDockLayout, DockActionId};
+use crate::presentation::bubble::dock::{
+    hit_test_dock_droplet, ActionDockLayout, DockActionId, DockTooltipPillRect,
+};
 
 pub struct MacOSActionDockPanelController;
 
@@ -229,4 +231,89 @@ impl MacOSActionDockPanelController {
     pub fn create_action_dock_panel(_rect: NSRect, _is_always_on_top: bool) -> *mut c_void {
         std::ptr::null_mut()
     }
+
+    /// Composites crisp SF Pro tooltip text directly into the premultiplied BGRA pill buffer on macOS
+    #[cfg(target_os = "macos")]
+    pub fn composite_tooltip_text_bgra(
+        bgra: &mut [u8],
+        canvas_w: u32,
+        canvas_h: u32,
+        pill: &DockTooltipPillRect,
+        text: &str,
+        scale_factor: f64,
+    ) {
+        use cocoa::base::{id, nil, YES};
+        use cocoa::foundation::{NSPoint as CocoaNSPoint, NSRect as CocoaNSRect, NSSize as CocoaNSSize, NSString};
+        use objc::{class, msg_send, sel, sel_impl};
+        if text.is_empty() || pill.alpha <= 0.01 || canvas_w == 0 || canvas_h == 0 {
+            return;
+        }
+        #[link(name = "CoreGraphics", kind = "framework")]
+        unsafe extern "C" {
+            fn CGBitmapContextCreate(
+                data: *mut c_void,
+                width: usize,
+                height: usize,
+                bits_per_component: usize,
+                bytes_per_row: usize,
+                space: *mut c_void,
+                bitmap_info: u32,
+            ) -> *mut c_void;
+            fn CGContextRelease(ctx: *mut c_void);
+            fn CGContextScaleCTM(ctx: *mut c_void, sx: f64, sy: f64);
+            fn CGContextTranslateCTM(ctx: *mut c_void, tx: f64, ty: f64);
+        }
+        with_autorelease_pool(|| unsafe {
+            let cs = crate::operating_systems::macos::bubble::window::ffi::CGColorSpaceCreateDeviceRGB();
+            if cs.is_null() {
+                return;
+            }
+            let bitmap_info = crate::operating_systems::macos::bubble::window::ffi::K_CG_BITMAP_BYTE_ORDER_32_LITTLE
+                | crate::operating_systems::macos::bubble::window::ffi::K_CG_IMAGE_ALPHA_PREMULTIPLIED_FIRST;
+            let cg_ctx = CGBitmapContextCreate(bgra.as_mut_ptr() as *mut c_void, canvas_w as usize, canvas_h as usize, 8, (canvas_w * 4) as usize, cs, bitmap_info);
+            crate::operating_systems::macos::bubble::window::ffi::CGColorSpaceRelease(cs);
+            if cg_ctx.is_null() {
+                return;
+            }
+            CGContextTranslateCTM(cg_ctx, 0.0, canvas_h as f64);
+            CGContextScaleCTM(cg_ctx, 1.0, -1.0);
+            let ns_ctx: id = msg_send![class!(NSGraphicsContext), graphicsContextWithCGContext: cg_ctx flipped: YES];
+            if ns_ctx != nil {
+                let _: () = msg_send![class!(NSGraphicsContext), saveGraphicsState];
+                let _: () = msg_send![class!(NSGraphicsContext), setCurrentContext: ns_ctx];
+                let scale = if scale_factor.is_finite() && scale_factor > 0.25 { scale_factor } else { 1.0 };
+                let font: id = msg_send![class!(NSFont), systemFontOfSize: 11.5 * scale weight: 0.23f64];
+                let color: id = msg_send![class!(NSColor), colorWithSRGBRed: 1.0f64 green: 1.0f64 blue: 1.0f64 alpha: pill.alpha as f64];
+                let pstyle_alloc: id = msg_send![class!(NSMutableParagraphStyle), alloc];
+                let pstyle: id = msg_send![pstyle_alloc, init];
+                let _: () = msg_send![pstyle, setAlignment: 1isize];
+                let k_font = NSString::alloc(nil).init_str("NSFont");
+                let k_color = NSString::alloc(nil).init_str("NSColor");
+                let k_para = NSString::alloc(nil).init_str("NSParagraphStyle");
+                let attrs: id = msg_send![class!(NSMutableDictionary), dictionaryWithCapacity: 3usize];
+                let _: () = msg_send![attrs, setObject: font forKey: k_font];
+                let _: () = msg_send![attrs, setObject: color forKey: k_color];
+                let _: () = msg_send![attrs, setObject: pstyle forKey: k_para];
+                let ns_text = NSString::alloc(nil).init_str(text);
+                let text_h = 14.5 * scale;
+                let text_y = (pill.y as f64) + ((pill.height as f64) - text_h) * 0.5;
+                let draw_rect = CocoaNSRect::new(CocoaNSPoint::new(pill.x as f64, text_y), CocoaNSSize::new(pill.width as f64, text_h));
+                let _: () = msg_send![ns_text, drawInRect: draw_rect withAttributes: attrs];
+                let _: () = msg_send![pstyle, release];
+                let _: () = msg_send![class!(NSGraphicsContext), restoreGraphicsState];
+            }
+            CGContextRelease(cg_ctx);
+        });
+    }
+
+    /// Fallback for non-macOS compilation
+    #[cfg(not(target_os = "macos"))]
+    pub fn composite_tooltip_text_bgra(
+        _bgra: &mut [u8],
+        _canvas_w: u32,
+        _canvas_h: u32,
+        _pill: &DockTooltipPillRect,
+        _text: &str,
+        _scale_factor: f64,
+    ) {}
 }

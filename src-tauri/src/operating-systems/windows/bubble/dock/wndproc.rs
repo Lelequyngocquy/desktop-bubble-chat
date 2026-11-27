@@ -139,9 +139,6 @@ pub unsafe extern "system" fn native_action_dock_wndproc(
                     let triggered = if pressed.is_some() && pressed == hit { pressed } else { None };
                     state.animator.set_pressed(None);
                     state.animator.set_hovered(hit);
-                    if triggered == Some(DockActionId::Reload) {
-                        state.animator.trigger_reload_pulse();
-                    }
                     state.render_layered_buffer();
                     state.sync_anim_timer();
                     triggered.and_then(|action| state.app_handle.clone().map(|app| (app, state.account_index, action)))

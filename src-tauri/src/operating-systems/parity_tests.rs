@@ -259,6 +259,20 @@ fn parity_action_dock_hit_test_and_hover_bridge_across_all_oses() {
         let gly_i = gap_linux_y.round() as i32;
         assert!(!linux_rects.iter().any(|r| glx_i >= r.x && glx_i < r.x + r.width && gly_i >= r.y && gly_i < r.y + r.height));
         assert!(is_point_in_dock_hover_corridor(gap_screen_x, gap_screen_y, &layout));
+        // Tooltip wing area must remain 100% click-through across all 3 OSes and outside Hover Bridge
+        let wing_x_px = layout.slots[0].local_cx + layout.slots[0].radius + (40.0 * scale as f32);
+        let wing_y_px = layout.slots[0].local_cy;
+        let wing_sx = layout.window_x + wing_x_px.round() as i32;
+        let wing_sy = layout.window_y + wing_y_px.round() as i32;
+        #[cfg(target_os = "windows")]
+        {
+            use crate::operating_systems::windows::bubble::dock::hit_test_action_dock_screen_point;
+            use crate::operating_systems::windows::bubble::window::HTTRANSPARENT;
+            assert_eq!(hit_test_action_dock_screen_point(wing_sx, wing_sy, &layout, true, false), HTTRANSPARENT);
+        }
+        assert!(!is_macos_dock_point_hittable((wing_x_px as f64) / scale, canvas_h_pt - (wing_y_px as f64) / scale, &layout, true, false));
+        assert_eq!(hit_test_linux_dock_local_logical((wing_x_px as f64) / scale, (wing_y_px as f64) / scale, &layout, true), None);
+        assert!(!is_point_in_dock_hover_corridor(wing_sx, wing_sy, &layout));
     }
 }
 

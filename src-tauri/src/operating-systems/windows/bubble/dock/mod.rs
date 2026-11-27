@@ -1,7 +1,9 @@
 pub mod state;
+pub mod tooltip_text;
 pub mod wndproc;
 
 pub use state::*;
+pub use tooltip_text::*;
 pub use wndproc::*;
 
 use std::sync::Once;

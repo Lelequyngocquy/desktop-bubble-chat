@@ -13,7 +13,9 @@ use crate::operating_systems::linux::bubble::window::gtk_window::{
 use crate::operating_systems::linux::bubble::window::gtk_window::physical_size_to_logical;
 #[allow(unused_imports)]
 use crate::operating_systems::linux::bubble::window::types::*;
-use crate::presentation::bubble::dock::{hit_test_dock_droplet, ActionDockLayout, DockActionId};
+use crate::presentation::bubble::dock::{
+    hit_test_dock_droplet, ActionDockLayout, DockActionId, DockTooltipPillRect,
+};
 
 pub struct LinuxActionDockGtkController;
 
@@ -72,7 +74,9 @@ pub fn hit_test_linux_dock_local_logical(
 }
 
 #[cfg(target_os = "linux")]
-type DockSurfaceBufferEntry = (Vec<u8>, usize, usize, f64);
+type DockTooltipOverlay = Option<(String, DockTooltipPillRect)>;
+#[cfg(target_os = "linux")]
+type DockSurfaceBufferEntry = (Vec<u8>, usize, usize, f64, DockTooltipOverlay);
 #[cfg(target_os = "linux")]
 static DOCK_SURFACE_CACHE: LazyLock<Mutex<HashMap<usize, DockSurfaceBufferEntry>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
@@ -80,7 +84,7 @@ static DOCK_SURFACE_CACHE: LazyLock<Mutex<HashMap<usize, DockSurfaceBufferEntry>
 unsafe extern "C" fn on_dock_draw(widget: *mut c_void, cr: *mut c_void, _user_data: *mut c_void) -> i32 {
     let key = widget as usize;
     if let Ok(cache) = DOCK_SURFACE_CACHE.lock() {
-        if let Some((bgra, width, height, scale)) = cache.get(&key) {
+        if let Some((bgra, width, height, scale, tooltip_opt)) = cache.get(&key) {
             unsafe {
                 let surface = cairo_image_surface_create_for_data(bgra.as_ptr() as *mut u8, CAIRO_FORMAT_ARGB32, *width as i32, *height as i32, (*width * 4) as i32);
                 if !surface.is_null() {
@@ -90,6 +94,19 @@ unsafe extern "C" fn on_dock_draw(widget: *mut c_void, cr: *mut c_void, _user_da
                     cairo_set_source_surface(cr, surface, 0.0, 0.0);
                     cairo_paint(cr);
                     cairo_surface_destroy(surface);
+                    if let Some((label, pill)) = tooltip_opt
+                        && let Ok(c_text) = std::ffi::CString::new(label.as_str()) {
+                            cairo_set_operator(cr, 2);
+                            cairo_select_font_face(cr, c"Sans".as_ptr(), 0, 0);
+                            cairo_set_font_size(cr, 11.5);
+                            let mut ext = CairoTextExtents::default();
+                            cairo_text_extents(cr, c_text.as_ptr(), &mut ext);
+                            let lx = (pill.x as f64) / s + ((pill.width as f64) / s - ext.width) * 0.5 - ext.x_bearing;
+                            let ly = (pill.y as f64) / s + ((pill.height as f64) / s - ext.height) * 0.5 - ext.y_bearing;
+                            cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, pill.alpha as f64);
+                            cairo_move_to(cr, lx, ly);
+                            cairo_show_text(cr, c_text.as_ptr());
+                        }
                 }
             }
         } else {
@@ -301,22 +318,36 @@ impl LinuxActionDockGtkController {
     #[cfg(not(target_os = "linux"))]
     pub fn update_dock_input_shape(_window: *mut c_void, _layout: &ActionDockLayout, _is_visible: bool) {}
 
-    /// Uploads BGRA pixel buffer to Cairo surface cache and schedules GTK redraw
+    /// Uploads BGRA pixel buffer plus optional tooltip label to Cairo cache and schedules GTK redraw
     #[cfg(target_os = "linux")]
-    pub fn update_dock_surface(window: *mut c_void, bgra_data: &[u8], width: usize, height: usize, scale_factor: f64) {
+    pub fn update_dock_surface(
+        window: *mut c_void,
+        bgra_data: &[u8],
+        width: usize,
+        height: usize,
+        scale_factor: f64,
+        tooltip: Option<(String, DockTooltipPillRect)>,
+    ) {
         if window.is_null() || bgra_data.is_empty() || width == 0 || height == 0 {
             return;
         }
         let key = window as usize;
         if let Ok(mut cache) = DOCK_SURFACE_CACHE.lock() {
-            cache.insert(key, (bgra_data.to_vec(), width, height, scale_factor));
+            cache.insert(key, (bgra_data.to_vec(), width, height, scale_factor, tooltip));
         }
         unsafe { gtk_widget_queue_draw(window); }
     }
 
     /// Fallback for non-Linux target
     #[cfg(not(target_os = "linux"))]
-    pub fn update_dock_surface(_window: *mut c_void, _bgra_data: &[u8], _width: usize, _height: usize, _scale_factor: f64) {}
+    pub fn update_dock_surface(
+        _window: *mut c_void,
+        _bgra_data: &[u8],
+        _width: usize,
+        _height: usize,
+        _scale_factor: f64,
+        _tooltip: Option<(String, DockTooltipPillRect)>,
+    ) {}
 
     /// Destroys ActionDock GTK window and removes cached Cairo surface bytes
     #[cfg(target_os = "linux")]

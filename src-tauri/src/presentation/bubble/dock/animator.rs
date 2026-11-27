@@ -1,10 +1,9 @@
-use super::model::{DockActionId, DockDirection, DOCK_ACTIONS};
+use super::model::{DockActionId, DockDirection, DOCK_ACTIONS, DOCK_ACTION_COUNT};
 
 pub const DOCK_APPEAR_MS: f32 = 160.0;
 pub const DOCK_STAGGER_MS: f32 = 16.0;
 pub const DOCK_HIDE_MS: f32 = 90.0;
 pub const DOCK_INTERACT_MS: f32 = 80.0;
-pub const DOCK_RELOAD_SPIN_MS: f32 = 260.0;
 pub const DOCK_HOVER_SCALE: f32 = 1.08;
 pub const DOCK_PRESS_SCALE: f32 = 0.93;
 
@@ -25,7 +24,6 @@ pub struct DropletFrameState {
     pub offset_y_norm: f32,
     pub hover_t: f32,
     pub specular_boost: f32,
-    pub icon_rotation_deg: f32,
 }
 
 impl Default for DropletFrameState {
@@ -36,7 +34,6 @@ impl Default for DropletFrameState {
             offset_y_norm: 0.0,
             hover_t: 0.0,
             specular_boost: 0.0,
-            icon_rotation_deg: 0.0,
         }
     }
 }
@@ -48,9 +45,8 @@ pub struct DockAnimationState {
     pub phase_elapsed_ms: f32,
     pub hovered_action: Option<DockActionId>,
     pub pressed_action: Option<DockActionId>,
-    hover_t: [f32; 6],
-    press_t: [f32; 6],
-    reload_spin_ms: Option<f32>,
+    hover_t: [f32; DOCK_ACTION_COUNT],
+    press_t: [f32; DOCK_ACTION_COUNT],
 }
 
 impl Default for DockAnimationState {
@@ -60,9 +56,8 @@ impl Default for DockAnimationState {
             phase_elapsed_ms: 0.0,
             hovered_action: None,
             pressed_action: None,
-            hover_t: [0.0; 6],
-            press_t: [0.0; 6],
-            reload_spin_ms: None,
+            hover_t: [0.0; DOCK_ACTION_COUNT],
+            press_t: [0.0; DOCK_ACTION_COUNT],
         }
     }
 }
@@ -89,9 +84,8 @@ impl DockAnimationState {
         self.phase_elapsed_ms = 0.0;
         self.hovered_action = None;
         self.pressed_action = None;
-        self.hover_t = [0.0; 6];
-        self.press_t = [0.0; 6];
-        self.reload_spin_ms = None;
+        self.hover_t = [0.0; DOCK_ACTION_COUNT];
+        self.press_t = [0.0; DOCK_ACTION_COUNT];
     }
 
     /// Starts fast retract fade-out animation
@@ -111,9 +105,8 @@ impl DockAnimationState {
         self.phase_elapsed_ms = 0.0;
         self.hovered_action = None;
         self.pressed_action = None;
-        self.hover_t = [0.0; 6];
-        self.press_t = [0.0; 6];
-        self.reload_spin_ms = None;
+        self.hover_t = [0.0; DOCK_ACTION_COUNT];
+        self.press_t = [0.0; DOCK_ACTION_COUNT];
     }
 
     /// Updates hovered droplet target and reports whether a redraw/animation is required
@@ -134,21 +127,13 @@ impl DockAnimationState {
         true
     }
 
-    /// Triggers short specular flash and 360-degree icon spin on the Reload droplet
-    pub fn trigger_reload_pulse(&mut self) {
-        self.reload_spin_ms = Some(0.0);
-    }
-
-    /// Returns true while any visibility, hover, press, or reload animation is still progressing
+    /// Returns true while any visibility, hover, or press animation is still progressing
     pub fn needs_frame(&self) -> bool {
         if matches!(self.phase, DockVisibilityPhase::Appearing | DockVisibilityPhase::Hiding) {
             return true;
         }
         if self.phase == DockVisibilityPhase::Hidden {
             return false;
-        }
-        if self.reload_spin_ms.is_some() {
-            return true;
         }
         for &action in &DOCK_ACTIONS {
             let i = action.index();
@@ -191,20 +176,12 @@ impl DockAnimationState {
             self.hover_t[i] = approach(self.hover_t[i], target_h, interact_step);
             self.press_t[i] = approach(self.press_t[i], target_p, interact_step * 1.4);
         }
-        if let Some(elapsed) = self.reload_spin_ms {
-            let next = elapsed + dt;
-            if next >= DOCK_RELOAD_SPIN_MS {
-                self.reload_spin_ms = None;
-            } else {
-                self.reload_spin_ms = Some(next);
-            }
-        }
         finished_hide
     }
 
-    /// Samples interpolated visual parameters for all 6 droplets
-    pub fn sample_droplets(&self, direction: DockDirection) -> [DropletFrameState; 6] {
-        let mut out = [DropletFrameState::default(); 6];
+    /// Samples interpolated visual parameters for all 5 droplets
+    pub fn sample_droplets(&self, direction: DockDirection) -> [DropletFrameState; DOCK_ACTION_COUNT] {
+        let mut out = [DropletFrameState::default(); DOCK_ACTION_COUNT];
         let dir_sign = match direction {
             DockDirection::Down => -1.0,
             DockDirection::Up => 1.0,
@@ -228,22 +205,12 @@ impl DockAnimationState {
             let h = self.hover_t[i];
             let p = self.press_t[i];
             let interact_scale = (1.0 + (DOCK_HOVER_SCALE - 1.0) * h) * (1.0 - (1.0 - DOCK_PRESS_SCALE) * p);
-            let (spin_deg, pulse_boost) = if action == DockActionId::Reload
-                && let Some(ms) = self.reload_spin_ms {
-                    let frac = (ms / DOCK_RELOAD_SPIN_MS).clamp(0.0, 1.0);
-                    let eased = ease_out_cubic(frac);
-                    let flash = (1.0 - frac).max(0.0);
-                    (eased * 360.0, flash)
-                } else {
-                    (0.0, 0.0)
-                };
             out[i] = DropletFrameState {
                 alpha: vis_alpha,
                 scale: vis_scale * interact_scale,
                 offset_y_norm: vis_offset,
                 hover_t: h,
-                specular_boost: (h * 0.5 + pulse_boost).clamp(0.0, 1.0),
-                icon_rotation_deg: spin_deg,
+                specular_boost: (h * 0.55).clamp(0.0, 1.0),
             };
         }
         out
@@ -262,7 +229,7 @@ mod tests {
         assert!(anim.needs_frame());
         anim.step(32.0);
         let mid = anim.sample_droplets(DockDirection::Down);
-        assert!(mid[0].alpha > mid[5].alpha);
+        assert!(mid[0].alpha > mid[4].alpha);
         for _ in 0..20 {
             anim.step(16.0);
         }
@@ -271,7 +238,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hover_press_reload_spin_and_hide_lifecycle() {
+    fn test_hover_press_and_hide_lifecycle() {
         let mut anim = DockAnimationState::default();
         anim.start_appear();
         for _ in 0..20 {
@@ -291,15 +258,6 @@ mod tests {
         }
         let pressed = anim.sample_droplets(DockDirection::Down);
         assert!(pressed[0].scale < 1.02);
-        anim.trigger_reload_pulse();
-        assert!(anim.needs_frame());
-        anim.step(100.0);
-        let spinning = anim.sample_droplets(DockDirection::Down);
-        assert!(spinning[DockActionId::Reload.index()].icon_rotation_deg > 100.0);
-        for _ in 0..16 {
-            anim.step(16.0);
-        }
-        assert!(!anim.needs_frame());
         anim.start_hide();
         let mut hid = false;
         for _ in 0..10 {
