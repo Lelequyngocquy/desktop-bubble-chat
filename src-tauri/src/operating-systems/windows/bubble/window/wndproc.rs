@@ -127,16 +127,22 @@ pub unsafe extern "system" fn native_bubble_wndproc(
             let mut cur_pt = POINT { x: 0, y: 0 };
             unsafe { GetCursorPos(&mut cur_pt); }
             let mut move_pos: Option<(i32, i32)> = None;
+            let mut drag_started_info: Option<(u32, tauri::AppHandle)> = None;
             let mut hover_init: Option<(u32, Option<tauri::AppHandle>)> = None;
             {
                 if let Some(state) = unsafe { state_ptr.as_mut() } {
                     if state.is_dragging {
                         let dx = cur_pt.x - state.drag_start_cursor.x;
                         let dy = cur_pt.y - state.drag_start_cursor.y;
+                        let was_dragged = state.has_dragged;
                         // Drag threshold > 4px (16 sq px)
                         if dx * dx + dy * dy >= 16 {
                             state.has_dragged = true;
                         }
+                        if !was_dragged && state.has_dragged
+                            && let Some(app) = state.app_handle.clone() {
+                                drag_started_info = Some((state.account_index, app));
+                            }
                         if state.has_dragged {
                             let new_x = state.drag_start_win.x + dx;
                             let new_y = state.drag_start_win.y + dy;
@@ -172,6 +178,9 @@ pub unsafe extern "system" fn native_bubble_wndproc(
                         hover_init = Some((state.account_index, state.app_handle.clone()));
                     }
                 }
+            }
+            if let Some((drag_idx, app)) = drag_started_info {
+                crate::presentation::bubble::dock::on_bubble_drag_started(&app, drag_idx);
             }
             if let Some((win_x, win_y)) = move_pos {
                 unsafe {

@@ -162,7 +162,9 @@ pub fn set_bubble_config(
         }
     }
     if !config.is_free_position {
-        snap_all_active_bubbles_to_edges(&app, &config, &screen, bubble_size_px, false);
+        snap_all_active_bubbles_to_edges(&app, &config, &screen, bubble_size_px, true);
+    } else {
+        crate::presentation::bubble::dock::reanchor_active_action_dock_if_open(&app);
     }
     let size_str = classify_bubble_size(config.size);
     let _ = app.emit(
@@ -184,7 +186,9 @@ fn snap_all_active_bubbles_to_edges(
     bubble_size_px: u32,
     redock_open_chat: bool,
 ) {
+    crate::presentation::bubble::dock::restore_siblings_before_global_snap(app);
     let mut all_rects = get_active_bubble_rects(app, None);
+    let mut open_chat_to_redock: Option<(u32, tauri::WebviewWindow)> = None;
     for idx in 1..=crate::state::MAX_ACCOUNTS {
         let cur_pos = if crate::operating_systems::current::bubble::has_native_bubble(idx) {
             crate::operating_systems::current::bubble::NativeBubbleManager::global()
@@ -254,7 +258,7 @@ fn snap_all_active_bubbles_to_edges(
                     },
                 );
             }
-            if redock_open_chat {
+            if redock_open_chat && open_chat_to_redock.is_none() {
                 let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
                 let in_auth = app
                     .try_state::<Arc<ChatState>>()
@@ -262,10 +266,14 @@ fn snap_all_active_bubbles_to_edges(
                 if !in_auth
                     && let Some(chat_win) = app.get_webview_window(&chat_label)
                     && chat_win.is_visible().unwrap_or(false) {
-                        crate::platforms::messenger::services::ChatService::dock_chat_window(app, &chat_win, idx);
+                        open_chat_to_redock = Some((idx, chat_win));
                     }
             }
         }
+    }
+    if let Some((open_idx, chat_win)) = open_chat_to_redock {
+        let (ax, ay, bsz) = crate::platforms::messenger::services::ChatService::dock_chat_window(app, &chat_win, open_idx);
+        crate::presentation::bubble::dock::open_action_dock_for_account(app, open_idx, ax, ay, bsz);
     }
 }
 
@@ -297,6 +305,8 @@ pub fn apply_bubble_position_mode(
         let screen = crate::movement::get_target_dashboard_screen(Some(app));
         let bubble_size_px = (config.size * screen.scale_factor).round() as u32;
         snap_all_active_bubbles_to_edges(app, &config, &screen, bubble_size_px, true);
+    } else {
+        crate::presentation::bubble::dock::sync_active_action_dock(app);
     }
     let _ = app.emit(
         "bubble-config-changed",

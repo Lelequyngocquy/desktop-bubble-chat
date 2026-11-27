@@ -12,8 +12,8 @@ use crate::presentation::bubble::{get_bubble_window_label, tuck_bubble};
 pub struct ChatService;
 
 impl ChatService {
-    /// Docks Messenger chat window next to the corresponding bubble
-    pub fn dock_chat_window(app: &AppHandle, chat_window: &tauri::WebviewWindow, account_index: u32) {
+    /// Docks Messenger chat window next to the corresponding bubble and returns (anchor_x, anchor_y, bubble_size_px)
+    pub fn dock_chat_window(app: &AppHandle, chat_window: &tauri::WebviewWindow, account_index: u32) -> (i32, i32, u32) {
         let native_bounds = crate::operating_systems::current::bubble::NativeBubbleManager::global().get_bounds(account_index);
         let bubble_label = get_bubble_window_label(account_index);
         let webview_bubble = app.get_webview_window(&bubble_label);
@@ -88,6 +88,7 @@ impl ChatService {
                 tuck_bubble(app, Some(other_idx));
             }
         }
+        (untucked_pos.x, untucked_pos.y, bubble_w.max(24) as u32)
     }
 
     /// Opens Messenger chat window for specified account
@@ -137,7 +138,7 @@ impl ChatService {
         let _ = chat_window.set_decorations(false);
         let _ = chat_window.set_resizable(state.get_chat_window_custom_size(idx).is_some());
         let _ = chat_window.set_skip_taskbar(true);
-        Self::dock_chat_window(app, &chat_window, idx);
+        let (anchor_x, anchor_y, bubble_size_px) = Self::dock_chat_window(app, &chat_window, idx);
         println!("[BE - Chat] Opened Messenger {:02} chat docked next to bubble", idx);
         crate::utils::trim_controller::cancel_auto_trim(idx);
         crate::utils::trim_controller::record_user_interaction(idx);
@@ -151,8 +152,9 @@ impl ChatService {
             chat_window.show().map_err(|e| e.to_string())?;
             chat_window.set_focus().map_err(|e| e.to_string())?;
         }
-        let _ = chat_window.eval("window.__IS_AUTH_MODE__ = false; window.__isWindowFocused = true; window.__IS_PINNED__ = false; if (typeof window.__ensurePinButtonInDom === 'function') { window.__ensurePinButtonInDom(); } if (typeof window.__updatePinButtonUi === 'function') { window.__updatePinButtonUi(false); } window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('resize')); if (typeof window.__cancelAutoUnselectCountdown === 'function') { window.__cancelAutoUnselectCountdown(); } if (typeof window.__ensureChatListVisible === 'function') { window.__ensureChatListVisible(); }");
+        let _ = chat_window.eval("window.__IS_AUTH_MODE__ = false; window.__isWindowFocused = true; window.__IS_PINNED__ = false; window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('resize')); if (typeof window.__cancelAutoUnselectCountdown === 'function') { window.__cancelAutoUnselectCountdown(); } if (typeof window.__ensureChatListVisible === 'function') { window.__ensureChatListVisible(); }");
         crate::operating_systems::current::bubble::set_native_bubble_chat_open(idx, true);
+        crate::presentation::bubble::dock::open_action_dock_for_account(app, idx, anchor_x, anchor_y, bubble_size_px);
         let _ = app.emit("bubble-visibility-changed", serde_json::json!({
             "accountIndex": idx,
             "visible": true
@@ -187,12 +189,13 @@ impl ChatService {
                             }
                         }
                 }
-                let _ = chat_window.eval("window.__isWindowFocused = false; window.__IS_PINNED__ = false; if (typeof window.__updatePinButtonUi === 'function') { window.__updatePinButtonUi(false); } if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); } window.dispatchEvent(new Event('blur')); if (typeof window.__startAutoUnselectCountdown === 'function') { window.__startAutoUnselectCountdown(5000); }");
+                let _ = chat_window.eval("window.__isWindowFocused = false; window.__IS_PINNED__ = false; if (document.activeElement && typeof document.activeElement.blur === 'function') { document.activeElement.blur(); } window.dispatchEvent(new Event('blur')); if (typeof window.__startAutoUnselectCountdown === 'function') { window.__startAutoUnselectCountdown(5000); }");
                 #[cfg(target_os = "windows")]
                 crate::operating_systems::windows::fullscreen_overlay::hide_window_with_fullscreen_cleanup(&chat_window);
                 #[cfg(not(target_os = "windows"))]
                 let _ = chat_window.hide();
                 crate::operating_systems::current::bubble::set_native_bubble_chat_open(idx, false);
+                crate::presentation::bubble::dock::close_action_dock_for_account(app, idx, false);
                 let hide_token = app
                     .try_state::<Arc<ChatState>>()
                     .map(|cs| cs.next_chat_anim_token(idx))

@@ -19,8 +19,6 @@ pub const MESSENGER_INJECT_SCRIPT: &str = concat!(
     "\n\n",
     include_str!("scripts/modules/08_auto_unselect_thread.js"),
     "\n\n",
-    include_str!("scripts/modules/09_pin_button.js"),
-    "\n\n",
     include_str!("scripts/modules/10_download_manager.js"),
     "\n})();\n"
 );

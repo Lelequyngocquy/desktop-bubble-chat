@@ -89,8 +89,9 @@ pub fn start_hover_and_autoclose_monitor(app: AppHandle, chat_state: Arc<ChatSta
                         .get_webview_window(&bubble_label)
                         .map(|b| CursorTracker::is_cursor_over_window(&b))
                         .unwrap_or_else(|| crate::operating_systems::current::bubble::is_cursor_over_native_bubble(active_idx));
+                    let over_action_dock = crate::operating_systems::current::bubble::is_cursor_over_native_action_dock();
                     let is_dialog_open = chat_state.is_any_dialog_active();
-                    if over_chat || over_bubble || chat_state.is_chat_pinned(active_idx) || is_dialog_open {
+                    if over_chat || over_bubble || over_action_dock || chat_state.is_chat_pinned(active_idx) || is_dialog_open {
                         outside_open_chat_start = None;
                     } else {
                         match outside_open_chat_start {

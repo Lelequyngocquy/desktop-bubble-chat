@@ -21,6 +21,7 @@ pub fn suspend_account_bubble_and_chat(app: &AppHandle, account_index: u32) {
         state.set_chat_ready(idx, false);
         state.remove_bubble_rect(idx);
     }
+    crate::presentation::bubble::dock::on_account_suspended(app, idx);
     if let Some(cw) = get_messenger_webview(app, idx) {
         #[cfg(target_os = "windows")]
         crate::operating_systems::windows::fullscreen_overlay::hide_window_with_fullscreen_cleanup(&cw);

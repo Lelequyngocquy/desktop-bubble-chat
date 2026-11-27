@@ -178,6 +178,10 @@ pub(super) unsafe fn finish_drag_and_snap(hwnd: *mut std::ffi::c_void, state_ptr
                     );
                 }
             }
+            let app_redock = app.clone();
+            tauri::async_runtime::spawn(async move {
+                crate::presentation::bubble::dock::on_bubble_drag_finished(&app_redock, account_index);
+            });
         }
     }
 }

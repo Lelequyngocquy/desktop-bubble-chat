@@ -6,7 +6,7 @@ Thư mục này chứa toàn bộ các script can thiệp vào tiến trình Web
 
 ## 1. Cấu Trúc Module (`modules/`)
 
-Để đảm bảo tính độc lập trách nhiệm (Single Responsibility Principle - SRP), dễ dàng bảo trì và tối ưu hóa hiệu năng, mã nguồn inject được tổ chức thành 10 module chuyên biệt:
+Để đảm bảo tính độc lập trách nhiệm (Single Responsibility Principle - SRP), dễ dàng bảo trì và tối ưu hóa hiệu năng, mã nguồn inject được tổ chức thành 9 module chuyên biệt (nút ghim Pin cũ `09_pin_button.js` đã được chuyển sang Native Liquid Glass ActionDock):
 
 | Module | File | Trách nhiệm chính |
 | :--- | :--- | :--- |
@@ -18,14 +18,13 @@ Thư mục này chứa toàn bộ các script can thiệp vào tiến trình Web
 | **06** | [`06_styles.js`](file:///D:/DesktopBubbleChat/src-tauri/src/platforms/messenger/scripts/modules/06_styles.js) | Nhúng CSS responsive thu gọn layout Messenger vừa vặn khung cửa sổ chat popup (404x620), tự động ẩn panel thông tin bên phải (`div[role="complementary"]`). |
 | **07** | [`07_lifecycle.js`](file:///D:/DesktopBubbleChat/src-tauri/src/platforms/messenger/scripts/modules/07_lifecycle.js) | Bộ điều phối vòng đời: cơ chế `runAdaptiveInterval` tự động giãn cách chu kỳ khi cửa sổ ẩn (`document.hidden`) để tối ưu hóa CPU và RAM; khởi tạo toàn bộ module khi DOM sẵn sàng. |
 | **08** | [`08_auto_unselect_thread.js`](file:///D:/DesktopBubbleChat/src-tauri/src/platforms/messenger/scripts/modules/08_auto_unselect_thread.js) | Tự động hủy chọn cuộc trò chuyện sau 5 giây khi cửa sổ ẩn để bảo mật và giảm tải DOM. |
-| **09** | [`09_pin_button.js`](file:///D:/DesktopBubbleChat/src-tauri/src/platforms/messenger/scripts/modules/09_pin_button.js) | Nút ghim cố định khung chat ở góc trên bên phải để chống tự động đóng khi rời chuột ra ngoài. |
 | **10** | [`10_download_manager.js`](file:///D:/DesktopBubbleChat/src-tauri/src/platforms/messenger/scripts/modules/10_download_manager.js) | Bộ quản lý tải tệp: giải mã Blob URL cho cuộc trò chuyện mã hóa E2EE và truyền chunk Base64 về Rust backend ghi đĩa. |
 
 ---
 
 ## 2. Cơ Chế Tích Hợp Vào Rust Backend (Compile-time Concat)
 
-Trong [`src-tauri/src/platforms/messenger/constants.rs`](file:///D:/DesktopBubbleChat/src-tauri/src/platforms/messenger/constants.rs), Rust sử dụng macro `concat!(...)` kết hợp `include_str!(...)` để nhúng trực tiếp toàn bộ 10 module vào hằng số `MESSENGER_INJECT_SCRIPT` tại thời điểm biên dịch:
+Trong [`src-tauri/src/platforms/messenger/constants.rs`](file:///D:/DesktopBubbleChat/src-tauri/src/platforms/messenger/constants.rs), Rust sử dụng macro `concat!(...)` kết hợp `include_str!(...)` để nhúng trực tiếp toàn bộ 9 module vào hằng số `MESSENGER_INJECT_SCRIPT` tại thời điểm biên dịch:
 
 ```rust
 pub const MESSENGER_INJECT_SCRIPT: &str = concat!(
@@ -48,8 +47,6 @@ pub const MESSENGER_INJECT_SCRIPT: &str = concat!(
     include_str!("scripts/modules/07_lifecycle.js"),
     "\n\n",
     include_str!("scripts/modules/08_auto_unselect_thread.js"),
-    "\n\n",
-    include_str!("scripts/modules/09_pin_button.js"),
     "\n\n",
     include_str!("scripts/modules/10_download_manager.js"),
     "\n})();\n"

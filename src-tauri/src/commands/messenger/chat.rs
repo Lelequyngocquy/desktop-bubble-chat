@@ -228,6 +228,7 @@ pub fn apply_account_muted(
             let _ = win.eval(&js);
         }
     }
+    crate::presentation::bubble::dock::sync_action_dock_for_account(app, idx);
     Ok(())
 }
 
@@ -320,9 +321,10 @@ pub fn apply_chat_window_size_mode(
         && !state.is_window_in_auth_mode(&label) {
             let _ = win.set_resizable(is_custom);
             if win.is_visible().unwrap_or(false) {
-                ChatService::dock_chat_window(app, win, idx);
+                let _ = ChatService::dock_chat_window(app, win, idx);
             }
         }
+    crate::presentation::bubble::dock::sync_action_dock_for_account(app, idx);
     Ok(size)
 }
 
@@ -354,13 +356,14 @@ pub fn apply_chat_pinned(
     let label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
     if let Some(win) = app.get_webview_window(&label) {
         let _ = win.eval(format!(
-            "window.__IS_PINNED__ = {next_state}; if ({next_state} && typeof window.__cancelAutoUnselectCountdown === 'function') {{ window.__cancelAutoUnselectCountdown(); }} if (typeof window.__updatePinButtonUi === 'function') {{ window.__updatePinButtonUi({next_state}); }}"
+            "window.__IS_PINNED__ = {next_state}; if ({next_state} && typeof window.__cancelAutoUnselectCountdown === 'function') {{ window.__cancelAutoUnselectCountdown(); }}"
         ));
     }
     let _ = app.emit("chat-pin-changed", serde_json::json!({
         "accountIndex": idx,
         "pinned": next_state
     }));
+    crate::presentation::bubble::dock::sync_action_dock_for_account(app, idx);
     Ok(next_state)
 }
 

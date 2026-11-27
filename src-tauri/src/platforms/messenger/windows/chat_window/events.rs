@@ -27,7 +27,8 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                         .map(|b| CursorTracker::is_cursor_over_window(&b))
                         .unwrap_or_else(|| crate::operating_systems::current::bubble::is_cursor_over_native_bubble(idx));
                     let over_chat = CursorTracker::is_cursor_over_window(&chat_clone);
-                    if !over_bubble && !over_chat {
+                    let over_action_dock = crate::operating_systems::current::bubble::is_cursor_over_native_action_dock();
+                    if !over_bubble && !over_chat && !over_action_dock {
                         let _ = ChatService::hide_chat(&app_handle, idx);
                     }
                 }

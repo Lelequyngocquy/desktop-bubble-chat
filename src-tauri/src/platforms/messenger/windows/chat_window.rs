@@ -226,9 +226,7 @@ pub fn get_or_create_messenger_window(
         .additional_browser_args(crate::platforms::messenger::constants::CHROMIUM_BROWSER_ARGS)
         .visible(false)
         .on_document_title_changed(move |win, title| {
-            let is_pinned = title.contains("[PINNED]");
-            state_title.set_chat_pinned(account_index, is_pinned);
-            let clean_title = title.replace("[PINNED]", "").trim().to_string();
+            let clean_title = title.trim().to_string();
             if win.title().ok().as_deref() != Some(clean_title.as_str()) {
                 let _ = win.set_title(&clean_title);
             }

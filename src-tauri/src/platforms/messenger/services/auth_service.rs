@@ -162,7 +162,7 @@ impl AuthService {
                     }
                 });
                 state.set_window_auth_mode(&label, false);
-                let _ = chat_window.eval("window.__IS_AUTH_MODE__ = false; if (typeof window.__ensurePinButtonInDom === 'function') { window.__ensurePinButtonInDom(); }");
+                let _ = chat_window.eval("window.__IS_AUTH_MODE__ = false;");
                 let _ = chat_window.set_title("Messenger");
                 let _ = chat_window.hide();
                 let _ = chat_window.set_decorations(false);
