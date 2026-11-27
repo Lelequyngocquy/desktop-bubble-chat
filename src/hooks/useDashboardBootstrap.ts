@@ -3,7 +3,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppLifecycleStore } from "../stores/appLifecycleStore";
 import { useSystemUserStore } from "../stores/systemUserStore";
-import { useSettingsStore } from "../stores/settingsStore";
+import { useSettingsStore, consumeLegacyChatWindowSettings } from "../stores/settingsStore";
 import { useUpdateStore } from "../stores/updateStore";
 import { useMessengerStore } from "../platforms/messenger/stores/messengerStore";
 import { systemService } from "../services/systemService";
@@ -102,14 +102,20 @@ export function useDashboardBootstrap() {
           feLog.warn("[useDashboardBootstrap] Unable to get active bubbles snapshot:", err);
         }
         try {
-          const chatSettings = useSettingsStore.getState().chatWindowSettings;
-          for (const s of chatSettings) {
-            if (s.mode === "remember_custom" && s.customWidth && s.customHeight) {
-              await messengerService.setChatWindowSizeConfig(s.accountIndex, true, s.customWidth, s.customHeight);
+          const backendChatSettings =
+            settingsRes.status === "fulfilled"
+              ? (settingsRes.value?.chatWindowSettings ?? settingsRes.value?.chat_window_settings)
+              : undefined;
+          const legacyChatSettings = consumeLegacyChatWindowSettings();
+          if ((!Array.isArray(backendChatSettings) || backendChatSettings.length === 0) && legacyChatSettings.length > 0) {
+            for (const s of legacyChatSettings) {
+              if (s.mode === "remember_custom") {
+                await messengerService.setChatWindowSizeConfig(s.accountIndex, true, s.customWidth, s.customHeight);
+              }
             }
           }
         } catch (err) {
-          feLog.warn("[useDashboardBootstrap] Unable to sync chat window size configs:", err);
+          feLog.warn("[useDashboardBootstrap] Unable to migrate legacy chat window size configs:", err);
         }
         feLog.info("[useDashboardBootstrap] Bootstrap completed! Dashboard is ready.");
         markDashboardReady();

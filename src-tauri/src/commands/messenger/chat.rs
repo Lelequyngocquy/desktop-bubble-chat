@@ -161,18 +161,17 @@ pub async fn preload_chat(
     Ok(())
 }
 
-/// Command setting account tab audio muted state
-#[tauri::command]
-pub fn set_account_muted(
-    app: AppHandle,
-    state: State<'_, Arc<ChatState>>,
-    account_index: Option<u32>,
+/// SSOT core helper applying account audio mute state across cache, bubble alert, and webview
+pub fn apply_account_muted(
+    app: &AppHandle,
+    state: &ChatState,
+    account_index: u32,
     muted: bool,
 ) -> Result<(), String> {
-    let idx = ChatState::validate_account_index(account_index)?;
+    let idx = ChatState::validate_account_index(Some(account_index))?;
     let was_alert = state.is_account_alert_active(idx);
     state.set_account_muted(idx, muted);
-    state.update_user_config(&app, |c| {
+    state.update_user_config(app, |c| {
         if muted {
             if !c.muted_accounts.contains(&idx) {
                 c.muted_accounts.push(idx);
@@ -182,7 +181,7 @@ pub fn set_account_muted(
             c.muted_accounts.retain(|&x| x != idx);
         }
     });
-    crate::commands::notification::sync_bubble_alert_state(&app, &state, idx, Some(was_alert));
+    crate::commands::notification::sync_bubble_alert_state(app, state, idx, Some(was_alert));
     let label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
     println!(
         "\x1b[34m[BE - Audio] {} Messenger {:02} tab audio\x1b[0m",
@@ -204,14 +203,7 @@ pub fn set_account_muted(
                 }
             });
             let js = format!(
-                r#"
-                (function() {{
-                    window.__isMuted = {muted};
-                    document.querySelectorAll('audio, video').forEach(function(el) {{
-                        el.muted = {muted};
-                    }});
-                }})();
-                "#
+                "(function(){{window.__isMuted={muted};document.querySelectorAll('audio, video').forEach(function(el){{el.muted={muted};}});}})();"
             );
             let _ = win.eval(&js);
         }
@@ -239,6 +231,101 @@ pub fn set_account_muted(
     Ok(())
 }
 
+/// Command setting account tab audio muted state
+#[tauri::command]
+pub fn set_account_muted(
+    app: AppHandle,
+    state: State<'_, Arc<ChatState>>,
+    account_index: Option<u32>,
+    muted: bool,
+) -> Result<(), String> {
+    let idx = ChatState::validate_account_index(account_index)?;
+    apply_account_muted(&app, &state, idx, muted)
+}
+
+/// Persists a user-dragged custom chat window size without re-docking the live window
+pub fn record_resized_chat_window_size(
+    app: &AppHandle,
+    state: &ChatState,
+    account_index: u32,
+    width: u32,
+    height: u32,
+) {
+    let clamped_w = width.max(crate::utils::user_cache::MIN_CHAT_WINDOW_WIDTH);
+    let clamped_h = height.max(crate::utils::user_cache::MIN_CHAT_WINDOW_HEIGHT);
+    if state.get_chat_window_custom_size(account_index).is_none() {
+        return;
+    }
+    let current_cfg = state.get_user_config().resolved_custom_chat_size(account_index);
+    state.set_chat_window_custom_size(account_index, Some((clamped_w, clamped_h)));
+    let changed = current_cfg.is_none_or(|(cw, ch)| cw.abs_diff(clamped_w) >= 2 || ch.abs_diff(clamped_h) >= 2);
+    if changed {
+        state.update_user_config(app, |c| {
+            c.upsert_chat_window_size_entry(account_index, true, Some((clamped_w, clamped_h)));
+        });
+    }
+}
+
+/// Resolves target logical custom size from explicit request, persisted entry, live window, or default
+fn resolve_chat_window_target_size(
+    is_custom: bool,
+    width: Option<u32>,
+    height: Option<u32>,
+    stored: Option<(u32, u32)>,
+    live: Option<(u32, u32)>,
+) -> Option<(u32, u32)> {
+    if !is_custom {
+        return None;
+    }
+    let min_w = crate::utils::user_cache::MIN_CHAT_WINDOW_WIDTH;
+    let min_h = crate::utils::user_cache::MIN_CHAT_WINDOW_HEIGHT;
+    let def_w = crate::utils::user_cache::DEFAULT_CHAT_WINDOW_WIDTH;
+    let def_h = crate::utils::user_cache::DEFAULT_CHAT_WINDOW_HEIGHT;
+    let valid = |pair: Option<(u32, u32)>| pair.filter(|&(w, h)| w >= min_w && h >= min_h);
+    valid(width.zip(height))
+        .or_else(|| valid(stored))
+        .or_else(|| valid(live))
+        .or(Some((def_w, def_h)))
+}
+
+/// SSOT core helper applying chat window size mode, resizable lock, persistence, and live re-dock
+pub fn apply_chat_window_size_mode(
+    app: &AppHandle,
+    state: &ChatState,
+    account_index: u32,
+    is_custom: bool,
+    width: Option<u32>,
+    height: Option<u32>,
+) -> Result<Option<(u32, u32)>, String> {
+    let idx = ChatState::validate_account_index(Some(account_index))?;
+    let label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
+    let win_opt = app.get_webview_window(&label);
+    let stored = state
+        .get_user_config()
+        .get_chat_window_size_entry(idx)
+        .and_then(|e| e.custom_width.zip(e.custom_height));
+    let live = win_opt.as_ref().and_then(|win| {
+        let phys_sz = win.inner_size().ok()?;
+        let scale = win.scale_factor().unwrap_or(1.0);
+        let cur_w = (phys_sz.width as f64 / scale).round() as u32;
+        let cur_h = (phys_sz.height as f64 / scale).round() as u32;
+        Some((cur_w, cur_h))
+    });
+    let size = resolve_chat_window_target_size(is_custom, width, height, stored, live);
+    state.set_chat_window_custom_size(idx, size);
+    state.update_user_config(app, |c| {
+        c.upsert_chat_window_size_entry(idx, is_custom, size);
+    });
+    if let Some(ref win) = win_opt
+        && !state.is_window_in_auth_mode(&label) {
+            let _ = win.set_resizable(is_custom);
+            if win.is_visible().unwrap_or(false) {
+                ChatService::dock_chat_window(app, win, idx);
+            }
+        }
+    Ok(size)
+}
+
 /// Command setting chat window size configuration
 #[tauri::command]
 pub fn set_chat_window_size_config(
@@ -250,35 +337,31 @@ pub fn set_chat_window_size_config(
     height: Option<u32>,
 ) -> Result<Option<(u32, u32)>, String> {
     let idx = ChatState::validate_account_index(account_index)?;
+    apply_chat_window_size_mode(&app, &state, idx, is_custom, width, height)
+}
+
+/// SSOT core helper toggling or explicitly setting pinned state of a chat window
+pub fn apply_chat_pinned(
+    app: &AppHandle,
+    state: &ChatState,
+    account_index: u32,
+    pinned: Option<bool>,
+) -> Result<bool, String> {
+    let idx = ChatState::validate_account_index(Some(account_index))?;
+    let next_state = pinned.unwrap_or_else(|| !state.is_chat_pinned(idx));
+    state.set_chat_pinned(idx, next_state);
+    println!("\x1b[34m[BE - Pin] apply_chat_pinned: account_index={}, pinned={}\x1b[0m", idx, next_state);
     let label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
-    let win_opt = app.get_webview_window(&label);
-    let size = if is_custom {
-        match (width, height) {
-            (Some(w), Some(h)) if w >= 320 && h >= 450 => Some((w, h)),
-            _ => {
-                if let Some(ref win) = win_opt {
-                    if let Ok(phys_sz) = win.inner_size() {
-                        let scale = win.scale_factor().unwrap_or(1.0);
-                        let cur_w = (phys_sz.width as f64 / scale).round() as u32;
-                        let cur_h = (phys_sz.height as f64 / scale).round() as u32;
-                        if cur_w >= 320 && cur_h >= 450 {
-                            Some((cur_w, cur_h))
-                        } else {
-                            Some((404, 550))
-                        }
-                    } else {
-                        Some((404, 550))
-                    }
-                } else {
-                    Some((404, 550))
-                }
-            }
-        }
-    } else {
-        None
-    };
-    state.set_chat_window_custom_size(idx, size);
-    Ok(size)
+    if let Some(win) = app.get_webview_window(&label) {
+        let _ = win.eval(format!(
+            "window.__IS_PINNED__ = {next_state}; if ({next_state} && typeof window.__cancelAutoUnselectCountdown === 'function') {{ window.__cancelAutoUnselectCountdown(); }} if (typeof window.__updatePinButtonUi === 'function') {{ window.__updatePinButtonUi({next_state}); }}"
+        ));
+    }
+    let _ = app.emit("chat-pin-changed", serde_json::json!({
+        "accountIndex": idx,
+        "pinned": next_state
+    }));
+    Ok(next_state)
 }
 
 /// Command toggling or explicitly setting pinned state of chat window
@@ -290,21 +373,7 @@ pub fn toggle_pin_chat(
     pinned: Option<bool>,
 ) -> Result<bool, String> {
     let idx = ChatState::validate_account_index(account_index)?;
-    let next_state = pinned.unwrap_or_else(|| !state.is_chat_pinned(idx));
-    state.set_chat_pinned(idx, next_state);
-    println!("\x1b[34m[BE - Pin] toggle_pin_chat: account_index={}, pinned={}\x1b[0m", idx, next_state);
-    let label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
-    if let Some(win) = app.get_webview_window(&label) {
-        let _ = win.eval(format!(
-            "if (typeof window.__updatePinButtonUi === 'function') {{ window.__updatePinButtonUi({}); }}",
-            next_state
-        ));
-    }
-    let _ = app.emit("chat-pin-changed", serde_json::json!({
-        "accountIndex": idx,
-        "pinned": next_state
-    }));
-    Ok(next_state)
+    apply_chat_pinned(&app, &state, idx, pinned)
 }
 
 /// Command querying whether chat window is currently pinned
@@ -319,7 +388,7 @@ pub fn is_chat_pinned(
 
 #[cfg(test)]
 mod tests {
-    use super::is_valid_thread_id;
+    use super::{is_valid_thread_id, resolve_chat_window_target_size};
 
     #[test]
     fn test_is_valid_thread_id() {
@@ -331,5 +400,14 @@ mod tests {
         assert!(!is_valid_thread_id("account-msg-1"));
         assert!(!is_valid_thread_id("123';alert(1)//"));
         assert!(!is_valid_thread_id("e2ee/t/123"));
+    }
+
+    #[test]
+    fn test_resolve_chat_window_target_size_precedence() {
+        assert_eq!(resolve_chat_window_target_size(false, Some(500), Some(600), Some((480, 580)), Some((510, 610))), None);
+        assert_eq!(resolve_chat_window_target_size(true, Some(520), Some(640), Some((480, 580)), Some((510, 610))), Some((520, 640)));
+        assert_eq!(resolve_chat_window_target_size(true, Some(200), Some(300), Some((480, 580)), Some((510, 610))), Some((480, 580)));
+        assert_eq!(resolve_chat_window_target_size(true, None, None, None, Some((510, 610))), Some((510, 610)));
+        assert_eq!(resolve_chat_window_target_size(true, None, None, None, Some((200, 300))), Some((404, 550)));
     }
 }

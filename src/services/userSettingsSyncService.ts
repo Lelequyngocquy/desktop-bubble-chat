@@ -1,5 +1,5 @@
 import i18n from "../i18n";
-import { useSettingsStore } from "../stores/settingsStore";
+import { useSettingsStore, type ChatWindowSizeSetting, DEFAULT_CHAT_WIDTH, DEFAULT_CHAT_HEIGHT, MIN_CHAT_WIDTH, MIN_CHAT_HEIGHT } from "../stores/settingsStore";
 import { useMessengerStore } from "../platforms/messenger/stores/messengerStore";
 import { createMessengerAccount } from "../platforms/messenger/types";
 import { systemService } from "./systemService";
@@ -87,6 +87,42 @@ export function applyBackendUserSettings(
     const nextNotificationsEnabled = mutedAccountsRaw.length < store.accounts.length;
     if (settingsStore.isNotificationsEnabled !== nextNotificationsEnabled) {
       settingsStore.setNotificationsEnabled(nextNotificationsEnabled);
+    }
+  }
+  const chatWindowSettingsRaw = userSettings.chatWindowSettings ?? userSettings.chat_window_settings;
+  if (Array.isArray(chatWindowSettingsRaw)) {
+    const normalized: ChatWindowSizeSetting[] = [];
+    for (const raw of chatWindowSettingsRaw) {
+      if (!raw || typeof raw !== "object") continue;
+      const idx = raw.accountIndex ?? raw.account_index;
+      const mode = raw.mode;
+      if (typeof idx !== "number" || !Number.isInteger(idx) || idx < 1 || idx > 5) continue;
+      if (mode !== "default" && mode !== "remember_custom") continue;
+      const rawW = raw.customWidth ?? raw.custom_width;
+      const rawH = raw.customHeight ?? raw.custom_height;
+      const customWidth = typeof rawW === "number" && rawW >= MIN_CHAT_WIDTH ? Math.round(rawW) : (mode === "remember_custom" ? DEFAULT_CHAT_WIDTH : undefined);
+      const customHeight = typeof rawH === "number" && rawH >= MIN_CHAT_HEIGHT ? Math.round(rawH) : (mode === "remember_custom" ? DEFAULT_CHAT_HEIGHT : undefined);
+      normalized.push({
+        accountId: `messenger-${idx.toString().padStart(2, "0")}`,
+        accountIndex: idx,
+        mode,
+        ...(customWidth !== undefined ? { customWidth } : {}),
+        ...(customHeight !== undefined ? { customHeight } : {}),
+      });
+    }
+    normalized.sort((a, b) => a.accountIndex - b.accountIndex);
+    const current = settingsStore.chatWindowSettings;
+    const isSame =
+      current.length === normalized.length &&
+      current.every(
+        (c, i) =>
+          c.accountIndex === normalized[i].accountIndex &&
+          c.mode === normalized[i].mode &&
+          c.customWidth === normalized[i].customWidth &&
+          c.customHeight === normalized[i].customHeight,
+      );
+    if (!isSame) {
+      settingsStore.setChatWindowSettingsFromBackend(normalized);
     }
   }
 }

@@ -46,6 +46,7 @@ pub struct ChatState {
     pub active_dialog_windows: Mutex<HashSet<String>>,
     pub chat_anim_tokens: Mutex<HashMap<u32, u64>>,
     pub session_clean_tokens: Mutex<HashMap<u32, u64>>,
+    pub chat_resize_tokens: Mutex<HashMap<u32, u64>>,
 }
 
 impl Default for ChatState {
@@ -75,6 +76,7 @@ impl Default for ChatState {
             active_dialog_windows: Mutex::new(HashSet::new()),
             chat_anim_tokens: Mutex::new(HashMap::new()),
             session_clean_tokens: Mutex::new(HashMap::new()),
+            chat_resize_tokens: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -318,12 +320,25 @@ impl ChatState {
         None
     }
 
+    /// Hydrates in-memory chat window custom sizes from persisted user config
+    fn hydrate_chat_window_sizes(&self, config: &crate::utils::user_cache::AppUserConfig) {
+        if let Ok(mut map) = self.chat_window_sizes.lock() {
+            map.clear();
+            for idx in 1..=MAX_ACCOUNTS {
+                if let Some(size) = config.resolved_custom_chat_size(idx) {
+                    map.insert(idx, size);
+                }
+            }
+        }
+    }
+
     /// Initializes user config from disk on startup and seeds authenticated accounts
     pub fn init_user_config(&self, mut config: crate::utils::user_cache::AppUserConfig) {
         config.active_bubble_accounts.retain(|idx| config.authenticated_accounts.contains(idx));
         for &idx in &config.authenticated_accounts {
             self.set_account_auth(idx, true, None);
         }
+        self.hydrate_chat_window_sizes(&config);
         if let Ok(mut lock) = self.user_config.lock() {
             *lock = config;
         }
@@ -339,6 +354,7 @@ impl ChatState {
 
     /// Replaces entire user config and saves to disk
     pub fn set_user_config(&self, app: &tauri::AppHandle, config: crate::utils::user_cache::AppUserConfig) {
+        self.hydrate_chat_window_sizes(&config);
         if let Ok(mut lock) = self.user_config.lock() {
             *lock = config.clone();
         }
@@ -476,6 +492,16 @@ impl ChatState {
     /// Verifies if a session clean token is still current
     pub fn is_session_clean_token_valid(&self, account_index: u32, token: u64) -> bool {
         Self::is_token_valid(&self.session_clean_tokens, account_index, token)
+    }
+
+    /// Increments and returns the next chat resize debounce token for an account
+    pub fn next_chat_resize_token(&self, account_index: u32) -> u64 {
+        Self::advance_token(&self.chat_resize_tokens, account_index)
+    }
+
+    /// Verifies if a chat resize debounce token is still current
+    pub fn is_chat_resize_token_valid(&self, account_index: u32, token: u64) -> bool {
+        Self::is_token_valid(&self.chat_resize_tokens, account_index, token)
     }
 }
 
@@ -653,5 +679,26 @@ mod tests {
             cfg.is_notifications_enabled = false;
         }
         assert!(!state.is_account_alert_active(1));
+    }
+
+    #[test]
+    fn test_init_user_config_hydrates_chat_window_sizes() {
+        let state = ChatState::default();
+        let mut cfg = crate::utils::user_cache::AppUserConfig::default();
+        cfg.upsert_chat_window_size_entry(1, true, Some((520, 660)));
+        cfg.upsert_chat_window_size_entry(2, false, Some((500, 600)));
+        state.init_user_config(cfg);
+        assert_eq!(state.get_chat_window_custom_size(1), Some((520, 660)));
+        assert_eq!(state.get_chat_window_custom_size(2), None);
+    }
+
+    #[test]
+    fn test_chat_resize_token_lifecycle() {
+        let state = ChatState::default();
+        let t1 = state.next_chat_resize_token(1);
+        assert!(state.is_chat_resize_token_valid(1, t1));
+        let t2 = state.next_chat_resize_token(1);
+        assert!(!state.is_chat_resize_token_valid(1, t1));
+        assert!(state.is_chat_resize_token_valid(1, t2));
     }
 }

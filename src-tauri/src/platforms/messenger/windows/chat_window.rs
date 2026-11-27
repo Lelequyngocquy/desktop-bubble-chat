@@ -205,8 +205,9 @@ pub fn get_or_create_messenger_window(
     let builder = builder.browser_extensions_enabled(true).extensions_path(&ext_dir);
     #[cfg(target_os = "macos")]
     let builder = builder.data_store_identifier(data_store_identifier_for_account(account_index));
-    let (init_w, init_h) = chat_state
-        .get_chat_window_custom_size(account_index)
+    let custom_size = chat_state.get_chat_window_custom_size(account_index);
+    let is_resizable = custom_size.is_some();
+    let (init_w, init_h) = custom_size
         .map(|(w, h)| (w as f64, h as f64))
         .unwrap_or((404.0, 550.0));
     let builder = builder
@@ -217,7 +218,7 @@ pub fn get_or_create_messenger_window(
         .title(format!("Messenger {:02}", account_index))
         .inner_size(init_w, init_h)
         .min_inner_size(320.0, 450.0)
-        .resizable(true)
+        .resizable(is_resizable)
         .decorations(false)
         .always_on_top(true)
         .skip_taskbar(true)
@@ -240,9 +241,16 @@ pub fn get_or_create_messenger_window(
         })
         .on_page_load(move |win, payload| {
             let in_auth = state_page_load.is_window_in_auth_mode(win.label());
-            let _ = win.eval(format!("window.__IS_AUTH_MODE__ = {};", in_auth));
+            let is_pinned = state_page_load.is_chat_pinned(account_index);
+            let is_muted = state_page_load.is_account_muted(account_index);
+            let _ = win.eval(format!(
+                "window.__IS_AUTH_MODE__ = {in_auth}; window.__IS_PINNED__ = {is_pinned}; window.__isMuted = {is_muted};"
+            ));
             if let tauri::webview::PageLoadEvent::Finished = payload.event() {
                 state_page_load.set_chat_ready(account_index, true);
+                if is_muted {
+                    let _ = win.eval("document.querySelectorAll('audio, video').forEach(function(el){el.muted=true;});");
+                }
                 println!("\x1b[32m[BE - Window] Webview Messenger {:02} preloading finished (Ready)!\x1b[0m", account_index);
                 crate::utils::trim_controller::schedule_auto_trim_on_preload(account_index, win.app_handle().clone());
             }

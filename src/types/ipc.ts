@@ -86,6 +86,16 @@ export const IPC_EVENTS = {
 export type IpcEvent = (typeof IPC_EVENTS)[keyof typeof IPC_EVENTS];
 
 // 3. Event Payloads
+export interface ChatWindowSizeConfigSnapshot {
+  accountIndex?: number;
+  account_index?: number;
+  mode?: "default" | "remember_custom" | string;
+  customWidth?: number | null;
+  custom_width?: number | null;
+  customHeight?: number | null;
+  custom_height?: number | null;
+}
+
 export interface UserSettingsSnapshot {
   is_dashboard_open?: boolean;
   isDashboardOpen?: boolean;
@@ -114,6 +124,8 @@ export interface UserSettingsSnapshot {
   authenticatedAccounts?: number[];
   is_global_shortcut_enabled?: boolean;
   isGlobalShortcutEnabled?: boolean;
+  chat_window_settings?: ChatWindowSizeConfigSnapshot[];
+  chatWindowSettings?: ChatWindowSizeConfigSnapshot[];
 }
 
 export interface ChatWindowResizedPayload {

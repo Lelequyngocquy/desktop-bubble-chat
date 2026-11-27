@@ -69,7 +69,7 @@ export async function registerWindowAndLayoutEvents(
         clearTimeout(resizeDebounceTimer);
         resizeDebounceTimer = setTimeout(() => {
           if (!isDisposed()) {
-            useSettingsStore.getState().updateChatWindowSize(data.accountIndex, data.width, data.height);
+            useSettingsStore.getState().updateChatWindowSize(data.accountIndex, data.width, data.height, true);
           }
         }, 500);
       }

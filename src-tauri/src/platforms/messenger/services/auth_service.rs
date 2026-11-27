@@ -40,6 +40,7 @@ impl AuthService {
         let theme = get_account_theme(idx);
         let _ = chat_window.set_title(&format!("Messenger Login {:02}", idx));
         let _ = chat_window.set_decorations(true);
+        let _ = chat_window.set_resizable(true);
         let _ = chat_window.set_skip_taskbar(false);
         let _ = chat_window.set_size(tauri::Size::Logical(tauri::LogicalSize {
             width: 680.0,
@@ -165,6 +166,7 @@ impl AuthService {
                 let _ = chat_window.set_title("Messenger");
                 let _ = chat_window.hide();
                 let _ = chat_window.set_decorations(false);
+                let _ = chat_window.set_resizable(state.get_chat_window_custom_size(idx).is_some());
                 let _ = chat_window.set_skip_taskbar(true);
                 let _ = app.emit("chat-visibility-changed", serde_json::json!({
                     "accountIndex": idx,

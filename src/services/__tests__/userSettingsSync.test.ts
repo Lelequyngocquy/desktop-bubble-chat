@@ -86,14 +86,33 @@ describe("userSettingsSyncService", () => {
   it("excludes backend-owned SSOT fields from localStorage partialize", () => {
     useSettingsStore.getState().setCloseWindowAction("hide_to_tray");
     useSettingsStore.getState().setLanguage("vi", true);
+    useSettingsStore.getState().setChatWindowSettingsFromBackend([
+      { accountId: "messenger-01", accountIndex: 1, mode: "remember_custom", customWidth: 480, customHeight: 620 },
+    ]);
     const raw = memoryStorage.getItem("desktop_bubble_chat_settings");
     expect(raw).not.toBeNull();
     const persisted = JSON.parse(raw!).state as Record<string, unknown>;
-    expect(Object.keys(persisted).sort()).toEqual(["chatWindowSettings", "closeWindowAction"]);
+    expect(Object.keys(persisted).sort()).toEqual(["closeWindowAction"]);
     expect(persisted.closeWindowAction).toBe("hide_to_tray");
+    expect("chatWindowSettings" in persisted).toBe(false);
     expect("language" in persisted).toBe(false);
     expect("themeMode" in persisted).toBe(false);
     expect("updateMode" in persisted).toBe(false);
+  });
+
+  it("syncs chatWindowSettings from backend SSOT snapshot without echoing IPC", () => {
+    applyBackendUserSettings({
+      chatWindowSettings: [
+        { accountIndex: 2, mode: "remember_custom", customWidth: 520, customHeight: 680 },
+        { accountIndex: 1, mode: "default", customWidth: 460, customHeight: 600 },
+      ],
+    });
+    const settings = useSettingsStore.getState().chatWindowSettings;
+    expect(settings).toEqual([
+      { accountId: "messenger-01", accountIndex: 1, mode: "default", customWidth: 460, customHeight: 600 },
+      { accountId: "messenger-02", accountIndex: 2, mode: "remember_custom", customWidth: 520, customHeight: 680 },
+    ]);
+    expect(mockInvoke).not.toHaveBeenCalled();
   });
 
   it("syncs activeBubbleAccounts from backend SSOT snapshot to messengerStore", () => {

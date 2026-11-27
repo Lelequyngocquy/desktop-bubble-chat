@@ -64,8 +64,30 @@ pub fn setup_window_events(app: &AppHandle, chat_window: &tauri::WebviewWindow, 
                     let logical_w = (physical_size.width as f64 / scale).round() as u32;
                     let logical_h = (physical_size.height as f64 / scale).round() as u32;
                     if logical_w >= 200 && logical_h >= 200 {
-                        if state_clone.get_chat_window_custom_size(idx).is_some() {
-                            state_clone.set_chat_window_custom_size(idx, Some((logical_w, logical_h)));
+                        if let Some((cur_w, cur_h)) = state_clone.get_chat_window_custom_size(idx) {
+                            let clamped_w = logical_w.max(crate::utils::user_cache::MIN_CHAT_WINDOW_WIDTH);
+                            let clamped_h = logical_h.max(crate::utils::user_cache::MIN_CHAT_WINDOW_HEIGHT);
+                            if cur_w.abs_diff(clamped_w) >= 2 || cur_h.abs_diff(clamped_h) >= 2 {
+                                state_clone.set_chat_window_custom_size(idx, Some((clamped_w, clamped_h)));
+                                let token = state_clone.next_chat_resize_token(idx);
+                                let app_bg = app_handle.clone();
+                                let state_bg = Arc::clone(&state_clone);
+                                tauri::async_runtime::spawn(async move {
+                                    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+                                    if state_bg.is_explicit_exit.load(std::sync::atomic::Ordering::SeqCst) {
+                                        return;
+                                    }
+                                    if state_bg.is_chat_resize_token_valid(idx, token) {
+                                        crate::commands::messenger::chat::record_resized_chat_window_size(
+                                            &app_bg,
+                                            &state_bg,
+                                            idx,
+                                            clamped_w,
+                                            clamped_h,
+                                        );
+                                    }
+                                });
+                            }
                         }
                         let _ = app_handle.emit("chat-window-resized", serde_json::json!({
                             "accountIndex": idx,

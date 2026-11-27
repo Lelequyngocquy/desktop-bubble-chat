@@ -3,6 +3,23 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
+pub const DEFAULT_CHAT_WINDOW_WIDTH: u32 = 404;
+pub const DEFAULT_CHAT_WINDOW_HEIGHT: u32 = 550;
+pub const MIN_CHAT_WINDOW_WIDTH: u32 = 320;
+pub const MIN_CHAT_WINDOW_HEIGHT: u32 = 450;
+
+/// Persistent per-account chat window sizing preference
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatWindowSizeConfigEntry {
+    pub account_index: u32,
+    pub mode: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_width: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_height: Option<u32>,
+}
+
 // Persistent user configuration state
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,6 +45,8 @@ pub struct AppUserConfig {
     pub update_mode: Option<String>,
     #[serde(default = "default_true", alias = "is_global_shortcut_enabled")]
     pub is_global_shortcut_enabled: bool,
+    #[serde(default, alias = "chat_window_settings")]
+    pub chat_window_settings: Vec<ChatWindowSizeConfigEntry>,
 }
 
 fn default_authenticated_accounts() -> Vec<u32> {
@@ -71,6 +90,7 @@ impl Default for AppUserConfig {
             authenticated_accounts: vec![1],
             update_mode: Some("auto".to_string()),
             is_global_shortcut_enabled: true,
+            chat_window_settings: Vec::new(),
         }
     }
 }
@@ -94,6 +114,48 @@ impl AppUserConfig {
     }
     pub fn is_auto_update_enabled(&self) -> bool {
         self.update_mode.as_deref().unwrap_or("auto") == "auto"
+    }
+    /// Finds persisted chat window size entry for an account
+    pub fn get_chat_window_size_entry(&self, account_index: u32) -> Option<&ChatWindowSizeConfigEntry> {
+        self.chat_window_settings.iter().find(|e| e.account_index == account_index)
+    }
+    /// Returns active custom chat size when account uses remember_custom mode
+    pub fn resolved_custom_chat_size(&self, account_index: u32) -> Option<(u32, u32)> {
+        let entry = self.get_chat_window_size_entry(account_index)?;
+        if entry.mode != "remember_custom" {
+            return None;
+        }
+        let w = entry.custom_width.filter(|&v| v >= MIN_CHAT_WINDOW_WIDTH).unwrap_or(DEFAULT_CHAT_WINDOW_WIDTH);
+        let h = entry.custom_height.filter(|&v| v >= MIN_CHAT_WINDOW_HEIGHT).unwrap_or(DEFAULT_CHAT_WINDOW_HEIGHT);
+        Some((w, h))
+    }
+    /// Upserts per-account chat window size mode while preserving stored custom dimensions
+    pub fn upsert_chat_window_size_entry(&mut self, account_index: u32, is_custom: bool, size: Option<(u32, u32)>) {
+        let mode_str = if is_custom { "remember_custom" } else { "default" };
+        let valid_size = size.filter(|&(w, h)| w >= MIN_CHAT_WINDOW_WIDTH && h >= MIN_CHAT_WINDOW_HEIGHT);
+        if let Some(existing) = self.chat_window_settings.iter_mut().find(|e| e.account_index == account_index) {
+            existing.mode = mode_str.to_string();
+            if let Some((w, h)) = valid_size {
+                existing.custom_width = Some(w);
+                existing.custom_height = Some(h);
+            } else if is_custom && (existing.custom_width.is_none() || existing.custom_height.is_none()) {
+                existing.custom_width = Some(DEFAULT_CHAT_WINDOW_WIDTH);
+                existing.custom_height = Some(DEFAULT_CHAT_WINDOW_HEIGHT);
+            }
+        } else {
+            let (custom_width, custom_height) = match valid_size {
+                Some((w, h)) => (Some(w), Some(h)),
+                None if is_custom => (Some(DEFAULT_CHAT_WINDOW_WIDTH), Some(DEFAULT_CHAT_WINDOW_HEIGHT)),
+                None => (None, None),
+            };
+            self.chat_window_settings.push(ChatWindowSizeConfigEntry {
+                account_index,
+                mode: mode_str.to_string(),
+                custom_width,
+                custom_height,
+            });
+            self.chat_window_settings.sort_by_key(|e| e.account_index);
+        }
     }
 }
 
@@ -171,6 +233,12 @@ mod tests {
             authenticated_accounts: vec![1, 2],
             update_mode: Some("manual".to_string()),
             is_global_shortcut_enabled: false,
+            chat_window_settings: vec![ChatWindowSizeConfigEntry {
+                account_index: 1,
+                mode: "remember_custom".to_string(),
+                custom_width: Some(520),
+                custom_height: Some(680),
+            }],
         };
         let serialized = serde_json::to_string(&config).unwrap();
         let deserialized: AppUserConfig = serde_json::from_str(&serialized).unwrap();
@@ -190,6 +258,8 @@ mod tests {
         assert_eq!(deserialized.is_free_position_mode(), true);
         assert_eq!(deserialized.bubble_position_mode, "free");
         assert_eq!(deserialized.is_auto_update_enabled(), false);
+        assert_eq!(deserialized.resolved_custom_chat_size(1), Some((520, 680)));
+        assert_eq!(deserialized.resolved_custom_chat_size(2), None);
         let sm_config = AppUserConfig {
             bubble_size: "sm".to_string(),
             ..AppUserConfig::default()
@@ -208,5 +278,21 @@ mod tests {
         assert_eq!(legacy_config.bubble_position_mode, "auto_tuck");
         assert_eq!(legacy_config.authenticated_accounts, vec![1]);
         assert_eq!(legacy_config.is_auto_update_enabled(), true);
+        assert!(legacy_config.chat_window_settings.is_empty());
+    }
+
+    #[test]
+    fn test_chat_window_size_upsert_preserves_custom_size_across_toggle() {
+        let mut config = AppUserConfig::default();
+        config.upsert_chat_window_size_entry(2, true, Some((540, 700)));
+        assert_eq!(config.resolved_custom_chat_size(2), Some((540, 700)));
+        config.upsert_chat_window_size_entry(2, false, None);
+        assert_eq!(config.resolved_custom_chat_size(2), None);
+        let stored = config.get_chat_window_size_entry(2).unwrap();
+        assert_eq!(stored.mode, "default");
+        assert_eq!(stored.custom_width, Some(540));
+        assert_eq!(stored.custom_height, Some(700));
+        config.upsert_chat_window_size_entry(2, true, None);
+        assert_eq!(config.resolved_custom_chat_size(2), Some((540, 700)));
     }
 }

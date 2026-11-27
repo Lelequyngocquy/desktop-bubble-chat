@@ -249,8 +249,8 @@ pub async fn toggle_all_bubbles(
     Ok(toggle_all_bubbles_impl(&app, visible, account_indices).await)
 }
 
-/// Suspends a dismissed bubble reliably even if an earlier transition lock was briefly busy
-pub async fn dismiss_bubble_from_drag(app: AppHandle, account_index: u32) {
+/// SSOT helper suspending a bubble, updating persistent config, and refreshing tray menu
+pub async fn hide_account_bubble_ssot(app: AppHandle, account_index: u32) {
     let Ok(idx) = ChatState::validate_account_index(Some(account_index)) else {
         return;
     };
@@ -274,4 +274,9 @@ pub async fn dismiss_bubble_from_drag(app: AppHandle, account_index: u32) {
     }
     drop(guard);
     let _ = crate::tray::update_tray_menu(&app);
+}
+
+/// Suspends a dismissed bubble reliably even if an earlier transition lock was briefly busy
+pub async fn dismiss_bubble_from_drag(app: AppHandle, account_index: u32) {
+    hide_account_bubble_ssot(app, account_index).await;
 }

@@ -75,7 +75,16 @@ interface SettingsState {
   setCloseWindowAction: (action: CloseWindowAction) => void;
   setUpdateMode: (mode: UpdateMode, skipIpc?: boolean) => void;
   setChatWindowMode: (accountIndex: number, accountId: string, mode: ChatWindowSizeMode) => void | Promise<void>;
-  updateChatWindowSize: (accountIndex: number, width: number, height: number) => void;
+  setChatWindowSettingsFromBackend: (settings: ChatWindowSizeSetting[]) => void;
+  updateChatWindowSize: (accountIndex: number, width: number, height: number, skipIpc?: boolean) => void;
+}
+
+let legacyChatWindowSettingsForMigration: ChatWindowSizeSetting[] = [];
+
+export function consumeLegacyChatWindowSettings(): ChatWindowSizeSetting[] {
+  const pending = legacyChatWindowSettingsForMigration;
+  legacyChatWindowSettingsForMigration = [];
+  return pending;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -185,7 +194,8 @@ export const useSettingsStore = create<SettingsState>()(
           }
         }
       },
-      updateChatWindowSize: (accountIndex, width, height) => {
+      setChatWindowSettingsFromBackend: (settings) => set({ chatWindowSettings: settings }),
+      updateChatWindowSize: (accountIndex, width, height, skipIpc = false) => {
         const clampedWidth = Math.max(MIN_CHAT_WIDTH, Math.round(width));
         const clampedHeight = Math.max(MIN_CHAT_HEIGHT, Math.round(height));
         set((state) => {
@@ -218,15 +228,16 @@ export const useSettingsStore = create<SettingsState>()(
             ],
           };
         });
-        messengerService.setChatWindowSizeConfig(accountIndex, true, clampedWidth, clampedHeight);
+        if (!skipIpc) {
+          messengerService.setChatWindowSizeConfig(accountIndex, true, clampedWidth, clampedHeight);
+        }
       },
     }),
     {
       name: "desktop_bubble_chat_settings",
-      version: 2,
+      version: 3,
       partialize: (state) => ({
         closeWindowAction: state.closeWindowAction,
-        chatWindowSettings: state.chatWindowSettings,
       }),
       migrate: (persistedState: unknown, version: number) => {
         const state = (persistedState && typeof persistedState === "object" ? { ...(persistedState as Record<string, unknown>) } : {}) as Record<string, unknown>;
@@ -241,6 +252,12 @@ export const useSettingsStore = create<SettingsState>()(
             console.warn("[settingsStore] Legacy settings migration skipped:", err);
           }
         }
+        if (version < 3) {
+          const legacyChatSettings = extractValidLegacyChatWindowSettings(state.chatWindowSettings);
+          if (legacyChatSettings.length > 0) {
+            legacyChatWindowSettingsForMigration = legacyChatSettings;
+          }
+        }
         return extractValidPersistedSettings(state) as unknown as SettingsState;
       },
     },
@@ -248,28 +265,30 @@ export const useSettingsStore = create<SettingsState>()(
 );
 
 type PersistedSettingsPatch = Partial<
-  Pick<SettingsState, "closeWindowAction" | "chatWindowSettings">
+  Pick<SettingsState, "closeWindowAction">
 >;
+
+function extractValidLegacyChatWindowSettings(raw: unknown): ChatWindowSizeSetting[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item): item is ChatWindowSizeSetting => {
+    if (!item || typeof item !== "object") return false;
+    const entry = item as Partial<ChatWindowSizeSetting>;
+    return (
+      typeof entry.accountId === "string" &&
+      typeof entry.accountIndex === "number" &&
+      Number.isInteger(entry.accountIndex) &&
+      entry.accountIndex >= 1 &&
+      entry.accountIndex <= 5 &&
+      (entry.mode === "default" || entry.mode === "remember_custom")
+    );
+  });
+}
 
 function extractValidPersistedSettings(raw: unknown): PersistedSettingsPatch {
   if (!raw || typeof raw !== "object") return {};
   const src = raw as Record<string, unknown>;
   const patch: PersistedSettingsPatch = {};
   if (src.closeWindowAction === "ask" || src.closeWindowAction === "hide_to_tray" || src.closeWindowAction === "exit_app") patch.closeWindowAction = src.closeWindowAction;
-  if (Array.isArray(src.chatWindowSettings)) {
-    patch.chatWindowSettings = src.chatWindowSettings.filter((item): item is ChatWindowSizeSetting => {
-      if (!item || typeof item !== "object") return false;
-      const entry = item as Partial<ChatWindowSizeSetting>;
-      return (
-        typeof entry.accountId === "string" &&
-        typeof entry.accountIndex === "number" &&
-        Number.isInteger(entry.accountIndex) &&
-        entry.accountIndex >= 1 &&
-        entry.accountIndex <= 5 &&
-        (entry.mode === "default" || entry.mode === "remember_custom")
-      );
-    });
-  }
   return patch;
 }
 

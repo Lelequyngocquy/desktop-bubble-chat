@@ -76,6 +76,7 @@ pub fn start_auth_watcher(app_handle: AppHandle, chat_state: Arc<ChatState>) {
                                 chat_state.set_window_auth_mode(&win_label, false);
                                 let _ = chat_window.hide();
                                 let _ = chat_window.set_decorations(false);
+                                let _ = chat_window.set_resizable(chat_state.get_chat_window_custom_size(idx).is_some());
                                 let _ = chat_window.set_skip_taskbar(true);
                                 let _ = app_handle.emit("chat-visibility-changed", serde_json::json!({
                                     "accountIndex": idx,

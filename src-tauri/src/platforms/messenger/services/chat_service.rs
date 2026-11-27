@@ -135,6 +135,7 @@ impl ChatService {
         state.next_chat_anim_token(idx);
         state.set_window_auth_mode(chat_window.label(), false);
         let _ = chat_window.set_decorations(false);
+        let _ = chat_window.set_resizable(state.get_chat_window_custom_size(idx).is_some());
         let _ = chat_window.set_skip_taskbar(true);
         Self::dock_chat_window(app, &chat_window, idx);
         println!("[BE - Chat] Opened Messenger {:02} chat docked next to bubble", idx);
@@ -182,7 +183,7 @@ impl ChatService {
                             let cur_w = (phys_sz.width as f64 / scale).round() as u32;
                             let cur_h = (phys_sz.height as f64 / scale).round() as u32;
                             if cur_w >= 320 && cur_h >= 450 {
-                                cs.set_chat_window_custom_size(idx, Some((cur_w, cur_h)));
+                                crate::commands::messenger::chat::record_resized_chat_window_size(app, &cs, idx, cur_w, cur_h);
                             }
                         }
                 }

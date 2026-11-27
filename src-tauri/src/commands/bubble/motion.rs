@@ -162,78 +162,7 @@ pub fn set_bubble_config(
         }
     }
     if !config.is_free_position {
-        let mut all_rects = get_active_bubble_rects(&app, None);
-        for idx in 1..=crate::state::MAX_ACCOUNTS {
-            let cur_pos = if crate::operating_systems::current::bubble::has_native_bubble(idx) {
-                crate::operating_systems::current::bubble::NativeBubbleManager::global()
-                    .get_bounds(idx)
-                    .map(|(x, y, _, _)| (x, y, true))
-            } else {
-                let label = get_bubble_window_label(idx);
-                app.get_webview_window(&label)
-                    .filter(|w| w.is_visible().unwrap_or(false))
-                    .and_then(|w| w.outer_position().ok().map(|p| (p.x, p.y, false)))
-            };
-            if let Some((cur_x, cur_y, is_native)) = cur_pos {
-                let stay_untucked = crate::presentation::bubble::is_bubble_stay_untucked(&app, idx);
-                let edge_ratio = BubbleMovementEngine::effective_edge_ratio(&config, stay_untucked);
-                let snap = BubbleMovementEngine::calculate_snap_with_ratio(
-                    &screen,
-                    &config,
-                    PhysicalPosition { x: cur_x, y: cur_y },
-                    idx,
-                    &all_rects,
-                    edge_ratio,
-                );
-                if snap.should_dismiss {
-                    let app_clone = app.clone();
-                    tauri::async_runtime::spawn(async move {
-                        super::lifecycle::dismiss_bubble_from_drag(app_clone, idx).await;
-                    });
-                    continue;
-                }
-                if let Some(existing) = all_rects.iter_mut().find(|r| r.account_index == idx) {
-                    existing.x = snap.target_x;
-                    existing.y = snap.target_y;
-                    existing.width = bubble_size_px as i32;
-                    existing.height = bubble_size_px as i32;
-                }
-                if is_native {
-                    crate::operating_systems::current::bubble::NativeBubbleManager::global().dispatch(
-                        crate::operating_systems::current::bubble::NativeBubbleAction::AnimateTo {
-                            account_index: idx,
-                            target_x: snap.target_x,
-                            target_y: snap.target_y,
-                            duration_ms: 160,
-                        },
-                    );
-                    crate::operating_systems::current::bubble::update_cached_bubble_bounds(
-                        idx,
-                        snap.target_x,
-                        snap.target_y,
-                        bubble_size_px,
-                        bubble_size_px,
-                    );
-                } else if let Some(window) = app.get_webview_window(&get_bubble_window_label(idx)) {
-                    let _ = window.set_position(Position::Physical(PhysicalPosition {
-                        x: snap.target_x,
-                        y: snap.target_y,
-                    }));
-                }
-                if let Some(chat_state) = app.try_state::<Arc<ChatState>>() {
-                    chat_state.set_bubble_rect(
-                        idx,
-                        BubbleRect {
-                            account_index: idx,
-                            x: snap.target_x,
-                            y: snap.target_y,
-                            width: bubble_size_px as i32,
-                            height: bubble_size_px as i32,
-                        },
-                    );
-                }
-            }
-        }
+        snap_all_active_bubbles_to_edges(&app, &config, &screen, bubble_size_px, false);
     }
     let size_str = classify_bubble_size(config.size);
     let _ = app.emit(
@@ -247,13 +176,110 @@ pub fn set_bubble_config(
     Ok(())
 }
 
-/// Sets bubble position mode: "auto_tuck" (default) or "free"
-#[tauri::command]
-pub fn set_bubble_position_mode(
-    app: AppHandle,
-    mode: String,
+/// Snaps all visible bubbles to their nearest edge respecting stay-untucked state and optionally re-docks open chat
+fn snap_all_active_bubbles_to_edges(
+    app: &AppHandle,
+    config: &crate::movement::BubblePhysicsConfig,
+    screen: &crate::movement::ScreenMetrics,
+    bubble_size_px: u32,
+    redock_open_chat: bool,
+) {
+    let mut all_rects = get_active_bubble_rects(app, None);
+    for idx in 1..=crate::state::MAX_ACCOUNTS {
+        let cur_pos = if crate::operating_systems::current::bubble::has_native_bubble(idx) {
+            crate::operating_systems::current::bubble::NativeBubbleManager::global()
+                .get_bounds(idx)
+                .map(|(x, y, _, _)| (x, y, true))
+        } else {
+            let label = get_bubble_window_label(idx);
+            app.get_webview_window(&label)
+                .filter(|w| w.is_visible().unwrap_or(false))
+                .and_then(|w| w.outer_position().ok().map(|p| (p.x, p.y, false)))
+        };
+        if let Some((cur_x, cur_y, is_native)) = cur_pos {
+            let stay_untucked = crate::presentation::bubble::is_bubble_stay_untucked(app, idx);
+            let edge_ratio = BubbleMovementEngine::effective_edge_ratio(config, stay_untucked);
+            let snap = BubbleMovementEngine::calculate_snap_with_ratio(
+                screen,
+                config,
+                PhysicalPosition { x: cur_x, y: cur_y },
+                idx,
+                &all_rects,
+                edge_ratio,
+            );
+            if snap.should_dismiss {
+                let app_clone = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    super::lifecycle::hide_account_bubble_ssot(app_clone, idx).await;
+                });
+                continue;
+            }
+            if let Some(existing) = all_rects.iter_mut().find(|r| r.account_index == idx) {
+                existing.x = snap.target_x;
+                existing.y = snap.target_y;
+                existing.width = bubble_size_px as i32;
+                existing.height = bubble_size_px as i32;
+            }
+            if is_native {
+                crate::operating_systems::current::bubble::NativeBubbleManager::global().dispatch(
+                    crate::operating_systems::current::bubble::NativeBubbleAction::AnimateTo {
+                        account_index: idx,
+                        target_x: snap.target_x,
+                        target_y: snap.target_y,
+                        duration_ms: 160,
+                    },
+                );
+                crate::operating_systems::current::bubble::update_cached_bubble_bounds(
+                    idx,
+                    snap.target_x,
+                    snap.target_y,
+                    bubble_size_px,
+                    bubble_size_px,
+                );
+            } else if let Some(window) = app.get_webview_window(&get_bubble_window_label(idx)) {
+                let _ = window.set_position(Position::Physical(PhysicalPosition {
+                    x: snap.target_x,
+                    y: snap.target_y,
+                }));
+            }
+            if let Some(chat_state) = app.try_state::<Arc<ChatState>>() {
+                chat_state.set_bubble_rect(
+                    idx,
+                    BubbleRect {
+                        account_index: idx,
+                        x: snap.target_x,
+                        y: snap.target_y,
+                        width: bubble_size_px as i32,
+                        height: bubble_size_px as i32,
+                    },
+                );
+            }
+            if redock_open_chat {
+                let chat_label = crate::platforms::messenger::windows::get_messenger_window_label(idx);
+                let in_auth = app
+                    .try_state::<Arc<ChatState>>()
+                    .is_some_and(|cs| cs.is_window_in_auth_mode(&chat_label));
+                if !in_auth
+                    && let Some(chat_win) = app.get_webview_window(&chat_label)
+                    && chat_win.is_visible().unwrap_or(false) {
+                        crate::platforms::messenger::services::ChatService::dock_chat_window(app, &chat_win, idx);
+                    }
+            }
+        }
+    }
+}
+
+/// Validates supported bubble position mode identifiers
+pub fn is_valid_bubble_position_mode(mode: &str) -> bool {
+    matches!(mode, "auto_tuck" | "free")
+}
+
+/// SSOT core helper setting global bubble position mode and snapping bubbles when returning to auto_tuck
+pub fn apply_bubble_position_mode(
+    app: &AppHandle,
+    mode: &str,
 ) -> Result<(), String> {
-    if !matches!(mode.as_str(), "auto_tuck" | "free") {
+    if !is_valid_bubble_position_mode(mode) {
         return Err(format!("Invalid bubble_position_mode '{}': expected auto_tuck or free", mode));
     }
     let is_free = mode == "free";
@@ -262,9 +288,15 @@ pub fn set_bubble_position_mode(
             guard.is_free_position = is_free;
         }
     if let Some(chat_state) = app.try_state::<std::sync::Arc<crate::state::ChatState>>() {
-        chat_state.update_user_config(&app, |c| {
-            c.bubble_position_mode = mode.clone();
+        chat_state.update_user_config(app, |c| {
+            c.bubble_position_mode = mode.to_string();
         });
+    }
+    if !is_free {
+        let config = get_bubble_physics_config(app);
+        let screen = crate::movement::get_target_dashboard_screen(Some(app));
+        let bubble_size_px = (config.size * screen.scale_factor).round() as u32;
+        snap_all_active_bubbles_to_edges(app, &config, &screen, bubble_size_px, true);
     }
     let _ = app.emit(
         "bubble-config-changed",
@@ -273,6 +305,15 @@ pub fn set_bubble_position_mode(
         }),
     );
     Ok(())
+}
+
+/// Sets bubble position mode: "auto_tuck" (default) or "free"
+#[tauri::command]
+pub fn set_bubble_position_mode(
+    app: AppHandle,
+    mode: String,
+) -> Result<(), String> {
+    apply_bubble_position_mode(&app, &mode)
 }
 
 #[cfg(test)]
@@ -287,5 +328,13 @@ mod tests {
         assert_eq!(classify_bubble_size(56.0), "md");
         assert_eq!(classify_bubble_size(64.0), "lg");
         assert_eq!(classify_bubble_size(72.0), "lg");
+    }
+
+    #[test]
+    fn test_is_valid_bubble_position_mode() {
+        assert!(is_valid_bubble_position_mode("auto_tuck"));
+        assert!(is_valid_bubble_position_mode("free"));
+        assert!(!is_valid_bubble_position_mode(""));
+        assert!(!is_valid_bubble_position_mode("pinned"));
     }
 }
