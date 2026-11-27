@@ -3,6 +3,9 @@ use crate::commands::system::app::global_shortcuts_for_os;
 use crate::movement::{BubbleMovementEngine, BubblePhysicsConfig, BubbleRect, CollisionResolver, ScreenMetrics};
 use crate::operating_systems::linux::autostart::LinuxAutostartManager;
 use crate::operating_systems::linux::bubble::animator::SpringAnimationState as LinuxSpringAnim;
+use crate::operating_systems::linux::bubble::dock::{
+    compute_dock_input_rects, hit_test_linux_dock_local_logical,
+};
 use crate::operating_systems::linux::bubble::window::gtk_window::{
     compute_bubble_input_rects, logical_root_to_physical, physical_coord_to_logical, physical_size_to_logical,
 };
@@ -13,6 +16,10 @@ use crate::operating_systems::linux::cursor::LinuxCursorTracker;
 use crate::operating_systems::linux::memory::LinuxMemoryOptimizer;
 use crate::operating_systems::linux::theme::LinuxThemeManager;
 use crate::operating_systems::macos::bubble::animator::SpringAnimationState as MacOSSpringAnim;
+use crate::operating_systems::macos::bubble::dock::{
+    dock_physical_to_cocoa_rect_with_primary_height, hit_test_macos_dock_local_point,
+    is_macos_dock_point_hittable,
+};
 use crate::operating_systems::macos::bubble::window::panel::{
     is_point_in_bubble_hit_zone, MacOSPanelController,
 };
@@ -192,4 +199,142 @@ fn parity_heartbeat_state_and_pause_lifecycle_matches_across_macos_and_linux() {
     assert!(mac.should_animate() && linux.should_animate());
     assert!(mac.set_alert_active(false) && linux.set_alert_active(false));
     assert!(!mac.should_animate() && !linux.should_animate());
+}
+
+#[test]
+fn parity_action_dock_hit_test_and_hover_bridge_across_all_oses() {
+    use crate::presentation::bubble::dock::{
+        compute_action_dock_layout, is_point_in_dock_hover_corridor,
+    };
+    for (bubble_logical, scale) in [(48u32, 1.0f64), (56u32, 1.5f64), (64u32, 2.0f64)] {
+        let screen = sample_screen(scale);
+        let bubble_px = (bubble_logical as f64 * scale).round() as u32;
+        let layout = compute_action_dock_layout(20, 120, bubble_px, &screen, 12.0, 60.0);
+        let canvas_h_pt = (layout.canvas_height as f64) / scale;
+        let linux_rects = compute_dock_input_rects(&layout, true);
+        assert!(!linux_rects.is_empty());
+        assert!(compute_dock_input_rects(&layout, false).is_empty());
+        for slot in &layout.slots {
+            let screen_x = layout.window_x + slot.local_cx.round() as i32;
+            let screen_y = layout.window_y + slot.local_cy.round() as i32;
+            let mac_x_pt = (slot.local_cx as f64) / scale;
+            let mac_y_pt = canvas_h_pt - (slot.local_cy as f64) / scale;
+            let linux_x = (slot.local_cx as f64) / scale;
+            let linux_y = (slot.local_cy as f64) / scale;
+            #[cfg(target_os = "windows")]
+            {
+                use crate::operating_systems::windows::bubble::dock::hit_test_action_dock_screen_point;
+                use crate::operating_systems::windows::bubble::window::{HTCLIENT, HTTRANSPARENT};
+                assert_eq!(hit_test_action_dock_screen_point(screen_x, screen_y, &layout, true, false), HTCLIENT);
+                assert_eq!(hit_test_action_dock_screen_point(screen_x, screen_y, &layout, false, false), HTTRANSPARENT);
+            }
+            assert_eq!(hit_test_macos_dock_local_point(mac_x_pt, mac_y_pt, &layout, true), Some(slot.action));
+            assert!(is_macos_dock_point_hittable(mac_x_pt, mac_y_pt, &layout, true, false));
+            assert!(!is_macos_dock_point_hittable(mac_x_pt, mac_y_pt, &layout, false, false));
+            assert_eq!(hit_test_linux_dock_local_logical(linux_x, linux_y, &layout, true), Some(slot.action));
+            assert_eq!(hit_test_linux_dock_local_logical(linux_x, linux_y, &layout, false), None);
+            let lx_i = linux_x.round() as i32;
+            let ly_i = linux_y.round() as i32;
+            assert!(linux_rects.iter().any(|r| lx_i >= r.x && lx_i < r.x + r.width && ly_i >= r.y && ly_i < r.y + r.height));
+            assert!(is_point_in_dock_hover_corridor(screen_x, screen_y, &layout));
+        }
+        let gap_cx_px = layout.slots[0].local_cx;
+        let gap_cy_px = (layout.slots[0].local_cy + layout.slots[1].local_cy) * 0.5;
+        let gap_screen_x = layout.window_x + gap_cx_px.round() as i32;
+        let gap_screen_y = layout.window_y + gap_cy_px.round() as i32;
+        let gap_mac_x = (gap_cx_px as f64) / scale;
+        let gap_mac_y = canvas_h_pt - (gap_cy_px as f64) / scale;
+        let gap_linux_x = (gap_cx_px as f64) / scale;
+        let gap_linux_y = (gap_cy_px as f64) / scale;
+        #[cfg(target_os = "windows")]
+        {
+            use crate::operating_systems::windows::bubble::dock::hit_test_action_dock_screen_point;
+            use crate::operating_systems::windows::bubble::window::HTTRANSPARENT;
+            assert_eq!(hit_test_action_dock_screen_point(gap_screen_x, gap_screen_y, &layout, true, false), HTTRANSPARENT);
+        }
+        assert_eq!(hit_test_macos_dock_local_point(gap_mac_x, gap_mac_y, &layout, true), None);
+        assert!(!is_macos_dock_point_hittable(gap_mac_x, gap_mac_y, &layout, true, false));
+        assert_eq!(hit_test_linux_dock_local_logical(gap_linux_x, gap_linux_y, &layout, true), None);
+        let glx_i = gap_linux_x.round() as i32;
+        let gly_i = gap_linux_y.round() as i32;
+        assert!(!linux_rects.iter().any(|r| glx_i >= r.x && glx_i < r.x + r.width && gly_i >= r.y && gly_i < r.y + r.height));
+        assert!(is_point_in_dock_hover_corridor(gap_screen_x, gap_screen_y, &layout));
+    }
+}
+
+#[test]
+fn parity_action_dock_cocoa_frame_flip_and_linux_hidpi_scaling() {
+    use crate::presentation::bubble::dock::{compute_action_dock_layout, DockDirection};
+    let screen = sample_screen(2.0);
+    let down = compute_action_dock_layout(40, 200, 112, &screen, 12.0, 60.0);
+    assert_eq!(down.direction, DockDirection::Down);
+    let up = compute_action_dock_layout(40, 1920, 112, &screen, 12.0, 60.0);
+    assert_eq!(up.direction, DockDirection::Up);
+    for layout in [&down, &up] {
+        let cocoa = dock_physical_to_cocoa_rect_with_primary_height(layout, 1080.0);
+        let expected_w = (layout.canvas_width as f64) / 2.0;
+        let expected_h = (layout.canvas_height as f64) / 2.0;
+        let expected_x = (layout.window_x as f64) / 2.0;
+        let expected_y = 1080.0 - (layout.window_y as f64) / 2.0 - expected_h;
+        assert!((cocoa.size.width - expected_w).abs() < 1e-6);
+        assert!((cocoa.size.height - expected_h).abs() < 1e-6);
+        assert!((cocoa.origin.x - expected_x).abs() < 1e-6);
+        assert!((cocoa.origin.y - expected_y).abs() < 1e-6);
+        let rects = compute_dock_input_rects(layout, true);
+        let max_w = physical_size_to_logical(layout.canvas_width, 2.0);
+        let max_h = physical_size_to_logical(layout.canvas_height, 2.0);
+        assert!(!rects.is_empty());
+        assert!(rects.iter().all(|r| r.x >= 0 && r.y >= 0 && r.width > 0 && r.height > 0 && r.x + r.width <= max_w && r.y + r.height <= max_h));
+    }
+}
+
+#[test]
+fn parity_action_dock_animation_click_and_sibling_push_across_macos_and_linux() {
+    use crate::presentation::bubble::dock::{
+        compute_dock_placement_plan, is_point_in_dock_hover_corridor, DockActionId,
+        DockAnimationState, DockSiblingOffsetTracker, DockVisibilityPhase,
+    };
+    let screen = sample_screen(1.0);
+    let cfg = BubblePhysicsConfig::default();
+    let bubbles = vec![
+        BubbleRect { account_index: 1, x: 0, y: 100, width: 56, height: 56 },
+        BubbleRect { account_index: 2, x: -42, y: 168, width: 56, height: 56 },
+    ];
+    let plan = compute_dock_placement_plan(1, 0, 100, 56, &screen, &cfg, &bubbles);
+    assert_eq!(plan.sibling_pushes.len(), 1);
+    let mut tracker = DockSiblingOffsetTracker::default();
+    let diff = tracker.apply_plan(1, &plan.sibling_pushes);
+    assert!(diff.to_restore.is_empty());
+    assert_eq!(diff.to_push[0].0, 2);
+    let mut mac_anim = DockAnimationState::default();
+    let mut linux_anim = DockAnimationState::default();
+    mac_anim.start_appear();
+    linux_anim.start_appear();
+    assert!(mac_anim.needs_frame() && linux_anim.needs_frame());
+    for _ in 0..20 {
+        let _ = mac_anim.step(16.0);
+        let _ = linux_anim.step(16.0);
+    }
+    assert_eq!(mac_anim.phase, DockVisibilityPhase::IdleVisible);
+    assert_eq!(linux_anim.phase, DockVisibilityPhase::IdleVisible);
+    assert!(!mac_anim.needs_frame() && !linux_anim.needs_frame());
+    let mute_slot = plan.layout.slots[DockActionId::Mute.index()];
+    let mac_x = mute_slot.local_cx as f64;
+    let mac_y = plan.layout.canvas_height as f64 - mute_slot.local_cy as f64;
+    let linux_x = mute_slot.local_cx as f64;
+    let linux_y = mute_slot.local_cy as f64;
+    let mac_hit = hit_test_macos_dock_local_point(mac_x, mac_y, &plan.layout, true);
+    let linux_hit = hit_test_linux_dock_local_logical(linux_x, linux_y, &plan.layout, true);
+    assert_eq!(mac_hit, Some(DockActionId::Mute));
+    assert_eq!(linux_hit, Some(DockActionId::Mute));
+    assert!(mac_anim.set_hovered(mac_hit) && linux_anim.set_hovered(linux_hit));
+    assert!(mac_anim.set_pressed(mac_hit) && linux_anim.set_pressed(linux_hit));
+    let corridor_x = plan.layout.window_x + mute_slot.local_cx.round() as i32;
+    let corridor_y = plan.layout.window_y + mute_slot.local_cy.round() as i32;
+    assert!(is_point_in_dock_hover_corridor(corridor_x, corridor_y, &plan.layout));
+    mac_anim.hide_immediate();
+    linux_anim.hide_immediate();
+    assert!(!mac_anim.needs_frame() && !linux_anim.needs_frame());
+    let restores = tracker.clear_for_close(Some(1)).expect("owner closes");
+    assert_eq!(restores, vec![(2, 168)]);
 }

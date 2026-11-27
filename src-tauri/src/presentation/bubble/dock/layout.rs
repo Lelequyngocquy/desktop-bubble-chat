@@ -193,7 +193,7 @@ pub fn hit_test_dock_droplet(
     local_y: f32,
     layout: &ActionDockLayout,
 ) -> Option<DockActionId> {
-    let pad = (2.0 * layout.scale_factor as f32).clamp(1.5, 4.0);
+    let pad = (1.5 * layout.scale_factor as f32).clamp(1.0, 3.0);
     for slot in &layout.slots {
         let dx = local_x - slot.local_cx;
         let dy = local_y - slot.local_cy;

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex, OnceLock, RwLock};
 use tauri::{AppHandle, Manager};
+use super::dock::{MacOSActionDockState, MacOSDockHoverCorridorCache};
 use super::window::MacOSBubbleWindowState;
 
 /// Control actions sent to the macOS Native Bubble manager
@@ -19,6 +20,18 @@ pub enum NativeBubbleAction {
     SetAlwaysOnTop { enabled: bool },
     AssertTopmost,
     SetSize { account_index: u32, size: u32 },
+    ShowActionDock {
+        account_index: u32,
+        layout: crate::presentation::bubble::dock::ActionDockLayout,
+        snapshot: crate::presentation::bubble::dock::DockActionStateSnapshot,
+        app: AppHandle,
+    },
+    SyncActionDock {
+        account_index: u32,
+        snapshot: crate::presentation::bubble::dock::DockActionStateSnapshot,
+        layout: Option<crate::presentation::bubble::dock::ActionDockLayout>,
+    },
+    HideActionDock { immediate: bool },
     Shutdown,
 }
 
@@ -28,6 +41,8 @@ pub type MacOSBubbleBoundsCache = Arc<RwLock<HashMap<u32, (i32, i32, u32, u32)>>
 pub struct NativeBubbleManager {
     bubbles: Arc<Mutex<HashMap<u32, MacOSBubbleWindowState>>>,
     bounds_cache: MacOSBubbleBoundsCache,
+    action_dock: Mutex<Option<MacOSActionDockState>>,
+    dock_hover_corridor: MacOSDockHoverCorridorCache,
     hover_leave_tokens: Mutex<HashMap<u32, u64>>,
     token_seq: AtomicU64,
     is_always_on_top: AtomicBool,
@@ -43,6 +58,8 @@ impl NativeBubbleManager {
         GLOBAL_MANAGER.get_or_init(|| Self {
             bubbles: Arc::new(Mutex::new(HashMap::new())),
             bounds_cache: Arc::new(RwLock::new(HashMap::new())),
+            action_dock: Mutex::new(None),
+            dock_hover_corridor: Arc::new(RwLock::new(None)),
             hover_leave_tokens: Mutex::new(HashMap::new()),
             token_seq: AtomicU64::new(1),
             is_always_on_top: AtomicBool::new(true),
@@ -112,9 +129,17 @@ impl NativeBubbleManager {
                         b.3 = *size;
                     }
             }
+            NativeBubbleAction::HideActionDock { .. } => {
+                if let Ok(mut corridor) = self.dock_hover_corridor.write() {
+                    *corridor = None;
+                }
+            }
             NativeBubbleAction::Shutdown => {
                 if let Ok(mut cache) = self.bounds_cache.write() {
                     cache.clear();
+                }
+                if let Ok(mut corridor) = self.dock_hover_corridor.write() {
+                    *corridor = None;
                 }
             }
             _ => {}
@@ -195,6 +220,11 @@ impl NativeBubbleManager {
                     cs.set_bubble_rect(idx, crate::movement::BubbleRect { account_index: idx, x: nx, y: ny, width: bsz as i32, height: bsz as i32 });
                 }
         }
+        if let Ok(mut dock_guard) = self.action_dock.lock()
+            && let Some(dock) = dock_guard.as_mut()
+            && let Some(delay) = dock.step_animation() {
+                min_delay = Some(min_delay.map_or(delay, |d| d.min(delay)));
+            }
         min_delay
     }
 
@@ -322,16 +352,25 @@ impl NativeBubbleManager {
                         bubble.set_always_on_top(enabled);
                     }
                 }
+                if let Ok(mut dock_guard) = self.action_dock.lock()
+                    && let Some(dock) = dock_guard.as_mut() {
+                        dock.set_always_on_top(enabled);
+                    }
             }
             NativeBubbleAction::AssertTopmost => {
-                if self.is_always_on_top.load(Ordering::SeqCst)
-                    && let Ok(mut map) = self.bubbles.lock() {
+                if self.is_always_on_top.load(Ordering::SeqCst) {
+                    if let Ok(mut map) = self.bubbles.lock() {
                         for bubble in map.values_mut() {
                             if bubble.is_visible && !bubble.is_dragging {
                                 bubble.assert_topmost();
                             }
                         }
                     }
+                    if let Ok(dock_guard) = self.action_dock.lock()
+                        && let Some(dock) = dock_guard.as_ref() {
+                            dock.assert_topmost();
+                        }
+                }
             }
             NativeBubbleAction::SetSize { account_index, size } => {
                 if let Ok(mut map) = self.bubbles.lock()
@@ -339,7 +378,44 @@ impl NativeBubbleManager {
                         bubble.resize(size);
                     }
             }
+            NativeBubbleAction::ShowActionDock { account_index, layout, snapshot, app } => {
+                let top = self.is_always_on_top.load(Ordering::SeqCst);
+                let mut needs_driver = false;
+                if let Ok(mut dock_guard) = self.action_dock.lock() {
+                    let dock = dock_guard.get_or_insert_with(|| MacOSActionDockState::new(top, Arc::clone(&self.dock_hover_corridor)));
+                    dock.show_for_bubble(account_index, layout, snapshot, Some(app));
+                    needs_driver = dock.animator.needs_frame();
+                }
+                if needs_driver {
+                    self.ensure_animation_driver_running();
+                }
+            }
+            NativeBubbleAction::SyncActionDock { account_index, snapshot, layout } => {
+                let mut needs_driver = false;
+                if let Ok(mut dock_guard) = self.action_dock.lock()
+                    && let Some(dock) = dock_guard.as_mut() {
+                        dock.sync_state(account_index, snapshot, layout);
+                        needs_driver = dock.animator.needs_frame();
+                    }
+                if needs_driver {
+                    self.ensure_animation_driver_running();
+                }
+            }
+            NativeBubbleAction::HideActionDock { immediate } => {
+                let mut needs_driver = false;
+                if let Ok(mut dock_guard) = self.action_dock.lock()
+                    && let Some(dock) = dock_guard.as_mut() {
+                        dock.hide(immediate);
+                        needs_driver = dock.animator.needs_frame();
+                    }
+                if needs_driver {
+                    self.ensure_animation_driver_running();
+                }
+            }
             NativeBubbleAction::Shutdown => {
+                if let Ok(mut dock_guard) = self.action_dock.lock() {
+                    *dock_guard = None;
+                }
                 if let Ok(mut map) = self.bubbles.lock() {
                     map.clear();
                 }
@@ -374,6 +450,85 @@ impl NativeBubbleManager {
         false
     }
 
+    /// Checks if cursor is inside the active ActionDock Hover Bridge corridor
+    pub fn is_cursor_over_action_dock(&self) -> bool {
+        let rect_opt = self.dock_hover_corridor.read().ok().and_then(|g| *g);
+        if let Some(rect) = rect_opt
+            && let Some((cx, cy)) = crate::operating_systems::macos::cursor::MacOSCursorTracker::get_cursor_position() {
+                return rect.contains_point(cx, cy);
+            }
+        false
+    }
+
+    /// Evaluates Cocoa NSView hitTest: eligibility for the singleton ActionDock
+    pub fn is_action_dock_local_point_hittable(&self, local_x_pt: f64, local_y_pt: f64) -> bool {
+        self.action_dock
+            .lock()
+            .ok()
+            .and_then(|g| g.as_ref().map(|d| d.is_local_point_hittable(local_x_pt, local_y_pt)))
+            .unwrap_or(false)
+    }
+
+    /// Handles Cocoa mouseMoved:/mouseDragged: on the ActionDock view
+    pub fn handle_action_dock_mouse_move(&self, local_x_pt: f64, local_y_pt: f64) {
+        let needs_driver = self
+            .action_dock
+            .lock()
+            .ok()
+            .and_then(|mut g| g.as_mut().map(|d| d.on_mouse_move(local_x_pt, local_y_pt)))
+            .unwrap_or(false);
+        if needs_driver {
+            self.ensure_animation_driver_running();
+        }
+    }
+
+    /// Handles Cocoa mouseExited: on the ActionDock view
+    pub fn handle_action_dock_mouse_leave(&self) {
+        let needs_driver = self
+            .action_dock
+            .lock()
+            .ok()
+            .and_then(|mut g| g.as_mut().map(|d| d.on_mouse_leave()))
+            .unwrap_or(false);
+        if needs_driver {
+            self.ensure_animation_driver_running();
+        }
+    }
+
+    /// Handles Cocoa mouseDown: on the ActionDock view
+    pub fn handle_action_dock_mouse_down(&self, local_x_pt: f64, local_y_pt: f64) {
+        let needs_driver = self
+            .action_dock
+            .lock()
+            .ok()
+            .and_then(|mut g| g.as_mut().map(|d| d.on_mouse_down(local_x_pt, local_y_pt)))
+            .unwrap_or(false);
+        if needs_driver {
+            self.ensure_animation_driver_running();
+        }
+    }
+
+    /// Handles Cocoa mouseUp: on the ActionDock view and runs SSOT action asynchronously
+    pub fn handle_action_dock_mouse_up(&self, local_x_pt: f64, local_y_pt: f64) {
+        let (payload, needs_driver) = self
+            .action_dock
+            .lock()
+            .ok()
+            .and_then(|mut g| g.as_mut().map(|d| d.on_mouse_up(local_x_pt, local_y_pt)))
+            .unwrap_or((None, false));
+        if needs_driver {
+            self.ensure_animation_driver_running();
+        }
+        if let Some((Some(app), account_index, action)) = payload {
+            tauri::async_runtime::spawn(async move {
+                crate::presentation::bubble::dock::execute_dock_action(&app, account_index, action);
+                if action != crate::presentation::bubble::dock::DockActionId::HideBubble {
+                    crate::operating_systems::macos::bubble::sync_native_action_dock_state(&app, account_index, None);
+                }
+            });
+        }
+    }
+
     /// Handles mouse press on NSPanel view
     pub fn handle_mouse_down(&self, account_index: u32, mouse_x: i32, mouse_y: i32) {
         self.bump_hover_leave_token(account_index);
@@ -402,16 +557,24 @@ impl NativeBubbleManager {
     pub fn handle_mouse_move(&self, account_index: u32, mouse_x: i32, mouse_y: i32) {
         let mut updated_bounds = None;
         let mut displaced = Vec::new();
+        let mut drag_started_app = None;
         if let Ok(mut map) = self.bubbles.lock()
             && let Some(bubble) = map.get_mut(&account_index) {
                 let was_hovered = bubble.is_hovered;
+                let was_dragged = bubble.has_dragged;
                 bubble.on_mouse_move(mouse_x, mouse_y);
+                if !was_dragged && bubble.has_dragged {
+                    drag_started_app = bubble.app_handle.clone();
+                }
                 updated_bounds = Some((bubble.x, bubble.y, bubble.bubble_size));
                 if !was_hovered && bubble.is_hovered
                     && let Some(app) = bubble.app_handle.clone() {
                         displaced = bubble.untuck(&app);
                     }
             }
+        if let Some(app) = drag_started_app {
+            crate::presentation::bubble::dock::on_bubble_drag_started(&app, account_index);
+        }
         if let Some((bx, by, bsz)) = updated_bounds {
             self.update_cached_bounds(account_index, bx, by, bsz, bsz);
         }
@@ -422,16 +585,34 @@ impl NativeBubbleManager {
     pub fn handle_mouse_up(&self, account_index: u32, mouse_x: i32, mouse_y: i32) {
         let mut updated_bounds = None;
         let mut displaced = Vec::new();
+        let mut redock_app = None;
         if let Ok(mut map) = self.bubbles.lock()
             && let Some(bubble) = map.get_mut(&account_index) {
+                let was_dragged = bubble.has_dragged;
                 displaced = bubble.on_mouse_up(mouse_x, mouse_y);
-                updated_bounds = Some((bubble.x, bubble.y, bubble.bubble_size));
+                let mut target_x = bubble.x;
+                let mut target_y = bubble.y;
+                if was_dragged && bubble.is_visible
+                    && let Some(app) = bubble.app_handle.clone() {
+                        if let Some(cs) = app.try_state::<Arc<crate::state::ChatState>>()
+                            && let Some(rect) = cs.get_bubble_rect(account_index) {
+                                target_x = rect.x;
+                                target_y = rect.y;
+                            }
+                        redock_app = Some(app);
+                    }
+                updated_bounds = Some((target_x, target_y, bubble.bubble_size));
             }
         if let Some((bx, by, bsz)) = updated_bounds {
             self.update_cached_bounds(account_index, bx, by, bsz, bsz);
         }
         self.animate_displaced_siblings(displaced);
         self.ensure_animation_driver_running();
+        if let Some(app) = redock_app {
+            tauri::async_runtime::spawn(async move {
+                crate::presentation::bubble::dock::on_bubble_drag_finished(&app, account_index);
+            });
+        }
     }
 
     /// Handles mouse enter on NSPanel view without holding bubbles lock across sibling animations

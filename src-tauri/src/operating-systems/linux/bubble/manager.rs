@@ -2,6 +2,7 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use tauri::{AppHandle, Manager};
+use super::dock::{LinuxActionDockState, LinuxDockHoverCorridorCache};
 use super::window::LinuxBubbleWindowState;
 
 /// Control actions sent to the Linux Native Bubble manager
@@ -19,6 +20,18 @@ pub enum NativeBubbleAction {
     SetAlwaysOnTop { enabled: bool },
     AssertTopmost,
     SetSize { account_index: u32, size: u32 },
+    ShowActionDock {
+        account_index: u32,
+        layout: crate::presentation::bubble::dock::ActionDockLayout,
+        snapshot: crate::presentation::bubble::dock::DockActionStateSnapshot,
+        app: AppHandle,
+    },
+    SyncActionDock {
+        account_index: u32,
+        snapshot: crate::presentation::bubble::dock::DockActionStateSnapshot,
+        layout: Option<crate::presentation::bubble::dock::ActionDockLayout>,
+    },
+    HideActionDock { immediate: bool },
     Shutdown,
 }
 
@@ -28,6 +41,8 @@ pub type LinuxBubbleBoundsCache = Arc<RwLock<HashMap<u32, (i32, i32, u32, u32)>>
 pub struct NativeBubbleManager {
     bubbles: Arc<Mutex<HashMap<u32, LinuxBubbleWindowState>>>,
     bounds_cache: LinuxBubbleBoundsCache,
+    action_dock: Mutex<Option<LinuxActionDockState>>,
+    dock_hover_corridor: LinuxDockHoverCorridorCache,
     #[allow(dead_code)]
     pending_actions: Mutex<VecDeque<NativeBubbleAction>>,
     is_always_on_top: AtomicBool,
@@ -47,6 +62,8 @@ impl NativeBubbleManager {
         GLOBAL_MANAGER.get_or_init(|| Self {
             bubbles: Arc::new(Mutex::new(HashMap::new())),
             bounds_cache: Arc::new(RwLock::new(HashMap::new())),
+            action_dock: Mutex::new(None),
+            dock_hover_corridor: Arc::new(RwLock::new(None)),
             pending_actions: Mutex::new(VecDeque::new()),
             is_always_on_top: AtomicBool::new(true),
         })
@@ -92,9 +109,17 @@ impl NativeBubbleManager {
                         b.3 = *size;
                     }
             }
+            NativeBubbleAction::HideActionDock { .. } => {
+                if let Ok(mut corridor) = self.dock_hover_corridor.write() {
+                    *corridor = None;
+                }
+            }
             NativeBubbleAction::Shutdown => {
                 if let Ok(mut cache) = self.bounds_cache.write() {
                     cache.clear();
+                }
+                if let Ok(mut corridor) = self.dock_hover_corridor.write() {
+                    *corridor = None;
                 }
             }
             _ => {}
@@ -232,16 +257,25 @@ impl NativeBubbleManager {
                         bubble.set_always_on_top(enabled);
                     }
                 }
+                if let Ok(mut dock_guard) = self.action_dock.lock()
+                    && let Some(dock) = dock_guard.as_mut() {
+                        dock.set_always_on_top(enabled);
+                    }
             }
             NativeBubbleAction::AssertTopmost => {
                 if self.is_always_on_top.load(Ordering::SeqCst)
-                    && !crate::operating_systems::linux::cursor::LinuxCursorTracker::is_active_x11_window_fullscreen()
-                    && let Ok(mut map) = self.bubbles.lock() {
-                        for bubble in map.values_mut() {
-                            if bubble.is_visible && !bubble.is_dragging {
-                                bubble.assert_topmost();
+                    && !crate::operating_systems::linux::cursor::LinuxCursorTracker::is_active_x11_window_fullscreen() {
+                        if let Ok(mut map) = self.bubbles.lock() {
+                            for bubble in map.values_mut() {
+                                if bubble.is_visible && !bubble.is_dragging {
+                                    bubble.assert_topmost();
+                                }
                             }
                         }
+                        if let Ok(dock_guard) = self.action_dock.lock()
+                            && let Some(dock) = dock_guard.as_ref() {
+                                dock.assert_topmost();
+                            }
                     }
             }
             NativeBubbleAction::SetSize { account_index, size } => {
@@ -250,7 +284,29 @@ impl NativeBubbleManager {
                         bubble.resize(size);
                     }
             }
+            NativeBubbleAction::ShowActionDock { account_index, layout, snapshot, app } => {
+                let top = self.is_always_on_top.load(Ordering::SeqCst);
+                if let Ok(mut dock_guard) = self.action_dock.lock() {
+                    let dock = dock_guard.get_or_insert_with(|| LinuxActionDockState::new(top, Arc::clone(&self.dock_hover_corridor)));
+                    dock.show_for_bubble(account_index, layout, snapshot, Some(app));
+                }
+            }
+            NativeBubbleAction::SyncActionDock { account_index, snapshot, layout } => {
+                if let Ok(mut dock_guard) = self.action_dock.lock()
+                    && let Some(dock) = dock_guard.as_mut() {
+                        dock.sync_state(account_index, snapshot, layout);
+                    }
+            }
+            NativeBubbleAction::HideActionDock { immediate } => {
+                if let Ok(mut dock_guard) = self.action_dock.lock()
+                    && let Some(dock) = dock_guard.as_mut() {
+                        dock.hide(immediate);
+                    }
+            }
             NativeBubbleAction::Shutdown => {
+                if let Ok(mut dock_guard) = self.action_dock.lock() {
+                    *dock_guard = None;
+                }
                 if let Ok(mut map) = self.bubbles.lock() {
                     map.clear();
                 }
@@ -284,6 +340,66 @@ impl NativeBubbleManager {
         false
     }
 
+    /// Checks if cursor is inside the active ActionDock Hover Bridge corridor
+    pub fn is_cursor_over_action_dock(&self) -> bool {
+        let rect_opt = self.dock_hover_corridor.read().ok().and_then(|g| *g);
+        if let Some(rect) = rect_opt
+            && let Some((cx, cy)) = crate::operating_systems::linux::cursor::LinuxCursorTracker::get_cursor_position() {
+                return rect.contains_point(cx, cy);
+            }
+        false
+    }
+
+    /// Handles GTK motion-notify-event on the ActionDock window
+    pub fn handle_action_dock_mouse_move(&self, local_x: f64, local_y: f64) {
+        if let Ok(mut guard) = self.action_dock.lock()
+            && let Some(dock) = guard.as_mut() {
+                dock.on_mouse_move(local_x, local_y);
+            }
+    }
+
+    /// Handles GTK leave-notify-event on the ActionDock window
+    pub fn handle_action_dock_mouse_leave(&self) {
+        if let Ok(mut guard) = self.action_dock.lock()
+            && let Some(dock) = guard.as_mut() {
+                dock.on_mouse_leave();
+            }
+    }
+
+    /// Handles GTK button-press-event on the ActionDock window
+    pub fn handle_action_dock_mouse_down(&self, local_x: f64, local_y: f64) {
+        if let Ok(mut guard) = self.action_dock.lock()
+            && let Some(dock) = guard.as_mut() {
+                dock.on_mouse_down(local_x, local_y);
+            }
+    }
+
+    /// Handles GTK button-release-event on ActionDock and dispatches SSOT action asynchronously
+    pub fn handle_action_dock_mouse_up(&self, local_x: f64, local_y: f64) {
+        let payload = self
+            .action_dock
+            .lock()
+            .ok()
+            .and_then(|mut guard| guard.as_mut().and_then(|d| d.on_mouse_up(local_x, local_y)));
+        if let Some((Some(app), account_index, action)) = payload {
+            tauri::async_runtime::spawn(async move {
+                crate::presentation::bubble::dock::execute_dock_action(&app, account_index, action);
+                if action != crate::presentation::bubble::dock::DockActionId::HideBubble {
+                    crate::operating_systems::linux::bubble::sync_native_action_dock_state(&app, account_index, None);
+                }
+            });
+        }
+    }
+
+    /// Advances Linux ActionDock GLib animation tick, returning false when idle
+    pub fn on_action_dock_anim_tick(&self) -> bool {
+        if let Ok(mut guard) = self.action_dock.lock()
+            && let Some(dock) = guard.as_mut() {
+                return dock.on_anim_tick();
+            }
+        false
+    }
+
     /// Dispatches mouse press event
     pub fn handle_mouse_down(&self, account_index: u32, mouse_x: i32, mouse_y: i32) {
         if let Ok(mut map) = self.bubbles.lock()
@@ -304,16 +420,24 @@ impl NativeBubbleManager {
     pub fn handle_mouse_move(&self, account_index: u32, mouse_x: i32, mouse_y: i32) {
         let mut updated_bounds = None;
         let mut displaced = Vec::new();
+        let mut drag_started_app = None;
         if let Ok(mut map) = self.bubbles.lock()
             && let Some(bubble) = map.get_mut(&account_index) {
                 let was_hovered = bubble.is_hovered;
+                let was_dragged = bubble.has_dragged;
                 bubble.on_mouse_move(mouse_x, mouse_y);
+                if !was_dragged && bubble.has_dragged {
+                    drag_started_app = bubble.app_handle.clone();
+                }
                 updated_bounds = Some((bubble.x, bubble.y, bubble.bubble_size));
                 if !was_hovered && bubble.is_hovered
                     && let Some(app) = bubble.app_handle.clone() {
                         displaced = bubble.untuck(&app);
                     }
             }
+        if let Some(app) = drag_started_app {
+            crate::presentation::bubble::dock::on_bubble_drag_started(&app, account_index);
+        }
         if let Some((bx, by, bsz)) = updated_bounds {
             self.update_cached_bounds(account_index, bx, by, bsz, bsz);
         }
@@ -324,15 +448,33 @@ impl NativeBubbleManager {
     pub fn handle_mouse_up(&self, account_index: u32, mouse_x: i32, mouse_y: i32) {
         let mut updated_bounds = None;
         let mut displaced = Vec::new();
+        let mut redock_app = None;
         if let Ok(mut map) = self.bubbles.lock()
             && let Some(bubble) = map.get_mut(&account_index) {
+                let was_dragged = bubble.has_dragged;
                 displaced = bubble.on_mouse_up(mouse_x, mouse_y);
-                updated_bounds = Some((bubble.x, bubble.y, bubble.bubble_size));
+                let mut target_x = bubble.x;
+                let mut target_y = bubble.y;
+                if was_dragged && bubble.is_visible
+                    && let Some(app) = bubble.app_handle.clone() {
+                        if let Some(cs) = app.try_state::<Arc<crate::state::ChatState>>()
+                            && let Some(rect) = cs.get_bubble_rect(account_index) {
+                                target_x = rect.x;
+                                target_y = rect.y;
+                            }
+                        redock_app = Some(app);
+                    }
+                updated_bounds = Some((target_x, target_y, bubble.bubble_size));
             }
         if let Some((bx, by, bsz)) = updated_bounds {
             self.update_cached_bounds(account_index, bx, by, bsz, bsz);
         }
         self.animate_displaced_siblings(displaced);
+        if let Some(app) = redock_app {
+            tauri::async_runtime::spawn(async move {
+                crate::presentation::bubble::dock::on_bubble_drag_finished(&app, account_index);
+            });
+        }
     }
 
     /// Dispatches mouse enter event without holding bubbles lock across sibling animations
@@ -462,6 +604,22 @@ pub unsafe extern "C" fn pulse_timer_callback(user_data: *mut std::ffi::c_void) 
 /// Safe no-op stub for non-Linux targets.
 #[cfg(not(target_os = "linux"))]
 pub unsafe extern "C" fn pulse_timer_callback(_user_data: *mut std::ffi::c_void) -> i32 { 0 }
+
+/// GLib 16ms ActionDock animation timer callback that self-stops when idle
+///
+/// # Safety
+/// Invoked by GLib main loop with null user_data pointer.
+#[cfg(target_os = "linux")]
+pub unsafe extern "C" fn dock_anim_timer_callback(_user_data: *mut std::ffi::c_void) -> i32 {
+    if NativeBubbleManager::global().on_action_dock_anim_tick() { 1 } else { 0 }
+}
+
+/// Fallback for non-Linux targets
+///
+/// # Safety
+/// Safe no-op stub for non-Linux targets.
+#[cfg(not(target_os = "linux"))]
+pub unsafe extern "C" fn dock_anim_timer_callback(_user_data: *mut std::ffi::c_void) -> i32 { 0 }
 
 /// Utility function to update cached bounds
 pub fn update_cached_bubble_bounds(account_index: u32, x: i32, y: i32, w: u32, h: u32) {

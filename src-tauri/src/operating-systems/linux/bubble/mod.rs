@@ -1,4 +1,5 @@
 pub mod animator;
+pub mod dock;
 pub mod manager;
 pub mod renderer;
 pub mod window;
@@ -90,27 +91,51 @@ pub fn set_native_bubble_size(account_index: u32, size: u32) {
     NativeBubbleManager::global().dispatch(NativeBubbleAction::SetSize { account_index, size });
 }
 
-/// Shows or repositions the singleton Liquid Glass ActionDock on Linux (stubbed until Phase 4)
+/// Shows or repositions the singleton Liquid Glass ActionDock on Linux
 pub fn show_native_action_dock(
-    _app: &tauri::AppHandle,
-    _account_index: u32,
-    _layout: crate::presentation::bubble::dock::ActionDockLayout,
-    _snapshot: crate::presentation::bubble::dock::DockActionStateSnapshot,
-) {}
+    app: &tauri::AppHandle,
+    account_index: u32,
+    layout: crate::presentation::bubble::dock::ActionDockLayout,
+    snapshot: crate::presentation::bubble::dock::DockActionStateSnapshot,
+) {
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::ShowActionDock {
+        account_index,
+        layout,
+        snapshot,
+        app: app.clone(),
+    });
+}
 
-/// Syncs active toggle state to the visible Linux ActionDock (stubbed until Phase 4)
+/// Syncs active toggle state and optional new layout to the visible Linux ActionDock
 pub fn sync_native_action_dock_state(
-    _app: &tauri::AppHandle,
-    _account_index: u32,
-    _layout: Option<crate::presentation::bubble::dock::ActionDockLayout>,
-) {}
+    app: &tauri::AppHandle,
+    account_index: u32,
+    layout: Option<crate::presentation::bubble::dock::ActionDockLayout>,
+) {
+    let bubble_size_px = NativeBubbleManager::global()
+        .get_bounds(account_index)
+        .map(|(_, _, w, _)| w)
+        .unwrap_or_else(|| {
+            let cfg = crate::movement::get_bubble_physics_config(app);
+            let screen = crate::movement::get_target_dashboard_screen(Some(app));
+            (cfg.size * screen.scale_factor).round() as u32
+        });
+    let snapshot = crate::presentation::bubble::dock::snapshot_from_app(app, account_index, bubble_size_px);
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::SyncActionDock {
+        account_index,
+        snapshot,
+        layout,
+    });
+}
 
-/// Hides the singleton Linux ActionDock (stubbed until Phase 4)
-pub fn hide_native_action_dock(_immediate: bool) {}
+/// Hides the singleton Linux ActionDock immediately or with fast retract fade
+pub fn hide_native_action_dock(immediate: bool) {
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::HideActionDock { immediate });
+}
 
-/// Checks if cursor is inside the active Linux ActionDock Hover Bridge (stubbed until Phase 4)
+/// Checks if cursor is currently inside the active Linux ActionDock Hover Bridge corridor
 pub fn is_cursor_over_native_action_dock() -> bool {
-    false
+    NativeBubbleManager::global().is_cursor_over_action_dock()
 }
 
 /// Shuts down native bubbles cleanly on application exit
