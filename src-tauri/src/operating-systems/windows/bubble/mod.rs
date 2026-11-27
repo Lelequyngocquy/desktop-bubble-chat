@@ -2,6 +2,8 @@ pub mod animator;
 pub mod renderer;
 
 #[cfg(target_os = "windows")]
+pub mod dock;
+#[cfg(target_os = "windows")]
 pub mod manager;
 #[cfg(target_os = "windows")]
 pub mod window;
@@ -125,6 +127,57 @@ pub fn reassert_native_bubble_topmost() {
 #[cfg(target_os = "windows")]
 pub fn set_native_bubble_size(account_index: u32, size: u32) {
     NativeBubbleManager::global().dispatch(NativeBubbleAction::SetSize { account_index, size });
+}
+
+/// Shows or repositions the singleton Liquid Glass ActionDock for an account bubble
+#[cfg(target_os = "windows")]
+pub fn show_native_action_dock(
+    app: &tauri::AppHandle,
+    account_index: u32,
+    layout: crate::presentation::bubble::dock::ActionDockLayout,
+    snapshot: crate::presentation::bubble::dock::DockActionStateSnapshot,
+) {
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::ShowActionDock {
+        account_index,
+        layout,
+        snapshot,
+        app: app.clone(),
+    });
+}
+
+/// Syncs active toggle state and optional new layout to the visible ActionDock
+#[cfg(target_os = "windows")]
+pub fn sync_native_action_dock_state(
+    app: &tauri::AppHandle,
+    account_index: u32,
+    layout: Option<crate::presentation::bubble::dock::ActionDockLayout>,
+) {
+    let bubble_size_px = NativeBubbleManager::global()
+        .get_bounds(account_index)
+        .map(|(_, _, w, _)| w)
+        .unwrap_or_else(|| {
+            let cfg = crate::movement::get_bubble_physics_config(app);
+            let screen = crate::movement::get_target_dashboard_screen(Some(app));
+            (cfg.size * screen.scale_factor).round() as u32
+        });
+    let snapshot = crate::presentation::bubble::dock::snapshot_from_app(app, account_index, bubble_size_px);
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::SyncActionDock {
+        account_index,
+        snapshot,
+        layout,
+    });
+}
+
+/// Hides the singleton ActionDock immediately or with fast retract fade
+#[cfg(target_os = "windows")]
+pub fn hide_native_action_dock(immediate: bool) {
+    NativeBubbleManager::global().dispatch(NativeBubbleAction::HideActionDock { immediate });
+}
+
+/// Checks if cursor is currently inside the active ActionDock Hover Bridge corridor
+#[cfg(target_os = "windows")]
+pub fn is_cursor_over_native_action_dock() -> bool {
+    NativeBubbleManager::global().is_cursor_over_action_dock()
 }
 
 /// Shuts down native bubble worker thread cleanly on application exit.

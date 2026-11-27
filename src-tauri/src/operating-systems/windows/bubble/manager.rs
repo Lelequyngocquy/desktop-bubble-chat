@@ -13,12 +13,16 @@ use std::sync::{Arc, OnceLock, RwLock};
 use tauri::AppHandle;
 
 #[cfg(target_os = "windows")]
+use super::dock::{DockHoverCorridorCache, NativeActionDockWindow};
+#[cfg(target_os = "windows")]
 use super::window::{
     ensure_window_class_registered, is_window_fullscreen, CreateWindowExW, DestroyWindow,
     GetForegroundWindow, GetModuleHandleW, KillTimer, NativeBubbleWindow, SetTimer,
     SetWinEventHook, UnhookWinEvent, EVENT_SYSTEM_FOREGROUND, POINT, WINEVENT_OUTOFCONTEXT,
     WINEVENT_SKIPOWNPROCESS, WM_TIMER,
 };
+#[cfg(target_os = "windows")]
+use crate::presentation::bubble::dock::{ActionDockLayout, DockActionStateSnapshot};
 
 #[cfg(target_os = "windows")]
 #[repr(C)]
@@ -86,10 +90,11 @@ unsafe extern "system" fn foreground_win_event_proc(
     }
 }
 
-/// Re-asserts HWND_TOPMOST on visible idle bubbles unless foreground window is fullscreen
+/// Re-asserts HWND_TOPMOST on visible idle bubbles and keeps ActionDock highest in Z-order
 #[cfg(target_os = "windows")]
 pub(super) fn reassert_topmost_for_bubbles(
     bubbles: &HashMap<u32, NativeBubbleWindow>,
+    action_dock: Option<&NativeActionDockWindow>,
     fg_hwnd: *mut std::ffi::c_void,
 ) {
     if bubbles.is_empty()
@@ -103,6 +108,10 @@ pub(super) fn reassert_topmost_for_bubbles(
             win.set_always_on_top(true);
         }
     }
+    if let Some(dock) = action_dock
+        && dock.is_visible() {
+            dock.set_always_on_top(true);
+        }
 }
 
 /// Control actions sent to the dedicated Win32 Native Bubble UI thread
@@ -162,10 +171,37 @@ pub enum NativeBubbleAction {
         account_index: u32,
         size: u32,
     },
+    ShowActionDock {
+        account_index: u32,
+        layout: ActionDockLayout,
+        snapshot: DockActionStateSnapshot,
+        app: AppHandle,
+    },
+    SyncActionDock {
+        account_index: u32,
+        snapshot: DockActionStateSnapshot,
+        layout: Option<ActionDockLayout>,
+    },
+    HideActionDock {
+        immediate: bool,
+    },
     Shutdown,
 }
 
 pub type BubbleBoundsCache = Arc<RwLock<HashMap<u32, (i32, i32, u32, u32)>>>;
+
+/// Mutable state owned exclusively by the dedicated Win32 Native Bubble UI thread
+#[cfg(target_os = "windows")]
+pub(super) struct BubbleWorkerContext {
+    pub bubbles: HashMap<u32, NativeBubbleWindow>,
+    pub action_dock: Option<NativeActionDockWindow>,
+    pub bounds_cache: BubbleBoundsCache,
+    pub dock_hover_corridor: DockHoverCorridorCache,
+    pub is_always_on_top: bool,
+    pub settle_timer_active: bool,
+    pub should_shutdown: bool,
+    pub msg_hwnd: *mut std::ffi::c_void,
+}
 
 /// Dedicated Native Bubble UI Thread Manager
 #[cfg(target_os = "windows")]
@@ -173,6 +209,7 @@ pub struct NativeBubbleManager {
     msg_hwnd: usize,
     sender: Sender<NativeBubbleAction>,
     bounds_cache: BubbleBoundsCache,
+    dock_hover_corridor: DockHoverCorridorCache,
 }
 
 #[cfg(target_os = "windows")]
@@ -187,6 +224,8 @@ impl NativeBubbleManager {
             let (cmd_tx, cmd_rx) = channel::<NativeBubbleAction>();
             let bounds_cache = Arc::new(RwLock::new(HashMap::new()));
             let bounds_clone = Arc::clone(&bounds_cache);
+            let dock_hover_corridor: DockHoverCorridorCache = Arc::new(RwLock::new(None));
+            let corridor_clone = Arc::clone(&dock_hover_corridor);
             std::thread::Builder::new()
                 .name("native-bubble-worker".into())
                 .spawn(move || {
@@ -230,41 +269,39 @@ impl NativeBubbleManager {
                         eprintln!("[NativeBubble WARN] Failed to register foreground WinEvent hook");
                     }
                     let _ = init_tx.send(msg_hwnd as usize);
-                    let mut bubbles: HashMap<u32, NativeBubbleWindow> = HashMap::new();
-                    let mut is_always_on_top = true;
-                    let mut settle_timer_active = false;
-                    let mut should_shutdown = false;
+                    let mut ctx = BubbleWorkerContext {
+                        bubbles: HashMap::new(),
+                        action_dock: None,
+                        bounds_cache: bounds_clone,
+                        dock_hover_corridor: corridor_clone,
+                        is_always_on_top: true,
+                        settle_timer_active: false,
+                        should_shutdown: false,
+                        msg_hwnd,
+                    };
                     while unsafe { GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) } > 0 {
                         if msg.message == WM_BUBBLE_DISPATCH {
                             while let Ok(action) = cmd_rx.try_recv() {
-                                actions::handle_bubble_action(
-                                    action,
-                                    &mut bubbles,
-                                    &bounds_clone,
-                                    &mut is_always_on_top,
-                                    &mut settle_timer_active,
-                                    &mut should_shutdown,
-                                    msg_hwnd,
-                                );
+                                actions::handle_bubble_action(action, &mut ctx);
                             }
-                            if should_shutdown {
+                            if ctx.should_shutdown {
                                 break;
                             }
                         } else if msg.message == WM_BUBBLE_ASSERT_TOPMOST {
-                            if is_always_on_top && !bubbles.is_empty() {
+                            if ctx.is_always_on_top && !ctx.bubbles.is_empty() {
                                 let fg_hwnd = msg.wparam as *mut std::ffi::c_void;
-                                reassert_topmost_for_bubbles(&bubbles, fg_hwnd);
-                                if settle_timer_active {
+                                reassert_topmost_for_bubbles(&ctx.bubbles, ctx.action_dock.as_ref(), fg_hwnd);
+                                if ctx.settle_timer_active {
                                     unsafe { KillTimer(msg_hwnd, TIMER_ID_SETTLE_TOPMOST); }
                                 }
-                                settle_timer_active = unsafe { SetTimer(msg_hwnd, TIMER_ID_SETTLE_TOPMOST, TOPMOST_SETTLE_DELAY_MS, None) } != 0;
+                                ctx.settle_timer_active = unsafe { SetTimer(msg_hwnd, TIMER_ID_SETTLE_TOPMOST, TOPMOST_SETTLE_DELAY_MS, None) } != 0;
                             }
-                        } else if msg.message == WM_TIMER && msg.hwnd == msg_hwnd && settle_timer_active && msg.wparam == TIMER_ID_SETTLE_TOPMOST {
+                        } else if msg.message == WM_TIMER && msg.hwnd == msg_hwnd && ctx.settle_timer_active && msg.wparam == TIMER_ID_SETTLE_TOPMOST {
                             unsafe { KillTimer(msg_hwnd, TIMER_ID_SETTLE_TOPMOST); }
-                            settle_timer_active = false;
-                            if is_always_on_top && !bubbles.is_empty() {
+                            ctx.settle_timer_active = false;
+                            if ctx.is_always_on_top && !ctx.bubbles.is_empty() {
                                 let fg_hwnd = unsafe { GetForegroundWindow() };
-                                reassert_topmost_for_bubbles(&bubbles, fg_hwnd);
+                                reassert_topmost_for_bubbles(&ctx.bubbles, ctx.action_dock.as_ref(), fg_hwnd);
                             }
                         } else {
                             unsafe {
@@ -273,7 +310,7 @@ impl NativeBubbleManager {
                             }
                         }
                     }
-                    if settle_timer_active {
+                    if ctx.settle_timer_active {
                         unsafe { KillTimer(msg_hwnd, TIMER_ID_SETTLE_TOPMOST); }
                     }
                     FOREGROUND_MSG_HWND.store(0, Ordering::Release);
@@ -288,6 +325,7 @@ impl NativeBubbleManager {
                 msg_hwnd,
                 sender: cmd_tx,
                 bounds_cache,
+                dock_hover_corridor,
             }
         })
     }
@@ -338,6 +376,20 @@ impl NativeBubbleManager {
             unsafe {
                 if GetCursorPos(&mut pt) != 0 {
                     return pt.x >= x && pt.x <= x + w as i32 && pt.y >= y && pt.y <= y + h as i32;
+                }
+            }
+        }
+        false
+    }
+
+    /// Checks if cursor is inside the active ActionDock Hover Bridge corridor
+    pub fn is_cursor_over_action_dock(&self) -> bool {
+        let corridor_opt = self.dock_hover_corridor.read().ok().and_then(|g| *g);
+        if let Some(corridor) = corridor_opt {
+            let mut pt = POINT { x: 0, y: 0 };
+            unsafe {
+                if GetCursorPos(&mut pt) != 0 {
+                    return corridor.contains_point(pt.x, pt.y);
                 }
             }
         }

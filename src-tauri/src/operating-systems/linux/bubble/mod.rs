@@ -90,6 +90,29 @@ pub fn set_native_bubble_size(account_index: u32, size: u32) {
     NativeBubbleManager::global().dispatch(NativeBubbleAction::SetSize { account_index, size });
 }
 
+/// Shows or repositions the singleton Liquid Glass ActionDock on Linux (stubbed until Phase 4)
+pub fn show_native_action_dock(
+    _app: &tauri::AppHandle,
+    _account_index: u32,
+    _layout: crate::presentation::bubble::dock::ActionDockLayout,
+    _snapshot: crate::presentation::bubble::dock::DockActionStateSnapshot,
+) {}
+
+/// Syncs active toggle state to the visible Linux ActionDock (stubbed until Phase 4)
+pub fn sync_native_action_dock_state(
+    _app: &tauri::AppHandle,
+    _account_index: u32,
+    _layout: Option<crate::presentation::bubble::dock::ActionDockLayout>,
+) {}
+
+/// Hides the singleton Linux ActionDock (stubbed until Phase 4)
+pub fn hide_native_action_dock(_immediate: bool) {}
+
+/// Checks if cursor is inside the active Linux ActionDock Hover Bridge (stubbed until Phase 4)
+pub fn is_cursor_over_native_action_dock() -> bool {
+    false
+}
+
 /// Shuts down native bubbles cleanly on application exit
 pub fn shutdown_native_bubbles() {
     NativeBubbleManager::shutdown_if_initialized();
